@@ -1,0 +1,30 @@
+import React from 'react';
+export interface ModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    title?: React.ReactNode;
+    subtitle?: string;
+    icon?: React.ReactNode;
+    headerBadge?: React.ReactNode;
+    headerRight?: React.ReactNode;
+    size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '5xl' | '6xl' | 'full';
+    maxHeight?: string;
+    maxWidth?: string;
+    scrollable?: boolean;
+    children: React.ReactNode;
+    footer?: React.ReactNode;
+    primaryActionLabel?: string;
+    onPrimaryAction?: () => void;
+    isPrimaryLoading?: boolean;
+    isPrimaryDisabled?: boolean;
+    primaryActionVariant?: 'primary' | 'destructive' | 'secondary' | 'outline';
+    secondaryActionLabel?: string;
+    onSecondaryAction?: () => void;
+    closeOnOverlayClick?: boolean;
+    closeOnEscape?: boolean;
+    className?: string;
+    bodyClassName?: string;
+    isLoading?: boolean;
+    loadingText?: string;
+}
+export declare const Modal: React.FC<ModalProps>;

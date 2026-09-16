@@ -1,0 +1,21 @@
+# Next.js build output
+.next/
+out/
+build/
+dist/
+
+# Standalone build output (next build --output=standalone)
+/server/
+/static/
+
+# Node dependencies
+node_modules/
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Env files
+.env*.local
+
+# Log files
+*.log

@@ -1,0 +1,64 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+node_modules/
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+.vite/
+
+# next.js
+.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# generated TLS material (self-signed stopgap cert, regenerated per environment)
+/nginx/certs/
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files
+.env*
+
+# vercel
+.vercel
+
+# compiled Go binaries & local artifacts
+backend/admin/admin.exe
+backend/gateway/gateway.exe
+/gateway/*.exe
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bin/
+apps/*/bin/
+
+# next.js build cache & metadata
+BUILD_ID
+*.tsbuildinfo
+next-env.d.ts
+
+# superpowers scratch & brain workspace
+/.superpowers/
+/scratch/
+/brain/
+
