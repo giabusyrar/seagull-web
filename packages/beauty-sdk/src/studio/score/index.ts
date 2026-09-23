@@ -1,5 +1,4 @@
 export { ScoreManager } from './components/ScoreManager';
-export { SkinProfilesTab } from './components/tabs/SkinProfilesTab';
 export { ProfileMappingTable } from './components/reusable/ProfileMappingTable';
 export { ClinicalDimensionCard, ClinicalAxisCard } from './components/reusable/ClinicalAxisCard';
 export { SeverityTierTable } from './components/reusable/SeverityTierTable';

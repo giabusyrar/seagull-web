@@ -1,7 +1,7 @@
-import { R as ReferenceManager, i as index$3 } from './index-BUgXs2mW.mjs';
-import { F as FormManager, i as index$1 } from './index-CqGYCE0f.mjs';
-import { S as ScoreManager, i as index$4 } from './index-Cl31mJpC.mjs';
-import { M as MatchManager, i as index$2 } from './index-qBDTpV0E.mjs';
+import { R as ReferenceManager, i as index$3 } from './index-BUgXs2mW.js';
+import { F as FormManager, i as index$1 } from './index-CqGYCE0f.js';
+import { S as ScoreManager, i as index$4 } from './index-HoKOnyAv.js';
+import { M as MatchManager, i as index$2 } from './index-qBDTpV0E.js';
 
 declare const index_FormManager: typeof FormManager;
 declare const index_MatchManager: typeof MatchManager;

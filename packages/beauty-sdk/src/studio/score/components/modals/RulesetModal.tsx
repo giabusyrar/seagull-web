@@ -19,6 +19,7 @@ import {
 } from '../../utils/jdm-compiler';
 import { ClinicalAxisCard } from '../reusable/ClinicalAxisCard';
 import { BandTable } from '../reusable/BandTable';
+import { ProfileMappingTable } from '../reusable/ProfileMappingTable';
 
 interface RulesetModalProps {
   isOpen: boolean;
@@ -208,8 +209,8 @@ export const RulesetModal: React.FC<RulesetModalProps> = ({
           <div className="p-3 rounded-md border border-beak/40 bg-beak/10 text-xs text-foreground flex items-start gap-2">
             <AlertTriangle className="h-4 w-4 shrink-0 text-beak" />
             <span>
-              Ruleset ini dibuat dengan format lama. Dimensi dan band di bawah adalah hasil
-              konversi terbaik — periksa dulu sebelum <strong>Save changes</strong>, karena
+              Ruleset ini dibuat dengan format lama. Dimensi, band, dan profil di bawah adalah
+              hasil konversi terbaik — periksa dulu sebelum <strong>Save changes</strong>, karena
               menyimpan akan menulis ulang ruleset ke format baru.
             </span>
           </div>
@@ -223,7 +224,7 @@ export const RulesetModal: React.FC<RulesetModalProps> = ({
                 [
                   ['setup', 'Setup'],
                   ['dimensions', `Dimensions${axes.length ? ` (${axes.length})` : ''}`],
-                  ['bands', 'Score & Severity'],
+                  ['bands', 'Score, Severity & Profiles'],
                 ] as const
               ).map(([id, label]) => (
                 <button
@@ -407,6 +408,16 @@ export const RulesetModal: React.FC<RulesetModalProps> = ({
                     />
                   </div>
                   <BandTable bands={severityBands} onChange={setSeverityBands} idPrefix="sv" />
+                </div>
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <h3 className="text-sm font-bold text-foreground">Skin Profiles</h3>
+                    <InfoTooltip
+                      content="Maps combinations of dimension axis codes to a named, described profile (e.g. DSPT → 'Kulit kering, sensitif...')."
+                      label="About Skin Profiles"
+                    />
+                  </div>
+                  <ProfileMappingTable axes={axes} config={profileConfig} onChange={setProfileConfig} />
                 </div>
               </div>
             )}
