@@ -1,3 +1,5 @@
+import * as contracts from '@gateway-experience/contracts';
+export { contracts as Contracts };
 import React12, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { jsxs, jsx, Fragment } from 'react/jsx-runtime';
 import { Edit2, Trash2, Globe, ExternalLink, Sparkles, Target, Loader2, Save, Database, FileText, Play, ChevronDown, ChevronRight, Plus, User, Check, AlertTriangle, Sliders, ShieldAlert, Boxes, Palette, Layers, ChevronUp, Pencil, X, Copy, PanelRightOpen, PanelRightClose, Tag, ShieldCheck, Building, Smartphone, CheckCircle2, XCircle, Sun, Moon, Zap, Clock } from 'lucide-react';
@@ -277,440 +279,6 @@ function resolveDynamicEndpoint(key, routePattern, collections) {
   }
   return `${prefix}${cleanPattern}`;
 }
-
-// src/contracts/index.ts
-var contracts_exports = {};
-__export(contracts_exports, {
-  CONTRACT_SCHEMAS: () => CONTRACT_SCHEMAS
-});
-
-// src/contracts/schemas/evaluate_request.json
-var evaluate_request_default = {
-  $schema: "https://json-schema.org/draft/2020-12/schema",
-  $id: "https://github.com/experience-gateway/apps/gateway-engine/pkg/domain/unified-assessment-request",
-  properties: {
-    brand_id: {
-      type: "string"
-    },
-    application_id: {
-      type: "string"
-    },
-    customer_token: {
-      type: "string"
-    },
-    customer_conditions: {
-      additionalProperties: {
-        type: "boolean"
-      },
-      type: "object"
-    },
-    form: {
-      properties: {
-        form_id: {
-          type: "string"
-        },
-        answers: {
-          type: "object"
-        }
-      },
-      additionalProperties: false,
-      type: "object",
-      required: [
-        "form_id",
-        "answers"
-      ]
-    },
-    vision: {
-      properties: {
-        photo_url: {
-          type: "string"
-        },
-        analysis_type: {
-          type: "string"
-        },
-        metrics: {
-          additionalProperties: {
-            type: "number"
-          },
-          type: "object"
-        }
-      },
-      additionalProperties: false,
-      type: "object"
-    },
-    fusion_config: {
-      properties: {
-        strategy: {
-          type: "string"
-        },
-        default_weights: {
-          properties: {
-            form: {
-              type: "number"
-            },
-            vision: {
-              type: "number"
-            }
-          },
-          additionalProperties: false,
-          type: "object",
-          required: [
-            "form",
-            "vision"
-          ]
-        },
-        dimension_weights: {
-          additionalProperties: {
-            properties: {
-              form: {
-                type: "number"
-              },
-              vision: {
-                type: "number"
-              }
-            },
-            additionalProperties: false,
-            type: "object",
-            required: [
-              "form",
-              "vision"
-            ]
-          },
-          type: "object"
-        }
-      },
-      additionalProperties: false,
-      type: "object"
-    },
-    metadata: {
-      type: "object"
-    }
-  },
-  additionalProperties: false,
-  type: "object",
-  required: [
-    "brand_id",
-    "application_id"
-  ],
-  description: "Auto-generated JSON Schema contract for domain.UnifiedAssessmentRequest"
-};
-
-// src/contracts/schemas/evaluate_response.json
-var evaluate_response_default = {
-  $schema: "https://json-schema.org/draft/2020-12/schema",
-  $id: "https://github.com/experience-gateway/apps/gateway-engine/pkg/domain/unified-assessment-response",
-  properties: {
-    success: {
-      type: "boolean"
-    },
-    brand_id: {
-      type: "string"
-    },
-    application_id: {
-      type: "string"
-    },
-    total_score: {
-      type: "number"
-    },
-    dimension_scores: {
-      additionalProperties: {
-        type: "number"
-      },
-      type: "object"
-    },
-    skin_profile: {
-      properties: {
-        code: {
-          type: "string"
-        },
-        name: {
-          type: "string"
-        },
-        description: {
-          type: "string"
-        },
-        axis_values: {
-          additionalProperties: {
-            type: "string"
-          },
-          type: "object"
-        },
-        traits: {
-          items: {
-            type: "string"
-          },
-          type: "array"
-        }
-      },
-      additionalProperties: false,
-      type: "object",
-      required: [
-        "code",
-        "name",
-        "description"
-      ]
-    },
-    skin_grading_tiers: {
-      items: {
-        properties: {
-          dimension_key: {
-            type: "string"
-          },
-          score: {
-            type: "number"
-          },
-          grade_name: {
-            type: "string"
-          },
-          severity: {
-            type: "string"
-          }
-        },
-        additionalProperties: false,
-        type: "object",
-        required: [
-          "dimension_key",
-          "score",
-          "grade_name",
-          "severity"
-        ]
-      },
-      type: "array"
-    },
-    recommended_products: {
-      items: {
-        properties: {
-          sku: {
-            type: "string"
-          },
-          name: {
-            type: "string"
-          },
-          brand: {
-            type: "string"
-          },
-          category: {
-            type: "string"
-          },
-          match_reason: {
-            type: "string"
-          },
-          score_confidence: {
-            type: "number"
-          },
-          image_url: {
-            type: "string"
-          },
-          active_actives: {
-            items: {
-              type: "string"
-            },
-            type: "array"
-          }
-        },
-        additionalProperties: false,
-        type: "object",
-        required: [
-          "sku",
-          "name",
-          "brand",
-          "category",
-          "match_reason",
-          "score_confidence"
-        ]
-      },
-      type: "array"
-    },
-    execution_time_ms: {
-      type: "integer"
-    }
-  },
-  additionalProperties: false,
-  type: "object",
-  required: [
-    "success",
-    "brand_id",
-    "application_id",
-    "total_score",
-    "dimension_scores",
-    "skin_profile",
-    "skin_grading_tiers",
-    "recommended_products",
-    "execution_time_ms"
-  ],
-  description: "Auto-generated JSON Schema contract for domain.UnifiedAssessmentResponse"
-};
-
-// src/contracts/schemas/fusion_config.json
-var fusion_config_default = {
-  $schema: "https://json-schema.org/draft/2020-12/schema",
-  $id: "https://github.com/experience-gateway/apps/gateway-engine/pkg/domain/fusion-config-dto",
-  properties: {
-    strategy: {
-      type: "string"
-    },
-    default_weights: {
-      properties: {
-        form: {
-          type: "number"
-        },
-        vision: {
-          type: "number"
-        }
-      },
-      additionalProperties: false,
-      type: "object",
-      required: [
-        "form",
-        "vision"
-      ]
-    },
-    dimension_weights: {
-      additionalProperties: {
-        properties: {
-          form: {
-            type: "number"
-          },
-          vision: {
-            type: "number"
-          }
-        },
-        additionalProperties: false,
-        type: "object",
-        required: [
-          "form",
-          "vision"
-        ]
-      },
-      type: "object"
-    }
-  },
-  additionalProperties: false,
-  type: "object",
-  description: "Auto-generated JSON Schema contract for domain.FusionConfigDTO"
-};
-
-// src/contracts/schemas/skin_profile.json
-var skin_profile_default = {
-  $schema: "https://json-schema.org/draft/2020-12/schema",
-  $id: "https://github.com/experience-gateway/apps/gateway-engine/pkg/domain/skin-profile-dto",
-  properties: {
-    code: {
-      type: "string"
-    },
-    name: {
-      type: "string"
-    },
-    description: {
-      type: "string"
-    },
-    axis_values: {
-      additionalProperties: {
-        type: "string"
-      },
-      type: "object"
-    },
-    traits: {
-      items: {
-        type: "string"
-      },
-      type: "array"
-    }
-  },
-  additionalProperties: false,
-  type: "object",
-  required: [
-    "code",
-    "name",
-    "description"
-  ],
-  description: "Auto-generated JSON Schema contract for domain.SkinProfileDTO"
-};
-
-// src/contracts/schemas/product_recommend.json
-var product_recommend_default = {
-  $schema: "https://json-schema.org/draft/2020-12/schema",
-  $id: "https://github.com/experience-gateway/apps/gateway-engine/pkg/domain/recommended-product-dto",
-  properties: {
-    sku: {
-      type: "string"
-    },
-    name: {
-      type: "string"
-    },
-    brand: {
-      type: "string"
-    },
-    category: {
-      type: "string"
-    },
-    match_reason: {
-      type: "string"
-    },
-    score_confidence: {
-      type: "number"
-    },
-    image_url: {
-      type: "string"
-    },
-    active_actives: {
-      items: {
-        type: "string"
-      },
-      type: "array"
-    }
-  },
-  additionalProperties: false,
-  type: "object",
-  required: [
-    "sku",
-    "name",
-    "brand",
-    "category",
-    "match_reason",
-    "score_confidence"
-  ],
-  description: "Auto-generated JSON Schema contract for domain.RecommendedProductDTO"
-};
-
-// src/contracts/schemas/skin_grading_tier.json
-var skin_grading_tier_default = {
-  $schema: "https://json-schema.org/draft/2020-12/schema",
-  $id: "https://github.com/experience-gateway/apps/gateway-engine/pkg/domain/skin-grading-tier-dto",
-  properties: {
-    dimension_key: {
-      type: "string"
-    },
-    score: {
-      type: "number"
-    },
-    grade_name: {
-      type: "string"
-    },
-    severity: {
-      type: "string"
-    }
-  },
-  additionalProperties: false,
-  type: "object",
-  required: [
-    "dimension_key",
-    "score",
-    "grade_name",
-    "severity"
-  ],
-  description: "Auto-generated JSON Schema contract for domain.SkinGradingTierDTO"
-};
-
-// src/contracts/index.ts
-var CONTRACT_SCHEMAS = {
-  evaluateRequest: evaluate_request_default,
-  evaluateResponse: evaluate_response_default,
-  fusionConfig: fusion_config_default,
-  skinProfile: skin_profile_default,
-  productRecommend: product_recommend_default,
-  skinGradingTier: skin_grading_tier_default
-};
 
 // src/hooks/index.ts
 var hooks_exports = {};
@@ -5779,10 +5347,72 @@ var ScoreSimulatorTab = ({
     sebum: 85,
     pigmentation: 60
   });
-  const [selectedConditions, setSelectedConditions] = useState({
-    is_pregnant: false,
-    uses_retinol: true
-  });
+  const rulesetSafetyFlags = useMemo(() => {
+    if (!activeRuleset?.schema) return [];
+    try {
+      const s = JSON.parse(activeRuleset.schema);
+      if (Array.isArray(s.safety_flags)) {
+        return s.safety_flags.map(
+          (f) => typeof f === "string" ? f : f.key
+        );
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  }, [activeRuleset]);
+  const [surveySafetyFlags, setSurveySafetyFlags] = useState([]);
+  useEffect(() => {
+    if (!activeRuleset?.brandId || !activeRuleset?.applicationId) {
+      setSurveySafetyFlags([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(
+          `/core/form-engine/survey?brand_id=${encodeURIComponent(activeRuleset.brandId)}&application_id=${encodeURIComponent(activeRuleset.applicationId)}`
+        );
+        if (!res.ok) return;
+        const surveys = await res.json();
+        const flags = /* @__PURE__ */ new Set();
+        for (const survey of surveys || []) {
+          if (!survey.schema) continue;
+          try {
+            const parsed = JSON.parse(survey.schema);
+            for (const page of parsed.pages || []) {
+              for (const el of page.elements || []) {
+                for (const choice of el.choices || []) {
+                  const conditionMap = typeof choice === "object" ? choice.condition_map || choice.conditionMap : null;
+                  if (conditionMap) Object.keys(conditionMap).forEach((k) => flags.add(k));
+                }
+              }
+            }
+          } catch {
+          }
+        }
+        if (!cancelled) setSurveySafetyFlags(Array.from(flags));
+      } catch {
+        if (!cancelled) setSurveySafetyFlags([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeRuleset?.brandId, activeRuleset?.applicationId]);
+  const allSafetyFlags = useMemo(
+    () => Array.from(/* @__PURE__ */ new Set([...rulesetSafetyFlags, ...surveySafetyFlags])),
+    [rulesetSafetyFlags, surveySafetyFlags]
+  );
+  const [selectedConditions, setSelectedConditions] = useState({});
+  useEffect(() => {
+    setSelectedConditions((prev) => {
+      const keys = allSafetyFlags.length > 0 ? allSafetyFlags : ["is_pregnant", "uses_retinol"];
+      const next = {};
+      for (const k of keys) next[k] = prev[k] ?? false;
+      return next;
+    });
+  }, [allSafetyFlags]);
   const [simResponse, setSimResponse] = useState(null);
   const [copiedReq, setCopiedReq] = useState(false);
   const SIMULATE_PATH = "/core/score-engine/simulate";
@@ -5831,10 +5461,16 @@ var ScoreSimulatorTab = ({
   const scoreRange = simResponse?.result?.score_range || "";
   const severityLevel = simResponse?.result?.severity_level || "";
   const skinConcern = simResponse?.result?.skin_concern;
+  const BAUMANN_AXIS_ORDER = ["sebum", "oiliness", "sensitivity", "pigmentation", "aging", "wrinkle"];
+  const orderedDims = useMemo(() => {
+    const known = BAUMANN_AXIS_ORDER.filter((k) => rulesetDims.includes(k));
+    const rest = rulesetDims.filter((k) => !BAUMANN_AXIS_ORDER.includes(k));
+    return [...known, ...rest];
+  }, [rulesetDims]);
   const generatedCode = useMemo(() => {
-    const order = ["OILINESS", "SENSITIVITY", "PIGMENTATION", "AGING", "BARRIER"];
-    return order.map((k) => axisValues[k]).filter(Boolean).join("") || "CUSTOM";
-  }, [axisValues]);
+    if (orderedDims.length === 0) return "CUSTOM";
+    return orderedDims.map((k) => axisValues[k.toUpperCase()] || "-").join("");
+  }, [axisValues, orderedDims]);
   const traitsList = useMemo(() => Object.values(traits).filter(Boolean), [traits]);
   const profile = simResponse?.result?.skin_profile;
   const profileCode = profile?.code || generatedCode;
@@ -9211,6 +8847,6 @@ async function executeAssessmentPipeline(payload) {
   };
 }
 
-export { AgingProgressionSlider, AssessmentsSubClient, BeautyClient, BeautyExperienceWidget, contracts_exports as Contracts, core_exports as Core, DimensionScoreCard, DimensionSelector, form_exports as Form, FormManager, form_exports as FormStudio, FormSubClient, hooks_exports as Hooks, match_exports as Match, MatchManager, match_exports as MatchStudio, MatchSubClient, orchestrator_exports as Orchestrator, PolygonHeatmap, ProductRecommendationCard, reference_exports as Reference, ReferenceManager, reference_exports as ReferenceStudio, ReferenceSubClient, score_exports as Score, ScoreManager, score_exports as ScoreStudio, studio_exports as Studio, ui_exports as UI, ui_exports as Vision, VisionSubClient, dispatchPyTorchCapabilities, executeAssessmentPipeline, fetchSkinConditionsFromDb, fuseDimensionScores, getActiveCoreCollections, getCollectionPrefix, invalidateSkinConditionCache, resolveDynamicEndpoint, resolveRequiredCapabilities, resolveRequiredCapabilitiesFromDb, useRegimenMatch, useSkinAssessment };
+export { AgingProgressionSlider, AssessmentsSubClient, BeautyClient, BeautyExperienceWidget, core_exports as Core, DimensionScoreCard, DimensionSelector, form_exports as Form, FormManager, form_exports as FormStudio, FormSubClient, hooks_exports as Hooks, match_exports as Match, MatchManager, match_exports as MatchStudio, MatchSubClient, orchestrator_exports as Orchestrator, PolygonHeatmap, ProductRecommendationCard, reference_exports as Reference, ReferenceManager, reference_exports as ReferenceStudio, ReferenceSubClient, score_exports as Score, ScoreManager, score_exports as ScoreStudio, studio_exports as Studio, ui_exports as UI, ui_exports as Vision, VisionSubClient, dispatchPyTorchCapabilities, executeAssessmentPipeline, fetchSkinConditionsFromDb, fuseDimensionScores, getActiveCoreCollections, getCollectionPrefix, invalidateSkinConditionCache, resolveDynamicEndpoint, resolveRequiredCapabilities, resolveRequiredCapabilitiesFromDb, useRegimenMatch, useSkinAssessment };
 //# sourceMappingURL=index.mjs.map
 //# sourceMappingURL=index.mjs.map

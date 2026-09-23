@@ -48,7 +48,7 @@ export async function handleApiProxy(
     } else if (cleanPath === 'core' || cleanPath.startsWith('core/')) {
       // Dynamic core-engine collection — hits the gateway-proxy data plane (:8080)
       targetUrl = `${getGatewayProxyUrl()}/${cleanPath}${search}`;
-      if (dataPlaneKey) headers['X-API-Key'] = dataPlaneKey;
+      if (dataPlaneKey) headers['x-api-key'] = dataPlaneKey;
     } else if (
       cleanPath.startsWith('api/reference/') ||
       cleanPath.startsWith('reference-api/') ||
@@ -77,18 +77,26 @@ export async function handleApiProxy(
     } else {
       // Any other custom collection path (e.g. /nasa/*, /weather/*) -> Gateway Proxy Data Plane (:8080)
       targetUrl = `${getGatewayProxyUrl()}/${cleanPath}${search}`;
-      if (dataPlaneKey) headers['X-API-Key'] = dataPlaneKey;
+      if (dataPlaneKey) headers['x-api-key'] = dataPlaneKey;
     }
 
+    // Keys are lowercased so an explicit header here cleanly overwrites the
+    // auto-attached defaults above (e.g. x-api-key) instead of sitting
+    // alongside them as a second, differently-cased entry. An empty value is
+    // treated as "not sent" rather than "sent as blank" — a client UI whose
+    // own key field happens to be empty (e.g. Try & Send's sessionStorage-
+    // backed X-API-Key, empty on a fresh tab) must not blank out the
+    // server-side default; only a genuinely non-empty client value overrides it.
     request.headers.forEach((value, key) => {
       const k = key.toLowerCase();
+      if (value === '') return;
       if (k === 'authorization' || k === 'content-type' || k.startsWith('x-')) {
-        headers[key] = value;
+        headers[k] = value;
       }
     });
 
     // Auto-forward session cookie as Bearer token if not explicitly present
-    if (!headers['authorization'] && !headers['Authorization']) {
+    if (!headers['authorization']) {
       const sessionCookie = request.cookies.get('session')?.value;
       if (sessionCookie) {
         headers['authorization'] = `Bearer ${sessionCookie}`;

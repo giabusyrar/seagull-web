@@ -1,5 +1,5 @@
 import { BeautyClientConfig } from './types/index.mjs';
-import { U as UnifiedAssessmentRequest, a as UnifiedAssessmentResponse } from './index-C88w3aAT.mjs';
+import { UnifiedAssessmentRequest, UnifiedAssessmentResponse } from '@gateway-experience/contracts';
 
 interface UseSkinAssessmentOptions extends BeautyClientConfig {
 }

@@ -1099,10 +1099,72 @@ var ScoreSimulatorTab = ({
     sebum: 85,
     pigmentation: 60
   });
-  const [selectedConditions, setSelectedConditions] = React.useState({
-    is_pregnant: false,
-    uses_retinol: true
-  });
+  const rulesetSafetyFlags = React.useMemo(() => {
+    if (!activeRuleset?.schema) return [];
+    try {
+      const s = JSON.parse(activeRuleset.schema);
+      if (Array.isArray(s.safety_flags)) {
+        return s.safety_flags.map(
+          (f) => typeof f === "string" ? f : f.key
+        );
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  }, [activeRuleset]);
+  const [surveySafetyFlags, setSurveySafetyFlags] = React.useState([]);
+  React.useEffect(() => {
+    if (!activeRuleset?.brandId || !activeRuleset?.applicationId) {
+      setSurveySafetyFlags([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(
+          `/core/form-engine/survey?brand_id=${encodeURIComponent(activeRuleset.brandId)}&application_id=${encodeURIComponent(activeRuleset.applicationId)}`
+        );
+        if (!res.ok) return;
+        const surveys = await res.json();
+        const flags = /* @__PURE__ */ new Set();
+        for (const survey of surveys || []) {
+          if (!survey.schema) continue;
+          try {
+            const parsed = JSON.parse(survey.schema);
+            for (const page of parsed.pages || []) {
+              for (const el of page.elements || []) {
+                for (const choice of el.choices || []) {
+                  const conditionMap = typeof choice === "object" ? choice.condition_map || choice.conditionMap : null;
+                  if (conditionMap) Object.keys(conditionMap).forEach((k) => flags.add(k));
+                }
+              }
+            }
+          } catch {
+          }
+        }
+        if (!cancelled) setSurveySafetyFlags(Array.from(flags));
+      } catch {
+        if (!cancelled) setSurveySafetyFlags([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeRuleset?.brandId, activeRuleset?.applicationId]);
+  const allSafetyFlags = React.useMemo(
+    () => Array.from(/* @__PURE__ */ new Set([...rulesetSafetyFlags, ...surveySafetyFlags])),
+    [rulesetSafetyFlags, surveySafetyFlags]
+  );
+  const [selectedConditions, setSelectedConditions] = React.useState({});
+  React.useEffect(() => {
+    setSelectedConditions((prev) => {
+      const keys = allSafetyFlags.length > 0 ? allSafetyFlags : ["is_pregnant", "uses_retinol"];
+      const next = {};
+      for (const k of keys) next[k] = prev[k] ?? false;
+      return next;
+    });
+  }, [allSafetyFlags]);
   const [simResponse, setSimResponse] = React.useState(null);
   const [copiedReq, setCopiedReq] = React.useState(false);
   const SIMULATE_PATH = "/core/score-engine/simulate";
@@ -1151,10 +1213,16 @@ var ScoreSimulatorTab = ({
   const scoreRange = simResponse?.result?.score_range || "";
   const severityLevel = simResponse?.result?.severity_level || "";
   const skinConcern = simResponse?.result?.skin_concern;
+  const BAUMANN_AXIS_ORDER = ["sebum", "oiliness", "sensitivity", "pigmentation", "aging", "wrinkle"];
+  const orderedDims = React.useMemo(() => {
+    const known = BAUMANN_AXIS_ORDER.filter((k) => rulesetDims.includes(k));
+    const rest = rulesetDims.filter((k) => !BAUMANN_AXIS_ORDER.includes(k));
+    return [...known, ...rest];
+  }, [rulesetDims]);
   const generatedCode = React.useMemo(() => {
-    const order = ["OILINESS", "SENSITIVITY", "PIGMENTATION", "AGING", "BARRIER"];
-    return order.map((k) => axisValues[k]).filter(Boolean).join("") || "CUSTOM";
-  }, [axisValues]);
+    if (orderedDims.length === 0) return "CUSTOM";
+    return orderedDims.map((k) => axisValues[k.toUpperCase()] || "-").join("");
+  }, [axisValues, orderedDims]);
   const traitsList = React.useMemo(() => Object.values(traits).filter(Boolean), [traits]);
   const profile = simResponse?.result?.skin_profile;
   const profileCode = profile?.code || generatedCode;

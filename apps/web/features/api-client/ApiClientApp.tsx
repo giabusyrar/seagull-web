@@ -771,6 +771,7 @@ export function ApiClientApp() {
           if (!col) return <div className="flex-1 flex items-center justify-center text-xs text-muted-foreground italic">Loading collection details...</div>;
           return (
             <ApiClientRouteEditor
+              key={activeRoute.id}
               route={activeRoute}
               collection={col}
               groups={allGroupsMap[col.id] || []}

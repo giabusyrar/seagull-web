@@ -65,10 +65,92 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
     pigmentation: 60,
   });
 
-  const [selectedConditions, setSelectedConditions] = useState<Record<string, boolean>>({
-    is_pregnant: false,
-    uses_retinol: true,
-  });
+  // Safety flag keys declared directly on the ruleset schema (safety_flags),
+  // same pattern as rulesetDims above.
+  const rulesetSafetyFlags = useMemo<string[]>(() => {
+    if (!activeRuleset?.schema) return [];
+    try {
+      const s = JSON.parse(activeRuleset.schema);
+      if (Array.isArray(s.safety_flags)) {
+        return s.safety_flags.map((f: unknown) =>
+          typeof f === 'string' ? f : (f as { key: string }).key,
+        );
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  }, [activeRuleset]);
+
+  // Safety flag keys actually tagged on answer choices ("+ safety flags" in
+  // the Questionnaire builder — QuestionnaireModal.tsx, stored as each
+  // choice's conditionMap) across every questionnaire for the same brand /
+  // application as the active ruleset. Editing a questionnaire's flags is
+  // meant to show up here without also having to hand-edit the ruleset.
+  const [surveySafetyFlags, setSurveySafetyFlags] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!activeRuleset?.brandId || !activeRuleset?.applicationId) {
+      setSurveySafetyFlags([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(
+          `/core/form-engine/survey?brand_id=${encodeURIComponent(activeRuleset.brandId)}&application_id=${encodeURIComponent(activeRuleset.applicationId)}`,
+        );
+        if (!res.ok) return;
+        const surveys: { schema?: string }[] = await res.json();
+        const flags = new Set<string>();
+        for (const survey of surveys || []) {
+          if (!survey.schema) continue;
+          try {
+            const parsed = JSON.parse(survey.schema);
+            for (const page of parsed.pages || []) {
+              for (const el of page.elements || []) {
+                for (const choice of el.choices || []) {
+                  // Stored as condition_map (snake_case, matching the Go/JSON
+                  // survey schema) — conditionMap is also checked in case a
+                  // future schema writer uses the camelCase form instead.
+                  const conditionMap =
+                    typeof choice === 'object' ? choice.condition_map || choice.conditionMap : null;
+                  if (conditionMap) Object.keys(conditionMap).forEach((k) => flags.add(k));
+                }
+              }
+            }
+          } catch {
+            // skip surveys with unparsable schema
+          }
+        }
+        if (!cancelled) setSurveySafetyFlags(Array.from(flags));
+      } catch {
+        if (!cancelled) setSurveySafetyFlags([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeRuleset?.brandId, activeRuleset?.applicationId]);
+
+  const allSafetyFlags = useMemo(
+    () => Array.from(new Set([...rulesetSafetyFlags, ...surveySafetyFlags])),
+    [rulesetSafetyFlags, surveySafetyFlags],
+  );
+
+  const [selectedConditions, setSelectedConditions] = useState<Record<string, boolean>>({});
+
+  // Re-seed the safety flag toggles whenever the merged flag list changes.
+  // Falls back to the previous hardcoded pair only when nothing was found
+  // anywhere, so older rulesets/questionnaires without flags still show something.
+  useEffect(() => {
+    setSelectedConditions((prev) => {
+      const keys = allSafetyFlags.length > 0 ? allSafetyFlags : ['is_pregnant', 'uses_retinol'];
+      const next: Record<string, boolean> = {};
+      for (const k of keys) next[k] = prev[k] ?? false;
+      return next;
+    });
+  }, [allSafetyFlags]);
 
   const [simResponse, setSimResponse] = useState<RulesetSimulationResponse | null>(null);
   const [copiedReq, setCopiedReq] = useState(false);
@@ -130,10 +212,28 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
     | { dimension?: string; label?: string; score?: number }
     | undefined;
 
+  // Canonical Baumann Skin Type Indicator axis order: Oiliness, Sensitivity,
+  // Pigmentation, Wrinkle (e.g. "OSPW", "DRNT"). Known axes are sorted into
+  // this order regardless of the order dimension_weights happens to list
+  // them in the schema JSON; any other, non-Baumann dimension keys (e.g. a
+  // future axis this ruleset adds) are appended after, in their existing order.
+  const BAUMANN_AXIS_ORDER = ['sebum', 'oiliness', 'sensitivity', 'pigmentation', 'aging', 'wrinkle'];
+  const orderedDims = useMemo(() => {
+    const known = BAUMANN_AXIS_ORDER.filter((k) => rulesetDims.includes(k));
+    const rest = rulesetDims.filter((k) => !BAUMANN_AXIS_ORDER.includes(k));
+    return [...known, ...rest];
+  }, [rulesetDims]);
+
+  // Baumann-style skin profile code, one letter per axis this ruleset
+  // actually declares (rulesetDims — same dynamic list the sliders use, so
+  // it matches whatever dimension keys the schema has, e.g. "sebum" not the
+  // gateway's legacy "OILINESS" default). An axis with no computed letter
+  // (not yet answered, or the schema doesn't classify it) shows "-" instead
+  // of silently dropping out of the code.
   const generatedCode = useMemo(() => {
-    const order = ['OILINESS', 'SENSITIVITY', 'PIGMENTATION', 'AGING', 'BARRIER'];
-    return order.map((k) => axisValues[k]).filter(Boolean).join('') || 'CUSTOM';
-  }, [axisValues]);
+    if (orderedDims.length === 0) return 'CUSTOM';
+    return orderedDims.map((k) => axisValues[k.toUpperCase()] || '-').join('');
+  }, [axisValues, orderedDims]);
 
   const traitsList = useMemo(() => Object.values(traits).filter(Boolean), [traits]);
 

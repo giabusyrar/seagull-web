@@ -1,6 +1,7 @@
 export { i as Core, C as CoreCollectionKey, D as DynamicCollection, a as DynamicCollectionRoute, g as getActiveCoreCollections, b as getCollectionPrefix, r as resolveDynamicEndpoint } from './index-DIzEQZzi.js';
-export { i as Contracts } from './index-C88w3aAT.js';
-export { i as Hooks, U as UseSkinAssessmentOptions, u as useRegimenMatch, a as useSkinAssessment } from './index-DDw5tf85.js';
+import * as contracts from '@gateway-experience/contracts';
+export { contracts as Contracts };
+export { i as Hooks, U as UseSkinAssessmentOptions, u as useRegimenMatch, a as useSkinAssessment } from './index-BUsE9cJu.js';
 export { A as AgingProgressionSlider, a as AgingProgressionSliderProps, B as BeautyExperienceWidget, b as BeautyExperienceWidgetProps, D as DimensionOption, c as DimensionScoreCard, d as DimensionScoreCardProps, e as DimensionSelector, f as DimensionSelectorProps, P as PolygonHeatmap, g as PolygonHeatmapProps, h as ProductRecommendationCard, i as ProductRecommendationCardProps, j as UI, j as Vision } from './index-BsQ2or1V.js';
 export { i as Studio } from './index-DFJJo5xj.js';
 export { i as Form, F as FormManager, i as FormStudio } from './index-CqGYCE0f.js';

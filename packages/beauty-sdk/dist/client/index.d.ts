@@ -1,5 +1,5 @@
 import { BeautyClientConfig, VisionAnalysisOptions, VisionAnalysisResponse } from '../types/index.js';
-import { U as UnifiedAssessmentRequest, a as UnifiedAssessmentResponse } from '../index-C88w3aAT.js';
+import { UnifiedAssessmentRequest, UnifiedAssessmentResponse } from '@gateway-experience/contracts';
 
 declare class FormSubClient {
     private client;

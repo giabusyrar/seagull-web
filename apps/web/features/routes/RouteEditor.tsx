@@ -307,8 +307,20 @@ export const RouteEditor: React.FC<RouteEditorProps> = ({
   }, [route.originalPattern, route.targetPattern]);
 
   // Keys are never readable after creation. A key created in this tab is
-  // remembered for Try & Send; otherwise the header is filled in by hand.
-  const [defaultApiKey] = useState(recallTryApiKey);
+  // remembered for Try & Send (sessionStorage — empty on a fresh browser
+  // tab). Fall back to whatever X-API-Key is already saved on this route's
+  // own routeParams, so the header shows a real value instead of blank
+  // on first load in a new tab.
+  const savedApiKeyFromRoute = (() => {
+    try {
+      const parsed = route.routeParams ? JSON.parse(route.routeParams) : null;
+      const headers = parsed?.headers as { key?: string; value?: string }[] | undefined;
+      return headers?.find((h) => h.key?.toLowerCase() === 'x-api-key')?.value || '';
+    } catch {
+      return '';
+    }
+  })();
+  const [defaultApiKey] = useState(() => recallTryApiKey() || savedApiKeyFromRoute);
 
   const [tryRequest, setTryRequest] = useState<ApiClientRequest>(() => ({
     id: route.id,
