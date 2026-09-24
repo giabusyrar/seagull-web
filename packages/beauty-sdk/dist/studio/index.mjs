@@ -1,5 +1,5 @@
 import React9, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Edit2, Trash2, Globe, ExternalLink, Sparkles, Target, Loader2, Save, Database, FileText, Play, ChevronDown, ChevronRight, Sliders, Check, AlertTriangle, Plus, SlidersHorizontal, ShieldAlert, Boxes, Palette, Layers, ChevronUp, Pencil, X, Copy, PanelRightOpen, PanelRightClose, Tag, ShieldCheck, Building, Smartphone, CheckCircle2, XCircle, Sun, Moon, Zap, Clock } from 'lucide-react';
+import { Edit2, Trash2, Globe, ExternalLink, Sparkles, Target, Loader2, Save, Database, FileText, Play, ChevronDown, ChevronRight, Sliders, Check, AlertTriangle, Plus, SlidersHorizontal, ShieldAlert, Boxes, Palette, Layers, ChevronUp, Pencil, X, Copy, PanelRightOpen, PanelRightClose, Tag, ShieldCheck, Flag, Building, Smartphone, CheckCircle2, XCircle, Sun, Moon, Zap, Clock } from 'lucide-react';
 import { SearchFilterBar, EmptyState, BrandTag, getDomainFromUrl, DataTable, Modal, SearchableSelect, PageHeader, Pagination, ConfirmDialog, FilterPanel, TabNav, BrandSelect, ApplicationSelect, InfoTooltip, DimensionSelect, Button, ScoreRangeInput, SeveritySelect, StatusBadge, StatusSelect } from '@gateway-experience/shared';
 import { jsx, jsxs, Fragment } from 'react/jsx-runtime';
 import { Model } from 'survey-core';
@@ -1317,6 +1317,7 @@ __export(form_exports, {
   getDimensions: () => getDimensions,
   getQuestionnaire: () => getQuestionnaire,
   getQuestionnaireModel: () => getQuestionnaireModel,
+  getSafetyFlags: () => getSafetyFlags,
   listQuestionnaires: () => listQuestionnaires,
   saveQuestionnaire: () => saveQuestionnaire,
   scoreSurveyAnswers: () => scoreSurveyAnswers,
@@ -2387,6 +2388,17 @@ async function getDimensions() {
     return [];
   }
 }
+async function getSafetyFlags() {
+  try {
+    const res = await fetch(`/api/reference/conditions`, { cache: "no-store" });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const arr = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
+    return arr;
+  } catch {
+    return [];
+  }
+}
 var QUESTION_TYPES = [
   { value: "single_choice", label: "Choose one", hasOptions: true },
   { value: "multi_choice", label: "Select many", hasOptions: true },
@@ -2430,6 +2442,94 @@ var newQuestion = (dimension) => ({
   dimension,
   options: [newOption(), newOption()]
 });
+var SafetyFlagPicker = ({ flags, flagOptions, onAdd, onRemove }) => {
+  const [open, setOpen] = useState(false);
+  const [addingCustom, setAddingCustom] = useState(false);
+  const [customDraft, setCustomDraft] = useState("");
+  const ref = useRef(null);
+  const hasFlags = flags.length > 0;
+  useEffect(() => {
+    if (!open) return;
+    const onDocDown = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) {
+        setOpen(false);
+        setAddingCustom(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocDown);
+    return () => document.removeEventListener("mousedown", onDocDown);
+  }, [open]);
+  const choices = flagOptions.filter((f) => !flags.includes(f.code));
+  return /* @__PURE__ */ jsxs("div", { ref, className: "relative shrink-0", children: [
+    /* @__PURE__ */ jsxs(
+      "button",
+      {
+        type: "button",
+        title: hasFlags ? `Safety flags: ${flags.join(", ")}` : "Add safety flags",
+        onClick: () => setOpen((o) => !o),
+        className: `h-9 w-9 flex items-center justify-center rounded-md border-2 transition ${hasFlags ? "border-amber-500 bg-amber-500/10 text-amber-600" : "border-border text-muted-foreground hover:text-foreground hover:border-muted-foreground/50"}`,
+        children: [
+          /* @__PURE__ */ jsx(Flag, { className: "h-5 w-5", fill: hasFlags ? "currentColor" : "none" }),
+          flags.length > 1 && /* @__PURE__ */ jsx("span", { className: "absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center leading-none", children: flags.length })
+        ]
+      }
+    ),
+    open && /* @__PURE__ */ jsxs("div", { className: "absolute right-0 top-full mt-1 z-20 w-56 rounded-md border border-border bg-popover shadow-lg p-2 space-y-1.5", children: [
+      hasFlags && /* @__PURE__ */ jsx("div", { className: "flex flex-wrap gap-1", children: flags.map((k) => {
+        const meta = flagOptions.find((f) => f.code === k);
+        return /* @__PURE__ */ jsxs(
+          "span",
+          {
+            className: "inline-flex items-center gap-1 bg-amber-500/10 border border-amber-500/30 text-amber-600 text-[10px] px-1.5 py-0.5 rounded",
+            children: [
+              meta?.name || k,
+              /* @__PURE__ */ jsx("button", { type: "button", onClick: () => onRemove(k), children: /* @__PURE__ */ jsx(X, { className: "h-2.5 w-2.5" }) })
+            ]
+          },
+          k
+        );
+      }) }),
+      addingCustom ? /* @__PURE__ */ jsx(
+        "input",
+        {
+          autoFocus: true,
+          value: customDraft,
+          onChange: (e) => setCustomDraft(e.target.value),
+          onKeyDown: (e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              const v = slugify(customDraft);
+              if (v) onAdd(v);
+              setCustomDraft("");
+              setAddingCustom(false);
+            } else if (e.key === "Escape") {
+              setAddingCustom(false);
+            }
+          },
+          placeholder: "new_flag_key",
+          className: `${fieldSm} w-full font-mono`
+        }
+      ) : /* @__PURE__ */ jsxs(
+        "select",
+        {
+          value: "",
+          onChange: (e) => {
+            const v = e.target.value;
+            if (v === "__custom__") setAddingCustom(true);
+            else if (v) onAdd(v);
+          },
+          className: `${fieldSm} w-full`,
+          style: selectStyle,
+          children: [
+            /* @__PURE__ */ jsx("option", { style: optionStyle, value: "", children: "+ add flag" }),
+            choices.map((f) => /* @__PURE__ */ jsx("option", { style: optionStyle, value: f.code, children: f.name || f.code }, f.code)),
+            /* @__PURE__ */ jsx("option", { style: optionStyle, value: "__custom__", children: "+ Custom\u2026" })
+          ]
+        }
+      )
+    ] })
+  ] });
+};
 var QuestionnaireModal = ({
   isOpen,
   onClose,
@@ -2450,9 +2550,9 @@ var QuestionnaireModal = ({
   const [questions, setQuestions] = useState([]);
   const [calcMethods, setCalcMethods] = useState({});
   const [apiDimensions, setApiDimensions] = useState([]);
+  const [safetyFlagCatalog, setSafetyFlagCatalog] = useState([]);
   const [filterDim, setFilterDim] = useState("all");
   const [collapsed, setCollapsed] = useState({});
-  const [flagsOpen, setFlagsOpen] = useState({});
   const [scoreDrafts, setScoreDrafts] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [copied, setCopied] = useState("");
@@ -2508,8 +2608,26 @@ var QuestionnaireModal = ({
       );
     }).catch(() => setApiDimensions([]));
   }, [isOpen]);
+  useEffect(() => {
+    if (!isOpen) return;
+    getSafetyFlags().then(setSafetyFlagCatalog).catch(() => setSafetyFlagCatalog([]));
+  }, [isOpen]);
   const effectiveCode = codeEdited ? qCode : slugify(qName);
   const usedDimensions = Array.from(new Set(questions.map((q) => q.dimension).filter(Boolean)));
+  const flagOptions = useMemo(() => {
+    const byCode = /* @__PURE__ */ new Map();
+    for (const f of safetyFlagCatalog) byCode.set(f.code, f);
+    for (const q of questions) {
+      for (const o of q.options || []) {
+        for (const k of Object.keys(o.conditionMap || {})) {
+          if (!byCode.has(k)) byCode.set(k, { code: k });
+        }
+      }
+    }
+    return Array.from(byCode.values()).sort(
+      (a, b) => (a.name || a.code).localeCompare(b.name || b.code)
+    );
+  }, [safetyFlagCatalog, questions]);
   const draftItem = useMemo(
     () => ({
       code: effectiveCode.trim(),
@@ -2777,20 +2895,6 @@ var QuestionnaireModal = ({
                         className: `${fieldSm} flex-1 min-w-0`
                       }
                     ),
-                    /* @__PURE__ */ jsxs(
-                      "select",
-                      {
-                        value: q.dimension,
-                        onChange: (e) => updateQuestion(q.id, { dimension: e.target.value }),
-                        className: `${fieldSm} w-32 shrink-0 ${q.dimension ? "" : "text-muted-foreground"}`,
-                        style: selectStyle,
-                        title: "Dimension",
-                        children: [
-                          /* @__PURE__ */ jsx("option", { style: optionStyle, value: "", children: "\u2014 dimension \u2014" }),
-                          dimensionList.map((d) => /* @__PURE__ */ jsx("option", { style: optionStyle, value: d.code, children: d.label }, d.code))
-                        ]
-                      }
-                    ),
                     /* @__PURE__ */ jsx(
                       "button",
                       {
@@ -2811,40 +2915,75 @@ var QuestionnaireModal = ({
                     )
                   ] }),
                   !isCollapsed && /* @__PURE__ */ jsxs("div", { className: "border-t border-border p-2.5 space-y-2", children: [
-                    /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2", children: [
-                      /* @__PURE__ */ jsx(
-                        "select",
-                        {
-                          value: q.type,
-                          onChange: (e) => {
-                            const next = e.target.value;
-                            const patch = { type: next };
-                            if (typeHasOptions(next) && (!q.options || q.options.length === 0)) {
-                              patch.options = [newOption(), newOption()];
-                            }
-                            if ((next === "rating" || next === "numeric_input") && !q.scale) {
-                              patch.scale = { min: 0, max: next === "rating" ? 5 : 100 };
-                            }
-                            if (next === "matrix" && (!q.rows || q.rows.length === 0)) {
-                              patch.rows = [
-                                { value: `row_${Math.random().toString(36).slice(2, 7)}`, label: "" },
-                                { value: `row_${Math.random().toString(36).slice(2, 7)}`, label: "" }
-                              ];
-                            }
-                            updateQuestion(q.id, patch);
-                          },
-                          className: `${fieldSm} w-40`,
-                          style: selectStyle,
-                          children: QUESTION_TYPES.map((t) => /* @__PURE__ */ jsx("option", { style: optionStyle, value: t.value, children: t.label }, t.value))
-                        }
-                      ),
-                      /* @__PURE__ */ jsx(InfoTooltip, { content: TYPE_HINTS[q.type], label: "About this question type" }),
-                      typeHasOptions(q.type) && /* @__PURE__ */ jsxs("span", { className: "text-[11px] text-muted-foreground", children: [
-                        q.options.length,
-                        " ",
-                        q.type === "matrix" ? "columns" : "answers"
-                      ] })
-                    ] }),
+                    /* @__PURE__ */ jsxs(
+                      "div",
+                      {
+                        className: "flex flex-wrap items-center",
+                        style: { columnGap: "2rem", rowGap: "0.5rem" },
+                        children: [
+                          /* @__PURE__ */ jsxs("label", { className: "flex items-center gap-2", children: [
+                            /* @__PURE__ */ jsxs("span", { className: "flex items-center gap-1 shrink-0 text-[11px] font-semibold text-muted-foreground", children: [
+                              "Question type",
+                              /* @__PURE__ */ jsx(
+                                InfoTooltip,
+                                {
+                                  content: TYPE_HINTS[q.type],
+                                  label: "About this question type",
+                                  iconClassName: "h-3 w-3"
+                                }
+                              )
+                            ] }),
+                            /* @__PURE__ */ jsx(
+                              "select",
+                              {
+                                value: q.type,
+                                onChange: (e) => {
+                                  const next = e.target.value;
+                                  const patch = { type: next };
+                                  if (typeHasOptions(next) && (!q.options || q.options.length === 0)) {
+                                    patch.options = [newOption(), newOption()];
+                                  }
+                                  if ((next === "rating" || next === "numeric_input") && !q.scale) {
+                                    patch.scale = { min: 0, max: next === "rating" ? 5 : 100 };
+                                  }
+                                  if (next === "matrix" && (!q.rows || q.rows.length === 0)) {
+                                    patch.rows = [
+                                      { value: `row_${Math.random().toString(36).slice(2, 7)}`, label: "" },
+                                      { value: `row_${Math.random().toString(36).slice(2, 7)}`, label: "" }
+                                    ];
+                                  }
+                                  updateQuestion(q.id, patch);
+                                },
+                                className: `${fieldSm} w-36`,
+                                style: selectStyle,
+                                children: QUESTION_TYPES.map((t) => /* @__PURE__ */ jsx("option", { style: optionStyle, value: t.value, children: t.label }, t.value))
+                              }
+                            ),
+                            typeHasOptions(q.type) && /* @__PURE__ */ jsxs("span", { className: "text-[11px] text-muted-foreground", children: [
+                              q.options.length,
+                              " ",
+                              q.type === "matrix" ? "columns" : "answers"
+                            ] })
+                          ] }),
+                          /* @__PURE__ */ jsxs("label", { className: "flex items-center gap-2", children: [
+                            /* @__PURE__ */ jsx("span", { className: "shrink-0 text-[11px] font-semibold text-muted-foreground", children: "Choose dimension" }),
+                            /* @__PURE__ */ jsxs(
+                              "select",
+                              {
+                                value: q.dimension,
+                                onChange: (e) => updateQuestion(q.id, { dimension: e.target.value }),
+                                className: `${fieldSm} w-56 ${q.dimension ? "" : "text-muted-foreground"}`,
+                                style: selectStyle,
+                                children: [
+                                  /* @__PURE__ */ jsx("option", { style: optionStyle, value: "", children: "\u2014 dimension \u2014" }),
+                                  dimensionList.map((d) => /* @__PURE__ */ jsx("option", { style: optionStyle, value: d.code, children: d.label }, d.code))
+                                ]
+                              }
+                            )
+                          ] })
+                        ]
+                      }
+                    ),
                     q.type === "boolean" && /* @__PURE__ */ jsx("div", { className: "flex items-center gap-3", children: ["scoreTrue", "scoreFalse"].map((k) => /* @__PURE__ */ jsxs(
                       "label",
                       {
@@ -2980,8 +3119,9 @@ var QuestionnaireModal = ({
                           }
                         )
                       ] }),
-                      q.options.map((o, idx) => /* @__PURE__ */ jsxs("div", { className: "space-y-1", children: [
-                        /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2", children: [
+                      q.options.map((o, idx) => {
+                        const currentFlags = Object.keys(o.conditionMap || {});
+                        return /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2", children: [
                           /* @__PURE__ */ jsx(
                             "input",
                             {
@@ -3012,10 +3152,27 @@ var QuestionnaireModal = ({
                                   delete next[`${q.id}:${idx}`];
                                   return next;
                                 }),
-                                className: `${fieldSm} w-14 text-right`
+                                className: `${fieldSm} w-10 text-right`
                               }
                             )
                           ] }),
+                          q.type !== "matrix" && /* @__PURE__ */ jsx(
+                            SafetyFlagPicker,
+                            {
+                              flags: currentFlags,
+                              flagOptions,
+                              onAdd: (k) => updateOption(q.id, idx, {
+                                conditionMap: { ...o.conditionMap || {}, [k]: true }
+                              }),
+                              onRemove: (k) => {
+                                const next = { ...o.conditionMap || {} };
+                                delete next[k];
+                                updateOption(q.id, idx, {
+                                  conditionMap: Object.keys(next).length ? next : void 0
+                                });
+                              }
+                            }
+                          ),
                           /* @__PURE__ */ jsx(
                             "button",
                             {
@@ -3027,46 +3184,8 @@ var QuestionnaireModal = ({
                               children: /* @__PURE__ */ jsx(X, { className: "h-3.5 w-3.5" })
                             }
                           )
-                        ] }),
-                        q.type !== "matrix" && (flagsOpen[`${q.id}:${idx}`] || Object.keys(o.conditionMap || {}).length ? /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2", children: [
-                          /* @__PURE__ */ jsx(
-                            "input",
-                            {
-                              value: Object.keys(o.conditionMap || {}).join(", "),
-                              onChange: (e) => {
-                                const keys = e.target.value.split(",").map((s) => s.trim()).filter(Boolean);
-                                updateOption(q.id, idx, {
-                                  conditionMap: keys.length ? Object.fromEntries(keys.map((k) => [k, true])) : void 0
-                                });
-                              },
-                              placeholder: "safety flags, comma-separated (e.g. is_pregnant, uses_retinol)",
-                              className: `${fieldSm} flex-1 min-w-0`,
-                              autoFocus: flagsOpen[`${q.id}:${idx}`]
-                            }
-                          ),
-                          /* @__PURE__ */ jsx(
-                            "button",
-                            {
-                              type: "button",
-                              title: "Remove safety flags",
-                              onClick: () => {
-                                updateOption(q.id, idx, { conditionMap: void 0 });
-                                setFlagsOpen((f) => ({ ...f, [`${q.id}:${idx}`]: false }));
-                              },
-                              className: "shrink-0 text-muted-foreground hover:text-destructive",
-                              children: /* @__PURE__ */ jsx(X, { className: "h-3.5 w-3.5" })
-                            }
-                          )
-                        ] }) : /* @__PURE__ */ jsx(
-                          "button",
-                          {
-                            type: "button",
-                            onClick: () => setFlagsOpen((f) => ({ ...f, [`${q.id}:${idx}`]: true })),
-                            className: "text-[10px] text-muted-foreground hover:text-foreground",
-                            children: "+ safety flags"
-                          }
-                        ))
-                      ] }, idx)),
+                        ] }, idx);
+                      }),
                       /* @__PURE__ */ jsxs(
                         "button",
                         {

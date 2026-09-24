@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
-import { FileText, Plus, Trash2, X, ChevronDown, ChevronRight } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { FileText, Plus, Trash2, X, ChevronDown, ChevronRight, Flag } from "lucide-react";
 import { Modal, Button, BrandSelect, ApplicationSelect, InfoTooltip } from "@gateway-experience/shared";
 import type {
   CalculationMethod,
@@ -18,7 +18,7 @@ import {
   type DimensionMeta,
 } from "../../catalog";
 import { toSurveyModel } from "../../surveyjs";
-import { getDimensions } from "../../api";
+import { getDimensions, getSafetyFlags, type SafetyFlagRow } from "../../api";
 
 // Builder question types and their friendly labels.
 const QUESTION_TYPES: { value: QuestionType; label: string; hasOptions: boolean }[] = [
@@ -87,6 +87,126 @@ const newQuestion = (dimension: string): QuestionItem => ({
   options: [newOption(), newOption()],
 });
 
+/**
+ * A single answer's safety flags — a compact icon button that sits inline
+ * with the answer row (filled when it carries any flag, outline when it
+ * doesn't), opening a small floating panel to add/remove flags rather than
+ * an inline block that pushes every row below it down the page.
+ */
+const SafetyFlagPicker: React.FC<{
+  flags: string[];
+  flagOptions: SafetyFlagRow[];
+  onAdd: (code: string) => void;
+  onRemove: (code: string) => void;
+}> = ({ flags, flagOptions, onAdd, onRemove }) => {
+  const [open, setOpen] = useState(false);
+  const [addingCustom, setAddingCustom] = useState(false);
+  const [customDraft, setCustomDraft] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+  const hasFlags = flags.length > 0;
+
+  useEffect(() => {
+    if (!open) return;
+    const onDocDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+        setAddingCustom(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocDown);
+    return () => document.removeEventListener("mousedown", onDocDown);
+  }, [open]);
+
+  const choices = flagOptions.filter((f) => !flags.includes(f.code));
+
+  return (
+    <div ref={ref} className="relative shrink-0">
+      <button
+        type="button"
+        title={hasFlags ? `Safety flags: ${flags.join(", ")}` : "Add safety flags"}
+        onClick={() => setOpen((o) => !o)}
+        className={`h-9 w-9 flex items-center justify-center rounded-md border-2 transition ${
+          hasFlags
+            ? "border-amber-500 bg-amber-500/10 text-amber-600"
+            : "border-border text-muted-foreground hover:text-foreground hover:border-muted-foreground/50"
+        }`}
+      >
+        <Flag className="h-5 w-5" fill={hasFlags ? "currentColor" : "none"} />
+        {flags.length > 1 && (
+          <span className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center leading-none">
+            {flags.length}
+          </span>
+        )}
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 z-20 w-56 rounded-md border border-border bg-popover shadow-lg p-2 space-y-1.5">
+          {hasFlags && (
+            <div className="flex flex-wrap gap-1">
+              {flags.map((k) => {
+                const meta = flagOptions.find((f) => f.code === k);
+                return (
+                  <span
+                    key={k}
+                    className="inline-flex items-center gap-1 bg-amber-500/10 border border-amber-500/30 text-amber-600 text-[10px] px-1.5 py-0.5 rounded"
+                  >
+                    {meta?.name || k}
+                    <button type="button" onClick={() => onRemove(k)}>
+                      <X className="h-2.5 w-2.5" />
+                    </button>
+                  </span>
+                );
+              })}
+            </div>
+          )}
+          {addingCustom ? (
+            <input
+              autoFocus
+              value={customDraft}
+              onChange={(e) => setCustomDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  const v = slugify(customDraft);
+                  if (v) onAdd(v);
+                  setCustomDraft("");
+                  setAddingCustom(false);
+                } else if (e.key === "Escape") {
+                  setAddingCustom(false);
+                }
+              }}
+              placeholder="new_flag_key"
+              className={`${fieldSm} w-full font-mono`}
+            />
+          ) : (
+            <select
+              value=""
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === "__custom__") setAddingCustom(true);
+                else if (v) onAdd(v);
+              }}
+              className={`${fieldSm} w-full`}
+              style={selectStyle}
+            >
+              <option style={optionStyle} value="">
+                + add flag
+              </option>
+              {choices.map((f) => (
+                <option key={f.code} style={optionStyle} value={f.code}>
+                  {f.name || f.code}
+                </option>
+              ))}
+              <option style={optionStyle} value="__custom__">
+                + Custom…
+              </option>
+            </select>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const QuestionnaireModal: React.FC<QuestionnaireModalProps> = ({
   isOpen,
   onClose,
@@ -107,9 +227,9 @@ export const QuestionnaireModal: React.FC<QuestionnaireModalProps> = ({
   const [questions, setQuestions] = useState<QuestionItem[]>([]);
   const [calcMethods, setCalcMethods] = useState<Record<string, CalculationMethod>>({});
   const [apiDimensions, setApiDimensions] = useState<DimensionMeta[]>([]);
+  const [safetyFlagCatalog, setSafetyFlagCatalog] = useState<SafetyFlagRow[]>([]);
   const [filterDim, setFilterDim] = useState<string>("all");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-  const [flagsOpen, setFlagsOpen] = useState<Record<string, boolean>>({});
   const [scoreDrafts, setScoreDrafts] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [copied, setCopied] = useState<string>("");
@@ -174,8 +294,34 @@ export const QuestionnaireModal: React.FC<QuestionnaireModalProps> = ({
       .catch(() => setApiDimensions([]));
   }, [isOpen]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    getSafetyFlags()
+      .then(setSafetyFlagCatalog)
+      .catch(() => setSafetyFlagCatalog([]));
+  }, [isOpen]);
+
   const effectiveCode = codeEdited ? qCode : slugify(qName);
   const usedDimensions = Array.from(new Set(questions.map((q) => q.dimension).filter(Boolean)));
+
+  // Every flag a choice's dropdown can offer: the registered catalog
+  // (Reference Data -> Customer Conditions) plus whatever's already in use
+  // on this questionnaire (e.g. a custom flag typed on another answer) —
+  // never a hardcoded list.
+  const flagOptions = useMemo(() => {
+    const byCode = new Map<string, SafetyFlagRow>();
+    for (const f of safetyFlagCatalog) byCode.set(f.code, f);
+    for (const q of questions) {
+      for (const o of q.options || []) {
+        for (const k of Object.keys(o.conditionMap || {})) {
+          if (!byCode.has(k)) byCode.set(k, { code: k });
+        }
+      }
+    }
+    return Array.from(byCode.values()).sort((a, b) =>
+      (a.name || a.code).localeCompare(b.name || b.code),
+    );
+  }, [safetyFlagCatalog, questions]);
 
   // Must run on every render (before the isOpen early return) to keep hook order stable.
   const draftItem = useMemo<QuestionnaireItem>(
@@ -479,22 +625,6 @@ export const QuestionnaireModal: React.FC<QuestionnaireModalProps> = ({
                           placeholder="Question text"
                           className={`${fieldSm} flex-1 min-w-0`}
                         />
-                        <select
-                          value={q.dimension}
-                          onChange={(e) => updateQuestion(q.id, { dimension: e.target.value })}
-                          className={`${fieldSm} w-32 shrink-0 ${q.dimension ? "" : "text-muted-foreground"}`}
-                          style={selectStyle}
-                          title="Dimension"
-                        >
-                          <option style={optionStyle} value="">
-                            — dimension —
-                          </option>
-                          {dimensionList.map((d) => (
-                            <option key={d.code} style={optionStyle} value={d.code}>
-                              {d.label}
-                            </option>
-                          ))}
-                        </select>
                         <button
                           type="button"
                           onClick={() => setCollapsed((c) => ({ ...c, [q.id]: !c[q.id] }))}
@@ -513,41 +643,74 @@ export const QuestionnaireModal: React.FC<QuestionnaireModalProps> = ({
 
                       {!isCollapsed && (
                         <div className="border-t border-border p-2.5 space-y-2">
-                          <div className="flex items-center gap-2">
-                            <select
-                              value={q.type}
-                              onChange={(e) => {
-                                const next = e.target.value as QuestionType;
-                                const patch: Partial<QuestionItem> = { type: next };
-                                if (typeHasOptions(next) && (!q.options || q.options.length === 0)) {
-                                  patch.options = [newOption(), newOption()];
-                                }
-                                if ((next === "rating" || next === "numeric_input") && !q.scale) {
-                                  patch.scale = { min: 0, max: next === "rating" ? 5 : 100 };
-                                }
-                                if (next === "matrix" && (!q.rows || q.rows.length === 0)) {
-                                  patch.rows = [
-                                    { value: `row_${Math.random().toString(36).slice(2, 7)}`, label: "" },
-                                    { value: `row_${Math.random().toString(36).slice(2, 7)}`, label: "" },
-                                  ];
-                                }
-                                updateQuestion(q.id, patch);
-                              }}
-                              className={`${fieldSm} w-40`}
-                              style={selectStyle}
-                            >
-                              {QUESTION_TYPES.map((t) => (
-                                <option key={t.value} style={optionStyle} value={t.value}>
-                                  {t.label}
-                                </option>
-                              ))}
-                            </select>
-                            <InfoTooltip content={TYPE_HINTS[q.type]} label="About this question type" />
-                            {typeHasOptions(q.type) && (
-                              <span className="text-[11px] text-muted-foreground">
-                                {q.options.length} {q.type === "matrix" ? "columns" : "answers"}
+                          <div
+                            className="flex flex-wrap items-center"
+                            style={{ columnGap: "2rem", rowGap: "0.5rem" }}
+                          >
+                            <label className="flex items-center gap-2">
+                              <span className="flex items-center gap-1 shrink-0 text-[11px] font-semibold text-muted-foreground">
+                                Question type
+                                <InfoTooltip
+                                  content={TYPE_HINTS[q.type]}
+                                  label="About this question type"
+                                  iconClassName="h-3 w-3"
+                                />
                               </span>
-                            )}
+                              <select
+                                value={q.type}
+                                onChange={(e) => {
+                                  const next = e.target.value as QuestionType;
+                                  const patch: Partial<QuestionItem> = { type: next };
+                                  if (typeHasOptions(next) && (!q.options || q.options.length === 0)) {
+                                    patch.options = [newOption(), newOption()];
+                                  }
+                                  if ((next === "rating" || next === "numeric_input") && !q.scale) {
+                                    patch.scale = { min: 0, max: next === "rating" ? 5 : 100 };
+                                  }
+                                  if (next === "matrix" && (!q.rows || q.rows.length === 0)) {
+                                    patch.rows = [
+                                      { value: `row_${Math.random().toString(36).slice(2, 7)}`, label: "" },
+                                      { value: `row_${Math.random().toString(36).slice(2, 7)}`, label: "" },
+                                    ];
+                                  }
+                                  updateQuestion(q.id, patch);
+                                }}
+                                className={`${fieldSm} w-36`}
+                                style={selectStyle}
+                              >
+                                {QUESTION_TYPES.map((t) => (
+                                  <option key={t.value} style={optionStyle} value={t.value}>
+                                    {t.label}
+                                  </option>
+                                ))}
+                              </select>
+                              {typeHasOptions(q.type) && (
+                                <span className="text-[11px] text-muted-foreground">
+                                  {q.options.length} {q.type === "matrix" ? "columns" : "answers"}
+                                </span>
+                              )}
+                            </label>
+
+                            <label className="flex items-center gap-2">
+                              <span className="shrink-0 text-[11px] font-semibold text-muted-foreground">
+                                Choose dimension
+                              </span>
+                              <select
+                                value={q.dimension}
+                                onChange={(e) => updateQuestion(q.id, { dimension: e.target.value })}
+                                className={`${fieldSm} w-56 ${q.dimension ? "" : "text-muted-foreground"}`}
+                                style={selectStyle}
+                              >
+                                <option style={optionStyle} value="">
+                                  — dimension —
+                                </option>
+                                {dimensionList.map((d) => (
+                                  <option key={d.code} style={optionStyle} value={d.code}>
+                                    {d.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
                           </div>
 
                           {/* boolean — score per state */}
@@ -694,101 +857,76 @@ export const QuestionnaireModal: React.FC<QuestionnaireModalProps> = ({
                                   />
                                 </div>
                               )}
-                              {q.options.map((o, idx) => (
-                                <div key={idx} className="space-y-1">
-                                  <div className="flex items-center gap-2">
+                              {q.options.map((o, idx) => {
+                                const currentFlags = Object.keys(o.conditionMap || {});
+                                return (
+                                <div key={idx} className="flex items-center gap-2">
+                                  <input
+                                    value={o.label}
+                                    onChange={(e) => updateOption(q.id, idx, { label: e.target.value })}
+                                    placeholder={
+                                      q.type === "matrix"
+                                        ? `Column ${idx + 1} (e.g. "Severe")`
+                                        : `Answer ${idx + 1}`
+                                    }
+                                    className={`${fieldSm} flex-1 min-w-0`}
+                                  />
+                                  <label className="flex items-center gap-1 text-[11px] text-muted-foreground shrink-0">
+                                    score
                                     <input
-                                      value={o.label}
-                                      onChange={(e) => updateOption(q.id, idx, { label: e.target.value })}
-                                      placeholder={
-                                        q.type === "matrix"
-                                          ? `Column ${idx + 1} (e.g. "Severe")`
-                                          : `Answer ${idx + 1}`
-                                      }
-                                      className={`${fieldSm} flex-1 min-w-0`}
-                                    />
-                                    <label className="flex items-center gap-1 text-[11px] text-muted-foreground shrink-0">
-                                      score
-                                      <input
-                                        type="text"
-                                        inputMode="numeric"
-                                        value={scoreDrafts[`${q.id}:${idx}`] ?? String(o.score ?? 0)}
-                                        onChange={(e) => {
-                                          const v = e.target.value;
-                                          if (!/^-?\d*$/.test(v)) return;
-                                          setScoreDrafts((d) => ({ ...d, [`${q.id}:${idx}`]: v }));
-                                          updateOption(q.id, idx, {
-                                            score: v === "" || v === "-" ? 0 : parseInt(v, 10),
-                                          });
-                                        }}
-                                        onBlur={() =>
-                                          setScoreDrafts((d) => {
-                                            const next = { ...d };
-                                            delete next[`${q.id}:${idx}`];
-                                            return next;
-                                          })
-                                        }
-                                        className={`${fieldSm} w-14 text-right`}
-                                      />
-                                    </label>
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        updateQuestion(q.id, {
-                                          options: q.options.filter((_, i) => i !== idx),
+                                      type="text"
+                                      inputMode="numeric"
+                                      value={scoreDrafts[`${q.id}:${idx}`] ?? String(o.score ?? 0)}
+                                      onChange={(e) => {
+                                        const v = e.target.value;
+                                        if (!/^-?\d*$/.test(v)) return;
+                                        setScoreDrafts((d) => ({ ...d, [`${q.id}:${idx}`]: v }));
+                                        updateOption(q.id, idx, {
+                                          score: v === "" || v === "-" ? 0 : parseInt(v, 10),
+                                        });
+                                      }}
+                                      onBlur={() =>
+                                        setScoreDrafts((d) => {
+                                          const next = { ...d };
+                                          delete next[`${q.id}:${idx}`];
+                                          return next;
                                         })
                                       }
-                                      className="shrink-0 text-muted-foreground hover:text-destructive"
-                                    >
-                                      <X className="h-3.5 w-3.5" />
-                                    </button>
-                                  </div>
-                                  {q.type !== "matrix" &&
-                                    (flagsOpen[`${q.id}:${idx}`] ||
-                                    Object.keys(o.conditionMap || {}).length ? (
-                                      <div className="flex items-center gap-2">
-                                        <input
-                                          value={Object.keys(o.conditionMap || {}).join(", ")}
-                                          onChange={(e) => {
-                                            const keys = e.target.value
-                                              .split(",")
-                                              .map((s) => s.trim())
-                                              .filter(Boolean);
-                                            updateOption(q.id, idx, {
-                                              conditionMap: keys.length
-                                                ? Object.fromEntries(keys.map((k) => [k, true]))
-                                                : undefined,
-                                            });
-                                          }}
-                                          placeholder="safety flags, comma-separated (e.g. is_pregnant, uses_retinol)"
-                                          className={`${fieldSm} flex-1 min-w-0`}
-                                          autoFocus={flagsOpen[`${q.id}:${idx}`]}
-                                        />
-                                        <button
-                                          type="button"
-                                          title="Remove safety flags"
-                                          onClick={() => {
-                                            updateOption(q.id, idx, { conditionMap: undefined });
-                                            setFlagsOpen((f) => ({ ...f, [`${q.id}:${idx}`]: false }));
-                                          }}
-                                          className="shrink-0 text-muted-foreground hover:text-destructive"
-                                        >
-                                          <X className="h-3.5 w-3.5" />
-                                        </button>
-                                      </div>
-                                    ) : (
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          setFlagsOpen((f) => ({ ...f, [`${q.id}:${idx}`]: true }))
-                                        }
-                                        className="text-[10px] text-muted-foreground hover:text-foreground"
-                                      >
-                                        + safety flags
-                                      </button>
-                                    ))}
+                                      className={`${fieldSm} w-10 text-right`}
+                                    />
+                                  </label>
+                                  {q.type !== "matrix" && (
+                                    <SafetyFlagPicker
+                                      flags={currentFlags}
+                                      flagOptions={flagOptions}
+                                      onAdd={(k) =>
+                                        updateOption(q.id, idx, {
+                                          conditionMap: { ...(o.conditionMap || {}), [k]: true },
+                                        })
+                                      }
+                                      onRemove={(k) => {
+                                        const next = { ...(o.conditionMap || {}) };
+                                        delete next[k];
+                                        updateOption(q.id, idx, {
+                                          conditionMap: Object.keys(next).length ? next : undefined,
+                                        });
+                                      }}
+                                    />
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      updateQuestion(q.id, {
+                                        options: q.options.filter((_, i) => i !== idx),
+                                      })
+                                    }
+                                    className="shrink-0 text-muted-foreground hover:text-destructive"
+                                  >
+                                    <X className="h-3.5 w-3.5" />
+                                  </button>
                                 </div>
-                              ))}
+                                );
+                              })}
                               <button
                                 type="button"
                                 onClick={() => updateQuestion(q.id, { options: [...q.options, newOption()] })}

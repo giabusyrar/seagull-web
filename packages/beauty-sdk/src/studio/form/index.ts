@@ -15,6 +15,8 @@ export {
   deleteQuestionnaire,
   getDimensions,
   type DimensionRow,
+  getSafetyFlags,
+  type SafetyFlagRow,
 } from './api';
 export {
   toSurveyModel,

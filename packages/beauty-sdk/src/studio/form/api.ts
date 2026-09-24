@@ -198,3 +198,31 @@ export async function getDimensions(): Promise<DimensionRow[]> {
     return [];
   }
 }
+
+export interface SafetyFlagRow {
+  code: string;
+  name?: string;
+  description?: string;
+}
+
+/**
+ * Safety flag catalog (ref_conditions in reference-service) — the same
+ * registered "customer condition" entity the Customer Conditions admin page
+ * manages. Empty on failure (caller falls back to whatever's already used in
+ * the questionnaire being edited, never a hardcoded list).
+ */
+export async function getSafetyFlags(): Promise<SafetyFlagRow[]> {
+  try {
+    const res = await fetch(`/api/reference/conditions`, { cache: 'no-store' });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const arr = Array.isArray(data)
+      ? data
+      : Array.isArray(data?.data)
+      ? data.data
+      : [];
+    return arr as SafetyFlagRow[];
+  } catch {
+    return [];
+  }
+}
