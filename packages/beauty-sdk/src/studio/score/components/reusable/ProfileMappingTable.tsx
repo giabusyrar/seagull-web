@@ -25,6 +25,10 @@ export const ProfileMappingTable: React.FC<ProfileMappingTableProps> = ({
 }) => {
   const { strategy, profiles } = config;
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
+  // Remembers each method's own rows for this editing session, so switching
+  // methods and switching back doesn't silently discard what you typed —
+  // only the CURRENTLY selected method is ever saved to the ruleset, though.
+  const [cache, setCache] = useState<Partial<Record<ProfileStrategyType, VisualProfileEntry[]>>>({});
 
   // Combination Matrix fans out one column per dimension; let the table grow past
   // the container and scroll horizontally instead of crushing every column.
@@ -37,25 +41,31 @@ export const ProfileMappingTable: React.FC<ProfileMappingTableProps> = ({
   const handleStrategyChange = (newStrategy: ProfileStrategyType) => {
     if (newStrategy === strategy) return;
 
-    let initialProfiles: VisualProfileEntry[] = [];
-    if (newStrategy === 'total_score') {
-      initialProfiles = [
-        { id: `prof_${Date.now()}_1`, minScore: 80, maxScore: 100, code: 'OPTIMAL_RESILIENT', title: 'Optimal Vitality', category: 'Resilient Barrier', summary: 'Healthy barrier balance.' },
-        { id: `prof_${Date.now()}_2`, minScore: 50, maxScore: 79, code: 'MODERATE_FATIGUE', title: 'Moderate Fatigue', category: 'Early Stress', summary: 'Mild cellular stress.' },
-        { id: `prof_${Date.now()}_3`, minScore: 0, maxScore: 49, code: 'ACCELERATED_DEFICIT', title: 'Accelerated Deficit', category: 'High Concern', summary: 'Elevated concern.' },
-      ];
-    } else if (newStrategy === 'combination_matrix') {
-      initialProfiles = generateCartesianCombinations(axes);
-    } else if (newStrategy === 'primary_concern') {
-      initialProfiles = axes.map((a, idx) => ({
-        id: `prof_${Date.now()}_${idx + 1}`,
-        primaryDimension: a.dimensionKey,
-        severityLevel: 'Sangat Parah',
-        code: `${a.dimensionKey.toUpperCase()}_CRITICAL`,
-        title: `${a.name} Critical Concern`,
-        category: 'Acute Concern',
-        summary: `Acute focus required on ${a.name}.`,
-      }));
+    // Remember the method you're leaving, in case you switch back to it.
+    setCache((prev) => ({ ...prev, [strategy]: profiles }));
+
+    const cached = cache[newStrategy];
+    let initialProfiles: VisualProfileEntry[] = cached ?? [];
+    if (!cached) {
+      if (newStrategy === 'total_score') {
+        initialProfiles = [
+          { id: `prof_${Date.now()}_1`, minScore: 80, maxScore: 100, code: 'OPTIMAL_RESILIENT', title: 'Optimal Vitality', category: 'Resilient Barrier', summary: 'Healthy barrier balance.' },
+          { id: `prof_${Date.now()}_2`, minScore: 50, maxScore: 79, code: 'MODERATE_FATIGUE', title: 'Moderate Fatigue', category: 'Early Stress', summary: 'Mild cellular stress.' },
+          { id: `prof_${Date.now()}_3`, minScore: 0, maxScore: 49, code: 'ACCELERATED_DEFICIT', title: 'Accelerated Deficit', category: 'High Concern', summary: 'Elevated concern.' },
+        ];
+      } else if (newStrategy === 'combination_matrix') {
+        initialProfiles = generateCartesianCombinations(axes);
+      } else if (newStrategy === 'primary_concern') {
+        initialProfiles = axes.map((a, idx) => ({
+          id: `prof_${Date.now()}_${idx + 1}`,
+          primaryDimension: a.dimensionKey,
+          severityLevel: 'Sangat Parah',
+          code: `${a.dimensionKey.toUpperCase()}_CRITICAL`,
+          title: `${a.name} Critical Concern`,
+          category: 'Acute Concern',
+          summary: `Acute focus required on ${a.name}.`,
+        }));
+      }
     }
 
     onChange({
@@ -157,7 +167,7 @@ export const ProfileMappingTable: React.FC<ProfileMappingTableProps> = ({
             How the profile is chosen
           </label>
           <InfoTooltip
-            content="Pick how dimension scores turn into one final skin profile."
+            content="Sets skin_profile.code and skin_profile.name — a different result than Score Range and Severity Level above, which only set score_range and severity_level. 'Total Score' reads the same overall score as those two, just to pick a different output."
             label="About profile strategy"
           />
         </div>
@@ -207,6 +217,23 @@ export const ProfileMappingTable: React.FC<ProfileMappingTableProps> = ({
         </div>
       </div>
 
+      <p className="text-[11px] text-muted-foreground -mt-2">
+        Only the highlighted method above is saved to this ruleset — the other two are kept in
+        this browser tab so you can switch back without losing what you typed, but they're
+        discarded on reload.
+      </p>
+
+      {strategy === 'total_score' && (
+        <p className="text-[11px] text-muted-foreground bg-muted/40 border border-border rounded-lg px-3 py-2">
+          "Trigger range" reads the same overall score as the Score Range / Severity Level labels
+          above, but this table picks the profile's own{' '}
+          <span className="font-mono">skin_profile.code</span> /{' '}
+          <span className="font-mono">skin_profile.name</span> — a different result than{' '}
+          <span className="font-mono">score_range</span> /{' '}
+          <span className="font-mono">severity_level</span>. Editing one does not change the others.
+        </p>
+      )}
+
       {/* Auto-generate toolbar for Combination Matrix */}
       {strategy === 'combination_matrix' && (
         <div className="flex items-center justify-between bg-muted/40 border border-border p-2.5 rounded-lg">
@@ -238,7 +265,7 @@ export const ProfileMappingTable: React.FC<ProfileMappingTableProps> = ({
 
                 {/* Strategy Specific Criteria Columns */}
                 {strategy === 'total_score' && (
-                  <th className="py-2.5 px-3" style={{ minWidth: 160 }}>Score range</th>
+                  <th className="py-2.5 px-3" style={{ minWidth: 160 }}>Trigger range</th>
                 )}
 
                 {strategy === 'combination_matrix' &&

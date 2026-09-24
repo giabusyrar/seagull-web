@@ -32,7 +32,9 @@ export const RequestSandbox: React.FC<RequestSandboxProps> = ({
   originalRoute,
 }) => {
   const [activeReqTab, setActiveReqTab] = useState<'params' | 'headers' | 'body'>('params');
-  // Body editor: fill the route-defined fields, or paste a raw JSON body.
+  // Body editor: fill the route-defined fields (each one text or a real file
+  // upload, exactly as declared in Route Settings — the field type there is
+  // the only place this is configured), or paste a raw JSON body.
   const [bodyMode, setBodyMode] = useState<'form' | 'raw'>('form');
 
   const parsedRouteParams = useMemo(() => {
@@ -583,33 +585,46 @@ export const RequestSandbox: React.FC<RequestSandboxProps> = ({
               ) : (
               <div className="grid grid-cols-1 gap-3">
                 {configuredBody.map((b: any) => {
-                  const isStatic = b.type === 'static';
-                  const val = isStatic ? (b.value || '') : (bodyFields[b.key] || '');
+                  const isFile = b.fieldType === 'file';
+                  const picked = (request.multipartFields || []).find((f) => f.key === b.key);
                   return (
                     <div key={b.key} className="space-y-1">
-                      <div className="flex justify-between items-center">
-                        <label className="block text-xs font-semibold text-foreground font-mono">
-                          {b.key}
-                          {!isStatic && b.required && <span className="text-rose-500 ml-1 font-sans font-bold" title="Required field">*</span>}
-                        </label>
-                        {isStatic && (
-                          <span className="bg-amber-500/15 border border-amber-500/40 text-amber-600 text-[9px] font-bold px-1.5 py-0.2 rounded">
-                            Static / Fixed
+                      <label className="block text-xs font-semibold text-foreground font-mono">
+                        {b.key}
+                        {b.required && <span className="text-rose-500 ml-1 font-sans font-bold" title="Required field">*</span>}
+                        {isFile && (
+                          <span className="ml-1.5 bg-sky-500/15 border border-sky-500/40 text-sky-600 text-[9px] font-bold px-1.5 py-0.2 rounded align-middle">
+                            File
                           </span>
                         )}
-                      </div>
-                      <input
-                        type="text"
-                        value={val}
-                        readOnly={isStatic}
-                        onChange={(e) => handleBodyFieldChange(b.key, e.target.value)}
-                        placeholder={isStatic ? 'Static value' : `Value for ${b.key}`}
-                        className={`w-full h-8 border rounded px-3 text-xs outline-none shadow-2xs ${
-                          isStatic
-                            ? 'bg-slate-50 border-border text-muted-foreground cursor-not-allowed'
-                            : 'bg-white border-border text-foreground focus:border-primary'
-                        }`}
-                      />
+                      </label>
+                      {isFile ? (
+                        <input
+                          type="file"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0] || null;
+                            const existing = request.multipartFields || [];
+                            const next = existing.some((f) => f.key === b.key)
+                              ? existing.map((f) =>
+                                  f.key === b.key ? { ...f, file, value: file?.name || '' } : f
+                                )
+                              : [
+                                  ...existing,
+                                  { id: `mp_${b.key}`, key: b.key, type: 'file' as const, value: file?.name || '', file, enabled: true },
+                                ];
+                            onUpdateRequest({ ...request, multipartFields: next });
+                          }}
+                          className="w-full text-xs text-foreground"
+                        />
+                      ) : (
+                        <input
+                          type="text"
+                          value={bodyFields[b.key] || ''}
+                          onChange={(e) => handleBodyFieldChange(b.key, e.target.value)}
+                          placeholder={`Value for ${b.key}`}
+                          className="w-full h-8 border rounded px-3 text-xs outline-none shadow-2xs bg-white border-border text-foreground focus:border-primary"
+                        />
+                      )}
                     </div>
                   );
                 })}

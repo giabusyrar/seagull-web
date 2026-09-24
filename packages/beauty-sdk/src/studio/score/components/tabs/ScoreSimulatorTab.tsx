@@ -24,8 +24,12 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
   const activeRuleset = selectedRuleset || rulesets[0] || null;
 
   // Dimensions to expose as sliders — read from the selected ruleset's schema
-  // (dimension_weights / concern_labels / axis_codes keys) so the simulator
-  // always matches the model under test.
+  // (dimension_weights / concern_labels / axis_codes keys), PLUS any
+  // dimension_scores.<key> a custom decisionTableNode reads (e.g. a
+  // vision/DOB-only axis like 'wrinkle' or 'age_over_30' that has no form
+  // dimension and so never appears in dimension_weights/concern_labels/
+  // axis_codes) — otherwise the simulator silently can't show that axis's
+  // letter at all, even though the ruleset computes it correctly.
   const rulesetDims = useMemo<string[]>(() => {
     if (!activeRuleset?.schema) return [];
     try {
@@ -35,35 +39,99 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
         ...Object.keys(s.concern_labels || {}),
         ...Object.keys(s.axis_codes || {}),
       ]);
+      for (const node of s.nodes || []) {
+        if (node?.type !== 'decisionTableNode') continue;
+        const content = typeof node.content === 'string' ? JSON.parse(node.content) : node.content;
+        for (const input of content?.inputs || []) {
+          const field = String(input?.field || '');
+          if (field.startsWith('dimension_scores.')) {
+            keys.add(field.slice('dimension_scores.'.length));
+          }
+        }
+      }
       return Array.from(keys);
     } catch {
       return [];
     }
   }, [activeRuleset]);
 
-  const [dimensionScores, setDimensionScores] = useState<Record<string, number>>({
-    sebum: 65,
-    sensitivity: 70,
-    pigmentation: 45,
-    aging: 30,
-    barrier: 80,
-  });
+  // field_mapping (registered on the ruleset from the Blending tab) is now
+  // the authoritative source for which axes are form-driven, vision-driven,
+  // or both — this replaces the older per-slider heuristics.
+  const fieldMapping = useMemo<Record<string, { form?: string; vision?: string }>>(() => {
+    try {
+      return JSON.parse(activeRuleset?.schema || '{}').field_mapping || {};
+    } catch {
+      return {};
+    }
+  }, [activeRuleset]);
+  const dimensionFusion = useMemo<Record<string, { form: number; vision: number }>>(() => {
+    try {
+      return JSON.parse(activeRuleset?.schema || '{}').dimension_fusion || {};
+    } catch {
+      return {};
+    }
+  }, [activeRuleset]);
 
-  // Re-seed the sliders whenever the ruleset (and thus its dimensions) changes.
+  // Age is never a generic 0-100 slider — it's always the dedicated Age
+  // input below, converted to a health value (<=30 -> 100, >30 -> 0).
+  const ageAxisKeys = useMemo(() => rulesetDims.filter((d) => fieldMapping[d]?.form === 'age_over_30'), [rulesetDims, fieldMapping]);
+  // Questionnaire result: every axis with a form source, other than the
+  // age-driven ones above.
+  const formDims = useMemo(
+    () => rulesetDims.filter((d) => !ageAxisKeys.includes(d) && (fieldMapping[d]?.form || !fieldMapping[d]?.vision)),
+    [rulesetDims, fieldMapping, ageAxisKeys],
+  );
+  // Vision result: every axis with a vision source.
+  const visionDims = useMemo(() => rulesetDims.filter((d) => fieldMapping[d]?.vision), [rulesetDims, fieldMapping]);
+  const formDimsKey = formDims.join(',');
+  const visionDimsKey = visionDims.join(',');
+
+  const [questionnaireValues, setQuestionnaireValues] = useState<Record<string, number>>({});
+  const [visionValues, setVisionValues] = useState<Record<string, number>>({});
+  const [respondentAge, setRespondentAge] = useState(25);
+
   useEffect(() => {
-    if (rulesetDims.length === 0) return;
-    setDimensionScores((prev) => {
+    setQuestionnaireValues((prev) => {
       const next: Record<string, number> = {};
-      for (const d of rulesetDims) next[d] = prev[d] ?? 50;
+      for (const d of formDims) next[d] = prev[d] ?? 50;
       return next;
     });
-  }, [rulesetDims]);
+  }, [formDimsKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const [enableVision, setEnableVision] = useState(false);
-  const [visionSignals, setVisionSignals] = useState<Record<string, number>>({
-    sebum: 85,
-    pigmentation: 60,
-  });
+  useEffect(() => {
+    setVisionValues((prev) => {
+      const next: Record<string, number> = {};
+      for (const d of visionDims) next[d] = prev[d] ?? 50;
+      return next;
+    });
+  }, [visionDimsKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Dimension scores: the FINAL, health-oriented (100 = optimal) number per
+  // axis — questionnaire and vision already normalised and blended by each
+  // axis's own form/vision weight (dimension_fusion). This is what actually
+  // drives the bands/axis letters below, computed the same way /evaluate
+  // does it, just client-side so the preview is accurate even though
+  // /simulate itself doesn't run the fusion step.
+  const dimensionScores = useMemo<Record<string, number>>(() => {
+    const out: Record<string, number> = {};
+    for (const d of rulesetDims) {
+      const isAgeForm = ageAxisKeys.includes(d);
+      const formVal = isAgeForm ? (respondentAge <= 30 ? 100 : 0) : questionnaireValues[d];
+      const visionVal = visionValues[d];
+      const df = dimensionFusion[d];
+      if (df) {
+        const fw = typeof df.form === 'number' ? df.form : 0.5;
+        const vw = typeof df.vision === 'number' ? df.vision : 0.5;
+        out[d] = Math.round(((formVal ?? 50) * fw + (visionVal ?? 50) * vw) * 10) / 10;
+      } else if (fieldMapping[d]?.vision && !fieldMapping[d]?.form) {
+        out[d] = visionVal ?? 50;
+      } else {
+        out[d] = formVal ?? 50;
+      }
+    }
+    return out;
+  }, [rulesetDims, ageAxisKeys, questionnaireValues, visionValues, dimensionFusion, fieldMapping, respondentAge]);
 
   // Safety flag keys declared directly on the ruleset schema (safety_flags),
   // same pattern as rulesetDims above.
@@ -82,11 +150,23 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
     }
   }, [activeRuleset]);
 
+  // form_survey_code / vision_source_code — set once on the ruleset's Setup
+  // tab — are this ruleset's own declared source. Same read pattern as
+  // fieldMapping/dimensionFusion above.
+  const formSurveyCode = useMemo<string>(() => {
+    try {
+      return JSON.parse(activeRuleset?.schema || '{}').form_survey_code || '';
+    } catch {
+      return '';
+    }
+  }, [activeRuleset]);
+
   // Safety flag keys actually tagged on answer choices ("+ safety flags" in
   // the Questionnaire builder — QuestionnaireModal.tsx, stored as each
-  // choice's conditionMap) across every questionnaire for the same brand /
-  // application as the active ruleset. Editing a questionnaire's flags is
-  // meant to show up here without also having to hand-edit the ruleset.
+  // choice's conditionMap). Scoped to just the survey this ruleset declares
+  // as its form_survey_code (its own actual source), falling back to every
+  // questionnaire for the same brand/application only when the ruleset
+  // hasn't set one yet.
   const [surveySafetyFlags, setSurveySafetyFlags] = useState<string[]>([]);
 
   useEffect(() => {
@@ -101,7 +181,10 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
           `/core/form-engine/survey?brand_id=${encodeURIComponent(activeRuleset.brandId)}&application_id=${encodeURIComponent(activeRuleset.applicationId)}`,
         );
         if (!res.ok) return;
-        const surveys: { schema?: string }[] = await res.json();
+        const allSurveys: { code?: string; schema?: string }[] = await res.json();
+        const surveys = formSurveyCode
+          ? allSurveys.filter((s) => s.code === formSurveyCode)
+          : allSurveys;
         const flags = new Set<string>();
         for (const survey of surveys || []) {
           if (!survey.schema) continue;
@@ -131,7 +214,7 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [activeRuleset?.brandId, activeRuleset?.applicationId]);
+  }, [activeRuleset?.brandId, activeRuleset?.applicationId, formSurveyCode]);
 
   const allSafetyFlags = useMemo(
     () => Array.from(new Set([...rulesetSafetyFlags, ...surveySafetyFlags])),
@@ -165,13 +248,12 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
         {
           schema: activeRuleset?.schema ?? '',
           dimension_scores: dimensionScores,
-          ...(enableVision ? { vision_signals: visionSignals } : {}),
           customer_condition: selectedConditions,
         },
         null,
         2,
       ),
-    [activeRuleset, dimensionScores, enableVision, visionSignals, selectedConditions],
+    [activeRuleset, dimensionScores, selectedConditions],
   );
 
   const copyRequest = () => {
@@ -189,7 +271,6 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
         body: JSON.stringify({
           schema: activeRuleset.schema,
           dimension_scores: dimensionScores,
-          vision_signals: enableVision ? visionSignals : undefined,
           customer_condition: selectedConditions,
         }),
       });
@@ -197,7 +278,7 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
     } catch (err) {
       console.error('Simulation request failed', err);
     }
-  }, [activeRuleset, dimensionScores, enableVision, visionSignals, selectedConditions]);
+  }, [activeRuleset, dimensionScores, selectedConditions]);
 
   useEffect(() => {
     const timer = setTimeout(runSimulation, 250);
@@ -212,24 +293,49 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
     | { dimension?: string; label?: string; score?: number }
     | undefined;
 
+  // Which axes this ruleset actually PRODUCES a letter for — i.e. keys with
+  // an axis_codes entry, or a custom decisionTableNode output field
+  // targeting axis_values.<KEY>. Deliberately NOT the same list as
+  // rulesetDims (which also includes vision/DOB-only *inputs* like
+  // wrinkle/age_over_30 that feed the Aging axis but don't get their own
+  // letter) — using rulesetDims here would tack extra garbage characters
+  // onto the generated code.
+  const axisOutputDims = useMemo<string[]>(() => {
+    if (!activeRuleset?.schema) return [];
+    try {
+      const s = JSON.parse(activeRuleset.schema);
+      const keys = new Set<string>(Object.keys(s.axis_codes || {}));
+      for (const node of s.nodes || []) {
+        if (node?.type !== 'decisionTableNode') continue;
+        const content = typeof node.content === 'string' ? JSON.parse(node.content) : node.content;
+        for (const output of content?.outputs || []) {
+          const field = String(output?.field || '');
+          if (field.startsWith('axis_values.')) {
+            keys.add(field.slice('axis_values.'.length).toLowerCase());
+          }
+        }
+      }
+      return Array.from(keys);
+    } catch {
+      return [];
+    }
+  }, [activeRuleset]);
+
   // Canonical Baumann Skin Type Indicator axis order: Oiliness, Sensitivity,
   // Pigmentation, Wrinkle (e.g. "OSPW", "DRNT"). Known axes are sorted into
-  // this order regardless of the order dimension_weights happens to list
-  // them in the schema JSON; any other, non-Baumann dimension keys (e.g. a
-  // future axis this ruleset adds) are appended after, in their existing order.
+  // this order regardless of the order the schema happens to list them in;
+  // any other, non-Baumann axis key (e.g. a future axis this ruleset adds)
+  // is appended after, in its existing order.
   const BAUMANN_AXIS_ORDER = ['sebum', 'oiliness', 'sensitivity', 'pigmentation', 'aging', 'wrinkle'];
   const orderedDims = useMemo(() => {
-    const known = BAUMANN_AXIS_ORDER.filter((k) => rulesetDims.includes(k));
-    const rest = rulesetDims.filter((k) => !BAUMANN_AXIS_ORDER.includes(k));
+    const known = BAUMANN_AXIS_ORDER.filter((k) => axisOutputDims.includes(k));
+    const rest = axisOutputDims.filter((k) => !BAUMANN_AXIS_ORDER.includes(k));
     return [...known, ...rest];
-  }, [rulesetDims]);
+  }, [axisOutputDims]);
 
   // Baumann-style skin profile code, one letter per axis this ruleset
-  // actually declares (rulesetDims — same dynamic list the sliders use, so
-  // it matches whatever dimension keys the schema has, e.g. "sebum" not the
-  // gateway's legacy "OILINESS" default). An axis with no computed letter
-  // (not yet answered, or the schema doesn't classify it) shows "-" instead
-  // of silently dropping out of the code.
+  // actually produces a letter for. An axis with no computed letter (not
+  // yet answered) shows "-" instead of silently dropping out of the code.
   const generatedCode = useMemo(() => {
     if (orderedDims.length === 0) return 'CUSTOM';
     return orderedDims.map((k) => axisValues[k.toUpperCase()] || '-').join('');
@@ -238,8 +344,35 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
   const traitsList = useMemo(() => Object.values(traits).filter(Boolean), [traits]);
 
   const profile = simResponse?.result?.skin_profile;
-  const profileCode = profile?.code || generatedCode;
-  const profileName = profile?.name || traitsList.join(' · ') || 'Answer to see a profile';
+
+  // Whether the schema's own skin_profile node (if any) is itself
+  // axis-based (Combination Matrix strategy) — if so its code/name are
+  // already a real Baumann-style profile and are trusted as-is. Otherwise
+  // (Total Score strategy, or no profile node at all) that node's code is
+  // just a generic score-range bucket (e.g. "MODERATE") that has nothing to
+  // do with the Baumann letters — the axis-composed code takes priority
+  // whenever this ruleset has axes at all.
+  const profileStrategyIsAxisBased = useMemo(() => {
+    try {
+      const s = JSON.parse(activeRuleset?.schema || '{}');
+      const profileNode = (s.nodes || []).find((n: any) => {
+        const c = typeof n?.content === 'string' ? JSON.parse(n.content) : n?.content;
+        return (c?.outputs || []).some((o: any) => o?.field === 'skin_profile.code');
+      });
+      if (!profileNode) return false;
+      const c = typeof profileNode.content === 'string' ? JSON.parse(profileNode.content) : profileNode.content;
+      return (c?.inputs || []).some((i: any) => String(i?.field || '').startsWith('axis_values.'));
+    } catch {
+      return false;
+    }
+  }, [activeRuleset]);
+
+  const hasAxes = axisOutputDims.length > 0;
+  const useAxisProfile = hasAxes && !profileStrategyIsAxisBased;
+  const profileCode = useAxisProfile ? generatedCode : profile?.code || generatedCode;
+  const profileName = useAxisProfile
+    ? orderedDims.map((k) => k.charAt(0).toUpperCase() + k.slice(1)).join(' · ') || 'Baumann Skin Character'
+    : profile?.name || traitsList.join(' · ') || 'Answer to see a profile';
   const totalScore = Math.round(simResponse?.result?.total_score || 0);
 
   return (
@@ -265,75 +398,105 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
           </select>
         </div>
 
-        <div className={card + ' space-y-3'}>
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-foreground">Dimension scores (0–100)</h3>
-            <span className="text-[11px] text-muted-foreground font-mono">
-              overall {totalScore}
-            </span>
+        {ageAxisKeys.length > 0 && (
+          <div className={card + ' space-y-2'}>
+            <div className="flex items-center gap-1.5">
+              <h3 className="text-sm font-bold text-foreground">Usia</h3>
+              <InfoTooltip
+                content="Bukan slider form biasa — dihitung dari date_of_birth di kuisioner data pribadi, bukan Q1-Q6. Dipakai axis: aging."
+                label="About Usia"
+              />
+            </div>
+            <div className="flex items-center justify-between text-xs mb-1">
+              <span className="text-foreground">Umur (tahun)</span>
+              <span className="text-beak font-semibold font-mono">
+                {respondentAge} ({respondentAge <= 30 ? 'sehat' : 'faktor W'})
+              </span>
+            </div>
+            <input
+              type="range"
+              min={13}
+              max={70}
+              value={respondentAge}
+              onChange={(e) => setRespondentAge(Number(e.target.value))}
+              className={sliderCls}
+            />
           </div>
-          <div className="space-y-3">
-            {Object.keys(dimensionScores).map((dimKey) => (
-              <div key={dimKey}>
-                <div className="flex items-center justify-between text-xs mb-1">
-                  <span className="text-foreground">{dimKey}</span>
-                  <span className="text-beak font-semibold font-mono">
-                    {dimensionScores[dimKey]}
-                  </span>
+        )}
+
+        {formDims.length > 0 && (
+          <div className={card + ' space-y-3'}>
+            <div className="flex items-center gap-1.5">
+              <h3 className="text-sm font-bold text-foreground">Questionnaire result</h3>
+              <InfoTooltip content="Per-dimensi, hanya yang dihitung dari kuisioner (form_source)." label="About questionnaire result" />
+            </div>
+            <div className="space-y-3">
+              {formDims.map((dimKey) => (
+                <div key={dimKey}>
+                  <div className="flex items-center justify-between text-xs mb-1">
+                    <span className="text-foreground">{dimKey}</span>
+                    <span className="text-beak font-semibold font-mono">{questionnaireValues[dimKey] ?? 50}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={questionnaireValues[dimKey] ?? 50}
+                    onChange={(e) => setQuestionnaireValues((p) => ({ ...p, [dimKey]: Number(e.target.value) }))}
+                    className={sliderCls}
+                  />
                 </div>
-                <input
-                  type="range"
-                  min={0}
-                  max={100}
-                  value={dimensionScores[dimKey]}
-                  onChange={(e) =>
-                    setDimensionScores((p) => ({ ...p, [dimKey]: Number(e.target.value) }))
-                  }
-                  className={sliderCls}
-                />
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
+        )}
+
+        {visionDims.length > 0 && (
+          <div className={card + ' space-y-3'}>
+            <div className="flex items-center gap-1.5">
+              <h3 className="text-sm font-bold text-foreground">Vision result</h3>
+              <InfoTooltip content="Per-dimensi, hanya yang dihitung dari foto vendor (vision_source)." label="About vision result" />
+            </div>
+            <div className="space-y-3">
+              {visionDims.map((dimKey) => (
+                <div key={dimKey}>
+                  <div className="flex items-center justify-between text-xs mb-1">
+                    <span className="text-foreground">{dimKey}</span>
+                    <span className="text-beak font-semibold font-mono">{visionValues[dimKey] ?? 50}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={visionValues[dimKey] ?? 50}
+                    onChange={(e) => setVisionValues((p) => ({ ...p, [dimKey]: Number(e.target.value) }))}
+                    className={sliderCls}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className={card + ' space-y-3'}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
-              <h3 className="text-sm font-bold text-foreground">Vision signals</h3>
+              <h3 className="text-sm font-bold text-foreground">Dimension scores</h3>
               <InfoTooltip
-                content="Optional — blended with the dimension scores when on."
-                label="About vision signals"
+                content="Hasil FINAL per axis — sudah lewat normalisasi + blend form/vision sesuai bobot di Blending tab. Read-only, ini yang beneran dipakai buat klasifikasi di bawah."
+                label="About dimension scores"
               />
             </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={enableVision}
-                onChange={(e) => setEnableVision(e.target.checked)}
-                className="sr-only peer"
-              />
-              <div className="w-9 h-5 rounded-full bg-muted peer-checked:bg-beak transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:h-4 after:w-4 after:rounded-full after:bg-background after:transition-all peer-checked:after:translate-x-full" />
-            </label>
+            <span className="text-[11px] text-muted-foreground font-mono">overall {totalScore}</span>
           </div>
-          {enableVision &&
-            Object.entries(visionSignals).map(([key, val]) => (
-              <div key={key}>
-                <div className="flex items-center justify-between text-xs mb-1">
-                  <span className="text-foreground">{key}</span>
-                  <span className="text-beak font-semibold font-mono">{val}</span>
-                </div>
-                <input
-                  type="range"
-                  min={0}
-                  max={100}
-                  value={val}
-                  onChange={(e) =>
-                    setVisionSignals((p) => ({ ...p, [key]: Number(e.target.value) }))
-                  }
-                  className={sliderCls}
-                />
+          <div className="space-y-1.5">
+            {Object.keys(dimensionScores).map((dimKey) => (
+              <div key={dimKey} className="flex items-center justify-between text-xs">
+                <span className="text-foreground">{dimKey}</span>
+                <span className="text-beak font-semibold font-mono">{dimensionScores[dimKey]}</span>
               </div>
             ))}
+          </div>
         </div>
 
         <div className={card + ' space-y-2'}>

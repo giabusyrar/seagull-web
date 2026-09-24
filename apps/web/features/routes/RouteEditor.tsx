@@ -320,7 +320,22 @@ export const RouteEditor: React.FC<RouteEditorProps> = ({
       return '';
     }
   })();
-  const [defaultApiKey] = useState(() => recallTryApiKey() || savedApiKeyFromRoute);
+  const [defaultApiKey, setDefaultApiKey] = useState(() => recallTryApiKey() || savedApiKeyFromRoute);
+
+  // Neither sessionStorage nor the route's own header overrides always have
+  // an X-API-Key — a route that relies on a collection-level header (shown
+  // as "Inherited" in Route Settings, never written into this route's own
+  // routeParams.headers) has no value for either fallback to find, since
+  // both only look at the route's own data. collectionParams loads async
+  // (fetched after mount), so this fills in once it's actually available,
+  // rather than at the one-time useState initializer above.
+  useEffect(() => {
+    if (defaultApiKey) return;
+    const inherited = collectionParams.find(
+      (p) => p.kind === 'header' && p.enabled && p.key.toLowerCase() === 'x-api-key',
+    )?.value;
+    if (inherited) setDefaultApiKey(inherited);
+  }, [collectionParams, defaultApiKey]);
 
   const [tryRequest, setTryRequest] = useState<ApiClientRequest>(() => ({
     id: route.id,
@@ -334,6 +349,7 @@ export const RouteEditor: React.FC<RouteEditorProps> = ({
     ],
     body: '{}',
     bodyType: 'json',
+    multipartFields: [],
   }));
   const [tryResponse, setTryResponse] = useState<ResponseData | null>(null);
   const [isSending, setIsSending] = useState(false);
@@ -500,6 +516,12 @@ export const RouteEditor: React.FC<RouteEditorProps> = ({
   const handleSave = async () => {
     setSaving(true);
     setSaveError(null);
+    // Always persist exactly what Route Settings' own Body Variables table
+    // shows (routeParamsInput) — that table is the single source of truth
+    // for a route's declared body, key/type/required included. Try & Send's
+    // Multipart tab is a separate, ephemeral test convenience: its fields
+    // are never auto-folded in here, so editing Route Settings can never be
+    // silently overwritten by whatever the Try & Send mode happens to be.
     const data: Partial<Route> =
       collection.type !== 'llm'
         ? { name, method, originalPattern, targetPattern: targetPattern || null, routeParams: JSON.stringify(routeParamsInput) }
@@ -544,10 +566,24 @@ export const RouteEditor: React.FC<RouteEditorProps> = ({
         return acc;
       }, {});
 
-      if (['POST', 'PUT', 'PATCH'].includes(tryRequest.method)) {
+      // The transport is derived from Route Settings' own Body Variables —
+      // the single place field type (text/file) is declared — rather than a
+      // separate manual toggle: any file field makes this a real multipart
+      // request, otherwise it's a plain JSON body.
+      const isMultipart = routeParamsInput.body.some((b) => b.fieldType === 'file');
+
+      if (['POST', 'PUT', 'PATCH'].includes(tryRequest.method) && !isMultipart) {
         const hasContentType = Object.keys(reqHeaders).some((k) => k.toLowerCase() === 'content-type');
         if (!hasContentType) {
           reqHeaders['Content-Type'] = 'application/json; charset=UTF-8';
+        }
+      }
+      if (isMultipart) {
+        // fetch sets Content-Type itself (with the multipart boundary) when the
+        // body is a FormData instance — a manually-set header here has no
+        // boundary and breaks upstream multipart parsing, so it must be absent.
+        for (const k of Object.keys(reqHeaders)) {
+          if (k.toLowerCase() === 'content-type') delete reqHeaders[k];
         }
       }
 
@@ -558,10 +594,33 @@ export const RouteEditor: React.FC<RouteEditorProps> = ({
         // only; it no longer accepts an arbitrary X-Target-Host.
       }
 
+      let sendBody: BodyInit | undefined;
+      if (['POST', 'PUT', 'PATCH'].includes(tryRequest.method)) {
+        if (isMultipart) {
+          const fd = new FormData();
+          let bodyObj: Record<string, string> = {};
+          try {
+            bodyObj = JSON.parse(tryRequest.body || '{}');
+          } catch {}
+          for (const b of routeParamsInput.body) {
+            if (!b.key) continue;
+            if (b.fieldType === 'file') {
+              const picked = tryRequest.multipartFields?.find((f) => f.key === b.key)?.file;
+              if (picked) fd.append(b.key, picked);
+            } else {
+              fd.append(b.key, bodyObj[b.key] ?? (b.value || ''));
+            }
+          }
+          sendBody = fd;
+        } else {
+          sendBody = tryRequest.body;
+        }
+      }
+
       const res = await fetch(finalUrl, {
         method: tryRequest.method,
         headers: reqHeaders,
-        body: ['POST', 'PUT', 'PATCH'].includes(tryRequest.method) ? tryRequest.body : undefined,
+        body: sendBody,
       });
       const text = await res.text();
       setTryResponse({

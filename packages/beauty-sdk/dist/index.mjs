@@ -2,8 +2,8 @@ import * as contracts from '@gateway-experience/contracts';
 export { contracts as Contracts };
 import React12, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { jsxs, jsx, Fragment } from 'react/jsx-runtime';
-import { Edit2, Trash2, Globe, ExternalLink, Sparkles, Target, Loader2, Save, Database, FileText, Play, ChevronDown, ChevronRight, Plus, Sliders, ShieldAlert, Boxes, Palette, Layers, ChevronUp, Pencil, X, Check, Copy, AlertTriangle, PanelRightOpen, PanelRightClose, Tag, ShieldCheck, Building, Smartphone, CheckCircle2, XCircle, Sun, Moon, Zap, Clock } from 'lucide-react';
-import { SearchFilterBar, EmptyState, BrandTag, getDomainFromUrl, DataTable, Modal, SearchableSelect, PageHeader, Pagination, ConfirmDialog, FilterPanel, TabNav, BrandSelect, ApplicationSelect, InfoTooltip, DimensionSelect, ScoreRangeInput, SeveritySelect, Button, StatusBadge, StatusSelect } from '@gateway-experience/shared';
+import { Edit2, Trash2, Globe, ExternalLink, Sparkles, Target, Loader2, Save, Database, FileText, Play, ChevronDown, ChevronRight, Sliders, Check, AlertTriangle, Plus, SlidersHorizontal, ShieldAlert, Boxes, Palette, Layers, ChevronUp, Pencil, X, Copy, PanelRightOpen, PanelRightClose, Tag, ShieldCheck, Building, Smartphone, CheckCircle2, XCircle, Sun, Moon, Zap, Clock } from 'lucide-react';
+import { SearchFilterBar, EmptyState, BrandTag, getDomainFromUrl, DataTable, Modal, SearchableSelect, PageHeader, Pagination, ConfirmDialog, FilterPanel, TabNav, BrandSelect, ApplicationSelect, InfoTooltip, DimensionSelect, Button, ScoreRangeInput, SeveritySelect, StatusBadge, StatusSelect } from '@gateway-experience/shared';
 import { Model } from 'survey-core';
 import { Survey } from 'survey-react-ui';
 
@@ -4243,6 +4243,7 @@ var QuestionnaireRunner = ({
 var score_exports = {};
 __export(score_exports, {
   BandTable: () => BandTable,
+  BlendingTab: () => BlendingTab,
   ClinicalAxisCard: () => ClinicalAxisCard,
   ClinicalDimensionCard: () => ClinicalDimensionCard,
   DEFAULT_SCORE_RANGE_BANDS: () => DEFAULT_SCORE_RANGE_BANDS,
@@ -4430,374 +4431,6 @@ var RulesetsTab = ({
     }) })
   ] });
 };
-var card = "rounded-lg border border-border bg-card p-4";
-var sliderCls = "w-full h-1.5 rounded appearance-none cursor-pointer bg-muted accent-[#d97706]";
-var ScoreSimulatorTab = ({
-  rulesets,
-  selectedRuleset,
-  onSelectRuleset
-}) => {
-  const activeRuleset = selectedRuleset || rulesets[0] || null;
-  const rulesetDims = useMemo(() => {
-    if (!activeRuleset?.schema) return [];
-    try {
-      const s = JSON.parse(activeRuleset.schema);
-      const keys = /* @__PURE__ */ new Set([
-        ...Object.keys(s.dimension_weights || {}),
-        ...Object.keys(s.concern_labels || {}),
-        ...Object.keys(s.axis_codes || {})
-      ]);
-      return Array.from(keys);
-    } catch {
-      return [];
-    }
-  }, [activeRuleset]);
-  const [dimensionScores, setDimensionScores] = useState({
-    sebum: 65,
-    sensitivity: 70,
-    pigmentation: 45,
-    aging: 30,
-    barrier: 80
-  });
-  useEffect(() => {
-    if (rulesetDims.length === 0) return;
-    setDimensionScores((prev) => {
-      const next = {};
-      for (const d of rulesetDims) next[d] = prev[d] ?? 50;
-      return next;
-    });
-  }, [rulesetDims]);
-  const [enableVision, setEnableVision] = useState(false);
-  const [visionSignals, setVisionSignals] = useState({
-    sebum: 85,
-    pigmentation: 60
-  });
-  const rulesetSafetyFlags = useMemo(() => {
-    if (!activeRuleset?.schema) return [];
-    try {
-      const s = JSON.parse(activeRuleset.schema);
-      if (Array.isArray(s.safety_flags)) {
-        return s.safety_flags.map(
-          (f) => typeof f === "string" ? f : f.key
-        );
-      }
-      return [];
-    } catch {
-      return [];
-    }
-  }, [activeRuleset]);
-  const [surveySafetyFlags, setSurveySafetyFlags] = useState([]);
-  useEffect(() => {
-    if (!activeRuleset?.brandId || !activeRuleset?.applicationId) {
-      setSurveySafetyFlags([]);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch(
-          `/core/form-engine/survey?brand_id=${encodeURIComponent(activeRuleset.brandId)}&application_id=${encodeURIComponent(activeRuleset.applicationId)}`
-        );
-        if (!res.ok) return;
-        const surveys = await res.json();
-        const flags = /* @__PURE__ */ new Set();
-        for (const survey of surveys || []) {
-          if (!survey.schema) continue;
-          try {
-            const parsed = JSON.parse(survey.schema);
-            for (const page of parsed.pages || []) {
-              for (const el of page.elements || []) {
-                for (const choice of el.choices || []) {
-                  const conditionMap = typeof choice === "object" ? choice.condition_map || choice.conditionMap : null;
-                  if (conditionMap) Object.keys(conditionMap).forEach((k) => flags.add(k));
-                }
-              }
-            }
-          } catch {
-          }
-        }
-        if (!cancelled) setSurveySafetyFlags(Array.from(flags));
-      } catch {
-        if (!cancelled) setSurveySafetyFlags([]);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [activeRuleset?.brandId, activeRuleset?.applicationId]);
-  const allSafetyFlags = useMemo(
-    () => Array.from(/* @__PURE__ */ new Set([...rulesetSafetyFlags, ...surveySafetyFlags])),
-    [rulesetSafetyFlags, surveySafetyFlags]
-  );
-  const [selectedConditions, setSelectedConditions] = useState({});
-  useEffect(() => {
-    setSelectedConditions((prev) => {
-      const keys = allSafetyFlags.length > 0 ? allSafetyFlags : ["is_pregnant", "uses_retinol"];
-      const next = {};
-      for (const k of keys) next[k] = prev[k] ?? false;
-      return next;
-    });
-  }, [allSafetyFlags]);
-  const [simResponse, setSimResponse] = useState(null);
-  const [copiedReq, setCopiedReq] = useState(false);
-  const SIMULATE_PATH = "/core/score-engine/simulate";
-  const requestBody = useMemo(
-    () => JSON.stringify(
-      {
-        schema: activeRuleset?.schema ?? "",
-        dimension_scores: dimensionScores,
-        ...enableVision ? { vision_signals: visionSignals } : {},
-        customer_condition: selectedConditions
-      },
-      null,
-      2
-    ),
-    [activeRuleset, dimensionScores, enableVision, visionSignals, selectedConditions]
-  );
-  const copyRequest = () => {
-    navigator.clipboard?.writeText(requestBody);
-    setCopiedReq(true);
-    setTimeout(() => setCopiedReq(false), 1500);
-  };
-  const runSimulation = useCallback(async () => {
-    if (!activeRuleset?.schema) return;
-    try {
-      const res = await fetch(SIMULATE_PATH, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          schema: activeRuleset.schema,
-          dimension_scores: dimensionScores,
-          vision_signals: enableVision ? visionSignals : void 0,
-          customer_condition: selectedConditions
-        })
-      });
-      if (res.ok) setSimResponse(await res.json());
-    } catch (err) {
-      console.error("Simulation request failed", err);
-    }
-  }, [activeRuleset, dimensionScores, enableVision, visionSignals, selectedConditions]);
-  useEffect(() => {
-    const timer = setTimeout(runSimulation, 250);
-    return () => clearTimeout(timer);
-  }, [runSimulation]);
-  const axisValues = simResponse?.result?.axis_values || {};
-  const traits = simResponse?.result?.traits || {};
-  const scoreRange = simResponse?.result?.score_range || "";
-  const severityLevel = simResponse?.result?.severity_level || "";
-  const skinConcern = simResponse?.result?.skin_concern;
-  const BAUMANN_AXIS_ORDER = ["sebum", "oiliness", "sensitivity", "pigmentation", "aging", "wrinkle"];
-  const orderedDims = useMemo(() => {
-    const known = BAUMANN_AXIS_ORDER.filter((k) => rulesetDims.includes(k));
-    const rest = rulesetDims.filter((k) => !BAUMANN_AXIS_ORDER.includes(k));
-    return [...known, ...rest];
-  }, [rulesetDims]);
-  const generatedCode = useMemo(() => {
-    if (orderedDims.length === 0) return "CUSTOM";
-    return orderedDims.map((k) => axisValues[k.toUpperCase()] || "-").join("");
-  }, [axisValues, orderedDims]);
-  const traitsList = useMemo(() => Object.values(traits).filter(Boolean), [traits]);
-  const profile = simResponse?.result?.skin_profile;
-  const profileCode = profile?.code || generatedCode;
-  const profileName = profile?.name || traitsList.join(" \xB7 ") || "Answer to see a profile";
-  const totalScore = Math.round(simResponse?.result?.total_score || 0);
-  return /* @__PURE__ */ jsxs("div", { className: "flex flex-col lg:flex-row gap-5 items-start", children: [
-    /* @__PURE__ */ jsxs("div", { className: "w-full lg:w-80 lg:shrink-0 space-y-3 min-w-0", children: [
-      /* @__PURE__ */ jsxs("div", { className: card + " space-y-2", children: [
-        /* @__PURE__ */ jsx("span", { className: "block text-xs font-semibold text-muted-foreground", children: "Grading model" }),
-        /* @__PURE__ */ jsx(
-          "select",
-          {
-            value: activeRuleset?.id || "",
-            onChange: (e) => {
-              const r = rulesets.find((item) => item.id === e.target.value);
-              if (r) onSelectRuleset(r);
-            },
-            className: "w-full h-9 rounded-md bg-muted/40 border border-border px-3 text-foreground text-xs outline-none focus:border-ring",
-            style: { colorScheme: "dark" },
-            children: rulesets.map((r) => /* @__PURE__ */ jsxs("option", { value: r.id, children: [
-              r.title,
-              " (",
-              r.code,
-              " v",
-              r.version,
-              ")"
-            ] }, r.id))
-          }
-        )
-      ] }),
-      /* @__PURE__ */ jsxs("div", { className: card + " space-y-3", children: [
-        /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between", children: [
-          /* @__PURE__ */ jsx("h3", { className: "text-sm font-bold text-foreground", children: "Dimension scores (0\u2013100)" }),
-          /* @__PURE__ */ jsxs("span", { className: "text-[11px] text-muted-foreground font-mono", children: [
-            "overall ",
-            totalScore
-          ] })
-        ] }),
-        /* @__PURE__ */ jsx("div", { className: "space-y-3", children: Object.keys(dimensionScores).map((dimKey) => /* @__PURE__ */ jsxs("div", { children: [
-          /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between text-xs mb-1", children: [
-            /* @__PURE__ */ jsx("span", { className: "text-foreground", children: dimKey }),
-            /* @__PURE__ */ jsx("span", { className: "text-beak font-semibold font-mono", children: dimensionScores[dimKey] })
-          ] }),
-          /* @__PURE__ */ jsx(
-            "input",
-            {
-              type: "range",
-              min: 0,
-              max: 100,
-              value: dimensionScores[dimKey],
-              onChange: (e) => setDimensionScores((p) => ({ ...p, [dimKey]: Number(e.target.value) })),
-              className: sliderCls
-            }
-          )
-        ] }, dimKey)) })
-      ] }),
-      /* @__PURE__ */ jsxs("div", { className: card + " space-y-3", children: [
-        /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between", children: [
-          /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1.5", children: [
-            /* @__PURE__ */ jsx("h3", { className: "text-sm font-bold text-foreground", children: "Vision signals" }),
-            /* @__PURE__ */ jsx(
-              InfoTooltip,
-              {
-                content: "Optional \u2014 blended with the dimension scores when on.",
-                label: "About vision signals"
-              }
-            )
-          ] }),
-          /* @__PURE__ */ jsxs("label", { className: "relative inline-flex items-center cursor-pointer", children: [
-            /* @__PURE__ */ jsx(
-              "input",
-              {
-                type: "checkbox",
-                checked: enableVision,
-                onChange: (e) => setEnableVision(e.target.checked),
-                className: "sr-only peer"
-              }
-            ),
-            /* @__PURE__ */ jsx("div", { className: "w-9 h-5 rounded-full bg-muted peer-checked:bg-beak transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:h-4 after:w-4 after:rounded-full after:bg-background after:transition-all peer-checked:after:translate-x-full" })
-          ] })
-        ] }),
-        enableVision && Object.entries(visionSignals).map(([key, val]) => /* @__PURE__ */ jsxs("div", { children: [
-          /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between text-xs mb-1", children: [
-            /* @__PURE__ */ jsx("span", { className: "text-foreground", children: key }),
-            /* @__PURE__ */ jsx("span", { className: "text-beak font-semibold font-mono", children: val })
-          ] }),
-          /* @__PURE__ */ jsx(
-            "input",
-            {
-              type: "range",
-              min: 0,
-              max: 100,
-              value: val,
-              onChange: (e) => setVisionSignals((p) => ({ ...p, [key]: Number(e.target.value) })),
-              className: sliderCls
-            }
-          )
-        ] }, key))
-      ] }),
-      /* @__PURE__ */ jsxs("div", { className: card + " space-y-2", children: [
-        /* @__PURE__ */ jsx("h3", { className: "text-sm font-bold text-foreground", children: "Safety flags" }),
-        /* @__PURE__ */ jsx("div", { className: "grid grid-cols-2 gap-2 text-xs", children: Object.entries(selectedConditions).map(([key, isChecked]) => /* @__PURE__ */ jsxs(
-          "button",
-          {
-            type: "button",
-            onClick: () => setSelectedConditions((p) => ({ ...p, [key]: !p[key] })),
-            className: `p-2.5 rounded-md border text-left transition-colors flex items-center justify-between ${isChecked ? "border-beak/50 bg-beak/10 text-beak" : "border-border bg-muted/40 text-muted-foreground hover:text-foreground"}`,
-            children: [
-              /* @__PURE__ */ jsx("span", { children: key }),
-              /* @__PURE__ */ jsx(
-                "span",
-                {
-                  className: `w-2 h-2 rounded-full ${isChecked ? "bg-beak" : "bg-border"}`
-                }
-              )
-            ]
-          },
-          key
-        )) })
-      ] })
-    ] }),
-    /* @__PURE__ */ jsx("div", { className: "w-full lg:flex-1 space-y-3 min-w-0", children: /* @__PURE__ */ jsxs("div", { className: card, children: [
-      /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between gap-2", children: [
-        /* @__PURE__ */ jsx("h3", { className: "text-sm font-bold text-foreground", children: "Result" }),
-        /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2", children: [
-          simResponse?.performance && /* @__PURE__ */ jsx("span", { className: "text-[11px] text-muted-foreground font-mono", children: simResponse.performance }),
-          /* @__PURE__ */ jsxs(
-            "button",
-            {
-              type: "button",
-              onClick: copyRequest,
-              title: `POST ${SIMULATE_PATH}`,
-              className: "flex items-center gap-1 rounded border border-border bg-muted/40 px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:border-beak/50",
-              children: [
-                copiedReq ? /* @__PURE__ */ jsx(Check, { className: "h-3 w-3 text-beak" }) : /* @__PURE__ */ jsx(Copy, { className: "h-3 w-3" }),
-                copiedReq ? "Copied" : "Copy request"
-              ]
-            }
-          )
-        ] })
-      ] }),
-      /* @__PURE__ */ jsxs("p", { className: "mt-1 text-[10px] text-muted-foreground font-mono", children: [
-        "POST ",
-        SIMULATE_PATH
-      ] }),
-      /* @__PURE__ */ jsxs("div", { className: "mt-3 rounded-md border border-border bg-muted/20 p-4 text-center", children: [
-        profile?.category && /* @__PURE__ */ jsx("span", { className: "text-[10px] font-semibold text-muted-foreground", children: profile.category }),
-        /* @__PURE__ */ jsx("div", { className: "text-2xl font-black tracking-tight text-foreground font-mono my-1", children: profileCode }),
-        /* @__PURE__ */ jsx("div", { className: "text-xs font-semibold text-foreground", children: profileName }),
-        profile?.description && /* @__PURE__ */ jsx("p", { className: "text-[11px] text-muted-foreground mt-2 line-clamp-2 leading-relaxed", children: profile.description }),
-        traitsList.length > 0 && /* @__PURE__ */ jsx("div", { className: "flex flex-wrap items-center justify-center gap-1.5 mt-3 pt-3 border-t border-border", children: traitsList.map((t) => /* @__PURE__ */ jsx(
-          "span",
-          {
-            className: "text-[11px] text-muted-foreground bg-card px-2 py-0.5 rounded border border-border",
-            children: String(t)
-          },
-          String(t)
-        )) })
-      ] }),
-      Object.keys(axisValues).length > 0 && /* @__PURE__ */ jsxs("div", { className: "mt-4", children: [
-        /* @__PURE__ */ jsx("h4", { className: "text-[11px] font-semibold text-muted-foreground mb-2", children: "Axis codes" }),
-        /* @__PURE__ */ jsx("div", { className: "flex flex-wrap gap-2 text-xs", children: Object.entries(axisValues).map(([axis, val]) => /* @__PURE__ */ jsxs(
-          "div",
-          {
-            className: "min-w-[4.5rem] flex-1 rounded-md border border-border bg-muted/20 p-2.5 text-center",
-            children: [
-              /* @__PURE__ */ jsx("div", { className: "text-muted-foreground text-[10px] truncate", children: axis }),
-              /* @__PURE__ */ jsx("div", { className: "text-sm font-bold text-beak font-mono mt-0.5", children: String(val) })
-            ]
-          },
-          axis
-        )) })
-      ] }),
-      /* @__PURE__ */ jsxs("div", { className: "mt-4 flex flex-wrap gap-2 text-xs", children: [
-        /* @__PURE__ */ jsxs("div", { className: "min-w-[8rem] flex-1 rounded-md border border-border bg-muted/20 p-2.5", children: [
-          /* @__PURE__ */ jsx("div", { className: "text-[10px] text-muted-foreground", children: "Overall score" }),
-          /* @__PURE__ */ jsx("div", { className: "text-sm font-bold text-foreground font-mono mt-0.5", children: totalScore }),
-          /* @__PURE__ */ jsx("div", { className: "text-[10px] text-muted-foreground", children: "100 = optimal" })
-        ] }),
-        /* @__PURE__ */ jsxs("div", { className: "min-w-[8rem] flex-1 rounded-md border border-border bg-muted/20 p-2.5", children: [
-          /* @__PURE__ */ jsx("div", { className: "text-[10px] text-muted-foreground", children: "Score Range" }),
-          /* @__PURE__ */ jsx("div", { className: "text-sm font-semibold text-foreground mt-0.5", children: scoreRange || "\u2014" })
-        ] }),
-        /* @__PURE__ */ jsxs("div", { className: "min-w-[8rem] flex-1 rounded-md border border-border bg-muted/20 p-2.5", children: [
-          /* @__PURE__ */ jsx("div", { className: "text-[10px] text-muted-foreground", children: "Severity Level" }),
-          /* @__PURE__ */ jsx("div", { className: "text-sm font-semibold text-beak mt-0.5", children: severityLevel || "\u2014" })
-        ] })
-      ] }),
-      /* @__PURE__ */ jsxs("div", { className: "mt-3 rounded-md border border-border bg-muted/20 p-2.5 text-xs", children: [
-        /* @__PURE__ */ jsx("div", { className: "text-[10px] text-muted-foreground mb-0.5", children: "Skin Concern" }),
-        skinConcern ? /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between", children: [
-          /* @__PURE__ */ jsx("span", { className: "font-semibold text-foreground", children: skinConcern.label }),
-          /* @__PURE__ */ jsxs("span", { className: "text-muted-foreground font-mono", children: [
-            skinConcern.dimension,
-            " \xB7 ",
-            Math.round(skinConcern.score ?? 0)
-          ] })
-        ] }) : /* @__PURE__ */ jsx("span", { className: "text-muted-foreground", children: "No dominant concern (optimal)" })
-      ] })
-    ] }) })
-  ] });
-};
 
 // src/studio/score/types.ts
 var DEFAULT_SCORE_RANGE_BANDS = [
@@ -4812,8 +4445,25 @@ var DEFAULT_SEVERITY_BANDS = [
   { id: "sv4", max: 80, label: "Ringan" },
   { id: "sv5", max: 100, label: "Sehat" }
 ];
+var KNOWN_VISION_FIELDS = [
+  { code: "score_darkspot", label: "Darkspot", description: "baumann.dimensions.pigmentation.score_darkspot \u2014 feeds Pigmentation." },
+  { code: "score_wrinkle", label: "Wrinkle", description: "baumann.dimensions.wrinkle.score_wrinkle \u2014 feeds Aging." },
+  { code: "score_elasticity", label: "Elasticity", description: "baumann.dimensions.wrinkle.score_elasticity." },
+  { code: "score_oiliness", label: "Oiliness", description: "baumann.dimensions.oiliness.score_oiliness \u2014 informational only, D/O stays form-only." },
+  { code: "score_hydration", label: "Hydration", description: "baumann.dimensions.oiliness.score_hydration." },
+  { code: "score_acne", label: "Acne", description: "baumann.dimensions.sensitivity.score_acne \u2014 informational only, S/R stays form-only." },
+  { code: "score_redness", label: "Redness", description: "baumann.dimensions.sensitivity.score_redness \u2014 informational only, S/R stays form-only." },
+  { code: "pores", label: "Pores", description: "results.skin_scoring.Pores \u2014 feeds Pore Severity." },
+  { code: "age_over_30", label: "Age > 30 (from DOB)", description: "Derived from date_of_birth on the identity questionnaire, not a Q1-Q6 question. 0 if <=30, 100 if >30." }
+];
 
 // src/studio/score/utils/jdm-compiler.ts
+var visionFieldLabel = (code) => KNOWN_VISION_FIELDS.find((f) => f.code === code)?.label || code;
+var makeSource = (fieldCode, origin) => fieldCode ? {
+  origin,
+  fieldCode,
+  label: origin === "vision" ? visionFieldLabel(fieldCode) : fieldCode
+} : void 0;
 var DEFAULT_CONCERN_LABELS = {
   sebum: "Minyak Berlebih",
   oiliness: "Minyak Berlebih",
@@ -4876,12 +4526,23 @@ var DEFAULT_STARTER_PROFILES = {
 var bandsToSchema = (bands) => bands.map((b) => ({ max: Math.max(0, Math.min(100, Number(b.max) || 0)), label: b.label || "" }));
 var cleanVal = (v) => `"${(v || "").replace(/"/g, "")}"`;
 var rangeCell = (min, max) => `[${Math.max(0, Math.min(100, min ?? 0))}..${Math.max(0, Math.min(100, max ?? 100))}]`;
-function compileVisualToJDM(axes, profileConfig = DEFAULT_STARTER_PROFILES, scoreRangeBands = DEFAULT_SCORE_RANGE_BANDS, severityBands = DEFAULT_SEVERITY_BANDS) {
+function compileVisualToJDM(axes, profileConfig = DEFAULT_STARTER_PROFILES, scoreRangeBands = DEFAULT_SCORE_RANGE_BANDS, severityBands = DEFAULT_SEVERITY_BANDS, existingSchema) {
   const effectiveAxes = axes.length > 0 ? axes : DEFAULT_STARTER_AXES;
   const nodes = [
     { id: "input_node", name: "Input", type: "inputNode", position: { x: 40, y: 40 } }
   ];
   const edges = [];
+  const ownedNodeIds = /* @__PURE__ */ new Set(["input_node", "profile", ...effectiveAxes.map((a) => `${a.dimensionKey.toLowerCase()}-band`)]);
+  const preservedNodes = [];
+  if (existingSchema) {
+    try {
+      const prev = JSON.parse(existingSchema);
+      for (const n of prev?.nodes || []) {
+        if (!ownedNodeIds.has(n?.id)) preservedNodes.push(n);
+      }
+    } catch {
+    }
+  }
   const profileOutputs = [
     { id: "code", field: "skin_profile.code", label: "Code" },
     { id: "name", field: "skin_profile.name", label: "Name" },
@@ -4951,27 +4612,61 @@ function compileVisualToJDM(axes, profileConfig = DEFAULT_STARTER_PROFILES, scor
   const dimension_weights = {};
   const dimension_fusion = {};
   const concern_labels = {};
+  const axis_codes = {};
+  const field_mapping = {};
   for (const a of effectiveAxes) {
     const key = a.dimensionKey.toLowerCase();
     dimension_weights[key] = a.weight ?? 1;
     concern_labels[key] = a.concernLabel || defaultConcernLabel(key);
-    const fw = a.formWeight ?? 100;
-    dimension_fusion[key] = { form: fw / 100, vision: (100 - fw) / 100 };
-  }
-  const axis_codes = {};
-  for (const a of effectiveAxes) {
-    const low = (a.axisCodeLow || "").trim();
-    const high = (a.axisCodeHigh || "").trim();
-    if (low && high) {
-      axis_codes[a.dimensionKey.toLowerCase()] = {
+    if (a.inputComposition === "weighted_blend") {
+      const fw = a.formWeight ?? 50;
+      dimension_fusion[key] = { form: fw / 100, vision: (100 - fw) / 100 };
+      const mapping = {};
+      if (a.formSource?.fieldCode) mapping.form = a.formSource.fieldCode;
+      if (a.visionSource?.fieldCode) mapping.vision = a.visionSource.fieldCode;
+      if (Object.keys(mapping).length > 0) field_mapping[key] = mapping;
+    } else if (a.source?.fieldCode) {
+      field_mapping[key] = a.source.origin === "form" ? { form: a.source.fieldCode } : { vision: a.source.fieldCode };
+    }
+    const bands = (a.bands || []).slice().sort((x, y) => x.min - y.min);
+    if (bands.length === 2) {
+      const [lo, hi] = bands;
+      axis_codes[key] = {
+        threshold: Math.max(0, Math.min(100, hi.min)),
+        low: lo.letter || "",
+        high: hi.letter || ""
+      };
+    } else if (bands.length >= 3) {
+      nodes.push({
+        id: `${key}-band`,
+        name: `${a.name || key} bands`,
+        type: "decisionTableNode",
+        content: {
+          hitPolicy: "first",
+          inputs: [{ id: "in", field: `dimension_scores.${key}`, label: `${a.name || key} Health Score` }],
+          outputs: [{ id: "out", field: `axis_values.${key.toUpperCase()}`, label: `${a.name || key} Axis` }],
+          rules: bands.slice().reverse().map((b) => ({ in: rangeCell(b.min, b.max), out: cleanVal(b.letter) }))
+        }
+      });
+    } else if ((a.axisCodeLow || "").trim() && (a.axisCodeHigh || "").trim()) {
+      axis_codes[key] = {
         threshold: Math.max(0, Math.min(100, Number(a.axisCodeThreshold ?? 50))),
-        low,
-        high
+        low: (a.axisCodeLow || "").trim(),
+        high: (a.axisCodeHigh || "").trim()
       };
     }
   }
+  let base = {};
+  if (existingSchema) {
+    try {
+      base = JSON.parse(existingSchema) || {};
+    } catch {
+      base = {};
+    }
+  }
   const model = {
-    nodes,
+    ...base,
+    nodes: [...nodes, ...preservedNodes],
     edges,
     dimension_weights,
     dimension_fusion,
@@ -4980,6 +4675,9 @@ function compileVisualToJDM(axes, profileConfig = DEFAULT_STARTER_PROFILES, scor
     severity_bands: bandsToSchema(severityBands)
   };
   if (Object.keys(axis_codes).length > 0) model.axis_codes = axis_codes;
+  else delete model.axis_codes;
+  if (Object.keys(field_mapping).length > 0) model.field_mapping = field_mapping;
+  else delete model.field_mapping;
   return JSON.stringify(model, null, 2);
 }
 var bandsFromSchema = (raw, fallback, prefix) => {
@@ -5014,6 +4712,7 @@ function decompileJDMToVisualComponents(schemaStr) {
   const fusion = parsed.dimension_fusion || {};
   const concernLabels = parsed.concern_labels || {};
   const axisCodes = parsed.axis_codes || {};
+  const fieldMapping = parsed.field_mapping || {};
   const allNodes = Array.isArray(parsed.nodes) ? parsed.nodes : [];
   const nodeContents = allNodes.map(
     (n) => typeof n?.content === "string" ? safeParse(n.content) : n?.content
@@ -5025,18 +4724,40 @@ function decompileJDMToVisualComponents(schemaStr) {
   );
   const salvagedKeys = /* @__PURE__ */ new Set();
   for (const c of nodeContents) {
-    for (const col of [...c?.inputs || [], ...c?.outputs || []]) {
-      const m = String(col?.field || "").match(
-        /^(?:tiers|dimension_scores|axis_values)\.([a-z0-9_]+)/i
-      );
+    for (const col of c?.outputs || []) {
+      const m = String(col?.field || "").match(/^(?:tiers|axis_values)\.([a-z0-9_]+)/i);
       if (m) salvagedKeys.add(m[1].toLowerCase());
     }
   }
-  const dimKeys = Object.keys(weights).length ? Object.keys(weights) : Object.keys(concernLabels).length ? Object.keys(concernLabels) : Object.keys(axisCodes).length ? Object.keys(axisCodes) : Array.from(salvagedKeys);
+  const dimKeys = Array.from(
+    /* @__PURE__ */ new Set([...Object.keys(weights), ...Object.keys(concernLabels), ...Object.keys(axisCodes), ...salvagedKeys])
+  );
   const legacy = Object.keys(weights).length === 0 && Object.keys(concernLabels).length === 0 && !hasProfileNode;
+  const bandNodeFor = (key) => nodeContents.find((c) => {
+    const ins = c?.inputs || [];
+    const outs = c?.outputs || [];
+    return ins.length === 1 && ins[0]?.field === `dimension_scores.${key}` && outs.length === 1 && outs[0]?.field === `axis_values.${key.toUpperCase()}`;
+  });
   const axes = dimKeys.map((key, i) => {
     const df = fusion[key];
     const ac = axisCodes[key.toLowerCase()];
+    const fm = fieldMapping[key];
+    const bandNode = bandNodeFor(key);
+    let bands;
+    if (bandNode) {
+      bands = (bandNode.rules || []).map((r, ri) => {
+        const range = parseRange(r.in);
+        if (!range) return null;
+        return { id: `${key}_b${ri}`, min: range.min, max: range.max, letter: clean(r.out) };
+      }).filter(Boolean);
+    } else if (ac && (ac.low || ac.high)) {
+      const t = typeof ac.threshold === "number" ? ac.threshold : 50;
+      bands = [
+        { id: `${key}_lo`, min: 0, max: Math.max(0, t - 1), letter: ac.low || "" },
+        { id: `${key}_hi`, min: t, max: 100, letter: ac.high || "" }
+      ];
+    }
+    const inputComposition = df ? "weighted_blend" : fm ? "single_source" : void 0;
     return {
       id: `axis_${key}`,
       axisCode: key.toUpperCase(),
@@ -5044,8 +4765,13 @@ function decompileJDMToVisualComponents(schemaStr) {
       dimensionKey: key,
       weight: typeof weights[key] === "number" ? weights[key] : 1,
       concernLabel: concernLabels[key] || defaultConcernLabel(key),
+      inputComposition,
+      source: !df ? makeSource(fm?.form, "form") || makeSource(fm?.vision, "vision") : void 0,
+      formSource: df ? makeSource(fm?.form, "form") : void 0,
+      visionSource: df ? makeSource(fm?.vision, "vision") : void 0,
       formWeight: df ? Math.round(df.form * 100) : 100,
       visionWeight: df ? Math.round(df.vision * 100) : 0,
+      bands,
       ...ac && (ac.low || ac.high) ? {
         axisCodeLow: ac.low || "",
         axisCodeHigh: ac.high || "",
@@ -5122,7 +4848,67 @@ function safeParse(s) {
 function decompileJDMToVisual(schemaStr) {
   return decompileJDMToVisualComponents(schemaStr).axes;
 }
+function useVisionFields() {
+  const [conditions, setConditions] = useState([]);
+  useEffect(() => {
+    fetch("/api/skin-conditions").then((res) => res.json()).then((data) => {
+      const list = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
+      setConditions(list);
+    }).catch(() => {
+    });
+  }, []);
+  return useMemo(
+    () => conditions.flatMap(
+      (c) => (c.visionCapabilities || []).map((cap) => ({ code: cap, label: `${c.name} (${cap})` }))
+    ),
+    [conditions]
+  );
+}
 var fieldCls = "w-full h-8 rounded-md bg-muted/40 border border-border px-2.5 text-foreground text-xs outline-none focus:border-ring disabled:opacity-50";
+var SourcePicker = ({ label, origin, onOriginChange, value, onChange, disabled }) => {
+  const visionFields = useVisionFields();
+  return /* @__PURE__ */ jsxs("div", { children: [
+    /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between mb-1", children: [
+      /* @__PURE__ */ jsx("label", { className: "block text-[10px] font-semibold text-muted-foreground", children: label }),
+      onOriginChange && /* @__PURE__ */ jsx("div", { className: "flex gap-1", children: ["form", "vision"].map((o) => /* @__PURE__ */ jsx(
+        "button",
+        {
+          type: "button",
+          disabled,
+          onClick: () => onOriginChange(o),
+          className: `px-1.5 py-0.5 rounded text-[9px] font-semibold border ${origin === o ? "border-beak bg-beak/10 text-beak" : "border-border text-muted-foreground"}`,
+          children: o
+        },
+        o
+      )) })
+    ] }),
+    origin === "form" ? /* @__PURE__ */ jsx(
+      DimensionSelect,
+      {
+        value: value?.fieldCode || "",
+        disabled,
+        onChange: (code, meta) => onChange(code ? { origin: "form", fieldCode: code, label: meta?.name || code } : void 0),
+        label: ""
+      }
+    ) : /* @__PURE__ */ jsxs(
+      "select",
+      {
+        disabled,
+        value: value?.fieldCode || "",
+        onChange: (e) => {
+          const code = e.target.value;
+          const meta = visionFields.find((f) => f.code === code);
+          onChange(code ? { origin: "vision", fieldCode: code, label: meta?.label || code } : void 0);
+        },
+        className: fieldCls,
+        children: [
+          /* @__PURE__ */ jsx("option", { value: "", children: "\u2014 pilih field CV (dari ref_skin_conditions) \u2014" }),
+          visionFields.map((f) => /* @__PURE__ */ jsx("option", { value: f.code, children: f.label }, f.code))
+        ]
+      }
+    )
+  ] });
+};
 var ClinicalDimensionCard = ({
   axis,
   index,
@@ -5134,13 +4920,6 @@ var ClinicalDimensionCard = ({
   siblingWeightTotal
 }) => {
   const [open, setOpen] = useState(defaultOpen);
-  const [fusionOpen, setFusionOpen] = useState(false);
-  const [codeOpen, setCodeOpen] = useState(false);
-  const formW = axis.formWeight ?? 100;
-  const codeLow = axis.axisCodeLow ?? "";
-  const codeHigh = axis.axisCodeHigh ?? "";
-  const codeThreshold = axis.axisCodeThreshold ?? 50;
-  const hasBipolar = !!(codeLow.trim() && codeHigh.trim());
   const share = typeof siblingWeightTotal === "number" && siblingWeightTotal > 0 ? Math.round(axis.weight / siblingWeightTotal * 100) : null;
   const concern = axis.concernLabel || defaultConcernLabel(axis.dimensionKey);
   const handleDimensionChange = (dimKey, dimMeta) => {
@@ -5245,47 +5024,544 @@ var ClinicalDimensionCard = ({
           }
         )
       ] }),
-      /* @__PURE__ */ jsxs("div", { className: "rounded-md border border-border bg-muted/20", children: [
-        /* @__PURE__ */ jsxs(
-          "button",
+      /* @__PURE__ */ jsx("p", { className: "text-[10px] text-muted-foreground italic", children: "How this axis's number is computed (form/vision source, blend %) and turned into a letter (bands) is set in the Blending tab, not here." })
+    ] })
+  ] });
+};
+var ClinicalAxisCard = ClinicalDimensionCard;
+var fieldCls2 = "h-8 rounded-md bg-muted/40 border border-border px-2.5 text-foreground text-xs outline-none focus:border-ring disabled:opacity-50";
+var BlendingTab = ({
+  rulesets,
+  selectedRuleset,
+  onSelectRuleset,
+  onSaveRuleset
+}) => {
+  const activeRuleset = selectedRuleset || rulesets[0] || null;
+  const [axes, setAxes] = useState([]);
+  const [profileConfig, setProfileConfig] = useState(null);
+  const [scoreRangeBands, setScoreRangeBands] = useState(null);
+  const [severityBands, setSeverityBands] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState(null);
+  useEffect(() => {
+    if (activeRuleset && activeRuleset.schema) {
+      try {
+        const decompiled = decompileJDMToVisualComponents(activeRuleset.schema);
+        setAxes(decompiled.axes);
+        setProfileConfig(decompiled.profileConfig);
+        setScoreRangeBands(decompiled.scoreRangeBands);
+        setSeverityBands(decompiled.severityBands);
+        setSaveError(null);
+      } catch (err) {
+        setSaveError("Could not read this ruleset: " + (err instanceof Error ? err.message : "invalid schema"));
+      }
+    }
+  }, [activeRuleset]);
+  const updateAxis = (id, patch) => setAxes((prev) => prev.map((a) => a.id === id ? { ...a, ...patch } : a));
+  const handleSave = async () => {
+    if (!activeRuleset || !profileConfig || !scoreRangeBands || !severityBands) return;
+    setIsSaving(true);
+    setSaveSuccess(false);
+    setSaveError(null);
+    try {
+      const updatedSchema = compileVisualToJDM(axes, profileConfig, scoreRangeBands, severityBands, activeRuleset.schema);
+      await onSaveRuleset({
+        id: activeRuleset.id,
+        code: activeRuleset.code,
+        title: activeRuleset.title,
+        description: activeRuleset.description,
+        brandId: activeRuleset.brandId,
+        applicationId: activeRuleset.applicationId,
+        status: activeRuleset.status,
+        schema: updatedSchema
+      });
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3e3);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Failed to save blending weights");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+  if (!activeRuleset) {
+    return /* @__PURE__ */ jsx(
+      EmptyState,
+      {
+        icon: /* @__PURE__ */ jsx(Sliders, { className: "h-6 w-6 text-muted-foreground" }),
+        title: "No grading model selected",
+        description: "Create or pick a grading model to set its blending weights.",
+        className: "py-16 rounded-lg border border-border bg-card"
+      }
+    );
+  }
+  return /* @__PURE__ */ jsxs("div", { className: "space-y-4", children: [
+    /* @__PURE__ */ jsxs("div", { className: "rounded-lg border border-border bg-card p-4 flex flex-col md:flex-row md:items-center justify-between gap-3", children: [
+      /* @__PURE__ */ jsxs("div", { className: "flex flex-col sm:flex-row sm:items-center gap-3 flex-1 min-w-0", children: [
+        /* @__PURE__ */ jsx("span", { className: "text-xs font-semibold text-muted-foreground whitespace-nowrap", children: "Grading model" }),
+        /* @__PURE__ */ jsx(
+          "select",
           {
-            type: "button",
-            onClick: () => setFusionOpen((v) => !v),
-            className: "flex w-full items-center justify-between gap-2 px-3 py-2 text-[11px] font-semibold text-muted-foreground hover:text-foreground",
-            children: [
-              /* @__PURE__ */ jsxs("span", { children: [
-                "Form / Vision blend",
-                formW !== 100 && /* @__PURE__ */ jsxs("span", { className: "ml-2 text-foreground", children: [
-                  formW,
-                  "% / ",
-                  100 - formW,
-                  "%"
-                ] })
-              ] }),
-              fusionOpen ? /* @__PURE__ */ jsx(ChevronDown, { className: "h-3.5 w-3.5" }) : /* @__PURE__ */ jsx(ChevronRight, { className: "h-3.5 w-3.5" })
-            ]
+            value: activeRuleset.id,
+            onChange: (e) => {
+              const r = rulesets.find((item) => item.id === e.target.value);
+              if (r) onSelectRuleset(r);
+            },
+            className: "h-8 max-w-md w-full truncate rounded-md bg-muted/40 border border-border px-2.5 text-foreground text-xs outline-none focus:border-ring",
+            style: { colorScheme: "dark" },
+            children: rulesets.map((r) => /* @__PURE__ */ jsxs("option", { value: r.id, children: [
+              r.title,
+              " (",
+              r.code,
+              " v",
+              r.version,
+              ")"
+            ] }, r.id))
           }
-        ),
-        fusionOpen && /* @__PURE__ */ jsxs("div", { className: "border-t border-border px-3 py-3 space-y-2", children: [
-          /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between text-[11px]", children: [
-            /* @__PURE__ */ jsxs("span", { className: "flex items-center gap-1.5 text-foreground", children: [
-              "Form ",
-              formW,
-              "%",
+        )
+      ] }),
+      /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-3 shrink-0", children: [
+        saveSuccess && /* @__PURE__ */ jsxs("span", { className: "text-xs text-beak flex items-center gap-1", children: [
+          /* @__PURE__ */ jsx(Check, { className: "h-3.5 w-3.5" }),
+          "Saved"
+        ] }),
+        /* @__PURE__ */ jsx(Button, { variant: "primary", size: "sm", onClick: handleSave, isLoading: isSaving, children: isSaving ? "Saving\u2026" : "Save blending" })
+      ] })
+    ] }),
+    saveError && /* @__PURE__ */ jsxs("div", { className: "p-3 rounded-md border border-destructive/40 bg-destructive/10 text-xs text-destructive flex items-center gap-2", children: [
+      /* @__PURE__ */ jsx(AlertTriangle, { className: "h-4 w-4 shrink-0" }),
+      /* @__PURE__ */ jsx("span", { children: saveError })
+    ] }),
+    /* @__PURE__ */ jsxs("div", { className: "rounded-lg border border-border bg-card p-4 space-y-1", children: [
+      /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1.5", children: [
+        /* @__PURE__ */ jsx("h3", { className: "text-sm font-bold text-foreground", children: "Per-dimension blend" }),
+        /* @__PURE__ */ jsx(
+          InfoTooltip,
+          {
+            content: "For each dimension, how much of its score comes from the questionnaire (form) vs. vision (camera analysis). Only applies once vision_signals is sent for that dimension \u2014 a form-only dimension with no matching vision_signals key ignores this and stays 100% form regardless of the slider.",
+            label: "About blending"
+          }
+        )
+      ] }),
+      /* @__PURE__ */ jsx("p", { className: "text-[11px] text-muted-foreground", children: "e.g. set Sebum to 0% form / 100% vision to trust vision fully for that dimension." })
+    ] }),
+    /* @__PURE__ */ jsxs("div", { className: "rounded-lg border border-border bg-card divide-y divide-border", children: [
+      axes.length === 0 && /* @__PURE__ */ jsx("div", { className: "p-6 text-center text-xs text-muted-foreground italic", children: "This ruleset has no dimensions yet \u2014 add some in Skin Grading first." }),
+      axes.map((axis) => {
+        const formW = axis.formWeight ?? 50;
+        const composition = axis.inputComposition || (axis.source ? "single_source" : axis.formSource || axis.visionSource ? "weighted_blend" : "single_source");
+        const singleOrigin = axis.source?.origin || "form";
+        const bands = axis.bands || [];
+        const updateBand = (id, patch) => updateAxis(axis.id, { bands: bands.map((b) => b.id === id ? { ...b, ...patch } : b) });
+        const addBand = () => updateAxis(axis.id, { bands: [...bands, { id: `b_${Date.now()}`, min: 0, max: 100, letter: "" }] });
+        const removeBand = (id) => updateAxis(axis.id, { bands: bands.filter((b) => b.id !== id) });
+        return /* @__PURE__ */ jsxs("div", { className: "p-3.5 space-y-3", children: [
+          /* @__PURE__ */ jsx("span", { className: "text-sm font-semibold text-foreground block", children: axis.name || axis.dimensionKey.toUpperCase() }),
+          /* @__PURE__ */ jsx("div", { className: "flex items-center gap-1.5 bg-muted/40 p-1 rounded-md border border-border w-fit", children: ["single_source", "weighted_blend"].map((c) => /* @__PURE__ */ jsx(
+            "button",
+            {
+              type: "button",
+              onClick: () => updateAxis(axis.id, { inputComposition: c }),
+              className: `px-2.5 py-1 rounded text-[11px] font-semibold transition-colors ${composition === c ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`,
+              children: c === "single_source" ? "Single source" : "Weighted blend"
+            },
+            c
+          )) }),
+          composition === "single_source" ? /* @__PURE__ */ jsx(
+            SourcePicker,
+            {
+              label: "Sumber",
+              origin: singleOrigin,
+              onOriginChange: (o) => updateAxis(axis.id, { source: axis.source ? { ...axis.source, origin: o, fieldCode: "" } : { origin: o, fieldCode: "", label: "" } }),
+              value: axis.source,
+              onChange: (source) => updateAxis(axis.id, { source })
+            }
+          ) : /* @__PURE__ */ jsxs("div", { className: "space-y-2", children: [
+            /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between text-[11px]", children: [
+              /* @__PURE__ */ jsxs("span", { className: "text-foreground", children: [
+                "Form ",
+                formW,
+                "%"
+              ] }),
+              /* @__PURE__ */ jsxs("span", { className: "text-muted-foreground", children: [
+                "Vision ",
+                100 - formW,
+                "%"
+              ] })
+            ] }),
+            /* @__PURE__ */ jsx(
+              "input",
+              {
+                type: "range",
+                min: 0,
+                max: 100,
+                step: 5,
+                value: formW,
+                onChange: (e) => updateAxis(axis.id, { formWeight: Number(e.target.value) }),
+                className: "w-full h-1.5 rounded appearance-none cursor-pointer bg-muted accent-[#d97706]"
+              }
+            ),
+            /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-2 gap-2", children: [
+              /* @__PURE__ */ jsx(SourcePicker, { label: "Form source", origin: "form", value: axis.formSource, onChange: (source) => updateAxis(axis.id, { formSource: source }) }),
+              /* @__PURE__ */ jsx(SourcePicker, { label: "Vision source", origin: "vision", value: axis.visionSource, onChange: (source) => updateAxis(axis.id, { visionSource: source }) })
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxs("div", { className: "pt-2 border-t border-border space-y-1.5", children: [
+            /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1.5", children: [
+              /* @__PURE__ */ jsx("label", { className: "block text-[10px] font-semibold text-muted-foreground", children: "Bands (axis & threshold)" }),
               /* @__PURE__ */ jsx(
                 InfoTooltip,
                 {
-                  content: "Applied only when camera analysis is enabled. Default is 100% form.",
-                  label: "About Form / Vision blend",
-                  iconClassName: "h-3 w-3"
+                  content: "Health-oriented (100 = optimal). Exactly 2 bands compiles to a simple threshold; 3+ compiles to a small rule table (e.g. Pore Severity's Smooth/Visible/Enlarged). Bands should be ordered and cover 0-100 with no gaps.",
+                  label: "About bands"
                 }
               )
             ] }),
-            /* @__PURE__ */ jsxs("span", { className: "text-muted-foreground", children: [
-              "Vision ",
-              100 - formW,
-              "%"
+            bands.map((b) => /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1.5", children: [
+              /* @__PURE__ */ jsx("input", { type: "number", min: 0, max: 100, value: b.min, onChange: (e) => updateBand(b.id, { min: Number(e.target.value) }), className: fieldCls2 + " w-16 text-center" }),
+              /* @__PURE__ */ jsx("span", { className: "text-muted-foreground text-[10px]", children: "\u2013" }),
+              /* @__PURE__ */ jsx("input", { type: "number", min: 0, max: 100, value: b.max, onChange: (e) => updateBand(b.id, { max: Number(e.target.value) }), className: fieldCls2 + " w-16 text-center" }),
+              /* @__PURE__ */ jsx("span", { className: "text-muted-foreground text-[10px]", children: "\u2192" }),
+              /* @__PURE__ */ jsx("input", { type: "text", maxLength: 12, value: b.letter, onChange: (e) => updateBand(b.id, { letter: e.target.value.toUpperCase() }), placeholder: "D", className: fieldCls2 + " flex-1 min-w-0 text-center font-bold text-beak" }),
+              /* @__PURE__ */ jsx("button", { type: "button", onClick: () => removeBand(b.id), className: "p-1 text-muted-foreground hover:text-destructive", children: /* @__PURE__ */ jsx(Trash2, { className: "h-3.5 w-3.5" }) })
+            ] }, b.id)),
+            /* @__PURE__ */ jsxs("button", { type: "button", onClick: addBand, className: "flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground border border-border rounded", children: [
+              /* @__PURE__ */ jsx(Plus, { className: "h-3 w-3" }),
+              "Add band"
             ] })
+          ] })
+        ] }, axis.id);
+      })
+    ] })
+  ] });
+};
+var card = "rounded-lg border border-border bg-card p-4";
+var sliderCls = "w-full h-1.5 rounded appearance-none cursor-pointer bg-muted accent-[#d97706]";
+var ScoreSimulatorTab = ({
+  rulesets,
+  selectedRuleset,
+  onSelectRuleset
+}) => {
+  const activeRuleset = selectedRuleset || rulesets[0] || null;
+  const rulesetDims = useMemo(() => {
+    if (!activeRuleset?.schema) return [];
+    try {
+      const s = JSON.parse(activeRuleset.schema);
+      const keys = /* @__PURE__ */ new Set([
+        ...Object.keys(s.dimension_weights || {}),
+        ...Object.keys(s.concern_labels || {}),
+        ...Object.keys(s.axis_codes || {})
+      ]);
+      for (const node of s.nodes || []) {
+        if (node?.type !== "decisionTableNode") continue;
+        const content = typeof node.content === "string" ? JSON.parse(node.content) : node.content;
+        for (const input of content?.inputs || []) {
+          const field2 = String(input?.field || "");
+          if (field2.startsWith("dimension_scores.")) {
+            keys.add(field2.slice("dimension_scores.".length));
+          }
+        }
+      }
+      return Array.from(keys);
+    } catch {
+      return [];
+    }
+  }, [activeRuleset]);
+  const fieldMapping = useMemo(() => {
+    try {
+      return JSON.parse(activeRuleset?.schema || "{}").field_mapping || {};
+    } catch {
+      return {};
+    }
+  }, [activeRuleset]);
+  const dimensionFusion = useMemo(() => {
+    try {
+      return JSON.parse(activeRuleset?.schema || "{}").dimension_fusion || {};
+    } catch {
+      return {};
+    }
+  }, [activeRuleset]);
+  const ageAxisKeys = useMemo(() => rulesetDims.filter((d) => fieldMapping[d]?.form === "age_over_30"), [rulesetDims, fieldMapping]);
+  const formDims = useMemo(
+    () => rulesetDims.filter((d) => !ageAxisKeys.includes(d) && (fieldMapping[d]?.form || !fieldMapping[d]?.vision)),
+    [rulesetDims, fieldMapping, ageAxisKeys]
+  );
+  const visionDims = useMemo(() => rulesetDims.filter((d) => fieldMapping[d]?.vision), [rulesetDims, fieldMapping]);
+  const formDimsKey = formDims.join(",");
+  const visionDimsKey = visionDims.join(",");
+  const [questionnaireValues, setQuestionnaireValues] = useState({});
+  const [visionValues, setVisionValues] = useState({});
+  const [respondentAge, setRespondentAge] = useState(25);
+  useEffect(() => {
+    setQuestionnaireValues((prev) => {
+      const next = {};
+      for (const d of formDims) next[d] = prev[d] ?? 50;
+      return next;
+    });
+  }, [formDimsKey]);
+  useEffect(() => {
+    setVisionValues((prev) => {
+      const next = {};
+      for (const d of visionDims) next[d] = prev[d] ?? 50;
+      return next;
+    });
+  }, [visionDimsKey]);
+  const dimensionScores = useMemo(() => {
+    const out = {};
+    for (const d of rulesetDims) {
+      const isAgeForm = ageAxisKeys.includes(d);
+      const formVal = isAgeForm ? respondentAge <= 30 ? 100 : 0 : questionnaireValues[d];
+      const visionVal = visionValues[d];
+      const df = dimensionFusion[d];
+      if (df) {
+        const fw = typeof df.form === "number" ? df.form : 0.5;
+        const vw = typeof df.vision === "number" ? df.vision : 0.5;
+        out[d] = Math.round(((formVal ?? 50) * fw + (visionVal ?? 50) * vw) * 10) / 10;
+      } else if (fieldMapping[d]?.vision && !fieldMapping[d]?.form) {
+        out[d] = visionVal ?? 50;
+      } else {
+        out[d] = formVal ?? 50;
+      }
+    }
+    return out;
+  }, [rulesetDims, ageAxisKeys, questionnaireValues, visionValues, dimensionFusion, fieldMapping, respondentAge]);
+  const rulesetSafetyFlags = useMemo(() => {
+    if (!activeRuleset?.schema) return [];
+    try {
+      const s = JSON.parse(activeRuleset.schema);
+      if (Array.isArray(s.safety_flags)) {
+        return s.safety_flags.map(
+          (f) => typeof f === "string" ? f : f.key
+        );
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  }, [activeRuleset]);
+  const formSurveyCode = useMemo(() => {
+    try {
+      return JSON.parse(activeRuleset?.schema || "{}").form_survey_code || "";
+    } catch {
+      return "";
+    }
+  }, [activeRuleset]);
+  const [surveySafetyFlags, setSurveySafetyFlags] = useState([]);
+  useEffect(() => {
+    if (!activeRuleset?.brandId || !activeRuleset?.applicationId) {
+      setSurveySafetyFlags([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(
+          `/core/form-engine/survey?brand_id=${encodeURIComponent(activeRuleset.brandId)}&application_id=${encodeURIComponent(activeRuleset.applicationId)}`
+        );
+        if (!res.ok) return;
+        const allSurveys = await res.json();
+        const surveys = formSurveyCode ? allSurveys.filter((s) => s.code === formSurveyCode) : allSurveys;
+        const flags = /* @__PURE__ */ new Set();
+        for (const survey of surveys || []) {
+          if (!survey.schema) continue;
+          try {
+            const parsed = JSON.parse(survey.schema);
+            for (const page of parsed.pages || []) {
+              for (const el of page.elements || []) {
+                for (const choice of el.choices || []) {
+                  const conditionMap = typeof choice === "object" ? choice.condition_map || choice.conditionMap : null;
+                  if (conditionMap) Object.keys(conditionMap).forEach((k) => flags.add(k));
+                }
+              }
+            }
+          } catch {
+          }
+        }
+        if (!cancelled) setSurveySafetyFlags(Array.from(flags));
+      } catch {
+        if (!cancelled) setSurveySafetyFlags([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeRuleset?.brandId, activeRuleset?.applicationId, formSurveyCode]);
+  const allSafetyFlags = useMemo(
+    () => Array.from(/* @__PURE__ */ new Set([...rulesetSafetyFlags, ...surveySafetyFlags])),
+    [rulesetSafetyFlags, surveySafetyFlags]
+  );
+  const [selectedConditions, setSelectedConditions] = useState({});
+  useEffect(() => {
+    setSelectedConditions((prev) => {
+      const keys = allSafetyFlags.length > 0 ? allSafetyFlags : ["is_pregnant", "uses_retinol"];
+      const next = {};
+      for (const k of keys) next[k] = prev[k] ?? false;
+      return next;
+    });
+  }, [allSafetyFlags]);
+  const [simResponse, setSimResponse] = useState(null);
+  const [copiedReq, setCopiedReq] = useState(false);
+  const SIMULATE_PATH = "/core/score-engine/simulate";
+  const requestBody = useMemo(
+    () => JSON.stringify(
+      {
+        schema: activeRuleset?.schema ?? "",
+        dimension_scores: dimensionScores,
+        customer_condition: selectedConditions
+      },
+      null,
+      2
+    ),
+    [activeRuleset, dimensionScores, selectedConditions]
+  );
+  const copyRequest = () => {
+    navigator.clipboard?.writeText(requestBody);
+    setCopiedReq(true);
+    setTimeout(() => setCopiedReq(false), 1500);
+  };
+  const runSimulation = useCallback(async () => {
+    if (!activeRuleset?.schema) return;
+    try {
+      const res = await fetch(SIMULATE_PATH, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          schema: activeRuleset.schema,
+          dimension_scores: dimensionScores,
+          customer_condition: selectedConditions
+        })
+      });
+      if (res.ok) setSimResponse(await res.json());
+    } catch (err) {
+      console.error("Simulation request failed", err);
+    }
+  }, [activeRuleset, dimensionScores, selectedConditions]);
+  useEffect(() => {
+    const timer = setTimeout(runSimulation, 250);
+    return () => clearTimeout(timer);
+  }, [runSimulation]);
+  const axisValues = simResponse?.result?.axis_values || {};
+  const traits = simResponse?.result?.traits || {};
+  const scoreRange = simResponse?.result?.score_range || "";
+  const severityLevel = simResponse?.result?.severity_level || "";
+  const skinConcern = simResponse?.result?.skin_concern;
+  const axisOutputDims = useMemo(() => {
+    if (!activeRuleset?.schema) return [];
+    try {
+      const s = JSON.parse(activeRuleset.schema);
+      const keys = new Set(Object.keys(s.axis_codes || {}));
+      for (const node of s.nodes || []) {
+        if (node?.type !== "decisionTableNode") continue;
+        const content = typeof node.content === "string" ? JSON.parse(node.content) : node.content;
+        for (const output of content?.outputs || []) {
+          const field2 = String(output?.field || "");
+          if (field2.startsWith("axis_values.")) {
+            keys.add(field2.slice("axis_values.".length).toLowerCase());
+          }
+        }
+      }
+      return Array.from(keys);
+    } catch {
+      return [];
+    }
+  }, [activeRuleset]);
+  const BAUMANN_AXIS_ORDER = ["sebum", "oiliness", "sensitivity", "pigmentation", "aging", "wrinkle"];
+  const orderedDims = useMemo(() => {
+    const known = BAUMANN_AXIS_ORDER.filter((k) => axisOutputDims.includes(k));
+    const rest = axisOutputDims.filter((k) => !BAUMANN_AXIS_ORDER.includes(k));
+    return [...known, ...rest];
+  }, [axisOutputDims]);
+  const generatedCode = useMemo(() => {
+    if (orderedDims.length === 0) return "CUSTOM";
+    return orderedDims.map((k) => axisValues[k.toUpperCase()] || "-").join("");
+  }, [axisValues, orderedDims]);
+  const traitsList = useMemo(() => Object.values(traits).filter(Boolean), [traits]);
+  const profile = simResponse?.result?.skin_profile;
+  const profileStrategyIsAxisBased = useMemo(() => {
+    try {
+      const s = JSON.parse(activeRuleset?.schema || "{}");
+      const profileNode = (s.nodes || []).find((n) => {
+        const c2 = typeof n?.content === "string" ? JSON.parse(n.content) : n?.content;
+        return (c2?.outputs || []).some((o) => o?.field === "skin_profile.code");
+      });
+      if (!profileNode) return false;
+      const c = typeof profileNode.content === "string" ? JSON.parse(profileNode.content) : profileNode.content;
+      return (c?.inputs || []).some((i) => String(i?.field || "").startsWith("axis_values."));
+    } catch {
+      return false;
+    }
+  }, [activeRuleset]);
+  const hasAxes = axisOutputDims.length > 0;
+  const useAxisProfile = hasAxes && !profileStrategyIsAxisBased;
+  const profileCode = useAxisProfile ? generatedCode : profile?.code || generatedCode;
+  const profileName = useAxisProfile ? orderedDims.map((k) => k.charAt(0).toUpperCase() + k.slice(1)).join(" \xB7 ") || "Baumann Skin Character" : profile?.name || traitsList.join(" \xB7 ") || "Answer to see a profile";
+  const totalScore = Math.round(simResponse?.result?.total_score || 0);
+  return /* @__PURE__ */ jsxs("div", { className: "flex flex-col lg:flex-row gap-5 items-start", children: [
+    /* @__PURE__ */ jsxs("div", { className: "w-full lg:w-80 lg:shrink-0 space-y-3 min-w-0", children: [
+      /* @__PURE__ */ jsxs("div", { className: card + " space-y-2", children: [
+        /* @__PURE__ */ jsx("span", { className: "block text-xs font-semibold text-muted-foreground", children: "Grading model" }),
+        /* @__PURE__ */ jsx(
+          "select",
+          {
+            value: activeRuleset?.id || "",
+            onChange: (e) => {
+              const r = rulesets.find((item) => item.id === e.target.value);
+              if (r) onSelectRuleset(r);
+            },
+            className: "w-full h-9 rounded-md bg-muted/40 border border-border px-3 text-foreground text-xs outline-none focus:border-ring",
+            style: { colorScheme: "dark" },
+            children: rulesets.map((r) => /* @__PURE__ */ jsxs("option", { value: r.id, children: [
+              r.title,
+              " (",
+              r.code,
+              " v",
+              r.version,
+              ")"
+            ] }, r.id))
+          }
+        )
+      ] }),
+      ageAxisKeys.length > 0 && /* @__PURE__ */ jsxs("div", { className: card + " space-y-2", children: [
+        /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1.5", children: [
+          /* @__PURE__ */ jsx("h3", { className: "text-sm font-bold text-foreground", children: "Usia" }),
+          /* @__PURE__ */ jsx(
+            InfoTooltip,
+            {
+              content: "Bukan slider form biasa \u2014 dihitung dari date_of_birth di kuisioner data pribadi, bukan Q1-Q6. Dipakai axis: aging.",
+              label: "About Usia"
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between text-xs mb-1", children: [
+          /* @__PURE__ */ jsx("span", { className: "text-foreground", children: "Umur (tahun)" }),
+          /* @__PURE__ */ jsxs("span", { className: "text-beak font-semibold font-mono", children: [
+            respondentAge,
+            " (",
+            respondentAge <= 30 ? "sehat" : "faktor W",
+            ")"
+          ] })
+        ] }),
+        /* @__PURE__ */ jsx(
+          "input",
+          {
+            type: "range",
+            min: 13,
+            max: 70,
+            value: respondentAge,
+            onChange: (e) => setRespondentAge(Number(e.target.value)),
+            className: sliderCls
+          }
+        )
+      ] }),
+      formDims.length > 0 && /* @__PURE__ */ jsxs("div", { className: card + " space-y-3", children: [
+        /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1.5", children: [
+          /* @__PURE__ */ jsx("h3", { className: "text-sm font-bold text-foreground", children: "Questionnaire result" }),
+          /* @__PURE__ */ jsx(InfoTooltip, { content: "Per-dimensi, hanya yang dihitung dari kuisioner (form_source).", label: "About questionnaire result" })
+        ] }),
+        /* @__PURE__ */ jsx("div", { className: "space-y-3", children: formDims.map((dimKey) => /* @__PURE__ */ jsxs("div", { children: [
+          /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between text-xs mb-1", children: [
+            /* @__PURE__ */ jsx("span", { className: "text-foreground", children: dimKey }),
+            /* @__PURE__ */ jsx("span", { className: "text-beak font-semibold font-mono", children: questionnaireValues[dimKey] ?? 50 })
           ] }),
           /* @__PURE__ */ jsx(
             "input",
@@ -5293,109 +5569,161 @@ var ClinicalDimensionCard = ({
               type: "range",
               min: 0,
               max: 100,
-              step: 5,
-              disabled,
-              value: formW,
-              onChange: (e) => onUpdate({ ...axis, formWeight: Number(e.target.value) }),
-              className: "w-full h-1.5 rounded appearance-none cursor-pointer bg-muted accent-[#d97706] disabled:opacity-50"
+              value: questionnaireValues[dimKey] ?? 50,
+              onChange: (e) => setQuestionnaireValues((p) => ({ ...p, [dimKey]: Number(e.target.value) })),
+              className: sliderCls
+            }
+          )
+        ] }, dimKey)) })
+      ] }),
+      visionDims.length > 0 && /* @__PURE__ */ jsxs("div", { className: card + " space-y-3", children: [
+        /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1.5", children: [
+          /* @__PURE__ */ jsx("h3", { className: "text-sm font-bold text-foreground", children: "Vision result" }),
+          /* @__PURE__ */ jsx(InfoTooltip, { content: "Per-dimensi, hanya yang dihitung dari foto vendor (vision_source).", label: "About vision result" })
+        ] }),
+        /* @__PURE__ */ jsx("div", { className: "space-y-3", children: visionDims.map((dimKey) => /* @__PURE__ */ jsxs("div", { children: [
+          /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between text-xs mb-1", children: [
+            /* @__PURE__ */ jsx("span", { className: "text-foreground", children: dimKey }),
+            /* @__PURE__ */ jsx("span", { className: "text-beak font-semibold font-mono", children: visionValues[dimKey] ?? 50 })
+          ] }),
+          /* @__PURE__ */ jsx(
+            "input",
+            {
+              type: "range",
+              min: 0,
+              max: 100,
+              value: visionValues[dimKey] ?? 50,
+              onChange: (e) => setVisionValues((p) => ({ ...p, [dimKey]: Number(e.target.value) })),
+              className: sliderCls
+            }
+          )
+        ] }, dimKey)) })
+      ] }),
+      /* @__PURE__ */ jsxs("div", { className: card + " space-y-3", children: [
+        /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between", children: [
+          /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1.5", children: [
+            /* @__PURE__ */ jsx("h3", { className: "text-sm font-bold text-foreground", children: "Dimension scores" }),
+            /* @__PURE__ */ jsx(
+              InfoTooltip,
+              {
+                content: "Hasil FINAL per axis \u2014 sudah lewat normalisasi + blend form/vision sesuai bobot di Blending tab. Read-only, ini yang beneran dipakai buat klasifikasi di bawah.",
+                label: "About dimension scores"
+              }
+            )
+          ] }),
+          /* @__PURE__ */ jsxs("span", { className: "text-[11px] text-muted-foreground font-mono", children: [
+            "overall ",
+            totalScore
+          ] })
+        ] }),
+        /* @__PURE__ */ jsx("div", { className: "space-y-1.5", children: Object.keys(dimensionScores).map((dimKey) => /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between text-xs", children: [
+          /* @__PURE__ */ jsx("span", { className: "text-foreground", children: dimKey }),
+          /* @__PURE__ */ jsx("span", { className: "text-beak font-semibold font-mono", children: dimensionScores[dimKey] })
+        ] }, dimKey)) })
+      ] }),
+      /* @__PURE__ */ jsxs("div", { className: card + " space-y-2", children: [
+        /* @__PURE__ */ jsx("h3", { className: "text-sm font-bold text-foreground", children: "Safety flags" }),
+        /* @__PURE__ */ jsx("div", { className: "grid grid-cols-2 gap-2 text-xs", children: Object.entries(selectedConditions).map(([key, isChecked]) => /* @__PURE__ */ jsxs(
+          "button",
+          {
+            type: "button",
+            onClick: () => setSelectedConditions((p) => ({ ...p, [key]: !p[key] })),
+            className: `p-2.5 rounded-md border text-left transition-colors flex items-center justify-between ${isChecked ? "border-beak/50 bg-beak/10 text-beak" : "border-border bg-muted/40 text-muted-foreground hover:text-foreground"}`,
+            children: [
+              /* @__PURE__ */ jsx("span", { children: key }),
+              /* @__PURE__ */ jsx(
+                "span",
+                {
+                  className: `w-2 h-2 rounded-full ${isChecked ? "bg-beak" : "bg-border"}`
+                }
+              )
+            ]
+          },
+          key
+        )) })
+      ] })
+    ] }),
+    /* @__PURE__ */ jsx("div", { className: "w-full lg:flex-1 space-y-3 min-w-0", children: /* @__PURE__ */ jsxs("div", { className: card, children: [
+      /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between gap-2", children: [
+        /* @__PURE__ */ jsx("h3", { className: "text-sm font-bold text-foreground", children: "Result" }),
+        /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2", children: [
+          simResponse?.performance && /* @__PURE__ */ jsx("span", { className: "text-[11px] text-muted-foreground font-mono", children: simResponse.performance }),
+          /* @__PURE__ */ jsxs(
+            "button",
+            {
+              type: "button",
+              onClick: copyRequest,
+              title: `POST ${SIMULATE_PATH}`,
+              className: "flex items-center gap-1 rounded border border-border bg-muted/40 px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:border-beak/50",
+              children: [
+                copiedReq ? /* @__PURE__ */ jsx(Check, { className: "h-3 w-3 text-beak" }) : /* @__PURE__ */ jsx(Copy, { className: "h-3 w-3" }),
+                copiedReq ? "Copied" : "Copy request"
+              ]
             }
           )
         ] })
       ] }),
-      /* @__PURE__ */ jsxs("div", { className: "rounded-md border border-border bg-muted/20", children: [
-        /* @__PURE__ */ jsxs(
-          "button",
+      /* @__PURE__ */ jsxs("p", { className: "mt-1 text-[10px] text-muted-foreground font-mono", children: [
+        "POST ",
+        SIMULATE_PATH
+      ] }),
+      /* @__PURE__ */ jsxs("div", { className: "mt-3 rounded-md border border-border bg-muted/20 p-4 text-center", children: [
+        profile?.category && /* @__PURE__ */ jsx("span", { className: "text-[10px] font-semibold text-muted-foreground", children: profile.category }),
+        /* @__PURE__ */ jsx("div", { className: "text-2xl font-black tracking-tight text-foreground font-mono my-1", children: profileCode }),
+        /* @__PURE__ */ jsx("div", { className: "text-xs font-semibold text-foreground", children: profileName }),
+        profile?.description && /* @__PURE__ */ jsx("p", { className: "text-[11px] text-muted-foreground mt-2 line-clamp-2 leading-relaxed", children: profile.description }),
+        traitsList.length > 0 && /* @__PURE__ */ jsx("div", { className: "flex flex-wrap items-center justify-center gap-1.5 mt-3 pt-3 border-t border-border", children: traitsList.map((t) => /* @__PURE__ */ jsx(
+          "span",
           {
-            type: "button",
-            onClick: () => setCodeOpen((v) => !v),
-            className: "flex w-full items-center justify-between gap-2 px-3 py-2 text-[11px] font-semibold text-muted-foreground hover:text-foreground",
+            className: "text-[11px] text-muted-foreground bg-card px-2 py-0.5 rounded border border-border",
+            children: String(t)
+          },
+          String(t)
+        )) })
+      ] }),
+      Object.keys(axisValues).length > 0 && /* @__PURE__ */ jsxs("div", { className: "mt-4", children: [
+        /* @__PURE__ */ jsx("h4", { className: "text-[11px] font-semibold text-muted-foreground mb-2", children: "Axis codes" }),
+        /* @__PURE__ */ jsx("div", { className: "flex flex-wrap gap-2 text-xs", children: Object.entries(axisValues).map(([axis, val]) => /* @__PURE__ */ jsxs(
+          "div",
+          {
+            className: "min-w-[4.5rem] flex-1 rounded-md border border-border bg-muted/20 p-2.5 text-center",
             children: [
-              /* @__PURE__ */ jsxs("span", { children: [
-                "Bipolar code (Baumann)",
-                hasBipolar && /* @__PURE__ */ jsxs("span", { className: "ml-2 text-foreground", children: [
-                  "<",
-                  codeThreshold,
-                  " \u2192 ",
-                  codeLow.toUpperCase(),
-                  " \xB7 \u2265",
-                  codeThreshold,
-                  " \u2192 ",
-                  codeHigh.toUpperCase()
-                ] })
-              ] }),
-              codeOpen ? /* @__PURE__ */ jsx(ChevronDown, { className: "h-3.5 w-3.5" }) : /* @__PURE__ */ jsx(ChevronRight, { className: "h-3.5 w-3.5" })
+              /* @__PURE__ */ jsx("div", { className: "text-muted-foreground text-[10px] truncate", children: axis }),
+              /* @__PURE__ */ jsx("div", { className: "text-sm font-bold text-beak font-mono mt-0.5", children: String(val) })
             ]
-          }
-        ),
-        codeOpen && /* @__PURE__ */ jsxs("div", { className: "border-t border-border px-3 py-3 space-y-2", children: [
-          /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-3 gap-2", children: [
-            /* @__PURE__ */ jsxs("div", { children: [
-              /* @__PURE__ */ jsx("label", { className: "block text-[10px] font-semibold text-muted-foreground mb-1", children: "Below threshold" }),
-              /* @__PURE__ */ jsx(
-                "input",
-                {
-                  type: "text",
-                  maxLength: 2,
-                  disabled,
-                  value: codeLow,
-                  onChange: (e) => onUpdate({ ...axis, axisCodeLow: e.target.value.toUpperCase().replace(/[^A-Z]/g, "") }),
-                  placeholder: "D",
-                  className: fieldCls + " text-center font-bold text-beak"
-                }
-              )
-            ] }),
-            /* @__PURE__ */ jsxs("div", { children: [
-              /* @__PURE__ */ jsx("label", { className: "block text-[10px] font-semibold text-muted-foreground mb-1", children: "At / above" }),
-              /* @__PURE__ */ jsx(
-                "input",
-                {
-                  type: "text",
-                  maxLength: 2,
-                  disabled,
-                  value: codeHigh,
-                  onChange: (e) => onUpdate({ ...axis, axisCodeHigh: e.target.value.toUpperCase().replace(/[^A-Z]/g, "") }),
-                  placeholder: "O",
-                  className: fieldCls + " text-center font-bold text-beak"
-                }
-              )
-            ] }),
-            /* @__PURE__ */ jsxs("div", { children: [
-              /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1.5 mb-1", children: [
-                /* @__PURE__ */ jsx("label", { className: "block text-[10px] font-semibold text-muted-foreground", children: "Threshold" }),
-                /* @__PURE__ */ jsx(
-                  InfoTooltip,
-                  {
-                    content: "Scores are health-oriented (100 = optimal), so at/above the threshold is the healthier side \u2014 e.g. sebum threshold 50: below \u2192 O (Oily), at/above \u2192 D (Dry). Leave both letters blank to fall back to the Score Range initial (O / S / P).",
-                    label: "About bipolar code threshold",
-                    iconClassName: "h-3 w-3"
-                  }
-                )
-              ] }),
-              /* @__PURE__ */ jsx(
-                "input",
-                {
-                  type: "number",
-                  min: 0,
-                  max: 100,
-                  step: 1,
-                  disabled,
-                  value: codeThreshold,
-                  onChange: (e) => onUpdate({
-                    ...axis,
-                    axisCodeThreshold: Math.max(0, Math.min(100, Number(e.target.value) || 0))
-                  }),
-                  className: fieldCls + " text-center"
-                }
-              )
-            ] })
-          ] }),
-          (codeLow.trim() ? 1 : 0) + (codeHigh.trim() ? 1 : 0) === 1 && /* @__PURE__ */ jsx("p", { className: "text-[10px] text-destructive", children: "Set both letters, or clear both \u2014 one letter alone is ignored." })
+          },
+          axis
+        )) })
+      ] }),
+      /* @__PURE__ */ jsxs("div", { className: "mt-4 flex flex-wrap gap-2 text-xs", children: [
+        /* @__PURE__ */ jsxs("div", { className: "min-w-[8rem] flex-1 rounded-md border border-border bg-muted/20 p-2.5", children: [
+          /* @__PURE__ */ jsx("div", { className: "text-[10px] text-muted-foreground", children: "Overall score" }),
+          /* @__PURE__ */ jsx("div", { className: "text-sm font-bold text-foreground font-mono mt-0.5", children: totalScore }),
+          /* @__PURE__ */ jsx("div", { className: "text-[10px] text-muted-foreground", children: "100 = optimal" })
+        ] }),
+        /* @__PURE__ */ jsxs("div", { className: "min-w-[8rem] flex-1 rounded-md border border-border bg-muted/20 p-2.5", children: [
+          /* @__PURE__ */ jsx("div", { className: "text-[10px] text-muted-foreground", children: "Score Range" }),
+          /* @__PURE__ */ jsx("div", { className: "text-sm font-semibold text-foreground mt-0.5", children: scoreRange || "\u2014" })
+        ] }),
+        /* @__PURE__ */ jsxs("div", { className: "min-w-[8rem] flex-1 rounded-md border border-border bg-muted/20 p-2.5", children: [
+          /* @__PURE__ */ jsx("div", { className: "text-[10px] text-muted-foreground", children: "Severity Level" }),
+          /* @__PURE__ */ jsx("div", { className: "text-sm font-semibold text-beak mt-0.5", children: severityLevel || "\u2014" })
         ] })
+      ] }),
+      /* @__PURE__ */ jsxs("div", { className: "mt-3 rounded-md border border-border bg-muted/20 p-2.5 text-xs", children: [
+        /* @__PURE__ */ jsx("div", { className: "text-[10px] text-muted-foreground mb-0.5", children: "Skin Concern" }),
+        skinConcern ? /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between", children: [
+          /* @__PURE__ */ jsx("span", { className: "font-semibold text-foreground", children: skinConcern.label }),
+          /* @__PURE__ */ jsxs("span", { className: "text-muted-foreground font-mono", children: [
+            skinConcern.dimension,
+            " \xB7 ",
+            Math.round(skinConcern.score ?? 0)
+          ] })
+        ] }) : /* @__PURE__ */ jsx("span", { className: "text-muted-foreground", children: "No dominant concern (optimal)" })
       ] })
-    ] })
+    ] }) })
   ] });
 };
-var ClinicalAxisCard = ClinicalDimensionCard;
 var BandTable = ({
   bands,
   onChange,
@@ -5495,31 +5823,36 @@ var ProfileMappingTable = ({
 }) => {
   const { strategy, profiles } = config;
   const [expandedRows, setExpandedRows] = useState({});
+  const [cache, setCache] = useState({});
   const wide = strategy === "combination_matrix";
   const toggleRow = (id) => {
     setExpandedRows((prev) => ({ ...prev, [id]: !prev[id] }));
   };
   const handleStrategyChange = (newStrategy) => {
     if (newStrategy === strategy) return;
-    let initialProfiles = [];
-    if (newStrategy === "total_score") {
-      initialProfiles = [
-        { id: `prof_${Date.now()}_1`, minScore: 80, maxScore: 100, code: "OPTIMAL_RESILIENT", title: "Optimal Vitality", category: "Resilient Barrier", summary: "Healthy barrier balance." },
-        { id: `prof_${Date.now()}_2`, minScore: 50, maxScore: 79, code: "MODERATE_FATIGUE", title: "Moderate Fatigue", category: "Early Stress", summary: "Mild cellular stress." },
-        { id: `prof_${Date.now()}_3`, minScore: 0, maxScore: 49, code: "ACCELERATED_DEFICIT", title: "Accelerated Deficit", category: "High Concern", summary: "Elevated concern." }
-      ];
-    } else if (newStrategy === "combination_matrix") {
-      initialProfiles = generateCartesianCombinations(axes);
-    } else if (newStrategy === "primary_concern") {
-      initialProfiles = axes.map((a, idx) => ({
-        id: `prof_${Date.now()}_${idx + 1}`,
-        primaryDimension: a.dimensionKey,
-        severityLevel: "Sangat Parah",
-        code: `${a.dimensionKey.toUpperCase()}_CRITICAL`,
-        title: `${a.name} Critical Concern`,
-        category: "Acute Concern",
-        summary: `Acute focus required on ${a.name}.`
-      }));
+    setCache((prev) => ({ ...prev, [strategy]: profiles }));
+    const cached = cache[newStrategy];
+    let initialProfiles = cached ?? [];
+    if (!cached) {
+      if (newStrategy === "total_score") {
+        initialProfiles = [
+          { id: `prof_${Date.now()}_1`, minScore: 80, maxScore: 100, code: "OPTIMAL_RESILIENT", title: "Optimal Vitality", category: "Resilient Barrier", summary: "Healthy barrier balance." },
+          { id: `prof_${Date.now()}_2`, minScore: 50, maxScore: 79, code: "MODERATE_FATIGUE", title: "Moderate Fatigue", category: "Early Stress", summary: "Mild cellular stress." },
+          { id: `prof_${Date.now()}_3`, minScore: 0, maxScore: 49, code: "ACCELERATED_DEFICIT", title: "Accelerated Deficit", category: "High Concern", summary: "Elevated concern." }
+        ];
+      } else if (newStrategy === "combination_matrix") {
+        initialProfiles = generateCartesianCombinations(axes);
+      } else if (newStrategy === "primary_concern") {
+        initialProfiles = axes.map((a, idx) => ({
+          id: `prof_${Date.now()}_${idx + 1}`,
+          primaryDimension: a.dimensionKey,
+          severityLevel: "Sangat Parah",
+          code: `${a.dimensionKey.toUpperCase()}_CRITICAL`,
+          title: `${a.name} Critical Concern`,
+          category: "Acute Concern",
+          summary: `Acute focus required on ${a.name}.`
+        }));
+      }
     }
     onChange({
       strategy: newStrategy,
@@ -5610,7 +5943,7 @@ var ProfileMappingTable = ({
         /* @__PURE__ */ jsx(
           InfoTooltip,
           {
-            content: "Pick how dimension scores turn into one final skin profile.",
+            content: "Sets skin_profile.code and skin_profile.name \u2014 a different result than Score Range and Severity Level above, which only set score_range and severity_level. 'Total Score' reads the same overall score as those two, just to pick a different output.",
             label: "About profile strategy"
           }
         )
@@ -5648,6 +5981,22 @@ var ProfileMappingTable = ({
         )
       ] })
     ] }),
+    /* @__PURE__ */ jsx("p", { className: "text-[11px] text-muted-foreground -mt-2", children: "Only the highlighted method above is saved to this ruleset \u2014 the other two are kept in this browser tab so you can switch back without losing what you typed, but they're discarded on reload." }),
+    strategy === "total_score" && /* @__PURE__ */ jsxs("p", { className: "text-[11px] text-muted-foreground bg-muted/40 border border-border rounded-lg px-3 py-2", children: [
+      `"Trigger range" reads the same overall score as the Score Range / Severity Level labels above, but this table picks the profile's own`,
+      " ",
+      /* @__PURE__ */ jsx("span", { className: "font-mono", children: "skin_profile.code" }),
+      " /",
+      " ",
+      /* @__PURE__ */ jsx("span", { className: "font-mono", children: "skin_profile.name" }),
+      " \u2014 a different result than",
+      " ",
+      /* @__PURE__ */ jsx("span", { className: "font-mono", children: "score_range" }),
+      " /",
+      " ",
+      /* @__PURE__ */ jsx("span", { className: "font-mono", children: "severity_level" }),
+      ". Editing one does not change the others."
+    ] }),
     strategy === "combination_matrix" && /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between bg-muted/40 border border-border p-2.5 rounded-lg", children: [
       /* @__PURE__ */ jsxs("span", { className: "text-xs text-muted-foreground", children: [
         "One row per combination of ",
@@ -5676,7 +6025,7 @@ var ProfileMappingTable = ({
           children: [
             /* @__PURE__ */ jsx("thead", { children: /* @__PURE__ */ jsxs("tr", { className: "bg-muted/40 border-b border-border text-[11px] text-muted-foreground", children: [
               /* @__PURE__ */ jsx("th", { className: "py-2.5 px-3 text-center", style: { width: 40 }, children: "#" }),
-              strategy === "total_score" && /* @__PURE__ */ jsx("th", { className: "py-2.5 px-3", style: { minWidth: 160 }, children: "Score range" }),
+              strategy === "total_score" && /* @__PURE__ */ jsx("th", { className: "py-2.5 px-3", style: { minWidth: 160 }, children: "Trigger range" }),
               strategy === "combination_matrix" && axes.map((a) => {
                 const letters = axisLetters(a);
                 const bipolar = !!(a.axisCodeLow?.trim() && a.axisCodeHigh?.trim());
@@ -5927,6 +6276,9 @@ var RulesetModal = ({
   const [brandId, setBrandId] = useState("*");
   const [applicationId, setApplicationId] = useState("*");
   const [status, setStatus] = useState("ACTIVE");
+  const [formSurveyCode, setFormSurveyCode] = useState("");
+  const [visionSourceCode, setVisionSourceCode] = useState("");
+  const [surveys, setSurveys] = useState([]);
   const [axes, setAxes] = useState(DEFAULT_STARTER_AXES);
   const [profileConfig, setProfileConfig] = useState(DEFAULT_STARTER_PROFILES);
   const [scoreRangeBands, setScoreRangeBands] = useState(DEFAULT_SCORE_RANGE_BANDS);
@@ -5959,6 +6311,14 @@ var RulesetModal = ({
       setScoreRangeBands(sr);
       setSeverityBands(sv);
       setIsLegacy(legacy);
+      try {
+        const parsed = JSON.parse(editingRuleset.schema || "{}");
+        setFormSurveyCode(parsed.form_survey_code || "");
+        setVisionSourceCode(parsed.vision_source_code || "");
+      } catch {
+        setFormSurveyCode("");
+        setVisionSourceCode("");
+      }
     } else {
       setName("");
       setCode("");
@@ -5973,6 +6333,8 @@ var RulesetModal = ({
       setScoreRangeBands(DEFAULT_SCORE_RANGE_BANDS);
       setSeverityBands(DEFAULT_SEVERITY_BANDS);
       setIsLegacy(false);
+      setFormSurveyCode("");
+      setVisionSourceCode("");
     }
     setTab("setup");
     setFormError(null);
@@ -5980,6 +6342,13 @@ var RulesetModal = ({
   useEffect(() => {
     fitNotes(notesRef.current);
   }, [description, tab, isOpen]);
+  useEffect(() => {
+    if (!isOpen) return;
+    fetch(`/core/form-engine/survey?brand_id=${encodeURIComponent(brandId)}&application_id=${encodeURIComponent(applicationId)}`).then((res) => res.json()).then((data) => {
+      const list = Array.isArray(data) ? data : Array.isArray(data?.surveys) ? data.surveys : data?.code ? [data] : [];
+      setSurveys(list);
+    }).catch(() => setSurveys([]));
+  }, [isOpen, brandId, applicationId]);
   const effectiveCode = codeEdited ? code : slugify2(name);
   const totalWeight = axes.reduce((sum, a) => sum + (Number(a.weight) || 0), 0);
   const addAxis = () => {
@@ -5995,6 +6364,18 @@ var RulesetModal = ({
         concernLabel: defaultConcernLabel("sensitivity")
       }
     ]);
+  };
+  const withSetupFields = (schemaStr) => {
+    try {
+      const parsed = JSON.parse(schemaStr);
+      if (formSurveyCode) parsed.form_survey_code = formSurveyCode;
+      else delete parsed.form_survey_code;
+      if (visionSourceCode) parsed.vision_source_code = visionSourceCode;
+      else delete parsed.vision_source_code;
+      return JSON.stringify(parsed, null, 2);
+    } catch {
+      return schemaStr;
+    }
   };
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -6016,7 +6397,7 @@ var RulesetModal = ({
         brandId,
         applicationId,
         status,
-        schema: compileVisualToJDM(axes, profileConfig, scoreRangeBands, severityBands)
+        schema: withSetupFields(compileVisualToJDM(axes, profileConfig, scoreRangeBands, severityBands, editingRuleset?.schema))
       });
       onClose();
     } catch (err) {
@@ -6025,7 +6406,7 @@ var RulesetModal = ({
       setIsSubmitting(false);
     }
   };
-  const jsonText = compileVisualToJDM(axes, profileConfig, scoreRangeBands, severityBands);
+  const jsonText = withSetupFields(compileVisualToJDM(axes, profileConfig, scoreRangeBands, severityBands, editingRuleset?.schema));
   const createRequestBody = JSON.stringify(
     {
       brandId,
@@ -6076,7 +6457,7 @@ var RulesetModal = ({
             /* @__PURE__ */ jsx("div", { className: "flex items-center gap-1 rounded-md border border-border bg-muted/40 p-1", children: [
               ["setup", "Setup"],
               ["dimensions", `Dimensions${axes.length ? ` (${axes.length})` : ""}`],
-              ["bands", "Score, Severity & Profiles"]
+              ["bands", "Skin Profile"]
             ].map(([id, label]) => /* @__PURE__ */ jsx(
               "button",
               {
@@ -6165,6 +6546,63 @@ var RulesetModal = ({
                       }
                     )
                   ] }),
+                  /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-3", children: [
+                    /* @__PURE__ */ jsxs("div", { children: [
+                      /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1.5 mb-1.5", children: [
+                        /* @__PURE__ */ jsx("label", { className: labelCls + " mb-0", children: "Form input" }),
+                        /* @__PURE__ */ jsx(
+                          InfoTooltip,
+                          {
+                            content: "Which Form Engine survey this ruleset pairs with. Scopes what shows up when adding/wiring a dimension's Form source in Blending.",
+                            label: "About Form input"
+                          }
+                        )
+                      ] }),
+                      /* @__PURE__ */ jsxs(
+                        "select",
+                        {
+                          value: formSurveyCode,
+                          onChange: (e) => setFormSurveyCode(e.target.value),
+                          className: inputCls,
+                          style: { colorScheme: "dark" },
+                          children: [
+                            /* @__PURE__ */ jsx("option", { value: "", children: "\u2014 none selected \u2014" }),
+                            surveys.map((s) => /* @__PURE__ */ jsxs("option", { value: s.code, children: [
+                              s.title || s.name || s.code,
+                              " (",
+                              s.code,
+                              ")"
+                            ] }, s.code))
+                          ]
+                        }
+                      )
+                    ] }),
+                    /* @__PURE__ */ jsxs("div", { children: [
+                      /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1.5 mb-1.5", children: [
+                        /* @__PURE__ */ jsx("label", { className: labelCls + " mb-0", children: "Vision input" }),
+                        /* @__PURE__ */ jsx(
+                          InfoTooltip,
+                          {
+                            content: "Which CV/vendor source this ruleset pairs with. Only one is registered today (Paradev Skin Analyzer) \u2014 more get added as new vendors are wired up.",
+                            label: "About Vision input"
+                          }
+                        )
+                      ] }),
+                      /* @__PURE__ */ jsxs(
+                        "select",
+                        {
+                          value: visionSourceCode,
+                          onChange: (e) => setVisionSourceCode(e.target.value),
+                          className: inputCls,
+                          style: { colorScheme: "dark" },
+                          children: [
+                            /* @__PURE__ */ jsx("option", { value: "", children: "\u2014 none selected \u2014" }),
+                            /* @__PURE__ */ jsx("option", { value: "paradev_skin_analyzer", children: "Paradev Skin Analyzer" })
+                          ]
+                        }
+                      )
+                    ] })
+                  ] }),
                   /* @__PURE__ */ jsxs("div", { children: [
                     /* @__PURE__ */ jsx("label", { className: labelCls, children: "Notes" }),
                     /* @__PURE__ */ jsx(
@@ -6195,7 +6633,7 @@ var RulesetModal = ({
                   /* @__PURE__ */ jsx(
                     InfoTooltip,
                     {
-                      content: "Weights are relative \u2014 a dimension\u2019s share of the overall score is its weight \xF7 the total of all weights. The concern label is what the customer sees when that dimension is their dominant concern.",
+                      content: "Weights are relative \u2014 a dimension\u2019s share of the overall score is its weight \xF7 the total of all weights. The concern label is what the customer sees when that dimension is their dominant concern. Form/Vision blend per dimension moved to the Blending tab.",
                       label: "About dimensions"
                     }
                   )
@@ -6234,40 +6672,55 @@ var RulesetModal = ({
               ))
             ] }),
             tab === "bands" && /* @__PURE__ */ jsxs("div", { className: "space-y-4", children: [
-              /* @__PURE__ */ jsxs("div", { className: "space-y-1.5", children: [
+              /* @__PURE__ */ jsxs("div", { className: "space-y-1", children: [
                 /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1.5", children: [
-                  /* @__PURE__ */ jsx("h3", { className: "text-sm font-bold text-foreground", children: "Score Range" }),
+                  /* @__PURE__ */ jsx("h3", { className: "text-base font-bold text-foreground", children: "Skin Profile" }),
                   /* @__PURE__ */ jsx(
                     InfoTooltip,
                     {
-                      content: "Coarse category for the overall score (100 = optimal).",
-                      label: "About Score Range"
+                      content: "Everything here is derived from the same overall score (0-100). The two label tables below just name a bracket of that score; the method further down decides skin_profile.code/name, the actual profile result.",
+                      label: "About Skin Profile"
                     }
                   )
                 ] }),
-                /* @__PURE__ */ jsx(BandTable, { bands: scoreRangeBands, onChange: setScoreRangeBands, idPrefix: "sr" })
+                /* @__PURE__ */ jsx("p", { className: "text-[11px] text-muted-foreground", children: "Score Range and Severity Level are two labels for the same overall score \u2014 handy for a quick badge, not required by the profile method below." })
               ] }),
-              /* @__PURE__ */ jsxs("div", { className: "space-y-1.5", children: [
-                /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1.5", children: [
-                  /* @__PURE__ */ jsx("h3", { className: "text-sm font-bold text-foreground", children: "Severity Level" }),
-                  /* @__PURE__ */ jsx(
-                    InfoTooltip,
-                    {
-                      content: "Overall clinical severity from the total score.",
-                      label: "About Severity Level"
-                    }
-                  )
+              /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-3", children: [
+                /* @__PURE__ */ jsxs("div", { className: "space-y-1.5", children: [
+                  /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1.5", children: [
+                    /* @__PURE__ */ jsx("h4", { className: "text-xs font-semibold text-foreground", children: "Score Range label" }),
+                    /* @__PURE__ */ jsx(
+                      InfoTooltip,
+                      {
+                        content: "Sets score_range only \u2014 a coarse 3-tier badge for the overall score.",
+                        label: "About Score Range"
+                      }
+                    )
+                  ] }),
+                  /* @__PURE__ */ jsx(BandTable, { bands: scoreRangeBands, onChange: setScoreRangeBands, idPrefix: "sr" })
                 ] }),
-                /* @__PURE__ */ jsx(BandTable, { bands: severityBands, onChange: setSeverityBands, idPrefix: "sv" })
+                /* @__PURE__ */ jsxs("div", { className: "space-y-1.5", children: [
+                  /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1.5", children: [
+                    /* @__PURE__ */ jsx("h4", { className: "text-xs font-semibold text-foreground", children: "Severity Level label" }),
+                    /* @__PURE__ */ jsx(
+                      InfoTooltip,
+                      {
+                        content: "Sets severity_level only \u2014 a finer 5-tier badge for the same overall score.",
+                        label: "About Severity Level"
+                      }
+                    )
+                  ] }),
+                  /* @__PURE__ */ jsx(BandTable, { bands: severityBands, onChange: setSeverityBands, idPrefix: "sv" })
+                ] })
               ] }),
-              /* @__PURE__ */ jsxs("div", { className: "space-y-1.5", children: [
+              /* @__PURE__ */ jsxs("div", { className: "space-y-1.5 border-t border-border pt-4", children: [
                 /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1.5", children: [
-                  /* @__PURE__ */ jsx("h3", { className: "text-sm font-bold text-foreground", children: "Skin Profiles" }),
+                  /* @__PURE__ */ jsx("h4", { className: "text-xs font-semibold text-foreground", children: "Profile method" }),
                   /* @__PURE__ */ jsx(
                     InfoTooltip,
                     {
-                      content: "Maps combinations of dimension axis codes to a named, described profile (e.g. DSPT \u2192 'Kulit kering, sensitif...').",
-                      label: "About Skin Profiles"
+                      content: "Decides skin_profile.code and skin_profile.name \u2014 the actual profile result, separate from the two labels above. Only one method runs at a time: they'd otherwise write conflicting values to the same code/name.",
+                      label: "About profile method"
                     }
                   )
                 ] }),
@@ -6389,6 +6842,11 @@ var ScoreManager = () => {
       badge: rulesets.length
     },
     {
+      id: "blending",
+      label: "Blending",
+      icon: /* @__PURE__ */ jsx(SlidersHorizontal, { className: "h-4 w-4" })
+    },
+    {
       id: "simulator",
       label: "Simulator",
       icon: /* @__PURE__ */ jsx(Play, { className: "h-4 w-4" })
@@ -6477,6 +6935,15 @@ var ScoreManager = () => {
           onDeleteRuleset: handleDeleteRuleset
         }
       ),
+      activeTab === "blending" && /* @__PURE__ */ jsx(
+        BlendingTab,
+        {
+          rulesets,
+          selectedRuleset,
+          onSelectRuleset: setSelectedRuleset,
+          onSaveRuleset: handleSaveRuleset
+        }
+      ),
       activeTab === "simulator" && /* @__PURE__ */ jsx(
         ScoreSimulatorTab,
         {
@@ -6514,7 +6981,7 @@ var SEV_LABEL = {
   severe: "Level 2 \xB7 Poor",
   critical: "Level 1 \xB7 Critical"
 };
-var fieldCls2 = "h-8 rounded-md bg-muted/40 border border-border px-2.5 text-foreground text-xs outline-none focus:border-ring disabled:opacity-50";
+var fieldCls3 = "h-8 rounded-md bg-muted/40 border border-border px-2.5 text-foreground text-xs outline-none focus:border-ring disabled:opacity-50";
 var W_RANGE = 160;
 var W_SEVERITY = 160;
 var W_CODE = 48;
@@ -6571,7 +7038,7 @@ var SeverityTierTable = ({
           value: tier.gradeName,
           onChange: (e) => update(tier.id, { gradeName: e.target.value }),
           placeholder: "e.g. Balanced",
-          className: `flex-1 min-w-0 ${fieldCls2}`
+          className: `flex-1 min-w-0 ${fieldCls3}`
         }
       ),
       showValueCode && /* @__PURE__ */ jsx("span", { className: "w-7 shrink-0 text-center text-xs font-semibold text-beak", children: tier.valueCode }),
@@ -6604,7 +7071,7 @@ var SeverityTierTable = ({
             value: tier.gradeName,
             onChange: (e) => update(tier.id, { gradeName: e.target.value }),
             placeholder: "e.g. Balanced",
-            className: `flex-1 min-w-0 ${fieldCls2}`
+            className: `flex-1 min-w-0 ${fieldCls3}`
           }
         ),
         /* @__PURE__ */ jsx("div", { className: "shrink-0", style: { width: W_SEVERITY }, children: /* @__PURE__ */ jsx(
@@ -6637,7 +7104,7 @@ var SeverityTierTable = ({
             onChange: (e) => update(tier.id, { trait: e.target.value }),
             placeholder: "tag",
             title: "Concern tag surfaced when this level is hit",
-            className: `shrink-0 ${fieldCls2}`,
+            className: `shrink-0 ${fieldCls3}`,
             style: { width: W_TAG }
           }
         ),

@@ -7,8 +7,21 @@ import type {
   JDMDecisionModel,
   JDMNode,
   JDMEdge,
+  InputSource,
+  ThresholdBand,
 } from '../types';
-import { DEFAULT_SCORE_RANGE_BANDS, DEFAULT_SEVERITY_BANDS } from '../types';
+import { DEFAULT_SCORE_RANGE_BANDS, DEFAULT_SEVERITY_BANDS, KNOWN_VISION_FIELDS } from '../types';
+
+const visionFieldLabel = (code: string) => KNOWN_VISION_FIELDS.find((f) => f.code === code)?.label || code;
+
+const makeSource = (fieldCode: string | undefined, origin: 'form' | 'vision'): InputSource | undefined =>
+  fieldCode
+    ? {
+        origin,
+        fieldCode,
+        label: origin === 'vision' ? visionFieldLabel(fieldCode) : fieldCode,
+      }
+    : undefined;
 
 // Health-oriented model: the 0-100 score climbs from 0 (critical) to 100
 // (optimal) — a higher number always means healthier skin. Score Range,
@@ -99,6 +112,13 @@ export function compileVisualToJDM(
   profileConfig: VisualProfileMappingConfig = DEFAULT_STARTER_PROFILES,
   scoreRangeBands: VisualBand[] = DEFAULT_SCORE_RANGE_BANDS,
   severityBands: VisualBand[] = DEFAULT_SEVERITY_BANDS,
+  /** The schema being edited, if any. Any node in it that this function
+   *  doesn't itself own (not 'input_node'/'profile', not `<axisKey>-band`
+   *  for a key in `axes`) is carried over untouched — e.g. a hand-authored
+   *  node with no axis_values output (Pore Severity writes to
+   *  sub_classification, not a 4-letter code) that this editor has no way
+   *  to represent yet. Without this, saving silently deletes it. */
+  existingSchema?: string,
 ): string {
   const effectiveAxes = axes.length > 0 ? axes : DEFAULT_STARTER_AXES;
 
@@ -106,6 +126,19 @@ export function compileVisualToJDM(
     { id: 'input_node', name: 'Input', type: 'inputNode', position: { x: 40, y: 40 } },
   ];
   const edges: JDMEdge[] = [];
+
+  const ownedNodeIds = new Set<string>(['input_node', 'profile', ...effectiveAxes.map((a) => `${a.dimensionKey.toLowerCase()}-band`)]);
+  const preservedNodes: JDMNode[] = [];
+  if (existingSchema) {
+    try {
+      const prev = JSON.parse(existingSchema);
+      for (const n of prev?.nodes || []) {
+        if (!ownedNodeIds.has(n?.id)) preservedNodes.push(n);
+      }
+    } catch {
+      // not valid JSON yet (e.g. brand new ruleset) — nothing to preserve
+    }
+  }
 
   // --- Skin Profile decision table ---
   const profileOutputs = [
@@ -182,32 +215,76 @@ export function compileVisualToJDM(
   const dimension_weights: Record<string, number> = {};
   const dimension_fusion: Record<string, { form: number; vision: number }> = {};
   const concern_labels: Record<string, string> = {};
+  const axis_codes: Record<string, { threshold: number; low: string; high: string }> = {};
+  const field_mapping: Record<string, { form?: string; vision?: string }> = {};
+
   for (const a of effectiveAxes) {
     const key = a.dimensionKey.toLowerCase();
     dimension_weights[key] = a.weight ?? 1;
     concern_labels[key] = a.concernLabel || defaultConcernLabel(key);
-    const fw = a.formWeight ?? 100;
-    dimension_fusion[key] = { form: fw / 100, vision: (100 - fw) / 100 };
-  }
 
-  // Bipolar (Baumann) codes — only for dimensions where both letters are set.
-  // Omitted entirely when no dimension uses it, so existing rulesets that rely
-  // on the Score-Range initials produce an unchanged schema.
-  const axis_codes: Record<string, { threshold: number; low: string; high: string }> = {};
-  for (const a of effectiveAxes) {
-    const low = (a.axisCodeLow || '').trim();
-    const high = (a.axisCodeHigh || '').trim();
-    if (low && high) {
-      axis_codes[a.dimensionKey.toLowerCase()] = {
+    if (a.inputComposition === 'weighted_blend') {
+      const fw = a.formWeight ?? 50;
+      dimension_fusion[key] = { form: fw / 100, vision: (100 - fw) / 100 };
+      const mapping: { form?: string; vision?: string } = {};
+      if (a.formSource?.fieldCode) mapping.form = a.formSource.fieldCode;
+      if (a.visionSource?.fieldCode) mapping.vision = a.visionSource.fieldCode;
+      if (Object.keys(mapping).length > 0) field_mapping[key] = mapping;
+    } else if (a.source?.fieldCode) {
+      // single_source: no dimension_fusion entry needed — 100% one side is
+      // already the engine's default when the other side is never sent.
+      field_mapping[key] = a.source.origin === 'form' ? { form: a.source.fieldCode } : { vision: a.source.fieldCode };
+    }
+
+    // Bands -> axis_codes (exactly 2 bands) or a decisionTableNode (3+).
+    const bands = (a.bands || []).slice().sort((x, y) => x.min - y.min);
+    if (bands.length === 2) {
+      const [lo, hi] = bands;
+      axis_codes[key] = {
+        threshold: Math.max(0, Math.min(100, hi.min)),
+        low: lo.letter || '',
+        high: hi.letter || '',
+      };
+    } else if (bands.length >= 3) {
+      nodes.push({
+        id: `${key}-band`,
+        name: `${a.name || key} bands`,
+        type: 'decisionTableNode',
+        content: {
+          hitPolicy: 'first',
+          inputs: [{ id: 'in', field: `dimension_scores.${key}`, label: `${a.name || key} Health Score` }],
+          outputs: [{ id: 'out', field: `axis_values.${key.toUpperCase()}`, label: `${a.name || key} Axis` }],
+          rules: bands
+            .slice()
+            .reverse() // highest band first — hitPolicy 'first' needs the narrowest/highest range checked before wider ones
+            .map((b) => ({ in: rangeCell(b.min, b.max), out: cleanVal(b.letter) })),
+        },
+      });
+    } else if ((a.axisCodeLow || '').trim() && (a.axisCodeHigh || '').trim()) {
+      // Legacy fallback: old axisCodeLow/High fields, no `bands` set yet.
+      axis_codes[key] = {
         threshold: Math.max(0, Math.min(100, Number(a.axisCodeThreshold ?? 50))),
-        low,
-        high,
+        low: (a.axisCodeLow || '').trim(),
+        high: (a.axisCodeHigh || '').trim(),
       };
     }
   }
 
+  // Start from the previous schema so any top-level key this function
+  // doesn't itself manage (e.g. `notes`) survives, same as preservedNodes
+  // above for unrecognized nodes.
+  let base: Record<string, any> = {};
+  if (existingSchema) {
+    try {
+      base = JSON.parse(existingSchema) || {};
+    } catch {
+      base = {};
+    }
+  }
+
   const model: JDMDecisionModel = {
-    nodes,
+    ...base,
+    nodes: [...nodes, ...preservedNodes],
     edges,
     dimension_weights,
     dimension_fusion,
@@ -216,6 +293,9 @@ export function compileVisualToJDM(
     severity_bands: bandsToSchema(severityBands),
   };
   if (Object.keys(axis_codes).length > 0) model.axis_codes = axis_codes;
+  else delete model.axis_codes;
+  if (Object.keys(field_mapping).length > 0) model.field_mapping = field_mapping;
+  else delete model.field_mapping;
   return JSON.stringify(model, null, 2);
 }
 
@@ -271,6 +351,7 @@ export function decompileJDMToVisualComponents(schemaStr: string): DecompiledGra
   const concernLabels: Record<string, string> = parsed.concern_labels || {};
   const axisCodes: Record<string, { threshold?: number; low?: string; high?: string }> =
     parsed.axis_codes || {};
+  const fieldMapping: Record<string, { form?: string; vision?: string }> = parsed.field_mapping || {};
 
   const allNodes: any[] = Array.isArray(parsed.nodes) ? parsed.nodes : [];
   const nodeContents = allNodes.map((n) =>
@@ -282,37 +363,82 @@ export function decompileJDMToVisualComponents(schemaStr: string): DecompiledGra
     ),
   );
 
-  // Salvage dimension keys from an older schema that predates dimension_weights /
-  // concern_labels: scan every decision-table column for tiers.<key> /
-  // dimension_scores.<key> / axis_values.<KEY> field paths.
+  // Salvage axis keys this schema computes a letter for but that have no
+  // dimension_weights/concern_labels/axis_codes entry — a vision/DOB-only
+  // axis like Aging has no form question, so it was deliberately left out of
+  // those (they're about the OVERALL score's weighted mean, which an
+  // input-only axis shouldn't dilute). OUTPUTS only (axis_values.<KEY> or the
+  // legacy tiers.<key>) — never inputs, or a multi-input axis like Aging
+  // would also salvage its own inputs (wrinkle, age_over_30) as if they were
+  // separate axes.
   const salvagedKeys = new Set<string>();
   for (const c of nodeContents) {
-    for (const col of [...(c?.inputs || []), ...(c?.outputs || [])]) {
-      const m = String(col?.field || '').match(
-        /^(?:tiers|dimension_scores|axis_values)\.([a-z0-9_]+)/i,
-      );
+    for (const col of c?.outputs || []) {
+      const m = String(col?.field || '').match(/^(?:tiers|axis_values)\.([a-z0-9_]+)/i);
       if (m) salvagedKeys.add(m[1].toLowerCase());
     }
   }
 
-  // Axes: prefer dimension_weights keys, then concern_labels, then axis_codes,
-  // then keys salvaged from a legacy schema.
-  const dimKeys = Object.keys(weights).length
-    ? Object.keys(weights)
-    : Object.keys(concernLabels).length
-      ? Object.keys(concernLabels)
-      : Object.keys(axisCodes).length
-        ? Object.keys(axisCodes)
-        : Array.from(salvagedKeys);
+  // Axes: the UNION of every source, not a priority fallback — an axis
+  // salvaged only from a decisionTableNode output (no dimension_weights
+  // entry) must still show up, or opening and saving this editor silently
+  // deletes its node (confirmed to happen for real once already).
+  const dimKeys = Array.from(
+    new Set([...Object.keys(weights), ...Object.keys(concernLabels), ...Object.keys(axisCodes), ...salvagedKeys]),
+  );
 
   const legacy =
     Object.keys(weights).length === 0 &&
     Object.keys(concernLabels).length === 0 &&
     !hasProfileNode;
 
+  // Find a per-axis N-way band node: exactly one input reading
+  // dimension_scores.<key>, one output writing axis_values.<KEY>. Anything
+  // else (2+ inputs, a different field) is a hand-authored rule this editor
+  // doesn't understand yet and is left alone — it survives decompile/compile
+  // round-trips untouched because it's simply not in `nodes` this function
+  // regenerates from `axes`.
+  const bandNodeFor = (key: string) =>
+    nodeContents.find((c) => {
+      const ins = c?.inputs || [];
+      const outs = c?.outputs || [];
+      return (
+        ins.length === 1 &&
+        ins[0]?.field === `dimension_scores.${key}` &&
+        outs.length === 1 &&
+        outs[0]?.field === `axis_values.${key.toUpperCase()}`
+      );
+    });
+
   const axes: VisualAxisConfig[] = dimKeys.map((key, i) => {
     const df = fusion[key];
     const ac = axisCodes[key.toLowerCase()];
+    const fm = fieldMapping[key];
+    const bandNode = bandNodeFor(key);
+
+    let bands: ThresholdBand[] | undefined;
+    if (bandNode) {
+      bands = (bandNode.rules || [])
+        .map((r: Record<string, string>, ri: number) => {
+          const range = parseRange(r.in);
+          if (!range) return null;
+          return { id: `${key}_b${ri}`, min: range.min, max: range.max, letter: clean(r.out) };
+        })
+        .filter(Boolean) as ThresholdBand[];
+    } else if (ac && (ac.low || ac.high)) {
+      const t = typeof ac.threshold === 'number' ? ac.threshold : 50;
+      bands = [
+        { id: `${key}_lo`, min: 0, max: Math.max(0, t - 1), letter: ac.low || '' },
+        { id: `${key}_hi`, min: t, max: 100, letter: ac.high || '' },
+      ];
+    }
+
+    const inputComposition: 'single_source' | 'weighted_blend' | undefined = df
+      ? 'weighted_blend'
+      : fm
+        ? 'single_source'
+        : undefined;
+
     return {
       id: `axis_${key}`,
       axisCode: key.toUpperCase(),
@@ -323,8 +449,13 @@ export function decompileJDMToVisualComponents(schemaStr: string): DecompiledGra
       dimensionKey: key,
       weight: typeof weights[key] === 'number' ? weights[key] : 1,
       concernLabel: concernLabels[key] || defaultConcernLabel(key),
+      inputComposition,
+      source: !df ? makeSource(fm?.form, 'form') || makeSource(fm?.vision, 'vision') : undefined,
+      formSource: df ? makeSource(fm?.form, 'form') : undefined,
+      visionSource: df ? makeSource(fm?.vision, 'vision') : undefined,
       formWeight: df ? Math.round(df.form * 100) : 100,
       visionWeight: df ? Math.round(df.vision * 100) : 0,
+      bands,
       ...(ac && (ac.low || ac.high)
         ? {
             axisCodeLow: ac.low || '',

@@ -1,10 +1,36 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Trash2, ChevronRight, ChevronDown } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Trash2, ChevronRight, ChevronDown, Plus } from 'lucide-react';
 import { DimensionSelect, InfoTooltip } from '@gateway-experience/shared';
-import type { VisualAxisConfig } from '../../types';
+import type { VisualAxisConfig, InputSource, ThresholdBand } from '../../types';
 import { defaultConcernLabel } from '../../utils/jdm-compiler';
+
+/** One selectable CV capability, flattened from ref_skin_conditions —
+ *  a condition can list several (e.g. "wrinkle" -> score_wrinkle), each
+ *  becomes its own option. Registered in reference-service, same pattern as
+ *  DimensionSelect's dimensions -- never a hardcoded list in this bundle. */
+export function useVisionFields() {
+  const [conditions, setConditions] = useState<
+    Array<{ code: string; name: string; visionCapabilities?: string[] }>
+  >([]);
+  useEffect(() => {
+    fetch('/api/skin-conditions')
+      .then((res) => res.json())
+      .then((data) => {
+        const list = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
+        setConditions(list);
+      })
+      .catch(() => {});
+  }, []);
+  return useMemo(
+    () =>
+      conditions.flatMap((c) =>
+        (c.visionCapabilities || []).map((cap) => ({ code: cap, label: `${c.name} (${cap})` })),
+      ),
+    [conditions],
+  );
+}
 
 export interface ClinicalDimensionCardProps {
   axis: VisualAxisConfig;
@@ -21,6 +47,74 @@ export interface ClinicalDimensionCardProps {
 const fieldCls =
   'w-full h-8 rounded-md bg-muted/40 border border-border px-2.5 text-foreground text-xs outline-none focus:border-ring disabled:opacity-50';
 
+/** One input source picker. Always a registered catalog entry — a
+ *  reference-service dimension for 'form', or ref_skin_conditions'
+ *  visionCapabilities for 'vision' — never free text, so a ruleset's
+ *  field_mapping stays a real, checkable spec instead of a typo-prone
+ *  string. Lives here but is also used by BlendingTab, which owns the
+ *  actual per-axis rule editor (composition + bands) — this card just
+ *  shows weight/concern label. */
+export const SourcePicker: React.FC<{
+  label: string;
+  origin: 'form' | 'vision';
+  onOriginChange?: (origin: 'form' | 'vision') => void;
+  value?: InputSource;
+  onChange: (source: InputSource | undefined) => void;
+  disabled?: boolean;
+}> = ({ label, origin, onOriginChange, value, onChange, disabled }) => {
+  const visionFields = useVisionFields();
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1">
+        <label className="block text-[10px] font-semibold text-muted-foreground">{label}</label>
+        {onOriginChange && (
+          <div className="flex gap-1">
+            {(['form', 'vision'] as const).map((o) => (
+              <button
+                key={o}
+                type="button"
+                disabled={disabled}
+                onClick={() => onOriginChange(o)}
+                className={`px-1.5 py-0.5 rounded text-[9px] font-semibold border ${
+                  origin === o ? 'border-beak bg-beak/10 text-beak' : 'border-border text-muted-foreground'
+                }`}
+              >
+                {o}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      {origin === 'form' ? (
+        <DimensionSelect
+          value={value?.fieldCode || ''}
+          disabled={disabled}
+          onChange={(code, meta) => onChange(code ? { origin: 'form', fieldCode: code, label: meta?.name || code } : undefined)}
+          label=""
+        />
+      ) : (
+        <select
+          disabled={disabled}
+          value={value?.fieldCode || ''}
+          onChange={(e) => {
+            const code = e.target.value;
+            const meta = visionFields.find((f) => f.code === code);
+            onChange(code ? { origin: 'vision', fieldCode: code, label: meta?.label || code } : undefined);
+          }}
+          className={fieldCls}
+        >
+          <option value="">— pilih field CV (dari ref_skin_conditions) —</option>
+          {visionFields.map((f) => (
+            <option key={f.code} value={f.code}>
+              {f.label}
+            </option>
+          ))}
+        </select>
+      )}
+    </div>
+  );
+};
+
 export const ClinicalDimensionCard: React.FC<ClinicalDimensionCardProps> = ({
   axis,
   index,
@@ -32,13 +126,6 @@ export const ClinicalDimensionCard: React.FC<ClinicalDimensionCardProps> = ({
   siblingWeightTotal,
 }) => {
   const [open, setOpen] = useState(defaultOpen);
-  const [fusionOpen, setFusionOpen] = useState(false);
-  const [codeOpen, setCodeOpen] = useState(false);
-  const formW = axis.formWeight ?? 100;
-  const codeLow = axis.axisCodeLow ?? '';
-  const codeHigh = axis.axisCodeHigh ?? '';
-  const codeThreshold = axis.axisCodeThreshold ?? 50;
-  const hasBipolar = !!(codeLow.trim() && codeHigh.trim());
 
   const share =
     typeof siblingWeightTotal === 'number' && siblingWeightTotal > 0
@@ -149,149 +236,10 @@ export const ClinicalDimensionCard: React.FC<ClinicalDimensionCardProps> = ({
             />
           </div>
 
-          {/* Form / Vision blend — collapsed; the vision half only applies once
-              camera analysis is live. */}
-          <div className="rounded-md border border-border bg-muted/20">
-            <button
-              type="button"
-              onClick={() => setFusionOpen((v) => !v)}
-              className="flex w-full items-center justify-between gap-2 px-3 py-2 text-[11px] font-semibold text-muted-foreground hover:text-foreground"
-            >
-              <span>
-                Form / Vision blend
-                {formW !== 100 && (
-                  <span className="ml-2 text-foreground">
-                    {formW}% / {100 - formW}%
-                  </span>
-                )}
-              </span>
-              {fusionOpen ? (
-                <ChevronDown className="h-3.5 w-3.5" />
-              ) : (
-                <ChevronRight className="h-3.5 w-3.5" />
-              )}
-            </button>
-            {fusionOpen && (
-              <div className="border-t border-border px-3 py-3 space-y-2">
-                <div className="flex items-center justify-between text-[11px]">
-                  <span className="flex items-center gap-1.5 text-foreground">
-                    Form {formW}%
-                    <InfoTooltip
-                      content="Applied only when camera analysis is enabled. Default is 100% form."
-                      label="About Form / Vision blend"
-                      iconClassName="h-3 w-3"
-                    />
-                  </span>
-                  <span className="text-muted-foreground">Vision {100 - formW}%</span>
-                </div>
-                <input
-                  type="range"
-                  min={0}
-                  max={100}
-                  step={5}
-                  disabled={disabled}
-                  value={formW}
-                  onChange={(e) => onUpdate({ ...axis, formWeight: Number(e.target.value) })}
-                  className="w-full h-1.5 rounded appearance-none cursor-pointer bg-muted accent-[#d97706] disabled:opacity-50"
-                />
-              </div>
-            )}
-          </div>
-
-          {/* Bipolar code (Baumann) — collapsed. When both letters are set the
-              engine tags this dimension with one of the two letters by
-              threshold instead of the Optimal/Sedang/Perlu initial. */}
-          <div className="rounded-md border border-border bg-muted/20">
-            <button
-              type="button"
-              onClick={() => setCodeOpen((v) => !v)}
-              className="flex w-full items-center justify-between gap-2 px-3 py-2 text-[11px] font-semibold text-muted-foreground hover:text-foreground"
-            >
-              <span>
-                Bipolar code (Baumann)
-                {hasBipolar && (
-                  <span className="ml-2 text-foreground">
-                    &lt;{codeThreshold} → {codeLow.toUpperCase()} · ≥{codeThreshold} → {codeHigh.toUpperCase()}
-                  </span>
-                )}
-              </span>
-              {codeOpen ? (
-                <ChevronDown className="h-3.5 w-3.5" />
-              ) : (
-                <ChevronRight className="h-3.5 w-3.5" />
-              )}
-            </button>
-            {codeOpen && (
-              <div className="border-t border-border px-3 py-3 space-y-2">
-                <div className="grid grid-cols-3 gap-2">
-                  <div>
-                    <label className="block text-[10px] font-semibold text-muted-foreground mb-1">
-                      Below threshold
-                    </label>
-                    <input
-                      type="text"
-                      maxLength={2}
-                      disabled={disabled}
-                      value={codeLow}
-                      onChange={(e) =>
-                        onUpdate({ ...axis, axisCodeLow: e.target.value.toUpperCase().replace(/[^A-Z]/g, '') })
-                      }
-                      placeholder="D"
-                      className={fieldCls + ' text-center font-bold text-beak'}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-semibold text-muted-foreground mb-1">
-                      At / above
-                    </label>
-                    <input
-                      type="text"
-                      maxLength={2}
-                      disabled={disabled}
-                      value={codeHigh}
-                      onChange={(e) =>
-                        onUpdate({ ...axis, axisCodeHigh: e.target.value.toUpperCase().replace(/[^A-Z]/g, '') })
-                      }
-                      placeholder="O"
-                      className={fieldCls + ' text-center font-bold text-beak'}
-                    />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <label className="block text-[10px] font-semibold text-muted-foreground">
-                        Threshold
-                      </label>
-                      <InfoTooltip
-                        content="Scores are health-oriented (100 = optimal), so at/above the threshold is the healthier side — e.g. sebum threshold 50: below → O (Oily), at/above → D (Dry). Leave both letters blank to fall back to the Score Range initial (O / S / P)."
-                        label="About bipolar code threshold"
-                        iconClassName="h-3 w-3"
-                      />
-                    </div>
-                    <input
-                      type="number"
-                      min={0}
-                      max={100}
-                      step={1}
-                      disabled={disabled}
-                      value={codeThreshold}
-                      onChange={(e) =>
-                        onUpdate({
-                          ...axis,
-                          axisCodeThreshold: Math.max(0, Math.min(100, Number(e.target.value) || 0)),
-                        })
-                      }
-                      className={fieldCls + ' text-center'}
-                    />
-                  </div>
-                </div>
-                {(codeLow.trim() ? 1 : 0) + (codeHigh.trim() ? 1 : 0) === 1 && (
-                  <p className="text-[10px] text-destructive">
-                    Set both letters, or clear both — one letter alone is ignored.
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
+          <p className="text-[10px] text-muted-foreground italic">
+            How this axis's number is computed (form/vision source, blend %) and turned into a
+            letter (bands) is set in the Blending tab, not here.
+          </p>
         </div>
       )}
     </div>

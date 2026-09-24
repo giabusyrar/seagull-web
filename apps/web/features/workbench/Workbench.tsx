@@ -46,6 +46,24 @@ export const Workbench: React.FC<ApiClientWorkbenchProps> = ({
   systemInstruction,
 }) => {
   const [elapsedMs, setElapsedMs] = useState(0);
+  const [responseHeight, setResponseHeight] = useState(256);
+  const [isDraggingDivider, setIsDraggingDivider] = useState(false);
+
+  // Drag-to-resize the divider between the request and response panes.
+  useEffect(() => {
+    if (!isDraggingDivider) return;
+    const onMove = (e: MouseEvent) => {
+      const fromBottom = window.innerHeight - e.clientY;
+      setResponseHeight(Math.max(120, Math.min(fromBottom, window.innerHeight * 0.75)));
+    };
+    const onUp = () => setIsDraggingDivider(false);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [isDraggingDivider]);
 
   // Active execution timer during HTTP request
   useEffect(() => {
@@ -182,8 +200,19 @@ export const Workbench: React.FC<ApiClientWorkbenchProps> = ({
           />
         </div>
 
+        {/* Divider — drag up/down to resize the response pane below */}
+        <div
+          onMouseDown={() => setIsDraggingDivider(true)}
+          className={`h-1.5 shrink-0 cursor-row-resize border-t border-border hover:bg-beak/20 ${
+            isDraggingDivider ? 'bg-beak/30' : 'bg-transparent'
+          }`}
+        />
+
         {/* Response Panel */}
-        <div className="h-64 border-t border-border flex flex-col min-h-0 overflow-hidden shrink-0">
+        <div
+          style={{ height: responseHeight }}
+          className="border-t border-border flex flex-col min-h-0 overflow-hidden shrink-0"
+        >
           <ResponsePanel response={response} />
         </div>
       </div>

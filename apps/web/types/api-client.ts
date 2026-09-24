@@ -9,6 +9,16 @@ export interface KeyValuePair {
   required?: boolean;
 }
 
+export interface MultipartField {
+  id: string;
+  key: string;
+  type: 'text' | 'file';
+  value: string;
+  /** Only set for type 'file'. Never persisted — re-picked each Send. */
+  file?: File | null;
+  enabled: boolean;
+}
+
 export interface ApiClientRequest {
   id: string;
   name: string;
@@ -18,6 +28,10 @@ export interface ApiClientRequest {
   headers: KeyValuePair[];
   body: string;
   bodyType: 'json' | 'raw' | 'form-data' | 'none';
+  /** Set alongside bodyType: 'form-data' — real multipart with file uploads,
+   *  distinct from the JSON body the 'form' template mode still writes to
+   *  `body`. */
+  multipartFields?: MultipartField[];
 }
 
 export interface ResponseData {

@@ -9,6 +9,11 @@ const TYPE_OPTIONS: SelectOption[] = [
   { value: 'static', label: 'static' },
 ];
 
+const FIELD_TYPE_OPTIONS: SelectOption[] = [
+  { value: 'text', label: 'text' },
+  { value: 'file', label: 'file' },
+];
+
 export interface RouteParamItem {
   id: string;
   key: string;
@@ -16,6 +21,10 @@ export interface RouteParamItem {
   type: 'static' | 'dynamic';
   required?: boolean;
   isInherited?: boolean;
+  /** Body-only: how Try & Send's Form tab collects this field — a plain
+   *  value, or a real file upload (which forces the whole request to be
+   *  sent as multipart/form-data, and can never be 'static'). */
+  fieldType?: 'text' | 'file';
 }
 
 export interface ParamsTableProps {
@@ -107,7 +116,13 @@ export const ParamsTable: React.FC<ParamsTableProps> = ({
   const handleAddItem = () => {
     onChange([
       ...items,
-      { id: Date.now().toString(), key: '', value: '', type: 'dynamic' },
+      {
+        id: Date.now().toString(),
+        key: '',
+        value: '',
+        type: 'dynamic',
+        ...(kind === 'body' ? { fieldType: 'text' as const } : {}),
+      },
     ]);
   };
 
@@ -120,9 +135,17 @@ export const ParamsTable: React.FC<ParamsTableProps> = ({
       value: target.value,
       type: target.type,
       required: target.required,
+      fieldType: target.fieldType,
       [field]: val,
     };
     if (field === 'type' && val === 'dynamic') {
+      newItem.value = '';
+    }
+    // A file can never be a static value, and only ever comes from the
+    // caller — forcing 'dynamic' here keeps that combination from ever
+    // existing rather than silently ignoring it at send time.
+    if (field === 'fieldType' && val === 'file') {
+      newItem.type = 'dynamic';
       newItem.value = '';
     }
     onChange([...updated, newItem]);
@@ -161,8 +184,9 @@ export const ParamsTable: React.FC<ParamsTableProps> = ({
             <table className="w-full text-xs text-left border-collapse">
               <thead>
                 <tr className="bg-muted/80 text-muted-foreground font-bold text-[10px] uppercase tracking-wider border-b border-border select-none">
-                  <th className="px-3 py-2 w-1/3">Key</th>
-                  <th className="px-3 py-2 w-24">Type</th>
+                  <th className="px-3 py-2 w-1/4">Key</th>
+                  <th className="px-3 py-2 w-36">Type</th>
+                  {kind === 'body' && <th className="px-3 py-2 w-32">Field type</th>}
                   <th className="px-3 py-2 w-24 text-center">Required</th>
                   <th className="px-3 py-2">Value (Static only)</th>
                   <th className="px-3 py-2 w-10 text-center"></th>
@@ -198,11 +222,22 @@ export const ParamsTable: React.FC<ParamsTableProps> = ({
                         <SearchableSelect
                           value={item.type}
                           onChange={(v) => handleUpdateItem(idx, 'type', v)}
-                          options={TYPE_OPTIONS}
+                          options={item.fieldType === 'file' ? TYPE_OPTIONS.filter((o) => o.value === 'dynamic') : TYPE_OPTIONS}
                           placeholder="Select type..."
-                          className="w-28"
+                          className="w-36"
                         />
                       </td>
+                      {kind === 'body' && (
+                        <td className="p-1.5">
+                          <SearchableSelect
+                            value={item.fieldType || 'text'}
+                            onChange={(v) => handleUpdateItem(idx, 'fieldType', v)}
+                            options={FIELD_TYPE_OPTIONS}
+                            placeholder="Select field type..."
+                            className="w-32"
+                          />
+                        </td>
+                      )}
                       <td className="p-1.5 text-center align-middle">
                         <button
                           type="button"
@@ -222,10 +257,12 @@ export const ParamsTable: React.FC<ParamsTableProps> = ({
                         <input
                           type="text"
                           value={item.value}
-                          disabled={item.type === 'dynamic'}
+                          disabled={item.type === 'dynamic' || item.fieldType === 'file'}
                           onChange={(e) => handleUpdateItem(idx, 'value', e.target.value)}
                           placeholder={
-                            isInherited
+                            item.fieldType === 'file'
+                              ? 'Files are always supplied by the caller'
+                              : isInherited
                               ? 'Default from Collection Settings (Edit to override)'
                               : item.type === 'dynamic'
                               ? 'Dynamic value filled at runtime'

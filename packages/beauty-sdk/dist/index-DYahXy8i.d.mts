@@ -73,11 +73,21 @@ interface JDMDecisionModel {
     }>;
     /** Per-dimension bipolar (Baumann) classifier. Keyed by lowercase dimensionKey.
      *  When present for a dimension, its axis_values letter is `score >= threshold
-     *  ? high : low` instead of the Score-Range initial. */
+     *  ? high : low` instead of the Score-Range initial. Also written for any
+     *  axis with exactly 2 bands (a >2-band axis instead gets a decisionTableNode). */
     axis_codes?: Record<string, {
         threshold: number;
         low: string;
         high: string;
+    }>;
+    /** Documents, per axis, which registered form dimension and/or vision field
+     *  its number actually comes from (e.g. pigmentation <- form "pigmentation"
+     *  + vision "score_darkspot"). Not read by the engine — this is the spec an
+     *  orchestrator reads to know how to build a /evaluate request's dimensions[]
+     *  and vision_signals from a raw vendor response and form answers. */
+    field_mapping?: Record<string, {
+        form?: string;
+        vision?: string;
     }>;
 }
 /** Defaults used when a ruleset carries no overrides. Health-oriented: the
@@ -94,6 +104,29 @@ interface VisualSeverityTier {
     severity: 'optimal' | 'mild' | 'moderate' | 'severe' | 'critical';
     trait: string;
 }
+/** Where one axis's number comes from at evaluate-time. Always a registered
+ *  catalog entry — never free text — so the picker in the UI and the
+ *  field_mapping this compiles to both stay meaningful: 'form' references a
+ *  reference-service dimension code (Q1-Q6, or a DOB-derived one like
+ *  age_over_30 — DOB is still fundamentally a questionnaire answer, just
+ *  from a different form than Q1-Q6); 'vision' references a known CV output
+ *  field (see KNOWN_VISION_FIELDS). */
+interface InputSource {
+    origin: 'form' | 'vision';
+    fieldCode: string;
+    label: string;
+}
+/** One health-oriented (100 = optimal) score range mapped to an axis letter.
+ *  Bands must be ordered, non-overlapping, and cover 0-100 with no gaps —
+ *  an axis with exactly 2 bands compiles to a plain axis_codes threshold;
+ *  3+ compiles to a decisionTableNode (e.g. Pore Severity's Smooth/Visible/
+ *  Enlarged). */
+interface ThresholdBand {
+    id: string;
+    min: number;
+    max: number;
+    letter: string;
+}
 interface VisualAxisConfig {
     id: string;
     axisCode: string;
@@ -103,17 +136,23 @@ interface VisualAxisConfig {
     weight: number;
     /** Clinical concern name shown when this dimension is the dominant concern. */
     concernLabel?: string;
-    /** Form-vs-vision blend for this dimension (percent, sums to 100). Vision half
-     *  only applies once camera analysis is live. */
+    /** How this axis's one number is produced before banding. */
+    inputComposition?: 'single_source' | 'weighted_blend';
+    /** Used when inputComposition = 'single_source'. */
+    source?: InputSource;
+    /** Used when inputComposition = 'weighted_blend'. formWeight is 0-100;
+     *  vision gets the remainder. */
     formWeight?: number;
+    formSource?: InputSource;
+    visionSource?: InputSource;
+    /** Ordered bands turning the composed number into a letter. 2 bands ->
+     *  axis_codes; 3+ -> a decisionTableNode. */
+    bands?: ThresholdBand[];
+    /** @deprecated superseded by formSource/visionSource + bands. */
     visionWeight?: number;
-    /** Baumann-style bipolar classifier. When both letters are set, the engine
-     *  assigns this dimension one of the two letters by threshold
-     *  (score < threshold -> low, score >= threshold -> high) instead of the
-     *  Score-Range initial (O/S/P). Leave blank to use the Score-Range letter. */
+    /** @deprecated superseded by `bands`. */
     axisCodeLow?: string;
     axisCodeHigh?: string;
-    /** Threshold (0-100) for the bipolar split. Defaults to 50 when letters are set. */
     axisCodeThreshold?: number;
     /** @deprecated Per-dimension severity tiers were replaced by overall Score
      *  Range + Severity Level bands. Kept optional for backward compatibility. */
@@ -168,6 +207,14 @@ interface ScoreEvaluationResult {
     customerConditions?: Record<string, boolean>;
     performance?: string;
 }
+
+interface BlendingTabProps {
+    rulesets: ScoreRuleset[];
+    selectedRuleset: ScoreRuleset | null;
+    onSelectRuleset: (ruleset: ScoreRuleset) => void;
+    onSaveRuleset: (updated: Partial<ScoreRuleset>) => Promise<void>;
+}
+declare const BlendingTab: React.FC<BlendingTabProps>;
 
 interface ProfileMappingTableProps {
     axes: VisualAxisConfig[];
@@ -224,7 +271,14 @@ declare const DEFAULT_STARTER_PROFILES: VisualProfileMappingConfig;
  * Range / Severity Level / Skin Concern are computed by the engine from the
  * bands and concern labels carried alongside the graph.
  */
-declare function compileVisualToJDM(axes: VisualAxisConfig[], profileConfig?: VisualProfileMappingConfig, scoreRangeBands?: VisualBand[], severityBands?: VisualBand[]): string;
+declare function compileVisualToJDM(axes: VisualAxisConfig[], profileConfig?: VisualProfileMappingConfig, scoreRangeBands?: VisualBand[], severityBands?: VisualBand[], 
+/** The schema being edited, if any. Any node in it that this function
+ *  doesn't itself own (not 'input_node'/'profile', not `<axisKey>-band`
+ *  for a key in `axes`) is carried over untouched — e.g. a hand-authored
+ *  node with no axis_values output (Pore Severity writes to
+ *  sub_classification, not a 4-letter code) that this editor has no way
+ *  to represent yet. Without this, saving silently deletes it. */
+existingSchema?: string): string;
 interface DecompiledGrading {
     axes: VisualAxisConfig[];
     profileConfig: VisualProfileMappingConfig;
@@ -244,6 +298,7 @@ declare function decompileJDMToVisualComponents(schemaStr: string): DecompiledGr
 declare function decompileJDMToVisual(schemaStr: string): VisualAxisConfig[];
 
 declare const index_BandTable: typeof BandTable;
+declare const index_BlendingTab: typeof BlendingTab;
 declare const index_ClinicalAxisCard: typeof ClinicalAxisCard;
 declare const index_ClinicalDimensionCard: typeof ClinicalDimensionCard;
 declare const index_DEFAULT_SCORE_RANGE_BANDS: typeof DEFAULT_SCORE_RANGE_BANDS;
@@ -271,7 +326,7 @@ declare const index_decompileJDMToVisual: typeof decompileJDMToVisual;
 declare const index_decompileJDMToVisualComponents: typeof decompileJDMToVisualComponents;
 declare const index_defaultConcernLabel: typeof defaultConcernLabel;
 declare namespace index {
-  export { index_BandTable as BandTable, index_ClinicalAxisCard as ClinicalAxisCard, index_ClinicalDimensionCard as ClinicalDimensionCard, index_DEFAULT_SCORE_RANGE_BANDS as DEFAULT_SCORE_RANGE_BANDS, index_DEFAULT_SEVERITY_BANDS as DEFAULT_SEVERITY_BANDS, index_DEFAULT_STARTER_AXES as DEFAULT_STARTER_AXES, index_DEFAULT_STARTER_PROFILES as DEFAULT_STARTER_PROFILES, type index_DecisionTableContent as DecisionTableContent, type index_JDMDecisionModel as JDMDecisionModel, index_ProfileMappingTable as ProfileMappingTable, type index_ProfileStrategyType as ProfileStrategyType, type index_RulesetSimulationRequest as RulesetSimulationRequest, type index_RulesetSimulationResponse as RulesetSimulationResponse, type index_ScoreEvaluationResult as ScoreEvaluationResult, index_ScoreManager as ScoreManager, type index_ScoreRuleset as ScoreRuleset, index_SeverityTierTable as SeverityTierTable, type index_SkinProfileItem as SkinProfileItem, type index_VisualAxisConfig as VisualAxisConfig, type index_VisualBand as VisualBand, type index_VisualProfileEntry as VisualProfileEntry, type index_VisualProfileMappingConfig as VisualProfileMappingConfig, type index_VisualSeverityTier as VisualSeverityTier, index_compileVisualToJDM as compileVisualToJDM, index_decompileJDMToVisual as decompileJDMToVisual, index_decompileJDMToVisualComponents as decompileJDMToVisualComponents, index_defaultConcernLabel as defaultConcernLabel };
+  export { index_BandTable as BandTable, index_BlendingTab as BlendingTab, index_ClinicalAxisCard as ClinicalAxisCard, index_ClinicalDimensionCard as ClinicalDimensionCard, index_DEFAULT_SCORE_RANGE_BANDS as DEFAULT_SCORE_RANGE_BANDS, index_DEFAULT_SEVERITY_BANDS as DEFAULT_SEVERITY_BANDS, index_DEFAULT_STARTER_AXES as DEFAULT_STARTER_AXES, index_DEFAULT_STARTER_PROFILES as DEFAULT_STARTER_PROFILES, type index_DecisionTableContent as DecisionTableContent, type index_JDMDecisionModel as JDMDecisionModel, index_ProfileMappingTable as ProfileMappingTable, type index_ProfileStrategyType as ProfileStrategyType, type index_RulesetSimulationRequest as RulesetSimulationRequest, type index_RulesetSimulationResponse as RulesetSimulationResponse, type index_ScoreEvaluationResult as ScoreEvaluationResult, index_ScoreManager as ScoreManager, type index_ScoreRuleset as ScoreRuleset, index_SeverityTierTable as SeverityTierTable, type index_SkinProfileItem as SkinProfileItem, type index_VisualAxisConfig as VisualAxisConfig, type index_VisualBand as VisualBand, type index_VisualProfileEntry as VisualProfileEntry, type index_VisualProfileMappingConfig as VisualProfileMappingConfig, type index_VisualSeverityTier as VisualSeverityTier, index_compileVisualToJDM as compileVisualToJDM, index_decompileJDMToVisual as decompileJDMToVisual, index_decompileJDMToVisualComponents as decompileJDMToVisualComponents, index_defaultConcernLabel as defaultConcernLabel };
 }
 
-export { BandTable as B, ClinicalAxisCard as C, DEFAULT_SCORE_RANGE_BANDS as D, type JDMDecisionModel as J, ProfileMappingTable as P, type RulesetSimulationRequest as R, ScoreManager as S, type VisualAxisConfig as V, ClinicalDimensionCard as a, DEFAULT_SEVERITY_BANDS as b, DEFAULT_STARTER_AXES as c, DEFAULT_STARTER_PROFILES as d, type DecisionTableContent as e, type ProfileStrategyType as f, type RulesetSimulationResponse as g, type ScoreEvaluationResult as h, index as i, type ScoreRuleset as j, SeverityTierTable as k, type SkinProfileItem as l, type VisualBand as m, type VisualProfileEntry as n, type VisualProfileMappingConfig as o, type VisualSeverityTier as p, compileVisualToJDM as q, decompileJDMToVisual as r, decompileJDMToVisualComponents as s, defaultConcernLabel as t };
+export { BandTable as B, ClinicalAxisCard as C, DEFAULT_SCORE_RANGE_BANDS as D, type JDMDecisionModel as J, ProfileMappingTable as P, type RulesetSimulationRequest as R, ScoreManager as S, type VisualAxisConfig as V, BlendingTab as a, ClinicalDimensionCard as b, DEFAULT_SEVERITY_BANDS as c, DEFAULT_STARTER_AXES as d, DEFAULT_STARTER_PROFILES as e, type DecisionTableContent as f, type ProfileStrategyType as g, type RulesetSimulationResponse as h, index as i, type ScoreEvaluationResult as j, type ScoreRuleset as k, SeverityTierTable as l, type SkinProfileItem as m, type VisualBand as n, type VisualProfileEntry as o, type VisualProfileMappingConfig as p, type VisualSeverityTier as q, compileVisualToJDM as r, decompileJDMToVisual as s, decompileJDMToVisualComponents as t, defaultConcernLabel as u };

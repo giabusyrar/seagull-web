@@ -49,6 +49,9 @@ export const RulesetModal: React.FC<RulesetModalProps> = ({
   const [brandId, setBrandId] = useState('*');
   const [applicationId, setApplicationId] = useState('*');
   const [status, setStatus] = useState('ACTIVE');
+  const [formSurveyCode, setFormSurveyCode] = useState('');
+  const [visionSourceCode, setVisionSourceCode] = useState('');
+  const [surveys, setSurveys] = useState<Array<{ code: string; title?: string; name?: string }>>([]);
 
   const [axes, setAxes] = useState<VisualAxisConfig[]>(DEFAULT_STARTER_AXES);
   const [profileConfig, setProfileConfig] = useState<VisualProfileMappingConfig>(DEFAULT_STARTER_PROFILES);
@@ -88,6 +91,14 @@ export const RulesetModal: React.FC<RulesetModalProps> = ({
       setScoreRangeBands(sr);
       setSeverityBands(sv);
       setIsLegacy(legacy);
+      try {
+        const parsed = JSON.parse(editingRuleset.schema || '{}');
+        setFormSurveyCode(parsed.form_survey_code || '');
+        setVisionSourceCode(parsed.vision_source_code || '');
+      } catch {
+        setFormSurveyCode('');
+        setVisionSourceCode('');
+      }
     } else {
       setName('');
       setCode('');
@@ -102,6 +113,8 @@ export const RulesetModal: React.FC<RulesetModalProps> = ({
       setScoreRangeBands(DEFAULT_SCORE_RANGE_BANDS);
       setSeverityBands(DEFAULT_SEVERITY_BANDS);
       setIsLegacy(false);
+      setFormSurveyCode('');
+      setVisionSourceCode('');
     }
     setTab('setup');
     setFormError(null);
@@ -111,6 +124,19 @@ export const RulesetModal: React.FC<RulesetModalProps> = ({
   useEffect(() => {
     fitNotes(notesRef.current);
   }, [description, tab, isOpen]);
+
+  // Surveys this ruleset's Form input could point to — scoped to the same
+  // brand/application, so the picker only lists forms actually reachable.
+  useEffect(() => {
+    if (!isOpen) return;
+    fetch(`/core/form-engine/survey?brand_id=${encodeURIComponent(brandId)}&application_id=${encodeURIComponent(applicationId)}`)
+      .then((res) => res.json())
+      .then((data) => {
+        const list = Array.isArray(data) ? data : Array.isArray(data?.surveys) ? data.surveys : data?.code ? [data] : [];
+        setSurveys(list);
+      })
+      .catch(() => setSurveys([]));
+  }, [isOpen, brandId, applicationId]);
 
   const effectiveCode = codeEdited ? code : slugify(name);
   const totalWeight = axes.reduce((sum, a) => sum + (Number(a.weight) || 0), 0);
@@ -128,6 +154,23 @@ export const RulesetModal: React.FC<RulesetModalProps> = ({
         concernLabel: defaultConcernLabel('sensitivity'),
       },
     ]);
+  };
+
+  // form_survey_code / vision_source_code aren't part of compileVisualToJDM's
+  // own model (they're ruleset-level, set once on Setup, not per-axis) — just
+  // stamped onto whatever it produces, same "preserve everything else, only
+  // touch what you own" approach as the compiler's own node/field handling.
+  const withSetupFields = (schemaStr: string): string => {
+    try {
+      const parsed = JSON.parse(schemaStr);
+      if (formSurveyCode) parsed.form_survey_code = formSurveyCode;
+      else delete parsed.form_survey_code;
+      if (visionSourceCode) parsed.vision_source_code = visionSourceCode;
+      else delete parsed.vision_source_code;
+      return JSON.stringify(parsed, null, 2);
+    } catch {
+      return schemaStr;
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -151,7 +194,7 @@ export const RulesetModal: React.FC<RulesetModalProps> = ({
         brandId,
         applicationId,
         status,
-        schema: compileVisualToJDM(axes, profileConfig, scoreRangeBands, severityBands),
+        schema: withSetupFields(compileVisualToJDM(axes, profileConfig, scoreRangeBands, severityBands, editingRuleset?.schema)),
       });
       onClose();
     } catch (err) {
@@ -161,7 +204,7 @@ export const RulesetModal: React.FC<RulesetModalProps> = ({
     }
   };
 
-  const jsonText = compileVisualToJDM(axes, profileConfig, scoreRangeBands, severityBands);
+  const jsonText = withSetupFields(compileVisualToJDM(axes, profileConfig, scoreRangeBands, severityBands, editingRuleset?.schema));
 
   // Ready-to-paste request bodies for the Core Score Engine API collection.
   // `schema` goes over the wire as a JSON string, so it is embedded as-is here
@@ -224,7 +267,7 @@ export const RulesetModal: React.FC<RulesetModalProps> = ({
                 [
                   ['setup', 'Setup'],
                   ['dimensions', `Dimensions${axes.length ? ` (${axes.length})` : ''}`],
-                  ['bands', 'Score, Severity & Profiles'],
+                  ['bands', 'Skin Profile'],
                 ] as const
               ).map(([id, label]) => (
                 <button
@@ -319,6 +362,48 @@ export const RulesetModal: React.FC<RulesetModalProps> = ({
                         label="Application"
                       />
                     </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                          <label className={labelCls + ' mb-0'}>Form input</label>
+                          <InfoTooltip
+                            content="Which Form Engine survey this ruleset pairs with. Scopes what shows up when adding/wiring a dimension's Form source in Blending."
+                            label="About Form input"
+                          />
+                        </div>
+                        <select
+                          value={formSurveyCode}
+                          onChange={(e) => setFormSurveyCode(e.target.value)}
+                          className={inputCls}
+                          style={{ colorScheme: 'dark' }}
+                        >
+                          <option value="">— none selected —</option>
+                          {surveys.map((s) => (
+                            <option key={s.code} value={s.code}>
+                              {s.title || s.name || s.code} ({s.code})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                          <label className={labelCls + ' mb-0'}>Vision input</label>
+                          <InfoTooltip
+                            content="Which CV/vendor source this ruleset pairs with. Only one is registered today (Paradev Skin Analyzer) — more get added as new vendors are wired up."
+                            label="About Vision input"
+                          />
+                        </div>
+                        <select
+                          value={visionSourceCode}
+                          onChange={(e) => setVisionSourceCode(e.target.value)}
+                          className={inputCls}
+                          style={{ colorScheme: 'dark' }}
+                        >
+                          <option value="">— none selected —</option>
+                          <option value="paradev_skin_analyzer">Paradev Skin Analyzer</option>
+                        </select>
+                      </div>
+                    </div>
                     <div>
                       <label className={labelCls}>Notes</label>
                       <textarea
@@ -348,7 +433,7 @@ export const RulesetModal: React.FC<RulesetModalProps> = ({
                   <div className="flex items-center gap-1.5">
                     <h3 className="text-sm font-bold text-foreground">Dimensions</h3>
                     <InfoTooltip
-                      content="Weights are relative — a dimension’s share of the overall score is its weight ÷ the total of all weights. The concern label is what the customer sees when that dimension is their dominant concern."
+                      content="Weights are relative — a dimension’s share of the overall score is its weight ÷ the total of all weights. The concern label is what the customer sees when that dimension is their dominant concern. Form/Vision blend per dimension moved to the Blending tab."
                       label="About dimensions"
                     />
                   </div>
@@ -386,35 +471,53 @@ export const RulesetModal: React.FC<RulesetModalProps> = ({
               </div>
             )}
 
-            {/* Tab 3 — Score Range + Severity Level (both applied to the overall score) */}
+            {/* Tab 3 — Skin Profile: everything derived from the overall score,
+                one section instead of three separately-headed ones. */}
             {tab === 'bands' && (
               <div className="space-y-4">
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   <div className="flex items-center gap-1.5">
-                    <h3 className="text-sm font-bold text-foreground">Score Range</h3>
+                    <h3 className="text-base font-bold text-foreground">Skin Profile</h3>
                     <InfoTooltip
-                      content="Coarse category for the overall score (100 = optimal)."
-                      label="About Score Range"
+                      content="Everything here is derived from the same overall score (0-100). The two label tables below just name a bracket of that score; the method further down decides skin_profile.code/name, the actual profile result."
+                      label="About Skin Profile"
                     />
                   </div>
-                  <BandTable bands={scoreRangeBands} onChange={setScoreRangeBands} idPrefix="sr" />
+                  <p className="text-[11px] text-muted-foreground">
+                    Score Range and Severity Level are two labels for the same overall score —
+                    handy for a quick badge, not required by the profile method below.
+                  </p>
                 </div>
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-1.5">
-                    <h3 className="text-sm font-bold text-foreground">Severity Level</h3>
-                    <InfoTooltip
-                      content="Overall clinical severity from the total score."
-                      label="About Severity Level"
-                    />
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <h4 className="text-xs font-semibold text-foreground">Score Range label</h4>
+                      <InfoTooltip
+                        content="Sets score_range only — a coarse 3-tier badge for the overall score."
+                        label="About Score Range"
+                      />
+                    </div>
+                    <BandTable bands={scoreRangeBands} onChange={setScoreRangeBands} idPrefix="sr" />
                   </div>
-                  <BandTable bands={severityBands} onChange={setSeverityBands} idPrefix="sv" />
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <h4 className="text-xs font-semibold text-foreground">Severity Level label</h4>
+                      <InfoTooltip
+                        content="Sets severity_level only — a finer 5-tier badge for the same overall score."
+                        label="About Severity Level"
+                      />
+                    </div>
+                    <BandTable bands={severityBands} onChange={setSeverityBands} idPrefix="sv" />
+                  </div>
                 </div>
-                <div className="space-y-1.5">
+
+                <div className="space-y-1.5 border-t border-border pt-4">
                   <div className="flex items-center gap-1.5">
-                    <h3 className="text-sm font-bold text-foreground">Skin Profiles</h3>
+                    <h4 className="text-xs font-semibold text-foreground">Profile method</h4>
                     <InfoTooltip
-                      content="Maps combinations of dimension axis codes to a named, described profile (e.g. DSPT → 'Kulit kering, sensitif...')."
-                      label="About Skin Profiles"
+                      content="Decides skin_profile.code and skin_profile.name — the actual profile result, separate from the two labels above. Only one method runs at a time: they'd otherwise write conflicting values to the same code/name."
+                      label="About profile method"
                     />
                   </div>
                   <ProfileMappingTable axes={axes} config={profileConfig} onChange={setProfileConfig} />

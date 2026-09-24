@@ -66,8 +66,15 @@ export interface JDMDecisionModel {
   severity_bands?: Array<{ max: number; label: string }>;
   /** Per-dimension bipolar (Baumann) classifier. Keyed by lowercase dimensionKey.
    *  When present for a dimension, its axis_values letter is `score >= threshold
-   *  ? high : low` instead of the Score-Range initial. */
+   *  ? high : low` instead of the Score-Range initial. Also written for any
+   *  axis with exactly 2 bands (a >2-band axis instead gets a decisionTableNode). */
   axis_codes?: Record<string, { threshold: number; low: string; high: string }>;
+  /** Documents, per axis, which registered form dimension and/or vision field
+   *  its number actually comes from (e.g. pigmentation <- form "pigmentation"
+   *  + vision "score_darkspot"). Not read by the engine — this is the spec an
+   *  orchestrator reads to know how to build a /evaluate request's dimensions[]
+   *  and vision_signals from a raw vendor response and form answers. */
+  field_mapping?: Record<string, { form?: string; vision?: string }>;
 }
 
 /** Defaults used when a ruleset carries no overrides. Health-oriented: the
@@ -97,6 +104,53 @@ export interface VisualSeverityTier {
   trait: string;
 }
 
+/** Where one axis's number comes from at evaluate-time. Always a registered
+ *  catalog entry — never free text — so the picker in the UI and the
+ *  field_mapping this compiles to both stay meaningful: 'form' references a
+ *  reference-service dimension code (Q1-Q6, or a DOB-derived one like
+ *  age_over_30 — DOB is still fundamentally a questionnaire answer, just
+ *  from a different form than Q1-Q6); 'vision' references a known CV output
+ *  field (see KNOWN_VISION_FIELDS). */
+export interface InputSource {
+  origin: 'form' | 'vision';
+  fieldCode: string;
+  label: string;
+}
+
+/** One health-oriented (100 = optimal) score range mapped to an axis letter.
+ *  Bands must be ordered, non-overlapping, and cover 0-100 with no gaps —
+ *  an axis with exactly 2 bands compiles to a plain axis_codes threshold;
+ *  3+ compiles to a decisionTableNode (e.g. Pore Severity's Smooth/Visible/
+ *  Enlarged). */
+export interface ThresholdBand {
+  id: string;
+  min: number;
+  max: number;
+  letter: string;
+}
+
+/** A curated catalog of CV output fields this system knows about — the
+ *  vision-side counterpart to reference-service's dimensions. Confirmed
+ *  against Paradev's real /api/v2/scoring response (baumann.dimensions.*)
+ *  and Photo Matrix API.pdf. Picking from this list (never free text) is
+ *  what lets a ruleset's field_mapping double as real integration docs. */
+export interface VisionFieldMeta {
+  code: string;
+  label: string;
+  description?: string;
+}
+export const KNOWN_VISION_FIELDS: VisionFieldMeta[] = [
+  { code: 'score_darkspot', label: 'Darkspot', description: 'baumann.dimensions.pigmentation.score_darkspot — feeds Pigmentation.' },
+  { code: 'score_wrinkle', label: 'Wrinkle', description: 'baumann.dimensions.wrinkle.score_wrinkle — feeds Aging.' },
+  { code: 'score_elasticity', label: 'Elasticity', description: 'baumann.dimensions.wrinkle.score_elasticity.' },
+  { code: 'score_oiliness', label: 'Oiliness', description: 'baumann.dimensions.oiliness.score_oiliness — informational only, D/O stays form-only.' },
+  { code: 'score_hydration', label: 'Hydration', description: 'baumann.dimensions.oiliness.score_hydration.' },
+  { code: 'score_acne', label: 'Acne', description: 'baumann.dimensions.sensitivity.score_acne — informational only, S/R stays form-only.' },
+  { code: 'score_redness', label: 'Redness', description: 'baumann.dimensions.sensitivity.score_redness — informational only, S/R stays form-only.' },
+  { code: 'pores', label: 'Pores', description: 'results.skin_scoring.Pores — feeds Pore Severity.' },
+  { code: 'age_over_30', label: 'Age > 30 (from DOB)', description: 'Derived from date_of_birth on the identity questionnaire, not a Q1-Q6 question. 0 if <=30, 100 if >30.' },
+];
+
 export interface VisualAxisConfig {
   id: string;
   axisCode: string;
@@ -106,17 +160,25 @@ export interface VisualAxisConfig {
   weight: number;
   /** Clinical concern name shown when this dimension is the dominant concern. */
   concernLabel?: string;
-  /** Form-vs-vision blend for this dimension (percent, sums to 100). Vision half
-   *  only applies once camera analysis is live. */
+
+  /** How this axis's one number is produced before banding. */
+  inputComposition?: 'single_source' | 'weighted_blend';
+  /** Used when inputComposition = 'single_source'. */
+  source?: InputSource;
+  /** Used when inputComposition = 'weighted_blend'. formWeight is 0-100;
+   *  vision gets the remainder. */
   formWeight?: number;
+  formSource?: InputSource;
+  visionSource?: InputSource;
+  /** Ordered bands turning the composed number into a letter. 2 bands ->
+   *  axis_codes; 3+ -> a decisionTableNode. */
+  bands?: ThresholdBand[];
+
+  /** @deprecated superseded by formSource/visionSource + bands. */
   visionWeight?: number;
-  /** Baumann-style bipolar classifier. When both letters are set, the engine
-   *  assigns this dimension one of the two letters by threshold
-   *  (score < threshold -> low, score >= threshold -> high) instead of the
-   *  Score-Range initial (O/S/P). Leave blank to use the Score-Range letter. */
+  /** @deprecated superseded by `bands`. */
   axisCodeLow?: string;
   axisCodeHigh?: string;
-  /** Threshold (0-100) for the bipolar split. Defaults to 50 when letters are set. */
   axisCodeThreshold?: number;
   /** @deprecated Per-dimension severity tiers were replaced by overall Score
    *  Range + Severity Level bands. Kept optional for backward compatibility. */

@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Sliders, Play, FileText } from 'lucide-react';
+import { Sliders, SlidersHorizontal, Play, FileText } from 'lucide-react';
 import { PageHeader, TabNav, ConfirmDialog, type TabItem } from '@gateway-experience/shared';
 import type { ScoreRuleset } from '../types';
 
 import { RulesetsTab } from './tabs/RulesetsTab';
+import { BlendingTab } from './tabs/BlendingTab';
 import { ScoreSimulatorTab } from './tabs/ScoreSimulatorTab';
 import { RulesetModal } from './modals/RulesetModal';
 
@@ -15,7 +16,7 @@ import { RulesetModal } from './modals/RulesetModal';
 const SCORE = '/core/score-engine';
 
 export const ScoreManager: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'rulesets' | 'simulator'>('rulesets');
+  const [activeTab, setActiveTab] = useState<'rulesets' | 'blending' | 'simulator'>('rulesets');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Rulesets Data
@@ -65,6 +66,11 @@ export const ScoreManager: React.FC = () => {
       label: 'Skin Grading',
       icon: <Sliders className="h-4 w-4" />,
       badge: rulesets.length,
+    },
+    {
+      id: 'blending',
+      label: 'Blending',
+      icon: <SlidersHorizontal className="h-4 w-4" />,
     },
     {
       id: 'simulator',
@@ -157,6 +163,15 @@ export const ScoreManager: React.FC = () => {
               setActiveTab('simulator');
             }}
             onDeleteRuleset={handleDeleteRuleset}
+          />
+        )}
+
+        {activeTab === 'blending' && (
+          <BlendingTab
+            rulesets={rulesets}
+            selectedRuleset={selectedRuleset}
+            onSelectRuleset={setSelectedRuleset}
+            onSaveRuleset={handleSaveRuleset}
           />
         )}
 
