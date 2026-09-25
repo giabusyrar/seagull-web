@@ -16,6 +16,7 @@ export {
   getDimensions,
   type DimensionRow,
   getSafetyFlags,
+  createSafetyFlag,
   type SafetyFlagRow,
 } from './api';
 export {

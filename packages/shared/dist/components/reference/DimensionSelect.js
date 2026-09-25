@@ -27,12 +27,21 @@ export const DimensionSelect = ({ value, onChange, label = 'Target Dimension', p
             .finally(() => setIsLoading(false));
     }, []);
     const options = useMemo(() => {
-        return dimensions.map((d) => ({
+        // If the currently saved value isn't in the fetched catalog (e.g. its
+        // entry was later removed), still surface it as its raw code instead of
+        // silently falling back to the empty placeholder — the saved config is
+        // still intact, it just no longer has a friendly label to show.
+        const known = dimensions.some((d) => d.code === value);
+        const options = dimensions.map((d) => ({
             value: d.code,
             label: `${d.name} (${d.code})`,
             description: d.category || `Dimension key: ${d.code}`,
         }));
-    }, [dimensions]);
+        if (value && !known) {
+            options.push({ value, label: value, description: 'Not in the current dimension catalog' });
+        }
+        return options;
+    }, [dimensions, value]);
     const handleChange = (dimKey) => {
         const matched = dimensions.find((d) => d.code === dimKey);
         onChange(dimKey, matched);

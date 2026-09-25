@@ -226,3 +226,25 @@ export async function getSafetyFlags(): Promise<SafetyFlagRow[]> {
     return [];
   }
 }
+
+/**
+ * Registers a new safety flag in the catalog (ref_conditions) — used when a
+ * questionnaire builder picks "+ Custom..." on a choice's flag picker. The
+ * flag becomes a real, named catalog entry from that point on (visible on
+ * the Customer Conditions admin page, reusable on other questionnaires),
+ * not just a bare code with no name anywhere. Returns null on failure —
+ * caller still uses the flag locally on this questionnaire either way.
+ */
+export async function createSafetyFlag(code: string, name: string): Promise<SafetyFlagRow | null> {
+  try {
+    const res = await fetch(`/api/reference/conditions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, name }),
+    });
+    if (!res.ok) return null;
+    return { code, name };
+  } catch {
+    return null;
+  }
+}

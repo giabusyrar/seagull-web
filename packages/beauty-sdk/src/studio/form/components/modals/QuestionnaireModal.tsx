@@ -18,7 +18,7 @@ import {
   type DimensionMeta,
 } from "../../catalog";
 import { toSurveyModel } from "../../surveyjs";
-import { getDimensions, getSafetyFlags, type SafetyFlagRow } from "../../api";
+import { getDimensions, getSafetyFlags, createSafetyFlag, type SafetyFlagRow } from "../../api";
 
 // Builder question types and their friendly labels.
 const QUESTION_TYPES: { value: QuestionType; label: string; hasOptions: boolean }[] = [
@@ -98,10 +98,12 @@ const SafetyFlagPicker: React.FC<{
   flagOptions: SafetyFlagRow[];
   onAdd: (code: string) => void;
   onRemove: (code: string) => void;
-}> = ({ flags, flagOptions, onAdd, onRemove }) => {
+  onAddCustom: (name: string) => Promise<string | null>;
+}> = ({ flags, flagOptions, onAdd, onRemove, onAddCustom }) => {
   const [open, setOpen] = useState(false);
   const [addingCustom, setAddingCustom] = useState(false);
   const [customDraft, setCustomDraft] = useState("");
+  const [savingCustom, setSavingCustom] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const hasFlags = flags.length > 0;
 
@@ -161,21 +163,26 @@ const SafetyFlagPicker: React.FC<{
           {addingCustom ? (
             <input
               autoFocus
+              disabled={savingCustom}
               value={customDraft}
               onChange={(e) => setCustomDraft(e.target.value)}
-              onKeyDown={(e) => {
+              onKeyDown={async (e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
-                  const v = slugify(customDraft);
-                  if (v) onAdd(v);
+                  const name = customDraft.trim();
+                  if (!name) return;
+                  setSavingCustom(true);
+                  const code = await onAddCustom(name);
+                  setSavingCustom(false);
+                  if (code) onAdd(code);
                   setCustomDraft("");
                   setAddingCustom(false);
                 } else if (e.key === "Escape") {
                   setAddingCustom(false);
                 }
               }}
-              placeholder="new_flag_key"
-              className={`${fieldSm} w-full font-mono`}
+              placeholder="Flag name (e.g. Baru sunburn)"
+              className={`${fieldSm} w-full`}
             />
           ) : (
             <select
@@ -322,6 +329,20 @@ export const QuestionnaireModal: React.FC<QuestionnaireModalProps> = ({
       (a.name || a.code).localeCompare(b.name || b.code),
     );
   }, [safetyFlagCatalog, questions]);
+
+  // A "+ Custom..." flag is registered as a real ref_conditions catalog row
+  // (code auto-generated from the name via slugify, same as a questionnaire's
+  // own code), so it shows up with a proper name everywhere afterward instead
+  // of a bare slug, and is reusable on other questionnaires going forward.
+  const handleAddCustomFlag = async (name: string): Promise<string | null> => {
+    const code = slugify(name);
+    if (!code) return null;
+    const existing = safetyFlagCatalog.find((f) => f.code === code);
+    if (existing) return existing.code;
+    const created = await createSafetyFlag(code, name);
+    if (created) setSafetyFlagCatalog((prev) => [...prev, created]);
+    return code;
+  };
 
   // Must run on every render (before the isOpen early return) to keep hook order stable.
   const draftItem = useMemo<QuestionnaireItem>(
@@ -691,26 +712,52 @@ export const QuestionnaireModal: React.FC<QuestionnaireModalProps> = ({
                               )}
                             </label>
 
-                            <label className="flex items-center gap-2">
-                              <span className="shrink-0 text-[11px] font-semibold text-muted-foreground">
-                                Choose dimension
+                            <div className="flex items-center gap-2">
+                              <span className="flex items-center gap-1 shrink-0 text-[11px] font-semibold text-muted-foreground">
+                                Dimension
+                                <InfoTooltip
+                                  content="On: this question's answer counts toward a dimension's score. Off: it's collected as a plain label only (e.g. a free-text main concern), with no effect on scoring."
+                                  label="About scoring vs. labeling"
+                                  iconClassName="h-3 w-3"
+                                />
                               </span>
-                              <select
-                                value={q.dimension}
-                                onChange={(e) => updateQuestion(q.id, { dimension: e.target.value })}
-                                className={`${fieldSm} w-56 ${q.dimension ? "" : "text-muted-foreground"}`}
-                                style={selectStyle}
+                              <button
+                                type="button"
+                                role="switch"
+                                aria-checked={Boolean(q.dimension)}
+                                onClick={() =>
+                                  updateQuestion(q.id, {
+                                    dimension: q.dimension
+                                      ? ""
+                                      : usedDimensions[0] || dimensionList[0]?.code || "",
+                                  })
+                                }
+                                title={q.dimension ? "Counts toward scoring" : "Label only — click to score it"}
+                                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                  q.dimension ? "bg-emerald-500" : "bg-secondary border border-border"
+                                }`}
                               >
-                                <option style={optionStyle} value="">
-                                  — dimension —
-                                </option>
-                                {dimensionList.map((d) => (
-                                  <option key={d.code} style={optionStyle} value={d.code}>
-                                    {d.label}
-                                  </option>
-                                ))}
-                              </select>
-                            </label>
+                                <span
+                                  className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                                    q.dimension ? "translate-x-4" : "translate-x-0"
+                                  }`}
+                                />
+                              </button>
+                              {q.dimension && (
+                                <select
+                                  value={q.dimension}
+                                  onChange={(e) => updateQuestion(q.id, { dimension: e.target.value })}
+                                  className={`${fieldSm} w-56`}
+                                  style={selectStyle}
+                                >
+                                  {dimensionList.map((d) => (
+                                    <option key={d.code} style={optionStyle} value={d.code}>
+                                      {d.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              )}
+                            </div>
                           </div>
 
                           {/* boolean — score per state */}
@@ -899,6 +946,7 @@ export const QuestionnaireModal: React.FC<QuestionnaireModalProps> = ({
                                     <SafetyFlagPicker
                                       flags={currentFlags}
                                       flagOptions={flagOptions}
+                                      onAddCustom={handleAddCustomFlag}
                                       onAdd={(k) =>
                                         updateOption(q.id, idx, {
                                           conditionMap: { ...(o.conditionMap || {}), [k]: true },

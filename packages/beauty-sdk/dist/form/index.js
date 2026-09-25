@@ -1082,6 +1082,19 @@ async function getSafetyFlags() {
     return [];
   }
 }
+async function createSafetyFlag(code, name) {
+  try {
+    const res = await fetch(`/api/reference/conditions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code, name })
+    });
+    if (!res.ok) return null;
+    return { code, name };
+  } catch {
+    return null;
+  }
+}
 var QUESTION_TYPES = [
   { value: "single_choice", label: "Choose one", hasOptions: true },
   { value: "multi_choice", label: "Select many", hasOptions: true },
@@ -1125,10 +1138,11 @@ var newQuestion = (dimension) => ({
   dimension,
   options: [newOption(), newOption()]
 });
-var SafetyFlagPicker = ({ flags, flagOptions, onAdd, onRemove }) => {
+var SafetyFlagPicker = ({ flags, flagOptions, onAdd, onRemove, onAddCustom }) => {
   const [open, setOpen] = react.useState(false);
   const [addingCustom, setAddingCustom] = react.useState(false);
   const [customDraft, setCustomDraft] = react.useState("");
+  const [savingCustom, setSavingCustom] = react.useState(false);
   const ref = react.useRef(null);
   const hasFlags = flags.length > 0;
   react.useEffect(() => {
@@ -1176,21 +1190,26 @@ var SafetyFlagPicker = ({ flags, flagOptions, onAdd, onRemove }) => {
         "input",
         {
           autoFocus: true,
+          disabled: savingCustom,
           value: customDraft,
           onChange: (e) => setCustomDraft(e.target.value),
-          onKeyDown: (e) => {
+          onKeyDown: async (e) => {
             if (e.key === "Enter") {
               e.preventDefault();
-              const v = slugify(customDraft);
-              if (v) onAdd(v);
+              const name = customDraft.trim();
+              if (!name) return;
+              setSavingCustom(true);
+              const code = await onAddCustom(name);
+              setSavingCustom(false);
+              if (code) onAdd(code);
               setCustomDraft("");
               setAddingCustom(false);
             } else if (e.key === "Escape") {
               setAddingCustom(false);
             }
           },
-          placeholder: "new_flag_key",
-          className: `${fieldSm} w-full font-mono`
+          placeholder: "Flag name (e.g. Baru sunburn)",
+          className: `${fieldSm} w-full`
         }
       ) : /* @__PURE__ */ jsxRuntime.jsxs(
         "select",
@@ -1311,6 +1330,15 @@ var QuestionnaireModal = ({
       (a, b) => (a.name || a.code).localeCompare(b.name || b.code)
     );
   }, [safetyFlagCatalog, questions]);
+  const handleAddCustomFlag = async (name) => {
+    const code = slugify(name);
+    if (!code) return null;
+    const existing = safetyFlagCatalog.find((f) => f.code === code);
+    if (existing) return existing.code;
+    const created = await createSafetyFlag(code, name);
+    if (created) setSafetyFlagCatalog((prev) => [...prev, created]);
+    return code;
+  };
   const draftItem = react.useMemo(
     () => ({
       code: effectiveCode.trim(),
@@ -1648,19 +1676,45 @@ var QuestionnaireModal = ({
                               q.type === "matrix" ? "columns" : "answers"
                             ] })
                           ] }),
-                          /* @__PURE__ */ jsxRuntime.jsxs("label", { className: "flex items-center gap-2", children: [
-                            /* @__PURE__ */ jsxRuntime.jsx("span", { className: "shrink-0 text-[11px] font-semibold text-muted-foreground", children: "Choose dimension" }),
-                            /* @__PURE__ */ jsxRuntime.jsxs(
+                          /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-2", children: [
+                            /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "flex items-center gap-1 shrink-0 text-[11px] font-semibold text-muted-foreground", children: [
+                              "Dimension",
+                              /* @__PURE__ */ jsxRuntime.jsx(
+                                shared.InfoTooltip,
+                                {
+                                  content: "On: this question's answer counts toward a dimension's score. Off: it's collected as a plain label only (e.g. a free-text main concern), with no effect on scoring.",
+                                  label: "About scoring vs. labeling",
+                                  iconClassName: "h-3 w-3"
+                                }
+                              )
+                            ] }),
+                            /* @__PURE__ */ jsxRuntime.jsx(
+                              "button",
+                              {
+                                type: "button",
+                                role: "switch",
+                                "aria-checked": Boolean(q.dimension),
+                                onClick: () => updateQuestion(q.id, {
+                                  dimension: q.dimension ? "" : usedDimensions[0] || dimensionList[0]?.code || ""
+                                }),
+                                title: q.dimension ? "Counts toward scoring" : "Label only \u2014 click to score it",
+                                className: `relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${q.dimension ? "bg-emerald-500" : "bg-secondary border border-border"}`,
+                                children: /* @__PURE__ */ jsxRuntime.jsx(
+                                  "span",
+                                  {
+                                    className: `pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${q.dimension ? "translate-x-4" : "translate-x-0"}`
+                                  }
+                                )
+                              }
+                            ),
+                            q.dimension && /* @__PURE__ */ jsxRuntime.jsx(
                               "select",
                               {
                                 value: q.dimension,
                                 onChange: (e) => updateQuestion(q.id, { dimension: e.target.value }),
-                                className: `${fieldSm} w-56 ${q.dimension ? "" : "text-muted-foreground"}`,
+                                className: `${fieldSm} w-56`,
                                 style: selectStyle,
-                                children: [
-                                  /* @__PURE__ */ jsxRuntime.jsx("option", { style: optionStyle, value: "", children: "\u2014 dimension \u2014" }),
-                                  dimensionList.map((d) => /* @__PURE__ */ jsxRuntime.jsx("option", { style: optionStyle, value: d.code, children: d.label }, d.code))
-                                ]
+                                children: dimensionList.map((d) => /* @__PURE__ */ jsxRuntime.jsx("option", { style: optionStyle, value: d.code, children: d.label }, d.code))
                               }
                             )
                           ] })
@@ -1844,6 +1898,7 @@ var QuestionnaireModal = ({
                             {
                               flags: currentFlags,
                               flagOptions,
+                              onAddCustom: handleAddCustomFlag,
                               onAdd: (k) => updateOption(q.id, idx, {
                                 conditionMap: { ...o.conditionMap || {}, [k]: true }
                               }),
@@ -2284,6 +2339,7 @@ exports.QuestionnaireRunner = QuestionnaireRunner;
 exports.applyCalculationMethod = applyCalculationMethod;
 exports.applyDimensionMapping = applyDimensionMapping;
 exports.buildScoreRequest = buildScoreRequest;
+exports.createSafetyFlag = createSafetyFlag;
 exports.deleteQuestionnaire = deleteQuestionnaire;
 exports.flattenElements = flattenElements;
 exports.fromPFormSchema = fromPFormSchema;
