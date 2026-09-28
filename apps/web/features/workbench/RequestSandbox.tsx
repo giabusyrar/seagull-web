@@ -587,6 +587,11 @@ export const RequestSandbox: React.FC<RequestSandboxProps> = ({
                 {configuredBody.map((b: any) => {
                   const isFile = b.fieldType === 'file';
                   const picked = (request.multipartFields || []).find((f) => f.key === b.key);
+                  // A field whose Route Settings default looks like JSON (an
+                  // object/array) gets a textarea instead of a single-line
+                  // input — editing multi-line JSON in a one-line box is how
+                  // the outer {}/[] keeps getting silently dropped.
+                  const looksLikeJson = typeof b.value === 'string' && /^\s*[{[]/.test(b.value);
                   return (
                     <div key={b.key} className="space-y-1">
                       <label className="block text-xs font-semibold text-foreground font-mono">
@@ -615,6 +620,15 @@ export const RequestSandbox: React.FC<RequestSandboxProps> = ({
                             onUpdateRequest({ ...request, multipartFields: next });
                           }}
                           className="w-full text-xs text-foreground"
+                        />
+                      ) : looksLikeJson ? (
+                        <textarea
+                          value={bodyFields[b.key] || ''}
+                          onChange={(e) => handleBodyFieldChange(b.key, e.target.value)}
+                          placeholder={`Value for ${b.key}`}
+                          rows={5}
+                          spellCheck={false}
+                          className="w-full border rounded px-3 py-2 text-xs font-mono outline-none shadow-2xs bg-white border-border text-foreground focus:border-primary resize-y"
                         />
                       ) : (
                         <input

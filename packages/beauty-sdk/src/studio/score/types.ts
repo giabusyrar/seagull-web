@@ -139,15 +139,19 @@ export interface VisionFieldMeta {
   label: string;
   description?: string;
 }
+// Codes here must match field_mapping.vision values exactly — the vendor's
+// response is flattened by its FULL dot-path (a bare leaf name like
+// "score_wrinkle" is not safe: the vendor genuinely repeats the same short
+// name at more than one path with different scales/meanings, confirmed via
+// a real staging response). This is decompile-time label sugar only — the
+// live Blending tab resolves the authoritative option list from the
+// ref_skin_conditions catalog (useVisionFields) at render time, so this
+// list falling behind never breaks a save, only a label shown briefly
+// before that catalog loads.
 export const KNOWN_VISION_FIELDS: VisionFieldMeta[] = [
-  { code: 'score_darkspot', label: 'Darkspot', description: 'baumann.dimensions.pigmentation.score_darkspot — feeds Pigmentation.' },
-  { code: 'score_wrinkle', label: 'Wrinkle', description: 'baumann.dimensions.wrinkle.score_wrinkle — feeds Aging.' },
-  { code: 'score_elasticity', label: 'Elasticity', description: 'baumann.dimensions.wrinkle.score_elasticity.' },
-  { code: 'score_oiliness', label: 'Oiliness', description: 'baumann.dimensions.oiliness.score_oiliness — informational only, D/O stays form-only.' },
-  { code: 'score_hydration', label: 'Hydration', description: 'baumann.dimensions.oiliness.score_hydration.' },
-  { code: 'score_acne', label: 'Acne', description: 'baumann.dimensions.sensitivity.score_acne — informational only, S/R stays form-only.' },
-  { code: 'score_redness', label: 'Redness', description: 'baumann.dimensions.sensitivity.score_redness — informational only, S/R stays form-only.' },
-  { code: 'pores', label: 'Pores', description: 'results.skin_scoring.Pores — feeds Pore Severity.' },
+  { code: 'data.inference_result.results.skin_scoring.Darkspot', label: 'Darkspot', description: 'results.skin_scoring.Darkspot — feeds Pigmentation.' },
+  { code: 'data.inference_result.results.skin_scoring.Wrinkle', label: 'Wrinkle', description: 'results.skin_scoring.Wrinkle — feeds Aging.' },
+  { code: 'data.inference_result.results.skin_scoring.Pores', label: 'Pores', description: 'results.skin_scoring.Pores — feeds Pore Severity.' },
   { code: 'age_over_30', label: 'Age > 30 (from DOB)', description: 'Derived from date_of_birth on the identity questionnaire, not a Q1-Q6 question. 0 if <=30, 100 if >30.' },
 ];
 
@@ -205,22 +209,49 @@ export interface VisualProfileMappingConfig {
   profiles: VisualProfileEntry[];
 }
 
+/** Request body for POST /score-engine/simulate. HEALTH-space (100 = sehat,
+ *  matching what the slider is labelled) — the backend converts each to
+ *  concern-space before handing off to the exact same stage2Score fusion
+ *  /evaluate uses, so the two can never drift apart. age_years feeds the
+ *  ruleset's age_over_30-mapped dimension via the real AgeOverThirty check,
+ *  overriding any form_scores entry for that same dimension. */
 export interface RulesetSimulationRequest {
   schema: string;
-  dimension_scores: Record<string, number>;
-  vision_signals?: Record<string, number>;
+  form_scores?: Record<string, number>;
+  vision_scores?: Record<string, number>;
+  age_years?: number;
   customer_condition?: Record<string, boolean>;
+}
+
+/** Mirrors the Go domain.DimensionBreakdown / SkinProfileV2 (stage2Score's
+ *  shared output shape — identical for /evaluate and /simulate). */
+export interface DimensionBreakdown {
+  source: 'form' | 'vision' | 'blend' | 'none';
+  form_score: number | null;
+  vision_score: number | null;
+  weight?: { form: number; vision: number };
+  final_score: number | null;
+  axis: string | null;
+}
+
+export interface SkinProfileV2 {
+  code: string;
+  name: string;
+  category?: string;
+  description: string;
+  complete: boolean;
+  axis_values?: Record<string, string>;
 }
 
 export interface RulesetSimulationResponse {
   success: boolean;
   performance?: string;
   result?: {
-    axis_values?: Record<string, string>;
-    tiers?: Record<string, { grade_name: string; severity: string }>;
-    traits?: Record<string, string>;
     total_score?: number;
-    [key: string]: any;
+    dimensions?: Record<string, DimensionBreakdown>;
+    skin_profile?: SkinProfileV2;
+    sub_classification?: Record<string, unknown>;
+    warnings?: string[];
   };
   error?: string;
 }

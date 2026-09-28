@@ -144,20 +144,17 @@ const SafetyFlagPicker: React.FC<{
         <div className="absolute right-0 top-full mt-1 z-20 w-56 rounded-md border border-border bg-popover shadow-lg p-2 space-y-1.5">
           {hasFlags && (
             <div className="flex flex-wrap gap-1">
-              {flags.map((k) => {
-                const meta = flagOptions.find((f) => f.code === k);
-                return (
-                  <span
-                    key={k}
-                    className="inline-flex items-center gap-1 bg-amber-500/10 border border-amber-500/30 text-amber-600 text-[10px] px-1.5 py-0.5 rounded"
-                  >
-                    {meta?.name || k}
-                    <button type="button" onClick={() => onRemove(k)}>
-                      <X className="h-2.5 w-2.5" />
-                    </button>
-                  </span>
-                );
-              })}
+              {flags.map((k) => (
+                <span
+                  key={k}
+                  className="inline-flex items-center gap-1 bg-amber-500/10 border border-amber-500/30 text-amber-600 text-[10px] px-1.5 py-0.5 rounded font-mono"
+                >
+                  {k}
+                  <button type="button" onClick={() => onRemove(k)}>
+                    <X className="h-2.5 w-2.5" />
+                  </button>
+                </span>
+              ))}
             </div>
           )}
           {addingCustom ? (
@@ -200,7 +197,7 @@ const SafetyFlagPicker: React.FC<{
               </option>
               {choices.map((f) => (
                 <option key={f.code} style={optionStyle} value={f.code}>
-                  {f.name || f.code}
+                  {f.code}
                 </option>
               ))}
               <option style={optionStyle} value="__custom__">

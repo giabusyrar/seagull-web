@@ -175,24 +175,49 @@ interface VisualProfileMappingConfig {
     strategy: ProfileStrategyType;
     profiles: VisualProfileEntry[];
 }
+/** Request body for POST /score-engine/simulate. HEALTH-space (100 = sehat,
+ *  matching what the slider is labelled) — the backend converts each to
+ *  concern-space before handing off to the exact same stage2Score fusion
+ *  /evaluate uses, so the two can never drift apart. age_years feeds the
+ *  ruleset's age_over_30-mapped dimension via the real AgeOverThirty check,
+ *  overriding any form_scores entry for that same dimension. */
 interface RulesetSimulationRequest {
     schema: string;
-    dimension_scores: Record<string, number>;
-    vision_signals?: Record<string, number>;
+    form_scores?: Record<string, number>;
+    vision_scores?: Record<string, number>;
+    age_years?: number;
     customer_condition?: Record<string, boolean>;
+}
+/** Mirrors the Go domain.DimensionBreakdown / SkinProfileV2 (stage2Score's
+ *  shared output shape — identical for /evaluate and /simulate). */
+interface DimensionBreakdown {
+    source: 'form' | 'vision' | 'blend' | 'none';
+    form_score: number | null;
+    vision_score: number | null;
+    weight?: {
+        form: number;
+        vision: number;
+    };
+    final_score: number | null;
+    axis: string | null;
+}
+interface SkinProfileV2 {
+    code: string;
+    name: string;
+    category?: string;
+    description: string;
+    complete: boolean;
+    axis_values?: Record<string, string>;
 }
 interface RulesetSimulationResponse {
     success: boolean;
     performance?: string;
     result?: {
-        axis_values?: Record<string, string>;
-        tiers?: Record<string, {
-            grade_name: string;
-            severity: string;
-        }>;
-        traits?: Record<string, string>;
         total_score?: number;
-        [key: string]: any;
+        dimensions?: Record<string, DimensionBreakdown>;
+        skin_profile?: SkinProfileV2;
+        sub_classification?: Record<string, unknown>;
+        warnings?: string[];
     };
     error?: string;
 }

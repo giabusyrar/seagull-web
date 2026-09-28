@@ -1172,20 +1172,17 @@ var SafetyFlagPicker = ({ flags, flagOptions, onAdd, onRemove, onAddCustom }) =>
       }
     ),
     open && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "absolute right-0 top-full mt-1 z-20 w-56 rounded-md border border-border bg-popover shadow-lg p-2 space-y-1.5", children: [
-      hasFlags && /* @__PURE__ */ jsxRuntime.jsx("div", { className: "flex flex-wrap gap-1", children: flags.map((k) => {
-        const meta = flagOptions.find((f) => f.code === k);
-        return /* @__PURE__ */ jsxRuntime.jsxs(
-          "span",
-          {
-            className: "inline-flex items-center gap-1 bg-amber-500/10 border border-amber-500/30 text-amber-600 text-[10px] px-1.5 py-0.5 rounded",
-            children: [
-              meta?.name || k,
-              /* @__PURE__ */ jsxRuntime.jsx("button", { type: "button", onClick: () => onRemove(k), children: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.X, { className: "h-2.5 w-2.5" }) })
-            ]
-          },
-          k
-        );
-      }) }),
+      hasFlags && /* @__PURE__ */ jsxRuntime.jsx("div", { className: "flex flex-wrap gap-1", children: flags.map((k) => /* @__PURE__ */ jsxRuntime.jsxs(
+        "span",
+        {
+          className: "inline-flex items-center gap-1 bg-amber-500/10 border border-amber-500/30 text-amber-600 text-[10px] px-1.5 py-0.5 rounded font-mono",
+          children: [
+            k,
+            /* @__PURE__ */ jsxRuntime.jsx("button", { type: "button", onClick: () => onRemove(k), children: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.X, { className: "h-2.5 w-2.5" }) })
+          ]
+        },
+        k
+      )) }),
       addingCustom ? /* @__PURE__ */ jsxRuntime.jsx(
         "input",
         {
@@ -1224,7 +1221,7 @@ var SafetyFlagPicker = ({ flags, flagOptions, onAdd, onRemove, onAddCustom }) =>
           style: selectStyle,
           children: [
             /* @__PURE__ */ jsxRuntime.jsx("option", { style: optionStyle, value: "", children: "+ add flag" }),
-            choices.map((f) => /* @__PURE__ */ jsxRuntime.jsx("option", { style: optionStyle, value: f.code, children: f.name || f.code }, f.code)),
+            choices.map((f) => /* @__PURE__ */ jsxRuntime.jsx("option", { style: optionStyle, value: f.code, children: f.code }, f.code)),
             /* @__PURE__ */ jsxRuntime.jsx("option", { style: optionStyle, value: "__custom__", children: "+ Custom\u2026" })
           ]
         }

@@ -3282,20 +3282,17 @@ var SafetyFlagPicker = ({ flags, flagOptions, onAdd, onRemove, onAddCustom }) =>
       }
     ),
     open && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "absolute right-0 top-full mt-1 z-20 w-56 rounded-md border border-border bg-popover shadow-lg p-2 space-y-1.5", children: [
-      hasFlags && /* @__PURE__ */ jsxRuntime.jsx("div", { className: "flex flex-wrap gap-1", children: flags.map((k) => {
-        const meta = flagOptions.find((f) => f.code === k);
-        return /* @__PURE__ */ jsxRuntime.jsxs(
-          "span",
-          {
-            className: "inline-flex items-center gap-1 bg-amber-500/10 border border-amber-500/30 text-amber-600 text-[10px] px-1.5 py-0.5 rounded",
-            children: [
-              meta?.name || k,
-              /* @__PURE__ */ jsxRuntime.jsx("button", { type: "button", onClick: () => onRemove(k), children: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.X, { className: "h-2.5 w-2.5" }) })
-            ]
-          },
-          k
-        );
-      }) }),
+      hasFlags && /* @__PURE__ */ jsxRuntime.jsx("div", { className: "flex flex-wrap gap-1", children: flags.map((k) => /* @__PURE__ */ jsxRuntime.jsxs(
+        "span",
+        {
+          className: "inline-flex items-center gap-1 bg-amber-500/10 border border-amber-500/30 text-amber-600 text-[10px] px-1.5 py-0.5 rounded font-mono",
+          children: [
+            k,
+            /* @__PURE__ */ jsxRuntime.jsx("button", { type: "button", onClick: () => onRemove(k), children: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.X, { className: "h-2.5 w-2.5" }) })
+          ]
+        },
+        k
+      )) }),
       addingCustom ? /* @__PURE__ */ jsxRuntime.jsx(
         "input",
         {
@@ -3334,7 +3331,7 @@ var SafetyFlagPicker = ({ flags, flagOptions, onAdd, onRemove, onAddCustom }) =>
           style: selectStyle,
           children: [
             /* @__PURE__ */ jsxRuntime.jsx("option", { style: optionStyle, value: "", children: "+ add flag" }),
-            choices.map((f) => /* @__PURE__ */ jsxRuntime.jsx("option", { style: optionStyle, value: f.code, children: f.name || f.code }, f.code)),
+            choices.map((f) => /* @__PURE__ */ jsxRuntime.jsx("option", { style: optionStyle, value: f.code, children: f.code }, f.code)),
             /* @__PURE__ */ jsxRuntime.jsx("option", { style: optionStyle, value: "__custom__", children: "+ Custom\u2026" })
           ]
         }
@@ -4645,14 +4642,9 @@ var DEFAULT_SEVERITY_BANDS = [
   { id: "sv5", max: 100, label: "Sehat" }
 ];
 var KNOWN_VISION_FIELDS = [
-  { code: "score_darkspot", label: "Darkspot", description: "baumann.dimensions.pigmentation.score_darkspot \u2014 feeds Pigmentation." },
-  { code: "score_wrinkle", label: "Wrinkle", description: "baumann.dimensions.wrinkle.score_wrinkle \u2014 feeds Aging." },
-  { code: "score_elasticity", label: "Elasticity", description: "baumann.dimensions.wrinkle.score_elasticity." },
-  { code: "score_oiliness", label: "Oiliness", description: "baumann.dimensions.oiliness.score_oiliness \u2014 informational only, D/O stays form-only." },
-  { code: "score_hydration", label: "Hydration", description: "baumann.dimensions.oiliness.score_hydration." },
-  { code: "score_acne", label: "Acne", description: "baumann.dimensions.sensitivity.score_acne \u2014 informational only, S/R stays form-only." },
-  { code: "score_redness", label: "Redness", description: "baumann.dimensions.sensitivity.score_redness \u2014 informational only, S/R stays form-only." },
-  { code: "pores", label: "Pores", description: "results.skin_scoring.Pores \u2014 feeds Pore Severity." },
+  { code: "data.inference_result.results.skin_scoring.Darkspot", label: "Darkspot", description: "results.skin_scoring.Darkspot \u2014 feeds Pigmentation." },
+  { code: "data.inference_result.results.skin_scoring.Wrinkle", label: "Wrinkle", description: "results.skin_scoring.Wrinkle \u2014 feeds Aging." },
+  { code: "data.inference_result.results.skin_scoring.Pores", label: "Pores", description: "results.skin_scoring.Pores \u2014 feeds Pore Severity." },
   { code: "age_over_30", label: "Age > 30 (from DOB)", description: "Derived from date_of_birth on the identity questionnaire, not a Q1-Q6 question. 0 if <=30, 100 if >30." }
 ];
 
@@ -4863,19 +4855,27 @@ function compileVisualToJDM(axes, profileConfig = DEFAULT_STARTER_PROFILES, scor
       base = {};
     }
   }
+  const ownedDimKeys = new Set(effectiveAxes.map((a) => a.dimensionKey.toLowerCase()));
+  const mergeOwned = (baseMap, fresh) => {
+    const merged = { ...baseMap || {} };
+    for (const k of ownedDimKeys) delete merged[k];
+    return { ...merged, ...fresh };
+  };
   const model = {
     ...base,
     nodes: [...nodes, ...preservedNodes],
     edges,
-    dimension_weights,
-    dimension_fusion,
-    concern_labels,
+    dimension_weights: mergeOwned(base.dimension_weights, dimension_weights),
+    dimension_fusion: mergeOwned(base.dimension_fusion, dimension_fusion),
+    concern_labels: mergeOwned(base.concern_labels, concern_labels),
     score_range_bands: bandsToSchema(scoreRangeBands),
     severity_bands: bandsToSchema(severityBands)
   };
-  if (Object.keys(axis_codes).length > 0) model.axis_codes = axis_codes;
+  const mergedAxisCodes = mergeOwned(base.axis_codes, axis_codes);
+  if (Object.keys(mergedAxisCodes).length > 0) model.axis_codes = mergedAxisCodes;
   else delete model.axis_codes;
-  if (Object.keys(field_mapping).length > 0) model.field_mapping = field_mapping;
+  const mergedFieldMapping = mergeOwned(base.field_mapping, field_mapping);
+  if (Object.keys(mergedFieldMapping).length > 0) model.field_mapping = mergedFieldMapping;
   else delete model.field_mapping;
   return JSON.stringify(model, null, 2);
 }
@@ -4929,7 +4929,13 @@ function decompileJDMToVisualComponents(schemaStr) {
     }
   }
   const dimKeys = Array.from(
-    /* @__PURE__ */ new Set([...Object.keys(weights), ...Object.keys(concernLabels), ...Object.keys(axisCodes), ...salvagedKeys])
+    /* @__PURE__ */ new Set([
+      ...Object.keys(weights),
+      ...Object.keys(concernLabels),
+      ...Object.keys(axisCodes),
+      ...Object.keys(fieldMapping),
+      ...salvagedKeys
+    ])
   );
   const legacy = Object.keys(weights).length === 0 && Object.keys(concernLabels).length === 0 && !hasProfileNode;
   const bandNodeFor = (key) => nodeContents.find((c) => {
@@ -5436,6 +5442,12 @@ var BlendingTab = ({
 };
 var card = "rounded-lg border border-border bg-card p-4";
 var sliderCls = "w-full h-1.5 rounded appearance-none cursor-pointer bg-muted accent-[#d97706]";
+var sourceLabel = {
+  form: "Form",
+  vision: "Vision",
+  blend: "Blend",
+  none: "No data"
+};
 var ScoreSimulatorTab = ({
   rulesets,
   selectedRuleset,
@@ -5449,7 +5461,8 @@ var ScoreSimulatorTab = ({
       const keys = /* @__PURE__ */ new Set([
         ...Object.keys(s.dimension_weights || {}),
         ...Object.keys(s.concern_labels || {}),
-        ...Object.keys(s.axis_codes || {})
+        ...Object.keys(s.axis_codes || {}),
+        ...Object.keys(s.field_mapping || {})
       ]);
       for (const node of s.nodes || []) {
         if (node?.type !== "decisionTableNode") continue;
@@ -5469,13 +5482,6 @@ var ScoreSimulatorTab = ({
   const fieldMapping = React12.useMemo(() => {
     try {
       return JSON.parse(activeRuleset?.schema || "{}").field_mapping || {};
-    } catch {
-      return {};
-    }
-  }, [activeRuleset]);
-  const dimensionFusion = React12.useMemo(() => {
-    try {
-      return JSON.parse(activeRuleset?.schema || "{}").dimension_fusion || {};
     } catch {
       return {};
     }
@@ -5505,25 +5511,6 @@ var ScoreSimulatorTab = ({
       return next;
     });
   }, [visionDimsKey]);
-  const dimensionScores = React12.useMemo(() => {
-    const out = {};
-    for (const d of rulesetDims) {
-      const isAgeForm = ageAxisKeys.includes(d);
-      const formVal = isAgeForm ? respondentAge <= 30 ? 100 : 0 : questionnaireValues[d];
-      const visionVal = visionValues[d];
-      const df = dimensionFusion[d];
-      if (df) {
-        const fw = typeof df.form === "number" ? df.form : 0.5;
-        const vw = typeof df.vision === "number" ? df.vision : 0.5;
-        out[d] = Math.round(((formVal ?? 50) * fw + (visionVal ?? 50) * vw) * 10) / 10;
-      } else if (fieldMapping[d]?.vision && !fieldMapping[d]?.form) {
-        out[d] = visionVal ?? 50;
-      } else {
-        out[d] = formVal ?? 50;
-      }
-    }
-    return out;
-  }, [rulesetDims, ageAxisKeys, questionnaireValues, visionValues, dimensionFusion, fieldMapping, respondentAge]);
   const rulesetSafetyFlags = React12.useMemo(() => {
     if (!activeRuleset?.schema) return [];
     try {
@@ -5585,6 +5572,10 @@ var ScoreSimulatorTab = ({
       cancelled = true;
     };
   }, [activeRuleset?.brandId, activeRuleset?.applicationId, formSurveyCode]);
+  const [catalogSafetyFlags, setCatalogSafetyFlags] = React12.useState([]);
+  React12.useEffect(() => {
+    getSafetyFlags().then((rows) => setCatalogSafetyFlags(rows.map((r) => r.code))).catch(() => setCatalogSafetyFlags([]));
+  }, []);
   const allSafetyFlags = React12.useMemo(
     () => Array.from(/* @__PURE__ */ new Set([...rulesetSafetyFlags, ...surveySafetyFlags])),
     [rulesetSafetyFlags, surveySafetyFlags]
@@ -5592,26 +5583,39 @@ var ScoreSimulatorTab = ({
   const [selectedConditions, setSelectedConditions] = React12.useState({});
   React12.useEffect(() => {
     setSelectedConditions((prev) => {
-      const keys = allSafetyFlags.length > 0 ? allSafetyFlags : ["is_pregnant", "uses_retinol"];
+      const keys = allSafetyFlags.length > 0 ? allSafetyFlags : catalogSafetyFlags;
       const next = {};
       for (const k of keys) next[k] = prev[k] ?? false;
       return next;
     });
-  }, [allSafetyFlags]);
+  }, [allSafetyFlags, catalogSafetyFlags]);
   const [simResponse, setSimResponse] = React12.useState(null);
   const [copiedReq, setCopiedReq] = React12.useState(false);
   const SIMULATE_PATH = "/core/score-engine/simulate";
+  const formScores = React12.useMemo(() => {
+    const out = {};
+    for (const d of formDims) out[d] = questionnaireValues[d] ?? 50;
+    return out;
+  }, [formDims, questionnaireValues]);
+  const visionScores = React12.useMemo(() => {
+    const out = {};
+    for (const d of visionDims) out[d] = visionValues[d] ?? 50;
+    return out;
+  }, [visionDims, visionValues]);
+  const ageYears = ageAxisKeys.length > 0 ? respondentAge : void 0;
   const requestBody = React12.useMemo(
     () => JSON.stringify(
       {
         schema: activeRuleset?.schema ?? "",
-        dimension_scores: dimensionScores,
+        form_scores: formScores,
+        vision_scores: visionScores,
+        age_years: ageYears,
         customer_condition: selectedConditions
       },
       null,
       2
     ),
-    [activeRuleset, dimensionScores, selectedConditions]
+    [activeRuleset, formScores, visionScores, ageYears, selectedConditions]
   );
   const copyRequest = () => {
     navigator.clipboard?.writeText(requestBody);
@@ -5626,7 +5630,9 @@ var ScoreSimulatorTab = ({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           schema: activeRuleset.schema,
-          dimension_scores: dimensionScores,
+          form_scores: formScores,
+          vision_scores: visionScores,
+          age_years: ageYears,
           customer_condition: selectedConditions
         })
       });
@@ -5634,67 +5640,19 @@ var ScoreSimulatorTab = ({
     } catch (err) {
       console.error("Simulation request failed", err);
     }
-  }, [activeRuleset, dimensionScores, selectedConditions]);
+  }, [activeRuleset, formScores, visionScores, ageYears, selectedConditions]);
   React12.useEffect(() => {
     const timer = setTimeout(runSimulation, 250);
     return () => clearTimeout(timer);
   }, [runSimulation]);
-  const axisValues = simResponse?.result?.axis_values || {};
-  const traits = simResponse?.result?.traits || {};
-  const scoreRange = simResponse?.result?.score_range || "";
-  const severityLevel = simResponse?.result?.severity_level || "";
-  const skinConcern = simResponse?.result?.skin_concern;
-  const axisOutputDims = React12.useMemo(() => {
-    if (!activeRuleset?.schema) return [];
-    try {
-      const s = JSON.parse(activeRuleset.schema);
-      const keys = new Set(Object.keys(s.axis_codes || {}));
-      for (const node of s.nodes || []) {
-        if (node?.type !== "decisionTableNode") continue;
-        const content = typeof node.content === "string" ? JSON.parse(node.content) : node.content;
-        for (const output of content?.outputs || []) {
-          const field2 = String(output?.field || "");
-          if (field2.startsWith("axis_values.")) {
-            keys.add(field2.slice("axis_values.".length).toLowerCase());
-          }
-        }
-      }
-      return Array.from(keys);
-    } catch {
-      return [];
-    }
-  }, [activeRuleset]);
-  const BAUMANN_AXIS_ORDER = ["sebum", "oiliness", "sensitivity", "pigmentation", "aging", "wrinkle"];
-  const orderedDims = React12.useMemo(() => {
-    const known = BAUMANN_AXIS_ORDER.filter((k) => axisOutputDims.includes(k));
-    const rest = axisOutputDims.filter((k) => !BAUMANN_AXIS_ORDER.includes(k));
-    return [...known, ...rest];
-  }, [axisOutputDims]);
-  const generatedCode = React12.useMemo(() => {
-    if (orderedDims.length === 0) return "CUSTOM";
-    return orderedDims.map((k) => axisValues[k.toUpperCase()] || "-").join("");
-  }, [axisValues, orderedDims]);
-  const traitsList = React12.useMemo(() => Object.values(traits).filter(Boolean), [traits]);
-  const profile = simResponse?.result?.skin_profile;
-  const profileStrategyIsAxisBased = React12.useMemo(() => {
-    try {
-      const s = JSON.parse(activeRuleset?.schema || "{}");
-      const profileNode = (s.nodes || []).find((n) => {
-        const c2 = typeof n?.content === "string" ? JSON.parse(n.content) : n?.content;
-        return (c2?.outputs || []).some((o) => o?.field === "skin_profile.code");
-      });
-      if (!profileNode) return false;
-      const c = typeof profileNode.content === "string" ? JSON.parse(profileNode.content) : profileNode.content;
-      return (c?.inputs || []).some((i) => String(i?.field || "").startsWith("axis_values."));
-    } catch {
-      return false;
-    }
-  }, [activeRuleset]);
-  const hasAxes = axisOutputDims.length > 0;
-  const useAxisProfile = hasAxes && !profileStrategyIsAxisBased;
-  const profileCode = useAxisProfile ? generatedCode : profile?.code || generatedCode;
-  const profileName = useAxisProfile ? orderedDims.map((k) => k.charAt(0).toUpperCase() + k.slice(1)).join(" \xB7 ") || "Baumann Skin Character" : profile?.name || traitsList.join(" \xB7 ") || "Answer to see a profile";
-  const totalScore = Math.round(simResponse?.result?.total_score || 0);
+  const result = simResponse?.result;
+  const dimensions = result?.dimensions || {};
+  const skinProfile = result?.skin_profile;
+  const subClassification = result?.sub_classification || {};
+  const warnings = result?.warnings || [];
+  const totalScore = Math.round(result?.total_score || 0);
+  const profileCode = skinProfile?.code || "CUSTOM";
+  const profileName = skinProfile?.name || "Answer to see a profile";
   return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-col lg:flex-row gap-5 items-start", children: [
     /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "w-full lg:w-80 lg:shrink-0 space-y-3 min-w-0", children: [
       /* @__PURE__ */ jsxRuntime.jsxs("div", { className: card + " space-y-2", children: [
@@ -5726,7 +5684,7 @@ var ScoreSimulatorTab = ({
           /* @__PURE__ */ jsxRuntime.jsx(
             shared.InfoTooltip,
             {
-              content: "Bukan slider form biasa \u2014 dihitung dari date_of_birth di kuisioner data pribadi, bukan Q1-Q6. Dipakai axis: aging.",
+              content: "Bukan slider form biasa \u2014 dihitung dari date_of_birth di kuisioner data pribadi, bukan Q1-Q6. Dikirim sebagai age_years, dipakai axis: aging.",
               label: "About Usia"
             }
           )
@@ -5750,12 +5708,16 @@ var ScoreSimulatorTab = ({
             onChange: (e) => setRespondentAge(Number(e.target.value)),
             className: sliderCls
           }
-        )
+        ),
+        /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center justify-between text-[10px] text-muted-foreground mt-0.5", children: [
+          /* @__PURE__ */ jsxRuntime.jsx("span", { children: "\u226430 = sehat" }),
+          /* @__PURE__ */ jsxRuntime.jsx("span", { children: ">30 = faktor W" })
+        ] })
       ] }),
       formDims.length > 0 && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: card + " space-y-3", children: [
         /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-1.5", children: [
           /* @__PURE__ */ jsxRuntime.jsx("h3", { className: "text-sm font-bold text-foreground", children: "Questionnaire result" }),
-          /* @__PURE__ */ jsxRuntime.jsx(shared.InfoTooltip, { content: "Per-dimensi, hanya yang dihitung dari kuisioner (form_source).", label: "About questionnaire result" })
+          /* @__PURE__ */ jsxRuntime.jsx(shared.InfoTooltip, { content: "Per-dimensi, hanya yang dihitung dari kuisioner (form_source). 0 = parah, 100 = sehat.", label: "About questionnaire result" })
         ] }),
         /* @__PURE__ */ jsxRuntime.jsx("div", { className: "space-y-3", children: formDims.map((dimKey) => /* @__PURE__ */ jsxRuntime.jsxs("div", { children: [
           /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center justify-between text-xs mb-1", children: [
@@ -5772,13 +5734,17 @@ var ScoreSimulatorTab = ({
               onChange: (e) => setQuestionnaireValues((p) => ({ ...p, [dimKey]: Number(e.target.value) })),
               className: sliderCls
             }
-          )
+          ),
+          /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center justify-between text-[10px] text-muted-foreground mt-0.5", children: [
+            /* @__PURE__ */ jsxRuntime.jsx("span", { children: "0 = parah" }),
+            /* @__PURE__ */ jsxRuntime.jsx("span", { children: "100 = sehat" })
+          ] })
         ] }, dimKey)) })
       ] }),
       visionDims.length > 0 && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: card + " space-y-3", children: [
         /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-1.5", children: [
           /* @__PURE__ */ jsxRuntime.jsx("h3", { className: "text-sm font-bold text-foreground", children: "Vision result" }),
-          /* @__PURE__ */ jsxRuntime.jsx(shared.InfoTooltip, { content: "Per-dimensi, hanya yang dihitung dari foto vendor (vision_source).", label: "About vision result" })
+          /* @__PURE__ */ jsxRuntime.jsx(shared.InfoTooltip, { content: "Per-dimensi, hanya yang dihitung dari foto vendor (vision_source). 0 = parah, 100 = sehat.", label: "About vision result" })
         ] }),
         /* @__PURE__ */ jsxRuntime.jsx("div", { className: "space-y-3", children: visionDims.map((dimKey) => /* @__PURE__ */ jsxRuntime.jsxs("div", { children: [
           /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center justify-between text-xs mb-1", children: [
@@ -5795,29 +5761,11 @@ var ScoreSimulatorTab = ({
               onChange: (e) => setVisionValues((p) => ({ ...p, [dimKey]: Number(e.target.value) })),
               className: sliderCls
             }
-          )
-        ] }, dimKey)) })
-      ] }),
-      /* @__PURE__ */ jsxRuntime.jsxs("div", { className: card + " space-y-3", children: [
-        /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center justify-between", children: [
-          /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-1.5", children: [
-            /* @__PURE__ */ jsxRuntime.jsx("h3", { className: "text-sm font-bold text-foreground", children: "Dimension scores" }),
-            /* @__PURE__ */ jsxRuntime.jsx(
-              shared.InfoTooltip,
-              {
-                content: "Hasil FINAL per axis \u2014 sudah lewat normalisasi + blend form/vision sesuai bobot di Blending tab. Read-only, ini yang beneran dipakai buat klasifikasi di bawah.",
-                label: "About dimension scores"
-              }
-            )
-          ] }),
-          /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "text-[11px] text-muted-foreground font-mono", children: [
-            "overall ",
-            totalScore
+          ),
+          /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center justify-between text-[10px] text-muted-foreground mt-0.5", children: [
+            /* @__PURE__ */ jsxRuntime.jsx("span", { children: "0 = parah" }),
+            /* @__PURE__ */ jsxRuntime.jsx("span", { children: "100 = sehat" })
           ] })
-        ] }),
-        /* @__PURE__ */ jsxRuntime.jsx("div", { className: "space-y-1.5", children: Object.keys(dimensionScores).map((dimKey) => /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center justify-between text-xs", children: [
-          /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-foreground", children: dimKey }),
-          /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-beak font-semibold font-mono", children: dimensionScores[dimKey] })
         ] }, dimKey)) })
       ] }),
       /* @__PURE__ */ jsxRuntime.jsxs("div", { className: card + " space-y-2", children: [
@@ -5842,85 +5790,103 @@ var ScoreSimulatorTab = ({
         )) })
       ] })
     ] }),
-    /* @__PURE__ */ jsxRuntime.jsx("div", { className: "w-full lg:flex-1 space-y-3 min-w-0", children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: card, children: [
-      /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center justify-between gap-2", children: [
-        /* @__PURE__ */ jsxRuntime.jsx("h3", { className: "text-sm font-bold text-foreground", children: "Result" }),
-        /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-2", children: [
-          simResponse?.performance && /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-[11px] text-muted-foreground font-mono", children: simResponse.performance }),
-          /* @__PURE__ */ jsxRuntime.jsxs(
-            "button",
+    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "w-full lg:flex-1 space-y-3 min-w-0", children: [
+      /* @__PURE__ */ jsxRuntime.jsxs("div", { className: card, children: [
+        /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center justify-between gap-2", children: [
+          /* @__PURE__ */ jsxRuntime.jsx("h3", { className: "text-sm font-bold text-foreground", children: "Result" }),
+          /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-2", children: [
+            simResponse?.performance && /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-[11px] text-muted-foreground font-mono", children: simResponse.performance }),
+            /* @__PURE__ */ jsxRuntime.jsxs(
+              "button",
+              {
+                type: "button",
+                onClick: copyRequest,
+                title: `POST ${SIMULATE_PATH}`,
+                className: "flex items-center gap-1 rounded border border-border bg-muted/40 px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:border-beak/50",
+                children: [
+                  copiedReq ? /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Check, { className: "h-3 w-3 text-beak" }) : /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Copy, { className: "h-3 w-3" }),
+                  copiedReq ? "Copied" : "Copy request"
+                ]
+              }
+            )
+          ] })
+        ] }),
+        /* @__PURE__ */ jsxRuntime.jsxs("p", { className: "mt-1 text-[10px] text-muted-foreground font-mono", children: [
+          "POST ",
+          SIMULATE_PATH
+        ] }),
+        /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "mt-3 rounded-md border border-border bg-muted/20 p-4 text-center", children: [
+          /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center justify-center gap-1.5", children: [
+            skinProfile?.category && /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-[10px] font-semibold text-muted-foreground", children: skinProfile.category }),
+            skinProfile && !skinProfile.complete && /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-[10px] font-semibold text-amber-500 bg-amber-500/10 rounded px-1.5 py-0.5", children: "Incomplete" })
+          ] }),
+          /* @__PURE__ */ jsxRuntime.jsx("div", { className: "text-2xl font-black tracking-tight text-foreground font-mono my-1", children: profileCode }),
+          /* @__PURE__ */ jsxRuntime.jsx("div", { className: "text-xs font-semibold text-foreground", children: profileName }),
+          skinProfile?.description && /* @__PURE__ */ jsxRuntime.jsx("p", { className: "text-[11px] text-muted-foreground mt-2 line-clamp-2 leading-relaxed", children: skinProfile.description })
+        ] }),
+        skinProfile?.axis_values && Object.keys(skinProfile.axis_values).length > 0 && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "mt-4", children: [
+          /* @__PURE__ */ jsxRuntime.jsx("h4", { className: "text-[11px] font-semibold text-muted-foreground mb-2", children: "Axis codes" }),
+          /* @__PURE__ */ jsxRuntime.jsx("div", { className: "flex flex-wrap gap-2 text-xs", children: Object.entries(skinProfile.axis_values).map(([axis, val]) => /* @__PURE__ */ jsxRuntime.jsxs(
+            "div",
             {
-              type: "button",
-              onClick: copyRequest,
-              title: `POST ${SIMULATE_PATH}`,
-              className: "flex items-center gap-1 rounded border border-border bg-muted/40 px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:border-beak/50",
+              className: "min-w-[4.5rem] flex-1 rounded-md border border-border bg-muted/20 p-2.5 text-center",
               children: [
-                copiedReq ? /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Check, { className: "h-3 w-3 text-beak" }) : /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Copy, { className: "h-3 w-3" }),
-                copiedReq ? "Copied" : "Copy request"
+                /* @__PURE__ */ jsxRuntime.jsx("div", { className: "text-muted-foreground text-[10px] truncate", children: axis }),
+                /* @__PURE__ */ jsxRuntime.jsx("div", { className: "text-sm font-bold text-beak font-mono mt-0.5", children: String(val) })
               ]
-            }
-          )
-        ] })
-      ] }),
-      /* @__PURE__ */ jsxRuntime.jsxs("p", { className: "mt-1 text-[10px] text-muted-foreground font-mono", children: [
-        "POST ",
-        SIMULATE_PATH
-      ] }),
-      /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "mt-3 rounded-md border border-border bg-muted/20 p-4 text-center", children: [
-        profile?.category && /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-[10px] font-semibold text-muted-foreground", children: profile.category }),
-        /* @__PURE__ */ jsxRuntime.jsx("div", { className: "text-2xl font-black tracking-tight text-foreground font-mono my-1", children: profileCode }),
-        /* @__PURE__ */ jsxRuntime.jsx("div", { className: "text-xs font-semibold text-foreground", children: profileName }),
-        profile?.description && /* @__PURE__ */ jsxRuntime.jsx("p", { className: "text-[11px] text-muted-foreground mt-2 line-clamp-2 leading-relaxed", children: profile.description }),
-        traitsList.length > 0 && /* @__PURE__ */ jsxRuntime.jsx("div", { className: "flex flex-wrap items-center justify-center gap-1.5 mt-3 pt-3 border-t border-border", children: traitsList.map((t) => /* @__PURE__ */ jsxRuntime.jsx(
-          "span",
-          {
-            className: "text-[11px] text-muted-foreground bg-card px-2 py-0.5 rounded border border-border",
-            children: String(t)
-          },
-          String(t)
-        )) })
-      ] }),
-      Object.keys(axisValues).length > 0 && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "mt-4", children: [
-        /* @__PURE__ */ jsxRuntime.jsx("h4", { className: "text-[11px] font-semibold text-muted-foreground mb-2", children: "Axis codes" }),
-        /* @__PURE__ */ jsxRuntime.jsx("div", { className: "flex flex-wrap gap-2 text-xs", children: Object.entries(axisValues).map(([axis, val]) => /* @__PURE__ */ jsxRuntime.jsxs(
-          "div",
-          {
-            className: "min-w-[4.5rem] flex-1 rounded-md border border-border bg-muted/20 p-2.5 text-center",
-            children: [
-              /* @__PURE__ */ jsxRuntime.jsx("div", { className: "text-muted-foreground text-[10px] truncate", children: axis }),
-              /* @__PURE__ */ jsxRuntime.jsx("div", { className: "text-sm font-bold text-beak font-mono mt-0.5", children: String(val) })
-            ]
-          },
-          axis
-        )) })
-      ] }),
-      /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "mt-4 flex flex-wrap gap-2 text-xs", children: [
-        /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "min-w-[8rem] flex-1 rounded-md border border-border bg-muted/20 p-2.5", children: [
+            },
+            axis
+          )) })
+        ] }),
+        /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "mt-4 rounded-md border border-border bg-muted/20 p-2.5", children: [
           /* @__PURE__ */ jsxRuntime.jsx("div", { className: "text-[10px] text-muted-foreground", children: "Overall score" }),
           /* @__PURE__ */ jsxRuntime.jsx("div", { className: "text-sm font-bold text-foreground font-mono mt-0.5", children: totalScore }),
-          /* @__PURE__ */ jsxRuntime.jsx("div", { className: "text-[10px] text-muted-foreground", children: "100 = optimal" })
+          /* @__PURE__ */ jsxRuntime.jsx("div", { className: "text-[10px] text-muted-foreground", children: "100 = sehat" })
         ] }),
-        /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "min-w-[8rem] flex-1 rounded-md border border-border bg-muted/20 p-2.5", children: [
-          /* @__PURE__ */ jsxRuntime.jsx("div", { className: "text-[10px] text-muted-foreground", children: "Score Range" }),
-          /* @__PURE__ */ jsxRuntime.jsx("div", { className: "text-sm font-semibold text-foreground mt-0.5", children: scoreRange || "\u2014" })
+        warnings.length > 0 && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "mt-3 rounded-md border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs space-y-1", children: [
+          /* @__PURE__ */ jsxRuntime.jsx("div", { className: "text-[10px] font-semibold text-amber-500", children: "Warnings" }),
+          warnings.map((w) => /* @__PURE__ */ jsxRuntime.jsx("div", { className: "text-amber-500/90 font-mono text-[11px]", children: w }, w))
         ] }),
-        /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "min-w-[8rem] flex-1 rounded-md border border-border bg-muted/20 p-2.5", children: [
-          /* @__PURE__ */ jsxRuntime.jsx("div", { className: "text-[10px] text-muted-foreground", children: "Severity Level" }),
-          /* @__PURE__ */ jsxRuntime.jsx("div", { className: "text-sm font-semibold text-beak mt-0.5", children: severityLevel || "\u2014" })
+        Object.keys(subClassification).length > 0 && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "mt-3 rounded-md border border-border bg-muted/20 p-2.5 text-xs space-y-1", children: [
+          /* @__PURE__ */ jsxRuntime.jsx("div", { className: "text-[10px] text-muted-foreground mb-0.5", children: "Sub-classification" }),
+          Object.entries(subClassification).map(([k, v]) => /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center justify-between", children: [
+            /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-foreground", children: k }),
+            /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-muted-foreground font-mono", children: v === null ? "\u2014" : String(v) })
+          ] }, k))
         ] })
       ] }),
-      /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "mt-3 rounded-md border border-border bg-muted/20 p-2.5 text-xs", children: [
-        /* @__PURE__ */ jsxRuntime.jsx("div", { className: "text-[10px] text-muted-foreground mb-0.5", children: "Skin Concern" }),
-        skinConcern ? /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center justify-between", children: [
-          /* @__PURE__ */ jsxRuntime.jsx("span", { className: "font-semibold text-foreground", children: skinConcern.label }),
-          /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "text-muted-foreground font-mono", children: [
-            skinConcern.dimension,
-            " \xB7 ",
-            Math.round(skinConcern.score ?? 0)
-          ] })
-        ] }) : /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-muted-foreground", children: "No dominant concern (optimal)" })
+      Object.keys(dimensions).length > 0 && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: card, children: [
+        /* @__PURE__ */ jsxRuntime.jsx("h3", { className: "text-sm font-bold text-foreground mb-3", children: "Dimension breakdown" }),
+        /* @__PURE__ */ jsxRuntime.jsx("div", { className: "space-y-2", children: Object.entries(dimensions).map(([dimKey, d]) => /* @__PURE__ */ jsxRuntime.jsxs(
+          "div",
+          {
+            className: "rounded-md border border-border bg-muted/20 p-2.5 flex items-center justify-between text-xs gap-2",
+            children: [
+              /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "min-w-0", children: [
+                /* @__PURE__ */ jsxRuntime.jsx("div", { className: "text-foreground font-semibold truncate", children: dimKey }),
+                /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "text-muted-foreground text-[10px]", children: [
+                  sourceLabel[d.source] || d.source,
+                  d.source === "blend" && d.weight ? ` (form ${Math.round(d.weight.form * 100)}% / vision ${Math.round(d.weight.vision * 100)}%)` : ""
+                ] })
+              ] }),
+              /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-3 shrink-0 font-mono", children: [
+                /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "text-muted-foreground text-[10px]", title: "form_score", children: [
+                  "F ",
+                  d.form_score ?? "\u2014"
+                ] }),
+                /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "text-muted-foreground text-[10px]", title: "vision_score", children: [
+                  "V ",
+                  d.vision_score ?? "\u2014"
+                ] }),
+                /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-beak font-semibold", title: "final_score", children: d.final_score ?? "\u2014" }),
+                d.axis && /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-foreground font-semibold bg-card border border-border rounded px-1.5 py-0.5", children: d.axis })
+              ] })
+            ]
+          },
+          dimKey
+        )) })
       ] })
-    ] }) })
+    ] })
   ] });
 };
 var BandTable = ({

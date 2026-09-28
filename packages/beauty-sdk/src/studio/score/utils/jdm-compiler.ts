@@ -282,19 +282,37 @@ export function compileVisualToJDM(
     }
   }
 
+  // Merge each editor-managed map onto the previous schema's version instead
+  // of replacing it outright. A dimension this editor doesn't represent as a
+  // visual axis (e.g. pore_severity, which only feeds a custom
+  // sub_classification node — never an axis_values letter, so it's never
+  // salvaged into `effectiveAxes`) must survive a Blending tab save exactly
+  // like an unrecognized node already does via preservedNodes — confirmed
+  // this was silently dropping field_mapping.pore_severity on every save.
+  // Only keys this editor actually owns (effectiveAxes) are added, changed,
+  // or removed by a save; everything else carries over untouched.
+  const ownedDimKeys = new Set(effectiveAxes.map((a) => a.dimensionKey.toLowerCase()));
+  const mergeOwned = <T>(baseMap: Record<string, T> | undefined, fresh: Record<string, T>): Record<string, T> => {
+    const merged: Record<string, T> = { ...(baseMap || {}) };
+    for (const k of ownedDimKeys) delete merged[k];
+    return { ...merged, ...fresh };
+  };
+
   const model: JDMDecisionModel = {
     ...base,
     nodes: [...nodes, ...preservedNodes],
     edges,
-    dimension_weights,
-    dimension_fusion,
-    concern_labels,
+    dimension_weights: mergeOwned(base.dimension_weights, dimension_weights),
+    dimension_fusion: mergeOwned(base.dimension_fusion, dimension_fusion),
+    concern_labels: mergeOwned(base.concern_labels, concern_labels),
     score_range_bands: bandsToSchema(scoreRangeBands),
     severity_bands: bandsToSchema(severityBands),
   };
-  if (Object.keys(axis_codes).length > 0) model.axis_codes = axis_codes;
+  const mergedAxisCodes = mergeOwned(base.axis_codes, axis_codes);
+  if (Object.keys(mergedAxisCodes).length > 0) model.axis_codes = mergedAxisCodes;
   else delete model.axis_codes;
-  if (Object.keys(field_mapping).length > 0) model.field_mapping = field_mapping;
+  const mergedFieldMapping = mergeOwned(base.field_mapping, field_mapping);
+  if (Object.keys(mergedFieldMapping).length > 0) model.field_mapping = mergedFieldMapping;
   else delete model.field_mapping;
   return JSON.stringify(model, null, 2);
 }
@@ -382,9 +400,22 @@ export function decompileJDMToVisualComponents(schemaStr: string): DecompiledGra
   // Axes: the UNION of every source, not a priority fallback — an axis
   // salvaged only from a decisionTableNode output (no dimension_weights
   // entry) must still show up, or opening and saving this editor silently
-  // deletes its node (confirmed to happen for real once already).
+  // deletes its node (confirmed to happen for real once already). This also
+  // includes every field_mapping key, even one with no axis letter at all
+  // (e.g. pore_severity, which only feeds a sub_classification node) — any
+  // dimension that actually participates in scoring/dimension_scores must
+  // be editable here, not just the ones that happen to produce a Baumann
+  // letter. It naturally decompiles as a single_source (vision- or
+  // form-only) axis with no bands, since there's no axis_codes/band node
+  // for it to read.
   const dimKeys = Array.from(
-    new Set([...Object.keys(weights), ...Object.keys(concernLabels), ...Object.keys(axisCodes), ...salvagedKeys]),
+    new Set([
+      ...Object.keys(weights),
+      ...Object.keys(concernLabels),
+      ...Object.keys(axisCodes),
+      ...Object.keys(fieldMapping),
+      ...salvagedKeys,
+    ]),
   );
 
   const legacy =

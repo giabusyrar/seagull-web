@@ -77,7 +77,8 @@
   },
   "scripts": {
     "build": "tsup",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@gateway-experience/contracts": "^0.1.0",
@@ -90,7 +91,8 @@
   },
   "devDependencies": {
     "tsup": "^8.5.1",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "vitest": "^2.1.9"
   },
   "peerDependencies": {
     "next": "^16.0.0",

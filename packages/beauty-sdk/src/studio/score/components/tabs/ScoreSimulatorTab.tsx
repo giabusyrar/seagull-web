@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Copy, Check } from 'lucide-react';
-import { SeverityBadge, InfoTooltip } from '@gateway-experience/shared';
+import { InfoTooltip } from '@gateway-experience/shared';
 import type { ScoreRuleset, RulesetSimulationResponse } from '../../types';
+import { getSafetyFlags } from '../../../form/api';
 
 interface ScoreSimulatorTabProps {
   rulesets: ScoreRuleset[];
@@ -15,6 +16,13 @@ interface ScoreSimulatorTabProps {
 const card = 'rounded-lg border border-border bg-card p-4';
 const sliderCls =
   'w-full h-1.5 rounded appearance-none cursor-pointer bg-muted accent-[#d97706]';
+
+const sourceLabel: Record<string, string> = {
+  form: 'Form',
+  vision: 'Vision',
+  blend: 'Blend',
+  none: 'No data',
+};
 
 export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
   rulesets,
@@ -38,6 +46,7 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
         ...Object.keys(s.dimension_weights || {}),
         ...Object.keys(s.concern_labels || {}),
         ...Object.keys(s.axis_codes || {}),
+        ...Object.keys(s.field_mapping || {}),
       ]);
       for (const node of s.nodes || []) {
         if (node?.type !== 'decisionTableNode') continue;
@@ -55,9 +64,10 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
     }
   }, [activeRuleset]);
 
-  // field_mapping (registered on the ruleset from the Blending tab) is now
-  // the authoritative source for which axes are form-driven, vision-driven,
-  // or both — this replaces the older per-slider heuristics.
+  // field_mapping (registered on the ruleset from the Blending tab) is the
+  // authoritative source for which axes are form-driven, vision-driven, or
+  // both — the backend's stage2Score reads it the same way for /evaluate and
+  // /simulate.
   const fieldMapping = useMemo<Record<string, { form?: string; vision?: string }>>(() => {
     try {
       return JSON.parse(activeRuleset?.schema || '{}').field_mapping || {};
@@ -65,16 +75,10 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
       return {};
     }
   }, [activeRuleset]);
-  const dimensionFusion = useMemo<Record<string, { form: number; vision: number }>>(() => {
-    try {
-      return JSON.parse(activeRuleset?.schema || '{}').dimension_fusion || {};
-    } catch {
-      return {};
-    }
-  }, [activeRuleset]);
 
   // Age is never a generic 0-100 slider — it's always the dedicated Age
-  // input below, converted to a health value (<=30 -> 100, >30 -> 0).
+  // input below, sent as age_years and resolved server-side via the same
+  // AgeOverThirty check /evaluate uses.
   const ageAxisKeys = useMemo(() => rulesetDims.filter((d) => fieldMapping[d]?.form === 'age_over_30'), [rulesetDims, fieldMapping]);
   // Questionnaire result: every axis with a form source, other than the
   // age-driven ones above.
@@ -107,32 +111,6 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
     });
   }, [visionDimsKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Dimension scores: the FINAL, health-oriented (100 = optimal) number per
-  // axis — questionnaire and vision already normalised and blended by each
-  // axis's own form/vision weight (dimension_fusion). This is what actually
-  // drives the bands/axis letters below, computed the same way /evaluate
-  // does it, just client-side so the preview is accurate even though
-  // /simulate itself doesn't run the fusion step.
-  const dimensionScores = useMemo<Record<string, number>>(() => {
-    const out: Record<string, number> = {};
-    for (const d of rulesetDims) {
-      const isAgeForm = ageAxisKeys.includes(d);
-      const formVal = isAgeForm ? (respondentAge <= 30 ? 100 : 0) : questionnaireValues[d];
-      const visionVal = visionValues[d];
-      const df = dimensionFusion[d];
-      if (df) {
-        const fw = typeof df.form === 'number' ? df.form : 0.5;
-        const vw = typeof df.vision === 'number' ? df.vision : 0.5;
-        out[d] = Math.round(((formVal ?? 50) * fw + (visionVal ?? 50) * vw) * 10) / 10;
-      } else if (fieldMapping[d]?.vision && !fieldMapping[d]?.form) {
-        out[d] = visionVal ?? 50;
-      } else {
-        out[d] = formVal ?? 50;
-      }
-    }
-    return out;
-  }, [rulesetDims, ageAxisKeys, questionnaireValues, visionValues, dimensionFusion, fieldMapping, respondentAge]);
-
   // Safety flag keys declared directly on the ruleset schema (safety_flags),
   // same pattern as rulesetDims above.
   const rulesetSafetyFlags = useMemo<string[]>(() => {
@@ -150,9 +128,8 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
     }
   }, [activeRuleset]);
 
-  // form_survey_code / vision_source_code — set once on the ruleset's Setup
-  // tab — are this ruleset's own declared source. Same read pattern as
-  // fieldMapping/dimensionFusion above.
+  // form_survey_code — set once on the ruleset's Setup tab — is this
+  // ruleset's own declared source. Same read pattern as fieldMapping above.
   const formSurveyCode = useMemo<string>(() => {
     try {
       return JSON.parse(activeRuleset?.schema || '{}').form_survey_code || '';
@@ -216,6 +193,17 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
     };
   }, [activeRuleset?.brandId, activeRuleset?.applicationId, formSurveyCode]);
 
+  // Last-resort source, only when neither the ruleset nor its linked survey
+  // declares any flag at all — the full registered catalog (Reference Data ->
+  // Customer Conditions), never a hardcoded pair, so a brand-new ruleset
+  // still shows every flag someone could conceivably pick, not just two.
+  const [catalogSafetyFlags, setCatalogSafetyFlags] = useState<string[]>([]);
+  useEffect(() => {
+    getSafetyFlags()
+      .then((rows) => setCatalogSafetyFlags(rows.map((r) => r.code)))
+      .catch(() => setCatalogSafetyFlags([]));
+  }, []);
+
   const allSafetyFlags = useMemo(
     () => Array.from(new Set([...rulesetSafetyFlags, ...surveySafetyFlags])),
     [rulesetSafetyFlags, surveySafetyFlags],
@@ -224,21 +212,37 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
   const [selectedConditions, setSelectedConditions] = useState<Record<string, boolean>>({});
 
   // Re-seed the safety flag toggles whenever the merged flag list changes.
-  // Falls back to the previous hardcoded pair only when nothing was found
-  // anywhere, so older rulesets/questionnaires without flags still show something.
   useEffect(() => {
     setSelectedConditions((prev) => {
-      const keys = allSafetyFlags.length > 0 ? allSafetyFlags : ['is_pregnant', 'uses_retinol'];
+      const keys = allSafetyFlags.length > 0 ? allSafetyFlags : catalogSafetyFlags;
       const next: Record<string, boolean> = {};
       for (const k of keys) next[k] = prev[k] ?? false;
       return next;
     });
-  }, [allSafetyFlags]);
+  }, [allSafetyFlags, catalogSafetyFlags]);
 
   const [simResponse, setSimResponse] = useState<RulesetSimulationResponse | null>(null);
   const [copiedReq, setCopiedReq] = useState(false);
 
   const SIMULATE_PATH = '/core/score-engine/simulate';
+
+  // form_scores / vision_scores are HEALTH-space (100 = optimal), exactly
+  // what the sliders below are labelled — the backend does the concern-space
+  // conversion and the real fusion via the same stage2Score /evaluate uses,
+  // so this tab no longer computes a blended value itself.
+  const formScores = useMemo(() => {
+    const out: Record<string, number> = {};
+    for (const d of formDims) out[d] = questionnaireValues[d] ?? 50;
+    return out;
+  }, [formDims, questionnaireValues]);
+
+  const visionScores = useMemo(() => {
+    const out: Record<string, number> = {};
+    for (const d of visionDims) out[d] = visionValues[d] ?? 50;
+    return out;
+  }, [visionDims, visionValues]);
+
+  const ageYears = ageAxisKeys.length > 0 ? respondentAge : undefined;
 
   // The exact body this tab POSTs — offered as a copy so the same run can be
   // replayed from the API client / Workbench or shared with the team.
@@ -247,13 +251,15 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
       JSON.stringify(
         {
           schema: activeRuleset?.schema ?? '',
-          dimension_scores: dimensionScores,
+          form_scores: formScores,
+          vision_scores: visionScores,
+          age_years: ageYears,
           customer_condition: selectedConditions,
         },
         null,
         2,
       ),
-    [activeRuleset, dimensionScores, selectedConditions],
+    [activeRuleset, formScores, visionScores, ageYears, selectedConditions],
   );
 
   const copyRequest = () => {
@@ -270,7 +276,9 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           schema: activeRuleset.schema,
-          dimension_scores: dimensionScores,
+          form_scores: formScores,
+          vision_scores: visionScores,
+          age_years: ageYears,
           customer_condition: selectedConditions,
         }),
       });
@@ -278,102 +286,21 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
     } catch (err) {
       console.error('Simulation request failed', err);
     }
-  }, [activeRuleset, dimensionScores, selectedConditions]);
+  }, [activeRuleset, formScores, visionScores, ageYears, selectedConditions]);
 
   useEffect(() => {
     const timer = setTimeout(runSimulation, 250);
     return () => clearTimeout(timer);
   }, [runSimulation]);
 
-  const axisValues = simResponse?.result?.axis_values || {};
-  const traits = simResponse?.result?.traits || {};
-  const scoreRange: string = (simResponse?.result?.score_range as string) || '';
-  const severityLevel: string = (simResponse?.result?.severity_level as string) || '';
-  const skinConcern = simResponse?.result?.skin_concern as
-    | { dimension?: string; label?: string; score?: number }
-    | undefined;
-
-  // Which axes this ruleset actually PRODUCES a letter for — i.e. keys with
-  // an axis_codes entry, or a custom decisionTableNode output field
-  // targeting axis_values.<KEY>. Deliberately NOT the same list as
-  // rulesetDims (which also includes vision/DOB-only *inputs* like
-  // wrinkle/age_over_30 that feed the Aging axis but don't get their own
-  // letter) — using rulesetDims here would tack extra garbage characters
-  // onto the generated code.
-  const axisOutputDims = useMemo<string[]>(() => {
-    if (!activeRuleset?.schema) return [];
-    try {
-      const s = JSON.parse(activeRuleset.schema);
-      const keys = new Set<string>(Object.keys(s.axis_codes || {}));
-      for (const node of s.nodes || []) {
-        if (node?.type !== 'decisionTableNode') continue;
-        const content = typeof node.content === 'string' ? JSON.parse(node.content) : node.content;
-        for (const output of content?.outputs || []) {
-          const field = String(output?.field || '');
-          if (field.startsWith('axis_values.')) {
-            keys.add(field.slice('axis_values.'.length).toLowerCase());
-          }
-        }
-      }
-      return Array.from(keys);
-    } catch {
-      return [];
-    }
-  }, [activeRuleset]);
-
-  // Canonical Baumann Skin Type Indicator axis order: Oiliness, Sensitivity,
-  // Pigmentation, Wrinkle (e.g. "OSPW", "DRNT"). Known axes are sorted into
-  // this order regardless of the order the schema happens to list them in;
-  // any other, non-Baumann axis key (e.g. a future axis this ruleset adds)
-  // is appended after, in its existing order.
-  const BAUMANN_AXIS_ORDER = ['sebum', 'oiliness', 'sensitivity', 'pigmentation', 'aging', 'wrinkle'];
-  const orderedDims = useMemo(() => {
-    const known = BAUMANN_AXIS_ORDER.filter((k) => axisOutputDims.includes(k));
-    const rest = axisOutputDims.filter((k) => !BAUMANN_AXIS_ORDER.includes(k));
-    return [...known, ...rest];
-  }, [axisOutputDims]);
-
-  // Baumann-style skin profile code, one letter per axis this ruleset
-  // actually produces a letter for. An axis with no computed letter (not
-  // yet answered) shows "-" instead of silently dropping out of the code.
-  const generatedCode = useMemo(() => {
-    if (orderedDims.length === 0) return 'CUSTOM';
-    return orderedDims.map((k) => axisValues[k.toUpperCase()] || '-').join('');
-  }, [axisValues, orderedDims]);
-
-  const traitsList = useMemo(() => Object.values(traits).filter(Boolean), [traits]);
-
-  const profile = simResponse?.result?.skin_profile;
-
-  // Whether the schema's own skin_profile node (if any) is itself
-  // axis-based (Combination Matrix strategy) — if so its code/name are
-  // already a real Baumann-style profile and are trusted as-is. Otherwise
-  // (Total Score strategy, or no profile node at all) that node's code is
-  // just a generic score-range bucket (e.g. "MODERATE") that has nothing to
-  // do with the Baumann letters — the axis-composed code takes priority
-  // whenever this ruleset has axes at all.
-  const profileStrategyIsAxisBased = useMemo(() => {
-    try {
-      const s = JSON.parse(activeRuleset?.schema || '{}');
-      const profileNode = (s.nodes || []).find((n: any) => {
-        const c = typeof n?.content === 'string' ? JSON.parse(n.content) : n?.content;
-        return (c?.outputs || []).some((o: any) => o?.field === 'skin_profile.code');
-      });
-      if (!profileNode) return false;
-      const c = typeof profileNode.content === 'string' ? JSON.parse(profileNode.content) : profileNode.content;
-      return (c?.inputs || []).some((i: any) => String(i?.field || '').startsWith('axis_values.'));
-    } catch {
-      return false;
-    }
-  }, [activeRuleset]);
-
-  const hasAxes = axisOutputDims.length > 0;
-  const useAxisProfile = hasAxes && !profileStrategyIsAxisBased;
-  const profileCode = useAxisProfile ? generatedCode : profile?.code || generatedCode;
-  const profileName = useAxisProfile
-    ? orderedDims.map((k) => k.charAt(0).toUpperCase() + k.slice(1)).join(' · ') || 'Baumann Skin Character'
-    : profile?.name || traitsList.join(' · ') || 'Answer to see a profile';
-  const totalScore = Math.round(simResponse?.result?.total_score || 0);
+  const result = simResponse?.result;
+  const dimensions = result?.dimensions || {};
+  const skinProfile = result?.skin_profile;
+  const subClassification = result?.sub_classification || {};
+  const warnings = result?.warnings || [];
+  const totalScore = Math.round(result?.total_score || 0);
+  const profileCode = skinProfile?.code || 'CUSTOM';
+  const profileName = skinProfile?.name || 'Answer to see a profile';
 
   return (
     <div className="flex flex-col lg:flex-row gap-5 items-start">
@@ -403,7 +330,7 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
             <div className="flex items-center gap-1.5">
               <h3 className="text-sm font-bold text-foreground">Usia</h3>
               <InfoTooltip
-                content="Bukan slider form biasa — dihitung dari date_of_birth di kuisioner data pribadi, bukan Q1-Q6. Dipakai axis: aging."
+                content="Bukan slider form biasa — dihitung dari date_of_birth di kuisioner data pribadi, bukan Q1-Q6. Dikirim sebagai age_years, dipakai axis: aging."
                 label="About Usia"
               />
             </div>
@@ -421,6 +348,10 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
               onChange={(e) => setRespondentAge(Number(e.target.value))}
               className={sliderCls}
             />
+            <div className="flex items-center justify-between text-[10px] text-muted-foreground mt-0.5">
+              <span>≤30 = sehat</span>
+              <span>&gt;30 = faktor W</span>
+            </div>
           </div>
         )}
 
@@ -428,7 +359,7 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
           <div className={card + ' space-y-3'}>
             <div className="flex items-center gap-1.5">
               <h3 className="text-sm font-bold text-foreground">Questionnaire result</h3>
-              <InfoTooltip content="Per-dimensi, hanya yang dihitung dari kuisioner (form_source)." label="About questionnaire result" />
+              <InfoTooltip content="Per-dimensi, hanya yang dihitung dari kuisioner (form_source). 0 = parah, 100 = sehat." label="About questionnaire result" />
             </div>
             <div className="space-y-3">
               {formDims.map((dimKey) => (
@@ -445,6 +376,10 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
                     onChange={(e) => setQuestionnaireValues((p) => ({ ...p, [dimKey]: Number(e.target.value) }))}
                     className={sliderCls}
                   />
+                  <div className="flex items-center justify-between text-[10px] text-muted-foreground mt-0.5">
+                    <span>0 = parah</span>
+                    <span>100 = sehat</span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -455,7 +390,7 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
           <div className={card + ' space-y-3'}>
             <div className="flex items-center gap-1.5">
               <h3 className="text-sm font-bold text-foreground">Vision result</h3>
-              <InfoTooltip content="Per-dimensi, hanya yang dihitung dari foto vendor (vision_source)." label="About vision result" />
+              <InfoTooltip content="Per-dimensi, hanya yang dihitung dari foto vendor (vision_source). 0 = parah, 100 = sehat." label="About vision result" />
             </div>
             <div className="space-y-3">
               {visionDims.map((dimKey) => (
@@ -472,32 +407,15 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
                     onChange={(e) => setVisionValues((p) => ({ ...p, [dimKey]: Number(e.target.value) }))}
                     className={sliderCls}
                   />
+                  <div className="flex items-center justify-between text-[10px] text-muted-foreground mt-0.5">
+                    <span>0 = parah</span>
+                    <span>100 = sehat</span>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
         )}
-
-        <div className={card + ' space-y-3'}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              <h3 className="text-sm font-bold text-foreground">Dimension scores</h3>
-              <InfoTooltip
-                content="Hasil FINAL per axis — sudah lewat normalisasi + blend form/vision sesuai bobot di Blending tab. Read-only, ini yang beneran dipakai buat klasifikasi di bawah."
-                label="About dimension scores"
-              />
-            </div>
-            <span className="text-[11px] text-muted-foreground font-mono">overall {totalScore}</span>
-          </div>
-          <div className="space-y-1.5">
-            {Object.keys(dimensionScores).map((dimKey) => (
-              <div key={dimKey} className="flex items-center justify-between text-xs">
-                <span className="text-foreground">{dimKey}</span>
-                <span className="text-beak font-semibold font-mono">{dimensionScores[dimKey]}</span>
-              </div>
-            ))}
-          </div>
-        </div>
 
         <div className={card + ' space-y-2'}>
           <h3 className="text-sm font-bold text-foreground">Safety flags</h3>
@@ -556,41 +474,36 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
           <p className="mt-1 text-[10px] text-muted-foreground font-mono">POST {SIMULATE_PATH}</p>
 
           <div className="mt-3 rounded-md border border-border bg-muted/20 p-4 text-center">
-            {profile?.category && (
-              <span className="text-[10px] font-semibold text-muted-foreground">
-                {profile.category}
-              </span>
-            )}
+            <div className="flex items-center justify-center gap-1.5">
+              {skinProfile?.category && (
+                <span className="text-[10px] font-semibold text-muted-foreground">
+                  {skinProfile.category}
+                </span>
+              )}
+              {skinProfile && !skinProfile.complete && (
+                <span className="text-[10px] font-semibold text-amber-500 bg-amber-500/10 rounded px-1.5 py-0.5">
+                  Incomplete
+                </span>
+              )}
+            </div>
             <div className="text-2xl font-black tracking-tight text-foreground font-mono my-1">
               {profileCode}
             </div>
             <div className="text-xs font-semibold text-foreground">{profileName}</div>
-            {profile?.description && (
+            {skinProfile?.description && (
               <p className="text-[11px] text-muted-foreground mt-2 line-clamp-2 leading-relaxed">
-                {profile.description}
+                {skinProfile.description}
               </p>
-            )}
-            {traitsList.length > 0 && (
-              <div className="flex flex-wrap items-center justify-center gap-1.5 mt-3 pt-3 border-t border-border">
-                {traitsList.map((t) => (
-                  <span
-                    key={String(t)}
-                    className="text-[11px] text-muted-foreground bg-card px-2 py-0.5 rounded border border-border"
-                  >
-                    {String(t)}
-                  </span>
-                ))}
-              </div>
             )}
           </div>
 
-          {Object.keys(axisValues).length > 0 && (
+          {skinProfile?.axis_values && Object.keys(skinProfile.axis_values).length > 0 && (
             <div className="mt-4">
               <h4 className="text-[11px] font-semibold text-muted-foreground mb-2">
                 Axis codes
               </h4>
               <div className="flex flex-wrap gap-2 text-xs">
-                {Object.entries(axisValues).map(([axis, val]) => (
+                {Object.entries(skinProfile.axis_values).map(([axis, val]) => (
                   <div
                     key={axis}
                     className="min-w-[4.5rem] flex-1 rounded-md border border-border bg-muted/20 p-2.5 text-center"
@@ -605,36 +518,75 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
             </div>
           )}
 
-          <div className="mt-4 flex flex-wrap gap-2 text-xs">
-            <div className="min-w-[8rem] flex-1 rounded-md border border-border bg-muted/20 p-2.5">
-              <div className="text-[10px] text-muted-foreground">Overall score</div>
-              <div className="text-sm font-bold text-foreground font-mono mt-0.5">{totalScore}</div>
-              <div className="text-[10px] text-muted-foreground">100 = optimal</div>
-            </div>
-            <div className="min-w-[8rem] flex-1 rounded-md border border-border bg-muted/20 p-2.5">
-              <div className="text-[10px] text-muted-foreground">Score Range</div>
-              <div className="text-sm font-semibold text-foreground mt-0.5">{scoreRange || '—'}</div>
-            </div>
-            <div className="min-w-[8rem] flex-1 rounded-md border border-border bg-muted/20 p-2.5">
-              <div className="text-[10px] text-muted-foreground">Severity Level</div>
-              <div className="text-sm font-semibold text-beak mt-0.5">{severityLevel || '—'}</div>
-            </div>
+          <div className="mt-4 rounded-md border border-border bg-muted/20 p-2.5">
+            <div className="text-[10px] text-muted-foreground">Overall score</div>
+            <div className="text-sm font-bold text-foreground font-mono mt-0.5">{totalScore}</div>
+            <div className="text-[10px] text-muted-foreground">100 = sehat</div>
           </div>
 
-          <div className="mt-3 rounded-md border border-border bg-muted/20 p-2.5 text-xs">
-            <div className="text-[10px] text-muted-foreground mb-0.5">Skin Concern</div>
-            {skinConcern ? (
-              <div className="flex items-center justify-between">
-                <span className="font-semibold text-foreground">{skinConcern.label}</span>
-                <span className="text-muted-foreground font-mono">
-                  {skinConcern.dimension} · {Math.round(skinConcern.score ?? 0)}
-                </span>
-              </div>
-            ) : (
-              <span className="text-muted-foreground">No dominant concern (optimal)</span>
-            )}
-          </div>
+          {warnings.length > 0 && (
+            <div className="mt-3 rounded-md border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs space-y-1">
+              <div className="text-[10px] font-semibold text-amber-500">Warnings</div>
+              {warnings.map((w) => (
+                <div key={w} className="text-amber-500/90 font-mono text-[11px]">
+                  {w}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {Object.keys(subClassification).length > 0 && (
+            <div className="mt-3 rounded-md border border-border bg-muted/20 p-2.5 text-xs space-y-1">
+              <div className="text-[10px] text-muted-foreground mb-0.5">Sub-classification</div>
+              {Object.entries(subClassification).map(([k, v]) => (
+                <div key={k} className="flex items-center justify-between">
+                  <span className="text-foreground">{k}</span>
+                  <span className="text-muted-foreground font-mono">{v === null ? '—' : String(v)}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
+
+        {Object.keys(dimensions).length > 0 && (
+          <div className={card}>
+            <h3 className="text-sm font-bold text-foreground mb-3">Dimension breakdown</h3>
+            <div className="space-y-2">
+              {Object.entries(dimensions).map(([dimKey, d]) => (
+                <div
+                  key={dimKey}
+                  className="rounded-md border border-border bg-muted/20 p-2.5 flex items-center justify-between text-xs gap-2"
+                >
+                  <div className="min-w-0">
+                    <div className="text-foreground font-semibold truncate">{dimKey}</div>
+                    <div className="text-muted-foreground text-[10px]">
+                      {sourceLabel[d.source] || d.source}
+                      {d.source === 'blend' && d.weight
+                        ? ` (form ${Math.round(d.weight.form * 100)}% / vision ${Math.round(d.weight.vision * 100)}%)`
+                        : ''}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0 font-mono">
+                    <span className="text-muted-foreground text-[10px]" title="form_score">
+                      F {d.form_score ?? '—'}
+                    </span>
+                    <span className="text-muted-foreground text-[10px]" title="vision_score">
+                      V {d.vision_score ?? '—'}
+                    </span>
+                    <span className="text-beak font-semibold" title="final_score">
+                      {d.final_score ?? '—'}
+                    </span>
+                    {d.axis && (
+                      <span className="text-foreground font-semibold bg-card border border-border rounded px-1.5 py-0.5">
+                        {d.axis}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
