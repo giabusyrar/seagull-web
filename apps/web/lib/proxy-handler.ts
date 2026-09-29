@@ -114,7 +114,9 @@ export async function handleApiProxy(
       cache: 'no-store',
     });
 
-    const data = await res.text();
+    // ArrayBuffer (not text()) on the way back too: binary responses such as
+    // the colour engine's try-on PNG are corrupted by a UTF-8 round trip.
+    const data = await res.arrayBuffer();
     return new NextResponse(data, {
       status: res.status,
       headers: {

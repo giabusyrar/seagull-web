@@ -14,7 +14,9 @@ export type CoreCollectionKey =
   | 'score-engine'
   | 'match-engine'
   | 'vision-engine'
-  | 'reference-service';
+  | 'reference-service'
+  | 'colour'
+  | 'colour-engine';
 
 export interface DynamicCollectionRoute {
   id?: string;
@@ -75,6 +77,8 @@ export function getCollectionPrefix(key: CoreCollectionKey): string {
     'vision-engine': '/core/vision-engine',
     reference: '/core/reference-service',
     'reference-service': '/core/reference-service',
+    colour: '/core/colour-engine',
+    'colour-engine': '/core/colour-engine',
   };
   return map[key] || `/core/${key}`;
 }

@@ -29,7 +29,8 @@ export function proxy(request: NextRequest) {
     pathname === '/reference' ||
     pathname === '/scoring' ||
     pathname === '/assessments' ||
-    pathname === '/vision-engine';
+    pathname === '/vision-engine' ||
+    pathname === '/colour-analysis';
 
   const accept = request.headers.get('accept') || '';
   const isHtmlNavigation = accept.includes('text/html');

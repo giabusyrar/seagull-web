@@ -20,6 +20,7 @@ import {
   Award,
   Smartphone,
   ShieldAlert,
+  Palette,
 } from 'lucide-react';
 
 import type { ApiClientRequest, ResponseData, Collection, Route, RouteGroup, Environment } from '@/types/api-client';
@@ -65,6 +66,7 @@ export interface SidebarProps {
   onOpenScoring?: () => void;
   onOpenMatching?: () => void;
   onOpenVision?: () => void;
+  onOpenTryOn?: () => void;
   onOpenAssessments?: () => void;
   onOpenApplications?: () => void;
   onOpenReference?: (entity?: string) => void;
@@ -104,6 +106,7 @@ export const ApiClientSidebar: React.FC<SidebarProps> = ({
   onOpenScoring,
   onOpenMatching,
   onOpenVision,
+  onOpenTryOn,
   onOpenAssessments,
   onOpenApplications,
   onOpenReference,
@@ -200,6 +203,18 @@ export const ApiClientSidebar: React.FC<SidebarProps> = ({
             <Sparkles className="h-4 w-4" />
             <span className="absolute left-12 bg-popover text-popover-foreground text-[10px] font-medium px-2 py-1 rounded border border-border shadow-xs opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-50">
               Vision Engine
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onOpenTryOn}
+            className="p-1.5 hover:bg-sidebar-accent hover:text-sidebar-foreground rounded-md text-muted-foreground transition cursor-pointer relative group"
+            title="Try-On Engine"
+          >
+            <Palette className="h-4 w-4" />
+            <span className="absolute left-12 bg-popover text-popover-foreground text-[10px] font-medium px-2 py-1 rounded border border-border shadow-xs opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-50">
+              Try-On Engine
             </span>
           </button>
 
@@ -444,6 +459,22 @@ export const ApiClientSidebar: React.FC<SidebarProps> = ({
                   <div className="flex items-center gap-2 min-w-0">
                     <Sparkles className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground shrink-0" />
                     <span className="text-xs font-medium text-foreground truncate" title="Vision Engine">Vision Engine</span>
+                  </div>
+                  <ExternalLink className="h-3 w-3 text-muted-foreground group-hover:text-foreground shrink-0 opacity-0 group-hover:opacity-100 transition" />
+                </button>
+
+                {/* Try-On Engine: WCPA colour analysis + photo makeup try-on */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    onOpenTryOn?.();
+                    if (isMobileOpen && onCloseMobile) onCloseMobile();
+                  }}
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 bg-card hover:bg-sidebar-accent border border-sidebar-border hover:border-sidebar-ring/40 rounded-md text-left transition group cursor-pointer shadow-2xs"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Palette className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground shrink-0" />
+                    <span className="text-xs font-medium text-foreground truncate" title="Try-On Engine">Try-On Engine</span>
                   </div>
                   <ExternalLink className="h-3 w-3 text-muted-foreground group-hover:text-foreground shrink-0 opacity-0 group-hover:opacity-100 transition" />
                 </button>
