@@ -17,6 +17,7 @@ import { ScoreManager } from '@gateway-experience/beauty-sdk/score';
 import { MatchManager } from '@gateway-experience/beauty-sdk/match';
 import { ReferenceManager } from '@gateway-experience/beauty-sdk/reference';
 import { VisionEngineView } from '@/features/vision';
+import { TryOnEngineView } from '@/features/colour';
 import { PipelineSimulatorView } from '@/features/orchestrator/PipelineSimulatorView';
 import { AssessmentRecordsView } from '@/features/assessments';
 import { ApplicationsView } from '@/features/applications/ApplicationsView';
@@ -287,6 +288,18 @@ export function ApiClientApp() {
     } else {
       const id = 'tab-vision';
       setTabs((prev) => [...prev, { id, title: 'Vision Engine', type: 'vision' }]);
+      setActiveTabId(id);
+    }
+  };
+
+  const handleOpenTryOn = () => {
+    setActiveRoute(null);
+    const existing = tabs.find((t) => t.type === 'tryon');
+    if (existing) {
+      setActiveTabId(existing.id);
+    } else {
+      const id = 'tab-tryon';
+      setTabs((prev) => [...prev, { id, title: 'Try-On Engine', type: 'tryon' }]);
       setActiveTabId(id);
     }
   };
@@ -664,6 +677,7 @@ export function ApiClientApp() {
           onOpenScoring={handleOpenScoring}
           onOpenMatching={handleOpenMatching}
           onOpenVision={handleOpenVision}
+          onOpenTryOn={handleOpenTryOn}
           onOpenAssessments={handleOpenAssessments}
           onOpenApplications={handleOpenApplications}
           onOpenReference={handleOpenReference}
@@ -797,6 +811,8 @@ export function ApiClientApp() {
           <MatchManager />
         ) : activeTabObj?.type === 'vision' ? (
           <VisionEngineView />
+        ) : activeTabObj?.type === 'tryon' ? (
+          <TryOnEngineView />
         ) : activeTabObj?.type === 'pipeline' ? (
           <PipelineSimulatorView />
         ) : activeTabObj?.type === 'assessments' ? (

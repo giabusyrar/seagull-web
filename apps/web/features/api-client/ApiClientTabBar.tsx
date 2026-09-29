@@ -15,6 +15,7 @@ import {
   Puzzle,
   Tag,
   KeyRound,
+  Palette,
 } from 'lucide-react';
 import { SearchableSelect, type SelectOption } from '@gateway-experience/shared';
 import type { TabItem, Environment } from '@/types/api-client';
@@ -88,6 +89,8 @@ export const ApiClientTabBar: React.FC<ApiClientTabBarProps> = ({
                 <Target className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
               ) : tab.type === 'matching' ? (
                 <Puzzle className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              ) : tab.type === 'tryon' ? (
+                <Palette className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
               ) : tab.type === 'reference' ? (
                 <Tag className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
               ) : tab.type === 'api-keys' ? (
