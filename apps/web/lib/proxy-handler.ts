@@ -41,7 +41,9 @@ export async function handleApiProxy(
 
     const search = request.nextUrl.search;
     const headers: Record<string, string> = {};
-    const dataPlaneKey = process.env.GATEWAY_API_KEY || process.env.NEXT_PUBLIC_GATEWAY_API_KEY || '';
+    // Server-side only: this runs in a route handler, so the key never needs a
+    // NEXT_PUBLIC_ variant — that would inline it into the browser bundle.
+    const dataPlaneKey = process.env.GATEWAY_API_KEY || '';
 
     if (cleanPath.startsWith('http://') || cleanPath.startsWith('https://')) {
       targetUrl = `${cleanPath}${search}`;

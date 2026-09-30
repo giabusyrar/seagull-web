@@ -34,8 +34,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files
+# env files — the templates are tracked, anything with real values is not
 .env*
+!.env.example
 
 # vercel
 .vercel
