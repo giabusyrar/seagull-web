@@ -2,10 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   getGatewayEngineUrl,
   getGatewayProxyUrl,
-  getCoreEngineUrl,
   getReferenceServiceUrl,
   getVisionAiWorkerUrl,
 } from '@/lib/config/services';
+
+// core-engine's own mounts. It is reached only through the gateway data plane
+// as /core/<module>/..., never directly; see the branch that answers these.
+const DIRECT_CORE_ENGINE_PATH = /^(api\/(scoring|matching|vision)|v1\/survey)(\/|$)/;
 
 const REFERENCE_ENTITIES = new Set([
   'brands',
@@ -66,13 +69,17 @@ export async function handleApiProxy(
       // Vision AI Worker (Python, :8088) — model registry upload/download/dispatch
       const subPath = cleanPath.replace(/^api\/vision-worker\//, '');
       targetUrl = `${getVisionAiWorkerUrl()}/api/v1/${subPath}${search}`;
-    } else if (
-      cleanPath.startsWith('api/scoring') ||
-      cleanPath.startsWith('api/matching') ||
-      cleanPath.startsWith('api/vision') ||
-      cleanPath.startsWith('v1/survey')
-    ) {
-      targetUrl = `${getCoreEngineUrl()}/${cleanPath}${search}`;
+    } else if (DIRECT_CORE_ENGINE_PATH.test(cleanPath)) {
+      // These used to go straight to a local core-engine. There is no direct
+      // route any more; say where the endpoint lives rather than forwarding
+      // it to a service that would answer with an unrelated 404.
+      return NextResponse.json(
+        {
+          success: false,
+          error: `/${cleanPath} is a core-engine path, and core-engine is only reachable through the gateway: call /core/<module>/... (score-engine, match-engine, vision-engine, form-engine).`,
+        },
+        { status: 410 },
+      );
     } else if (cleanPath.startsWith('api/')) {
       // Gateway Engine Control Plane (:8081) — Admin, Collections, Auth, Environments, Users, etc.
       targetUrl = `${getGatewayEngineUrl()}/${cleanPath}${search}`;

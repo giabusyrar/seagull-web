@@ -35,13 +35,6 @@ export function getGatewayProxyUrl(): string {
   return normalizeUrl(rawUrl);
 }
 
-export function getCoreEngineUrl(): string {
-  const rawUrl =
-    process.env.CORE_ENGINE_URL ||
-    `${getProtocol()}://${getBaseHost()}:8082`;
-  return normalizeUrl(rawUrl);
-}
-
 export function getReferenceServiceUrl(): string {
   const rawUrl =
     process.env.REFERENCE_SERVICE_URL ||
@@ -59,7 +52,6 @@ export function getVisionAiWorkerUrl(): string {
 export type ServiceKey =
   | 'GATEWAY_ENGINE_URL'
   | 'GATEWAY_PROXY_URL'
-  | 'CORE_ENGINE_URL'
   | 'REFERENCE_SERVICE_URL'
   | 'VISION_AI_WORKER_URL';
 
@@ -73,9 +65,6 @@ export function getServiceUrl(serviceKey: ServiceKey): string {
       return getReferenceServiceUrl();
     case 'VISION_AI_WORKER_URL':
       return getVisionAiWorkerUrl();
-    case 'CORE_ENGINE_URL':
-    default:
-      return getCoreEngineUrl();
   }
 }
 
