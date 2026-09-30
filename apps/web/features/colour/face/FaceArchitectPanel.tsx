@@ -1,21 +1,21 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { AlertTriangle, Info, Ruler, Scan } from 'lucide-react';
 import { ApplicationSelect, Badge, BrandSelect, Button, cn, usePersistentState } from '@gateway-experience/shared';
 import { useCoreCollection } from '@/lib/hooks/use-core-collection';
 import { CameraCapture } from '../CameraCapture';
-import { GuidanceLegend, GuidanceOverlay } from './GuidanceOverlay';
+import { GuidanceOverlay } from './GuidanceOverlay';
+import { type DrawnMeasurement } from './MeasurementOverlay';
+import { FaceResultView } from './FaceResultView';
+import { ClassificationRow, Row, TraitRow } from './ResultRows';
 import { useFaceArchitecture } from './useFaceArchitecture';
 import {
-  CLASSIFICATION_STATUS_LABEL,
-  TRAIT_STATUS_LABEL,
   faceErrorText,
   isRetryable,
+  measurementGeometry,
   regionConfidence,
-  type Classification,
   type FaceArchitectureResult,
-  type Trait,
 } from './faceTypes';
 
 const PERSIST_PREFIX = 'xg.faceArchitect.';
@@ -41,7 +41,17 @@ export function FaceArchitectPanel({ file, photoUrl, onPhoto }: Props) {
   const [brandId, setBrandId] = usePersistentState<string>(PERSIST_PREFIX + 'brand', '*');
   const [applicationId, setApplicationId] = usePersistentState<string>(PERSIST_PREFIX + 'application', '*');
   const [verifiedOnly, setVerifiedOnly] = useState(false);
+  const [selectedMeasurement, setSelectedMeasurement] = useState<string | null>(null);
   const { result, error, loading, analyze } = useFaceArchitecture(file, getEndpoint);
+
+  const drawn = useMemo<DrawnMeasurement[]>(() => {
+    if (!result) return [];
+    return result.measurements.flatMap((m) => {
+      const geometry = measurementGeometry(m, result.landmarks);
+      return geometry ? [{ m, geometry }] : [];
+    });
+  }, [result]);
+  const drawnKeys = useMemo(() => new Set(drawn.map((d) => d.m.key)), [drawn]);
 
   const run = () => void analyze(brandId, applicationId);
 
@@ -53,16 +63,19 @@ export function FaceArchitectPanel({ file, photoUrl, onPhoto }: Props) {
             {!file && <CameraCapture onPhoto={onPhoto} />}
             {file && photoUrl && (
               <>
-                <GuidanceOverlay photoUrl={photoUrl} regions={result?.guidance?.regions ?? []} verifiedOnly={verifiedOnly} />
-                {result?.guidance?.regions?.length ? (
-                  <div className="space-y-2">
-                    <GuidanceLegend regions={result.guidance.regions} />
-                    <label className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                      <input type="checkbox" checked={verifiedOnly} onChange={(e) => setVerifiedOnly(e.target.checked)} />
-                      Sembunyikan penempatan yang belum terkonfirmasi
-                    </label>
-                  </div>
-                ) : null}
+                {result ? (
+                  <FaceResultView
+                    photoUrl={photoUrl}
+                    result={result}
+                    drawn={drawn}
+                    selectedMeasurement={selectedMeasurement}
+                    onSelectMeasurement={(key) => setSelectedMeasurement((prev) => (prev === key ? null : key))}
+                    verifiedOnly={verifiedOnly}
+                    onVerifiedOnlyChange={setVerifiedOnly}
+                  />
+                ) : (
+                  <GuidanceOverlay photoUrl={photoUrl} regions={[]} verifiedOnly={false} />
+                )}
                 <Button variant="secondary" onClick={() => onPhoto(null)}>
                   Ganti foto
                 </Button>
@@ -104,7 +117,21 @@ export function FaceArchitectPanel({ file, photoUrl, onPhoto }: Props) {
               </div>
             )}
 
-            {result && <ResultCards result={result} />}
+            {result && (
+              <details className="group rounded-2xl border border-border bg-card shadow-xs">
+                <summary className="cursor-pointer select-none px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Detail teks lengkap
+                </summary>
+                <div className="px-3 pb-3">
+                  <ResultCards
+                    result={result}
+                    drawnKeys={drawnKeys}
+                    selectedMeasurement={selectedMeasurement}
+                    onSelectMeasurement={(key) => setSelectedMeasurement((prev) => (prev === key ? null : key))}
+                  />
+                </div>
+              </details>
+            )}
           </div>
         </div>
       </div>
@@ -112,7 +139,15 @@ export function FaceArchitectPanel({ file, photoUrl, onPhoto }: Props) {
   );
 }
 
-function ResultCards({ result }: { result: FaceArchitectureResult }) {
+interface ResultCardsProps {
+  result: FaceArchitectureResult;
+  /** Measurements that have a drawing on the photo. */
+  drawnKeys: Set<string>;
+  selectedMeasurement: string | null;
+  onSelectMeasurement: (key: string) => void;
+}
+
+function ResultCards({ result, drawnKeys, selectedMeasurement, onSelectMeasurement }: ResultCardsProps) {
   const cal = result.provenance.calibration;
   const dropped = result.guidance?.droppedTemplates ?? [];
 
@@ -174,15 +209,42 @@ function ResultCards({ result }: { result: FaceArchitectureResult }) {
 
       <Card title="Pengukuran">
         <div className="space-y-1 text-xs">
-          {result.measurements.map((m) => (
-            <div key={m.key} className="flex items-center justify-between gap-2">
-              <span className="min-w-0 truncate text-muted-foreground">{m.key}</span>
-              <span className="shrink-0 tabular-nums">
-                {m.value === null ? <span className="text-muted-foreground">{m.reason || 'tidak tersedia'}</span> : `${m.value} ${m.unit}`}
-                {m.proxy && <Badge variant="warning" className="ml-1">proxy</Badge>}
-              </span>
-            </div>
-          ))}
+          {!result.landmarks && result.measurements.some((m) => m.value !== null) && (
+            <p className="pb-1 text-[11px] text-muted-foreground">
+              Engine tidak mengirim koordinat landmark, jadi pengukuran belum bisa digambar di foto.
+            </p>
+          )}
+          {drawnKeys.size > 0 && (
+            <p className="pb-1 text-[11px] text-muted-foreground">Klik pengukuran untuk menyorotnya di foto.</p>
+          )}
+          {result.measurements.map((m) => {
+            const drawable = drawnKeys.has(m.key);
+            const selected = selectedMeasurement === m.key;
+            return (
+              <button
+                key={m.key}
+                type="button"
+                disabled={!drawable}
+                onClick={() => onSelectMeasurement(m.key)}
+                aria-pressed={selected}
+                className={cn(
+                  'flex w-full items-center justify-between gap-2 rounded px-1 text-left',
+                  drawable && 'hover:bg-muted/60',
+                  selected && 'bg-muted font-semibold',
+                )}
+              >
+                <span className="min-w-0 truncate text-muted-foreground">{m.key}</span>
+                <span className="shrink-0 tabular-nums">
+                  {m.value === null ? (
+                    <span className="text-muted-foreground">{m.reason || 'tidak tersedia'}</span>
+                  ) : (
+                    `${Array.isArray(m.value) ? m.value.join(', ') : m.value} ${m.unit}`
+                  )}
+                  {m.proxy && <Badge variant="warning" className="ml-1">proxy</Badge>}
+                </span>
+              </button>
+            );
+          })}
           {(result.measurementsMissing?.length ?? 0) > 0 && (
             <p className="pt-1 text-[11px] text-muted-foreground">
               Tidak dikembalikan worker: {result.measurementsMissing!.join(', ')}
@@ -208,49 +270,6 @@ function ResultCards({ result }: { result: FaceArchitectureResult }) {
   );
 }
 
-function ClassificationRow({ name, c }: { name: string; c: Classification }) {
-  const assessed = c.status === 'single' || c.status === 'blend';
-  return (
-    <div className="border-b border-border/60 py-2 last:border-0">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-medium">{name}</span>
-        <Badge variant={assessed ? 'default' : 'warning'}>{CLASSIFICATION_STATUS_LABEL[c.status] || c.status}</Badge>
-      </div>
-      {assessed && (
-        <div className="mt-0.5 text-xs text-foreground">
-          {c.primary}
-          {c.secondary && <span className="text-muted-foreground"> + {c.secondary}</span>}
-        </div>
-      )}
-      {c.reason && <p className="mt-0.5 text-[11px] text-muted-foreground">{c.reason}</p>}
-      {(c.notAssessable?.length ?? 0) > 0 && (
-        <p className="text-[11px] text-muted-foreground">Tidak bisa dinilai: {c.notAssessable.join(', ')}</p>
-      )}
-    </div>
-  );
-}
-
-function TraitRow({ name, t }: { name: string; t: Trait }) {
-  return (
-    <div className="border-b border-border/60 py-2 last:border-0">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-medium">{name}</span>
-        <span className="flex items-center gap-1">
-          {t.boundaryUncertain && <Badge variant="warning">di batas</Badge>}
-          <Badge variant={t.status === 'assessed' ? 'default' : 'warning'}>{TRAIT_STATUS_LABEL[t.status] || t.status}</Badge>
-        </span>
-      </div>
-      {t.label && (
-        <div className="mt-0.5 text-xs">
-          {t.label}
-          {t.alternative && <span className="text-muted-foreground"> (atau {t.alternative})</span>}
-        </div>
-      )}
-      {t.reason && <p className="mt-0.5 text-[11px] text-muted-foreground">{t.reason}</p>}
-    </div>
-  );
-}
-
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="rounded-2xl border border-border bg-card p-4 shadow-xs">
@@ -264,10 +283,3 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
 }
 
 const Empty = ({ children }: { children: React.ReactNode }) => <p className="text-[11px] text-muted-foreground">{children}</p>;
-
-const Row = ({ label, value }: { label: string; value: string }) => (
-  <>
-    <dt className="text-muted-foreground">{label}</dt>
-    <dd className={cn('text-right tabular-nums')}>{value}</dd>
-  </>
-);
