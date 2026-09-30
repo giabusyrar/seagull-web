@@ -14,6 +14,7 @@ import { ConflictRuleModal } from './modals/ConflictRuleModal';
 import { ProductGroupModal } from './modals/ProductGroupModal';
 import { ShadeModal } from './modals/ShadeModal';
 import { resolveDynamicEndpoint } from '../../../core/collection-resolver';
+import { withTenantScope } from '../../../core/scope';
 
 export const MatchManager: React.FC = () => {
   const [activeTab, setActiveTab] = usePersistentState<'conflicts' | 'groups' | 'shades' | 'simulator'>('xg.matchEngine.activeTab', 'conflicts');
@@ -66,22 +67,25 @@ export const MatchManager: React.FC = () => {
   const [isSimulating, setIsSimulating] = useState(false);
   const [simResult, setSimResult] = usePersistentState<ClinicalMatchResult | null>('xg.matchEngine.simulator.result', null);
 
+  // Lists are fetched for every tenant (the engine's `*`) and narrowed by the
+  // brand/application dropdowns in the tabs. The scope is sent explicitly so
+  // the gateway's collection params can never pick the tenant instead.
   const loadData = () => {
-    fetch(resolveDynamicEndpoint('match', '/api/matching/conflicts'))
+    fetch(resolveDynamicEndpoint('match', withTenantScope('/api/matching/conflicts')))
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data.conflicts)) setConflicts(data.conflicts);
       })
       .catch(() => {});
 
-    fetch(resolveDynamicEndpoint('match', '/api/matching/product-groups'))
+    fetch(resolveDynamicEndpoint('match', withTenantScope('/api/matching/product-groups')))
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data.groups)) setProductGroups(data.groups);
       })
       .catch(() => {});
 
-    fetch(resolveDynamicEndpoint('match', '/api/matching/products'))
+    fetch(resolveDynamicEndpoint('match', withTenantScope('/api/matching/products')))
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data.products)) {

@@ -126,7 +126,7 @@ export const QuestionnaireRunner: React.FC<QuestionnaireRunnerProps> = ({
     let alive = true;
     setLoading(true);
     setError(null);
-    getQuestionnaireModel(questionnaireCode)
+    getQuestionnaireModel(questionnaireCode, brandId, applicationId)
       .then((m) => {
         if (!alive) return;
         if (m) setSchema(m);
@@ -137,7 +137,7 @@ export const QuestionnaireRunner: React.FC<QuestionnaireRunnerProps> = ({
     return () => {
       alive = false;
     };
-  }, [questionnaireCode, modelProp, questionnaire]);
+  }, [questionnaireCode, modelProp, questionnaire, brandId, applicationId]);
 
   const survey = useMemo(() => {
     if (!schema) return null;
