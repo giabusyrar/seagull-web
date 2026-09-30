@@ -1,18 +1,26 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Download, Palette, RotateCcw, Sparkles, Undo2 } from 'lucide-react';
-import { Button, cn } from '@gateway-experience/shared';
+import { Button, cn, loadBlob, saveBlob, usePersistentState } from '@gateway-experience/shared';
 import { useCoreCollection } from '@/lib/hooks/use-core-collection';
 import { AnalysisCard } from './AnalysisCard';
 import { BeforeAfter } from './BeforeAfter';
 import { CameraCapture } from './CameraCapture';
 import { ProductPicker } from './ProductPicker';
 import { useTryOn } from './useTryOn';
+import { FaceArchitectPanel } from './face/FaceArchitectPanel';
 import { catalogOf, errorText, readApiError, type AnalyzeResult, type ApiError, type CatalogResult } from './types';
 
 type YesNo = 'yes' | 'no' | '';
 type Step = 'capture' | 'questions' | 'tryon';
+type StudioTab = 'colour' | 'face';
+
+// The last session — photo, answers, analysis and chosen look — survives a
+// reload. The photo is a file, so it goes to IndexedDB; the rest to
+// localStorage. Shared by the workbench tab and /colour-analysis.
+const PERSIST_PREFIX = 'xg.tryOnEngine.';
+const PHOTO_KEY = PERSIST_PREFIX + 'photo';
 
 /**
  * Personal colour analysis + photo try-on, laid out like the brand's existing
@@ -29,17 +37,47 @@ type Step = 'capture' | 'questions' | 'tryon';
 export function ColourStudioView() {
   const { getEndpoint } = useCoreCollection();
 
+  const [tab, setTab] = useState<StudioTab>('colour');
   const [file, setFile] = useState<File | null>(null);
   const photoUrl = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
-  const [hijab, setHijab] = useState<YesNo>('');
-  const [hairVisible, setHairVisible] = useState<YesNo>('');
+  const [hijab, setHijab] = usePersistentState<YesNo>(PERSIST_PREFIX + 'hijab', '');
+  const [hairVisible, setHairVisible] = usePersistentState<YesNo>(PERSIST_PREFIX + 'hairVisible', '');
   const [analyzing, setAnalyzing] = useState(false);
-  const [result, setResult] = useState<AnalyzeResult | null>(null);
-  const [plain, setPlain] = useState<CatalogResult | null>(null);
+  const [result, setResult] = usePersistentState<AnalyzeResult | null>(PERSIST_PREFIX + 'result', null);
+  const [plain, setPlain] = usePersistentState<CatalogResult | null>(PERSIST_PREFIX + 'catalog', null);
   const [loadingCatalog, setLoadingCatalog] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
-  const [look, setLook] = useState<Record<string, string>>({});
+  const [look, setLook] = usePersistentState<Record<string, string>>(PERSIST_PREFIX + 'look', {});
   const tryon = useTryOn(file, getEndpoint);
+
+  const choosePhoto = (f: File | null) => {
+    setFile(f);
+    void saveBlob(PHOTO_KEY, f);
+  };
+
+  // Restore the saved photo, unless one was taken while it loaded. Once it
+  // is in place, re-render the saved look on it.
+  const restoredPhoto = useRef<File | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    loadBlob<File>(PHOTO_KEY).then((saved) => {
+      if (cancelled || !saved) return;
+      restoredPhoto.current = saved;
+      setFile((current) => current ?? saved);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const { request: requestTryOn } = tryon;
+  useEffect(() => {
+    if (!file || file !== restoredPhoto.current) return;
+    restoredPhoto.current = null;
+    const shadeIds = Object.values(look);
+    if (shadeIds.length > 0) requestTryOn(shadeIds);
+    // Only when the restored photo lands; later look changes request on pick.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [file, requestTryOn]);
 
   useEffect(
     () => () => {
@@ -52,7 +90,7 @@ export function ColourStudioView() {
   const catalog = useMemo(() => (result ? catalogOf(result) : plain?.catalog ?? {}), [result, plain]);
 
   const reset = () => {
-    setFile(null);
+    choosePhoto(null);
     setResult(null);
     setPlain(null);
     setError(null);
@@ -115,15 +153,41 @@ export function ColourStudioView() {
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div className="space-y-0.5">
             <div className="text-[10px] font-bold uppercase tracking-wider text-primary">Personal Colour &amp; Virtual Try-On</div>
-            <h1 className="text-lg font-bold text-foreground">Coba warna yang cocok untukmu</h1>
+            <h1 className="text-lg font-bold text-foreground">
+              {tab === 'colour' ? 'Coba warna yang cocok untukmu' : 'Bentuk wajah dan penempatan makeup'}
+            </h1>
           </div>
-          <Stepper step={step} />
+          {tab === 'colour' && <Stepper step={step} />}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-5 items-start">
+        {/* One photo, two analyses: switching tabs keeps the photo. */}
+        <div className="mb-4 flex gap-1 rounded-xl border border-border bg-secondary/50 p-1 w-fit">
+          {(
+            [
+              ['colour', 'Warna'],
+              ['face', 'Bentuk Wajah'],
+            ] as const
+          ).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setTab(key)}
+              className={cn(
+                'px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer',
+                tab === key ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {tab === 'face' && <FaceArchitectPanel file={file} photoUrl={photoUrl} onPhoto={choosePhoto} />}
+
+        <div className={cn('grid grid-cols-1 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-5 items-start', tab !== 'colour' && 'hidden')}>
           {/* Left: photo */}
           <div className="rounded-2xl border border-border bg-card p-3 shadow-xs lg:sticky lg:top-4">
-            {step === 'capture' && <CameraCapture onPhoto={setFile} />}
+            {step === 'capture' && <CameraCapture onPhoto={choosePhoto} />}
             {step !== 'capture' && photoUrl && (
               <div className="flex flex-col gap-3">
                 <BeforeAfter before={photoUrl} after={tryon.url} loading={tryon.loading} className="w-full aspect-[3/4]" />
