@@ -12,7 +12,7 @@ import {
   Copy,
   Check,
 } from 'lucide-react';
-import { SearchableSelect, InfoTooltip, type SelectOption } from '@gateway-experience/shared';
+import { SearchableSelect, InfoTooltip, readPersisted, usePersistentState, type SelectOption } from '@gateway-experience/shared';
 import type { Collection, Route, RouteGroup, ApiClientRequest, KeyValuePair, HttpMethod, ResponseData, Environment, ExecutionLogRecord } from '@/types/api-client';
 import { Workbench } from '@/features/workbench';
 import { getStatusColorClass } from '@/lib/api-client-utils';
@@ -29,6 +29,47 @@ export interface RouteEditorProps {
   onSave: (routeId: string, data: Partial<Route>) => Promise<{ success: boolean; error?: string }>;
   onOpenCollectionSettings?: (collection: Collection) => void;
   onCollectionUpdated?: () => void;
+}
+
+// Try & Send edits survive a reload, per route. Only what the operator
+// changed is stored (a draft), and it is laid over the request rebuilt from
+// Route Settings — so settings changes still show up, and the draft never
+// freezes an outdated URL or template.
+//
+// Credential headers are never written to localStorage: API keys are kept
+// for the browser tab only (sessionStorage, see lib/try-api-key.ts), and a
+// reload restores them from there or from the route, as before. Multipart
+// file picks are not stored either (files are re-picked after a reload).
+const SESSION_ONLY_HEADERS = ['x-api-key', 'authorization'];
+
+interface TryDraft {
+  params: KeyValuePair[];
+  headers: KeyValuePair[];
+  body: string;
+}
+
+const tryStorageKey = (routeId: string, name: string) => `xg.routeEditor.${routeId}.${name}`;
+
+function toTryDraft(req: ApiClientRequest): TryDraft {
+  return {
+    params: req.params,
+    headers: req.headers.filter((h) => !SESSION_ONLY_HEADERS.includes(h.key.trim().toLowerCase())),
+    body: req.body,
+  };
+}
+
+function applyTryDraft(base: ApiClientRequest, draft: TryDraft | undefined | null): ApiClientRequest {
+  if (!draft) return base;
+  const merge = (rows: KeyValuePair[], saved: KeyValuePair[]) => {
+    const byKey = new Map(saved.filter((r) => r.key).map((r) => [r.key.toLowerCase(), r]));
+    const merged = rows.map((r) => {
+      const s = byKey.get(r.key.toLowerCase());
+      return s ? { ...r, value: s.value, enabled: s.enabled } : r;
+    });
+    const added = saved.filter((s) => s.key && !rows.some((r) => r.key.toLowerCase() === s.key.toLowerCase()));
+    return [...merged, ...added];
+  };
+  return { ...base, params: merge(base.params, draft.params), headers: merge(base.headers, draft.headers), body: draft.body };
 }
 
 const CopyableText: React.FC<{ text: string; copyValue?: string; label?: string; className?: string; labelClassName?: string }> = ({
@@ -80,10 +121,10 @@ export const RouteEditor: React.FC<RouteEditorProps> = ({
     return groups.find((g) => g.id === route.groupId)?.name;
   }, [route.groupId, groups]);
 
-  const [activeTab, setActiveTab] = useState<'try' | 'settings' | 'transform-flow'>('try');
+  const [activeTab, setActiveTab] = usePersistentState<'try' | 'settings' | 'transform-flow'>(tryStorageKey(route.id, 'activeTab'), 'try');
   const [showHistoryPanel, setShowHistoryPanel] = useState<boolean>(false);
   const historyPanelRef = React.useRef<RouteExecutionHistoryPanelRef>(null);
-  const [paramTab, setParamTab] = useState<'headers' | 'query' | 'body'>('headers');
+  const [paramTab, setParamTab] = usePersistentState<'headers' | 'query' | 'body'>(tryStorageKey(route.id, 'paramTab'), 'headers');
   const [name, setName] = useState(route.name);
   const [method, setMethod] = useState(route.method);
   const [originalPattern, setOriginalPattern] = useState(route.originalPattern);
@@ -96,7 +137,7 @@ export const RouteEditor: React.FC<RouteEditorProps> = ({
       method: (logRecord.method as HttpMethod) || prev.method,
       url: logRecord.url || prev.url,
     }));
-  }, []);
+  }, [setActiveTab]);
 
   const displayPattern = React.useMemo(() => {
     const prefix = collection.originalPrefix || '';
@@ -337,7 +378,8 @@ export const RouteEditor: React.FC<RouteEditorProps> = ({
     if (inherited) setDefaultApiKey(inherited);
   }, [collectionParams, defaultApiKey]);
 
-  const [tryRequest, setTryRequest] = useState<ApiClientRequest>(() => ({
+  const [, setTryDraft] = usePersistentState<TryDraft | null>(tryStorageKey(route.id, 'tryDraft'), null);
+  const [tryRequest, setTryRequest] = useState<ApiClientRequest>(() => applyTryDraft({
     id: route.id,
     name: route.name,
     method: (route.method as HttpMethod) || 'GET',
@@ -350,8 +392,8 @@ export const RouteEditor: React.FC<RouteEditorProps> = ({
     body: '{}',
     bodyType: 'json',
     multipartFields: [],
-  }));
-  const [tryResponse, setTryResponse] = useState<ResponseData | null>(null);
+  }, readPersisted<TryDraft>(tryStorageKey(route.id, 'tryDraft'))));
+  const [tryResponse, setTryResponse] = usePersistentState<ResponseData | null>(tryStorageKey(route.id, 'response'), null);
   const [isSending, setIsSending] = useState(false);
 
   useEffect(() => {
@@ -363,7 +405,6 @@ export const RouteEditor: React.FC<RouteEditorProps> = ({
     setSystemInstruction(route.systemInstruction || '');
     setOutputSchema(route.outputSchema || '');
     setSaveError(null);
-    setTryResponse(null);
 
     try {
       if (route.routeParams) {
@@ -489,16 +530,21 @@ export const RouteEditor: React.FC<RouteEditorProps> = ({
 
     setTryRequest((prev) => {
       if (!prev) return prev;
-      return {
-        ...prev,
-        id: route.id,
-        name: route.name,
-        method: (method as HttpMethod) || 'GET',
-        url: savedGatewayUrl,
-        params: pathAndQuery,
-        headers: loadedHeaders,
-        body: bodyTemplate,
-      };
+      // Read from storage rather than state: the draft changes on every
+      // keystroke and must not be a dependency that re-runs this rebuild.
+      return applyTryDraft(
+        {
+          ...prev,
+          id: route.id,
+          name: route.name,
+          method: (method as HttpMethod) || 'GET',
+          url: savedGatewayUrl,
+          params: pathAndQuery,
+          headers: loadedHeaders,
+          body: bodyTemplate,
+        },
+        readPersisted<TryDraft>(tryStorageKey(route.id, 'tryDraft')),
+      );
     });
   }, [
     route.id,
@@ -1185,7 +1231,10 @@ export const RouteEditor: React.FC<RouteEditorProps> = ({
           envVars={globalEnvMap}
           globalEnvVars={globalEnvMap}
           collectionEnvVars={collectionEnvMap}
-          onUpdateRequest={(updated) => setTryRequest(updated)}
+          onUpdateRequest={(updated) => {
+            setTryRequest(updated);
+            setTryDraft(toTryDraft(updated));
+          }}
           onSend={handleSendTry}
           collectionType={collection.type as 'proxy' | 'llm'}
           routeParams={JSON.stringify(routeParamsInput)}

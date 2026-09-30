@@ -2,13 +2,18 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { Play, ChevronRight, ChevronDown } from 'lucide-react';
-import { EmptyState } from '@gateway-experience/shared';
+import { EmptyState, readPersisted, usePersistentState } from '@gateway-experience/shared';
 import { Model } from 'survey-core';
 import { Survey } from 'survey-react-ui';
 import type { CalculationMethod, QuestionnaireItem } from '../../types';
 import { CALCULATION_METHODS, applyCalculationMethod, getDimensionMeta } from '../../catalog';
 import { toSurveyModel, buildScoreRequest } from '../../surveyjs';
 import { XG_SURVEY_THEME } from '../../survey-theme';
+
+// Simulator answers are kept per questionnaire, so a reload (or switching
+// questionnaires and back) restores the answers last given to each one.
+const ANSWERS_KEY_PREFIX = 'xg.formEngine.simulator.answers.';
+const CUSTOMER_ID_KEY = 'xg.formEngine.simulator.customerId';
 
 interface FormSimulatorTabProps {
   questionnaires: QuestionnaireItem[];
@@ -30,9 +35,10 @@ export const FormSimulatorTab: React.FC<FormSimulatorTabProps> = ({
     [currentQ],
   );
 
-  const [data, setData] = useState<Record<string, unknown>>({});
+  const answersKey = currentQ?.code ? ANSWERS_KEY_PREFIX + currentQ.code : null;
+  const [data, setData] = usePersistentState<Record<string, unknown>>(answersKey, {});
   const [showPayload, setShowPayload] = useState(false);
-  const [customerId, setCustomerId] = useState('demo-customer-001');
+  const [customerId, setCustomerId] = usePersistentState(CUSTOMER_ID_KEY, 'demo-customer-001');
   const [copied, setCopied] = useState('');
 
   const copy = (text: string, tag: string) => {
@@ -58,16 +64,20 @@ export const FormSimulatorTab: React.FC<FormSimulatorTabProps> = ({
     m.getAllQuestions().forEach((q) => {
       if (q.getType() === 'boolean') (q as { renderAs: string }).renderAs = 'radio';
     });
+    const saved = answersKey ? readPersisted<Record<string, unknown>>(answersKey) : undefined;
+    if (saved) m.data = saved;
     return m;
-  }, [schema, hasQuestions]);
+  }, [schema, hasQuestions, answersKey]);
 
   useEffect(() => {
-    setData({});
+    // Mirror whatever the new survey starts with — its restored answers, or
+    // nothing — so the preview and payload match what the form shows.
+    setData({ ...((survey?.data as Record<string, unknown>) ?? {}) });
     if (!survey) return;
     const onValue = (sender: Model) => setData({ ...(sender.data as object) });
     survey.onValueChanged.add(onValue);
     return () => survey.onValueChanged.remove(onValue);
-  }, [survey]);
+  }, [survey, setData]);
 
   const core = useMemo(
     () =>

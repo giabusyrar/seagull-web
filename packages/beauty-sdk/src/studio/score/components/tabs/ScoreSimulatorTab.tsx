@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Copy, Check } from 'lucide-react';
-import { InfoTooltip } from '@gateway-experience/shared';
+import { InfoTooltip, usePersistentState } from '@gateway-experience/shared';
 import type { ScoreRuleset, RulesetSimulationResponse } from '../../types';
 import { getSafetyFlags } from '../../../form/api';
 
@@ -88,28 +88,20 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
   );
   // Vision result: every axis with a vision source.
   const visionDims = useMemo(() => rulesetDims.filter((d) => fieldMapping[d]?.vision), [rulesetDims, fieldMapping]);
-  const formDimsKey = formDims.join(',');
-  const visionDimsKey = visionDims.join(',');
 
-  const [questionnaireValues, setQuestionnaireValues] = useState<Record<string, number>>({});
-  const [visionValues, setVisionValues] = useState<Record<string, number>>({});
-  const [respondentAge, setRespondentAge] = useState(25);
-
-  useEffect(() => {
-    setQuestionnaireValues((prev) => {
-      const next: Record<string, number> = {};
-      for (const d of formDims) next[d] = prev[d] ?? 50;
-      return next;
-    });
-  }, [formDimsKey]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    setVisionValues((prev) => {
-      const next: Record<string, number> = {};
-      for (const d of visionDims) next[d] = prev[d] ?? 50;
-      return next;
-    });
-  }, [visionDimsKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Slider values survive a reload. Keyed by dimension and never pruned:
+  // every read goes through formDims/visionDims with a 50 default, so a
+  // value for an axis the current ruleset lacks is simply not used — and is
+  // still there when a ruleset that has it is selected again.
+  const [questionnaireValues, setQuestionnaireValues] = usePersistentState<Record<string, number>>(
+    'xg.scoreEngine.simulator.questionnaireValues',
+    {},
+  );
+  const [visionValues, setVisionValues] = usePersistentState<Record<string, number>>(
+    'xg.scoreEngine.simulator.visionValues',
+    {},
+  );
+  const [respondentAge, setRespondentAge] = usePersistentState('xg.scoreEngine.simulator.respondentAge', 25);
 
   // Safety flag keys declared directly on the ruleset schema (safety_flags),
   // same pattern as rulesetDims above.
@@ -209,17 +201,18 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
     [rulesetSafetyFlags, surveySafetyFlags],
   );
 
-  const [selectedConditions, setSelectedConditions] = useState<Record<string, boolean>>({});
-
-  // Re-seed the safety flag toggles whenever the merged flag list changes.
-  useEffect(() => {
-    setSelectedConditions((prev) => {
-      const keys = allSafetyFlags.length > 0 ? allSafetyFlags : catalogSafetyFlags;
-      const next: Record<string, boolean> = {};
-      for (const k of keys) next[k] = prev[k] ?? false;
-      return next;
-    });
-  }, [allSafetyFlags, catalogSafetyFlags]);
+  // Every toggle ever set (persisted, never pruned); what is shown and sent
+  // is only the flags the current ruleset/survey/catalog actually offers.
+  const [conditionChoices, setConditionChoices] = usePersistentState<Record<string, boolean>>(
+    'xg.scoreEngine.simulator.conditions',
+    {},
+  );
+  const selectedConditions = useMemo(() => {
+    const keys = allSafetyFlags.length > 0 ? allSafetyFlags : catalogSafetyFlags;
+    const out: Record<string, boolean> = {};
+    for (const k of keys) out[k] = conditionChoices[k] ?? false;
+    return out;
+  }, [allSafetyFlags, catalogSafetyFlags, conditionChoices]);
 
   const [simResponse, setSimResponse] = useState<RulesetSimulationResponse | null>(null);
   const [copiedReq, setCopiedReq] = useState(false);
@@ -425,7 +418,7 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
                 key={key}
                 type="button"
                 onClick={() =>
-                  setSelectedConditions((p) => ({ ...p, [key]: !p[key] }))
+                  setConditionChoices((p) => ({ ...p, [key]: !isChecked }))
                 }
                 className={`p-2.5 rounded-md border text-left transition-colors flex items-center justify-between ${
                   isChecked

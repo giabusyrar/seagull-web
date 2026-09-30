@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Camera, ImageUp, RefreshCw } from 'lucide-react';
 import { Button } from '@gateway-experience/shared';
+import { useTabVisible } from '@/lib/hooks/use-tab-visibility';
 
 const JPEG_QUALITY = 0.92;
 
@@ -30,6 +31,16 @@ export function CameraCapture({ onPhoto }: CameraCaptureProps) {
   }, []);
 
   useEffect(() => stop, [stop]);
+
+  // The workbench keeps a hidden tab mounted; don't leave the camera on
+  // behind it.
+  const tabVisible = useTabVisible();
+  useEffect(() => {
+    // Releasing an external device (the camera stream) is what this effect
+    // is for; the state update just mirrors it.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!tabVisible) stop();
+  }, [tabVisible, stop]);
 
   useEffect(() => {
     if (video.current && stream) {

@@ -36,6 +36,47 @@ import { executeHttpRequest, formatJsonString } from '@/lib/api-client-utils';
 import { useCollections, useRoutes, useAllRoutes } from '@/lib/hooks/use-collections';
 import { useGlobalEnvironments } from '@/lib/hooks/use-global-environments';
 import { MissingHostModal } from './MissingHostModal';
+import { TabVisibilityContext } from '@/lib/hooks/use-tab-visibility';
+
+// Which tabs and routes were open, so a reload reopens the same workspace.
+// Only the layout is stored here: what is typed inside an engine or a route's
+// Try & Send lives in that component, and survives tab switches because
+// opened views stay mounted (see KeptView) rather than unmounting.
+// Request tabs are left out — their drafts can carry File objects that do
+// not serialize.
+const WORKSPACE_STORAGE_KEY = 'xg_api_client_workspace';
+const ACTIVE_ENV_STORAGE_KEY = 'xg_active_global_env_id';
+
+interface PersistedWorkspace {
+  tabs: TabItem[];
+  activeTabId: string;
+  openRouteIds: string[];
+  activeRouteId: string | null;
+}
+
+function loadWorkspace(): PersistedWorkspace | null {
+  try {
+    const raw = localStorage.getItem(WORKSPACE_STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as PersistedWorkspace) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Hides an opened view with display:none instead of unmounting it, so what
+ * was typed and the last result are still there when its tab is reopened.
+ * React's <Activity> was tried first and rejected: it re-runs effects on
+ * reveal, and several builders reset their form in an "on open" effect.
+ * Views that hold a device (camera) read TabVisibilityContext to release it.
+ */
+function KeptView({ visible, children }: { visible: boolean; children: React.ReactNode }) {
+  return (
+    <TabVisibilityContext.Provider value={visible}>
+      <div className={visible ? 'contents' : 'hidden'}>{children}</div>
+    </TabVisibilityContext.Provider>
+  );
+}
 
 function createDefaultRequest(): ApiClientRequest {
   return {
@@ -80,6 +121,24 @@ export function ApiClientApp() {
   const { refresh: refreshRoutes, updateRoute, deleteRoute, updateGroup, deleteGroup, moveRouteGroup, reorderRouteGroups } = useRoutes(expandedCollectionId);
   const { createRoute: createRouteTarget, createGroup: createGroupTarget } = useRoutes(targetCollectionId);
   const [activeRoute, setActiveRoute] = useState<Route | null>(null);
+  // Every route opened this session keeps its editor mounted, so switching
+  // away and back does not lose an in-progress Try & Send.
+  const [openRoutes, setOpenRoutes] = useState<Route[]>([]);
+  useEffect(() => {
+    if (!activeRoute) return;
+    // Mirrors activeRoute (including saves that replace it) into the set of
+    // mounted editors.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setOpenRoutes((prev) =>
+      prev.some((r) => r.id === activeRoute.id)
+        ? prev.map((r) => (r.id === activeRoute.id ? activeRoute : r))
+        : [...prev, activeRoute]
+    );
+  }, [activeRoute]);
+  const closeRoutes = useCallback((predicate: (r: Route) => boolean) => {
+    setOpenRoutes((prev) => prev.filter((r) => !predicate(r)));
+    setActiveRoute((prev) => (prev && predicate(prev) ? null : prev));
+  }, []);
   const [settingsCollection, setSettingsCollection] = useState<Collection | null>(null);
   const [targetParentGroupId, setTargetParentGroupId] = useState<string | null>(null);
   const [targetGroupIdForRoute, setTargetGroupIdForRoute] = useState<string | null>(null);
@@ -115,6 +174,7 @@ export function ApiClientApp() {
           if (expandedCollectionId === collection.id) {
             setExpandedCollectionId(null);
           }
+          closeRoutes((r) => r.collectionId === collection.id);
         } else {
           toastError('Delete Failed', res.error || 'Failed to delete collection');
         }
@@ -130,27 +190,78 @@ export function ApiClientApp() {
   const [activeTabId, setActiveTabId] = useState<string>('tab-overview');
   const [activeRequest, setActiveRequest] = useState<ApiClientRequest>(initialRequest);
 
-  const [selectedEnvId, setSelectedEnvId] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('xg_active_global_env_id') || '';
+  // Restored after mount, not in the useState initializers: this component is
+  // server-rendered on /api-client, where localStorage does not exist.
+  const [workspaceRestored, setWorkspaceRestored] = useState(false);
+  const [pendingRestore, setPendingRestore] = useState<Pick<PersistedWorkspace, 'openRouteIds' | 'activeRouteId'> | null>(null);
+  useEffect(() => {
+    const saved = loadWorkspace();
+    /* eslint-disable react-hooks/set-state-in-effect -- one-time restore from localStorage */
+    if (saved) {
+      const savedTabs = (saved.tabs || []).filter((t) => t.type !== 'request');
+      if (savedTabs.length > 0) {
+        setTabs(savedTabs);
+        setActiveTabId(savedTabs.some((t) => t.id === saved.activeTabId) ? saved.activeTabId : savedTabs[0].id);
+      }
+      if (saved.openRouteIds?.length) {
+        setPendingRestore({ openRouteIds: saved.openRouteIds, activeRouteId: saved.activeRouteId });
+      }
     }
-    return '';
-  });
+    setWorkspaceRestored(true);
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, []);
+
+  // Saved routes can only be reopened once their collections' routes load.
+  useEffect(() => {
+    if (!pendingRestore || Object.keys(allRoutesMap).length === 0) return;
+    const byId = new Map(Object.values(allRoutesMap).flat().map((r) => [r.id, r]));
+    const restored = pendingRestore.openRouteIds.map((id) => byId.get(id)).filter((r): r is Route => !!r);
+    const active = pendingRestore.activeRouteId ? byId.get(pendingRestore.activeRouteId) : undefined;
+    /* eslint-disable react-hooks/set-state-in-effect -- resolving the restore above once data arrives */
+    setOpenRoutes(restored);
+    if (active) {
+      setActiveRoute(active);
+      setExpandedCollectionId(active.collectionId);
+    }
+    setPendingRestore(null);
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [pendingRestore, allRoutesMap]);
+
+  useEffect(() => {
+    if (!workspaceRestored || pendingRestore) return;
+    const persistedTabs = tabs.filter((t) => t.type !== 'request');
+    const workspace: PersistedWorkspace = {
+      tabs: persistedTabs,
+      activeTabId: persistedTabs.some((t) => t.id === activeTabId) ? activeTabId : persistedTabs[0]?.id || '',
+      openRouteIds: openRoutes.map((r) => r.id),
+      activeRouteId: activeRoute?.id || null,
+    };
+    try {
+      localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify(workspace));
+    } catch (e) {
+      console.error('Failed to persist API client workspace', e);
+    }
+  }, [workspaceRestored, pendingRestore, tabs, activeTabId, openRoutes, activeRoute]);
+
+  // Starts empty and is restored by the effect below once environments load.
+  // Reading localStorage in the initializer made the client's first render
+  // differ from the server HTML on /api-client (a hydration mismatch).
+  const [selectedEnvId, setSelectedEnvId] = useState<string>('');
 
   const handleSelectEnv = useCallback((id: string) => {
     setSelectedEnvId(id);
     if (typeof window !== 'undefined') {
       if (id) {
-        localStorage.setItem('xg_active_global_env_id', id);
+        localStorage.setItem(ACTIVE_ENV_STORAGE_KEY, id);
       } else {
-        localStorage.removeItem('xg_active_global_env_id');
+        localStorage.removeItem(ACTIVE_ENV_STORAGE_KEY);
       }
     }
   }, []);
 
   useEffect(() => {
     if (environments.length > 0) {
-      const savedId = typeof window !== 'undefined' ? localStorage.getItem('xg_active_global_env_id') : null;
+      const savedId = typeof window !== 'undefined' ? localStorage.getItem(ACTIVE_ENV_STORAGE_KEY) : null;
       const savedEnvExists = savedId && environments.some((e) => e.id === savedId);
       if (savedEnvExists && savedId !== selectedEnvId) {
         setSelectedEnvId(savedId);
@@ -571,9 +682,7 @@ export function ApiClientApp() {
                 if (res.success) {
                   toastSuccess('Route Deleted', `Route ${route.name} deleted.`);
                   await refreshAllRoutes();
-                  if (activeRoute?.id === route.id) {
-                    setActiveRoute(null);
-                  }
+                  closeRoutes((r) => r.id === route.id);
                 } else {
                   toastError('Delete Failed', res.error || 'Failed to delete route');
                 }
@@ -779,63 +888,78 @@ export function ApiClientApp() {
           }}
         />
 
-        {/* Center Content: Route editor, API Keys, Overview, or Workbench */}
-        {activeRoute ? (() => {
-          const col = realCollections.find((c) => c.id === activeRoute.collectionId);
-          if (!col) return <div className="flex-1 flex items-center justify-center text-xs text-muted-foreground italic">Loading collection details...</div>;
+        {/* Center Content. Route editors and engine/reference tabs stay
+            mounted once opened (KeptView), keeping their inputs and results
+            across tab switches. */}
+        {openRoutes.map((route) => {
+          const isVisible = activeRoute?.id === route.id;
+          const col = realCollections.find((c) => c.id === route.collectionId);
           return (
-            <ApiClientRouteEditor
-              key={activeRoute.id}
-              route={activeRoute}
-              collection={col}
-              groups={allGroupsMap[col.id] || []}
-              globalEnvVars={currentEnvVars}
-              globalEnvironments={environments}
-              onSave={async (routeId, data) => {
-                const res = await updateRoute(routeId, data);
-                if (res.success) {
-                  await refreshAllRoutes();
-                  if (res.route) setActiveRoute(res.route);
-                }
-                return res;
-              }}
-              onOpenCollectionSettings={(col) => setSettingsCollection(col)}
-              onCollectionUpdated={refreshCollections}
-            />
+            <KeptView key={`route-${route.id}`} visible={isVisible}>
+              {!col ? (
+                <div className="flex-1 flex items-center justify-center text-xs text-muted-foreground italic">Loading collection details...</div>
+              ) : (
+                <ApiClientRouteEditor
+                  route={route}
+                  collection={col}
+                  groups={allGroupsMap[col.id] || []}
+                  globalEnvVars={currentEnvVars}
+                  globalEnvironments={environments}
+                  onSave={async (routeId, data) => {
+                    const res = await updateRoute(routeId, data);
+                    if (res.success) {
+                      await refreshAllRoutes();
+                      if (res.route) setActiveRoute(res.route);
+                    }
+                    return res;
+                  }}
+                  onOpenCollectionSettings={(col) => setSettingsCollection(col)}
+                  onCollectionUpdated={refreshCollections}
+                />
+              )}
+            </KeptView>
           );
-        })() : activeTabObj?.type === 'forms' ? (
-          <FormManager />
-        ) : activeTabObj?.type === 'scoring' ? (
-          <ScoreManager />
-        ) : activeTabObj?.type === 'matching' ? (
-          <MatchManager />
-        ) : activeTabObj?.type === 'vision' ? (
-          <VisionEngineView />
-        ) : activeTabObj?.type === 'tryon' ? (
-          <TryOnEngineView />
-        ) : activeTabObj?.type === 'pipeline' ? (
-          <PipelineSimulatorView />
-        ) : activeTabObj?.type === 'assessments' ? (
-          <AssessmentRecordsView />
-        ) : activeTabObj?.type === 'applications' ? (
-          <ApplicationsView />
-        ) : activeTabObj?.type === 'reference' ? (
-          <ReferenceManager initialEntity={activeTabObj?.entity} />
-        ) : activeTabObj?.type === 'api-keys' ? (
-          <ApiClientApiKeysView collections={realCollections} />
-        ) : activeTabObj?.type === 'overview' ? (
-          <ApiClientOverview
-            collections={realCollections}
-            environments={environments}
-            historyCount={history.length}
-            onAddCollection={() => {
-              setSettingsCollection(null);
-              setIsCollectionModalOpen(true);
-            }}
-            onOpenEnvironments={() => setIsEnvModalOpen(true)}
-            onOpenApiKeys={handleOpenApiKeys}
-          />
-        ) : (
+        })}
+        {tabs
+          .filter((tab) => tab.type !== 'request')
+          .map((tab) => (
+            <KeptView key={tab.id} visible={!activeRoute && tab.id === activeTabId}>
+              {tab.type === 'forms' ? (
+                <FormManager />
+              ) : tab.type === 'scoring' ? (
+                <ScoreManager />
+              ) : tab.type === 'matching' ? (
+                <MatchManager />
+              ) : tab.type === 'vision' ? (
+                <VisionEngineView />
+              ) : tab.type === 'tryon' ? (
+                <TryOnEngineView />
+              ) : tab.type === 'pipeline' ? (
+                <PipelineSimulatorView />
+              ) : tab.type === 'assessments' ? (
+                <AssessmentRecordsView />
+              ) : tab.type === 'applications' ? (
+                <ApplicationsView />
+              ) : tab.type === 'reference' ? (
+                <ReferenceManager initialEntity={tab.entity} />
+              ) : tab.type === 'api-keys' ? (
+                <ApiClientApiKeysView collections={realCollections} />
+              ) : (
+                <ApiClientOverview
+                  collections={realCollections}
+                  environments={environments}
+                  historyCount={history.length}
+                  onAddCollection={() => {
+                    setSettingsCollection(null);
+                    setIsCollectionModalOpen(true);
+                  }}
+                  onOpenEnvironments={() => setIsEnvModalOpen(true)}
+                  onOpenApiKeys={handleOpenApiKeys}
+                />
+              )}
+            </KeptView>
+          ))}
+        {!activeRoute && (!activeTabObj || activeTabObj.type === 'request') && (
           <ApiClientWorkbench
             request={activeRequest}
             response={response}

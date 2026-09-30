@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Sliders, SlidersHorizontal, Play, FileText } from 'lucide-react';
-import { PageHeader, TabNav, ConfirmDialog, type TabItem } from '@gateway-experience/shared';
+import { PageHeader, TabNav, ConfirmDialog, usePersistentState, type TabItem } from '@gateway-experience/shared';
 import type { ScoreRuleset } from '../types';
 
 import { RulesetsTab } from './tabs/RulesetsTab';
@@ -16,12 +16,16 @@ import { RulesetModal } from './modals/RulesetModal';
 const SCORE = '/core/score-engine';
 
 export const ScoreManager: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'rulesets' | 'blending' | 'simulator'>('rulesets');
+  const [activeTab, setActiveTab] = usePersistentState<'rulesets' | 'blending' | 'simulator'>('xg.scoreEngine.activeTab', 'rulesets');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Rulesets Data
   const [rulesets, setRulesets] = useState<ScoreRuleset[]>([]);
-  const [selectedRuleset, setSelectedRuleset] = useState<ScoreRuleset | null>(null);
+  // Selection is kept by id (and survives a reload); the object is always
+  // the freshly loaded one. Tabs fall back to the first ruleset when unset.
+  const [selectedRulesetId, setSelectedRulesetId] = usePersistentState<string | null>('xg.scoreEngine.selectedRulesetId', null);
+  const selectedRuleset = rulesets.find((r) => r.id === selectedRulesetId) ?? null;
+  const setSelectedRuleset = (r: ScoreRuleset | null) => setSelectedRulesetId(r?.id ?? null);
 
   // Modals Visibility
   const [isRulesetModalOpen, setIsRulesetModalOpen] = useState(false);
@@ -48,9 +52,6 @@ export const ScoreManager: React.FC = () => {
       .then((data) => {
         if (Array.isArray(data.rulesets)) {
           setRulesets(data.rulesets);
-          if (data.rulesets.length > 0) {
-            setSelectedRuleset((prev) => prev || data.rulesets[0]);
-          }
         }
       })
       .catch(() => {});

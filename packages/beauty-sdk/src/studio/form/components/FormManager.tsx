@@ -5,6 +5,7 @@ import { FileText, Play } from 'lucide-react';
 import {
   PageHeader,
   TabNav,
+  usePersistentState,
   ConfirmDialog,
   BrandSelect,
   ApplicationSelect,
@@ -32,7 +33,7 @@ import { QuestionnaireModal } from './modals/QuestionnaireModal';
 import { listQuestionnaires, saveQuestionnaire, deleteQuestionnaire } from '../api';
 
 export const FormManager: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'questionnaires' | 'simulator'>('questionnaires');
+  const [activeTab, setActiveTab] = usePersistentState<'questionnaires' | 'simulator'>('xg.formEngine.activeTab', 'questionnaires');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Confirm Delete Dialog State
@@ -61,7 +62,7 @@ export const FormManager: React.FC = () => {
   const [editingQ, setEditingQ] = useState<QuestionnaireItem | null>(null);
 
   // Simulator State — Form Engine only calculates; no Score Engine call.
-  const [selectedQCode, setSelectedQCode] = useState('');
+  const [selectedQCode, setSelectedQCode] = usePersistentState('xg.formEngine.simulator.questionnaire', '');
 
   const loadData = () => {
     // Questionnaires are served by the Form Engine via /core/form-engine/survey,

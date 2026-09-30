@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { loadBlob, readPersisted, saveBlob, usePersistentState, writePersisted } from '@gateway-experience/shared';
 import type { ImageAngle, AngleSlot, LayerHUDState, VisionAnalysisResult } from './types';
 import { InputTray } from './InputTray';
 import { CanvasVisualizer } from './CanvasVisualizer';
@@ -57,37 +58,85 @@ export function VisionSimulator({
     labelFor,
   } = useVisionRegistry();
 
+  // The last experiment — photos, selections, result — survives a reload,
+  // scoped to this brand/application (this component is keyed by both).
+  // Photos are files, so they go to IndexedDB; the rest to localStorage.
+  const persistKey = (name: string) => `xg.visionEngine.simulator.${selectedBrand}::${selectedApp}.${name}`;
+
   // 1. Multi-Angle Upload Slots State
   const [slots, setSlots] = useState<Record<ImageAngle, AngleSlot>>({
     FRONT: { angle: 'FRONT', file: null, previewUrl: null, status: 'empty' },
     LEFT: { angle: 'LEFT', file: null, previewUrl: null, status: 'empty' },
     RIGHT: { angle: 'RIGHT', file: null, previewUrl: null, status: 'empty' },
   });
+  type SlotStatuses = Partial<Record<ImageAngle, AngleSlot['status']>>;
+  const statusesKey = persistKey('slotStatuses');
 
-  const [activeAngle, setActiveAngle] = useState<ImageAngle>('FRONT');
+  // Restore saved photos once. A slot the operator already filled in the
+  // meantime is left alone.
+  useEffect(() => {
+    let cancelled = false;
+    const savedStatuses = readPersisted<SlotStatuses>(statusesKey) ?? {};
+    (Object.keys(ANGLE_FIELD_NAME) as ImageAngle[]).forEach(async (angle) => {
+      const file = await loadBlob<File>(persistKey(`photo.${angle}`));
+      if (cancelled || !file) return;
+      setSlots((prev) =>
+        prev[angle].file
+          ? prev
+          : {
+              ...prev,
+              [angle]: { angle, file, previewUrl: URL.createObjectURL(file), status: savedStatuses[angle] ?? 'uploading' },
+            },
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+    // Runs once on mount: the scope never changes for a mounted instance.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Keep the saved statuses in step with the slots.
+  useEffect(() => {
+    const next: SlotStatuses = {};
+    for (const slot of Object.values(slots) as AngleSlot[]) if (slot.file) next[slot.angle] = slot.status;
+    // Only once a photo is actually present — before the restore above
+    // lands, the empty slots would otherwise erase the saved statuses.
+    // (Clearing a slot removes its entry in handleClearSlot.)
+    if (Object.keys(next).length > 0) writePersisted(statusesKey, next);
+  }, [slots, statusesKey]);
+
+  const [activeAngle, setActiveAngle] = usePersistentState<ImageAngle>(persistKey('activeAngle'), 'FRONT');
 
   // 2. Selective Model Dispatch State (Reference Data codes), seeded from the
   // active brand/application's saved Vision Setting.
-  const [selectedDimensions, setSelectedDimensions] = useState<string[]>(defaultDimensions || []);
-  const [selectedSkinConditions, setSelectedSkinConditions] = useState<string[]>(defaultSkinConditions || []);
+  const [selectedDimensions, setSelectedDimensions] = usePersistentState<string[]>(
+    persistKey('dimensions'),
+    defaultDimensions || [],
+  );
+  const [selectedSkinConditions, setSelectedSkinConditions] = usePersistentState<string[]>(
+    persistKey('skinConditions'),
+    defaultSkinConditions || [],
+  );
 
   // 3. Context State
-  const [userAge, setUserAge] = useState(28);
+  const [userAge, setUserAge] = usePersistentState(persistKey('userAge'), 28);
 
   // 4. Layer HUD State
-  const [layerState, setLayerState] = useState<LayerHUDState>({
+  const [layerState, setLayerState] = usePersistentState<LayerHUDState>(persistKey('layers'), {
     showZones: true,
     showDefectHeatmap: false,
   });
 
   // 5. Analysis Execution & Results State
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [result, setResult] = useState<VisionAnalysisResult | null>(null);
+  const [result, setResult] = usePersistentState<VisionAnalysisResult | null>(persistKey('result'), null);
   const [selectedZoneCode, setSelectedZoneCode] = useState<string | null>(null);
 
   // Handlers for Upload / Slots
   const handleUploadFile = (angle: ImageAngle, file: File) => {
     const previewUrl = URL.createObjectURL(file);
+    void saveBlob(persistKey(`photo.${angle}`), file);
     setSlots((prev) => ({
       ...prev,
       [angle]: {
@@ -101,6 +150,10 @@ export function VisionSimulator({
   };
 
   const handleClearSlot = (angle: ImageAngle) => {
+    void saveBlob(persistKey(`photo.${angle}`), null);
+    const statuses = readPersisted<SlotStatuses>(statusesKey) ?? {};
+    delete statuses[angle];
+    writePersisted(statusesKey, statuses);
     setSlots((prev) => ({
       ...prev,
       [angle]: {
