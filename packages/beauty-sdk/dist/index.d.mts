@@ -1,4 +1,4 @@
-export { i as Core, C as CoreCollectionKey, D as DynamicCollection, a as DynamicCollectionRoute, g as getActiveCoreCollections, b as getCollectionPrefix, r as resolveDynamicEndpoint } from './index-DULoORcS.mjs';
+export { i as Core, C as CoreCollectionKey, D as DynamicCollection, a as DynamicCollectionRoute, g as getActiveCoreCollections, b as getCollectionPrefix, r as resolveDynamicEndpoint } from './index-Cp06RFVy.mjs';
 import * as contracts from '@gateway-experience/contracts';
 export { contracts as Contracts };
 export { i as Hooks, U as UseSkinAssessmentOptions, u as useRegimenMatch, a as useSkinAssessment } from './index-Dd8omzYA.mjs';

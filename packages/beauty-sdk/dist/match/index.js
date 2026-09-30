@@ -893,7 +893,9 @@ function getCollectionPrefix(key) {
     vision: "/core/vision-engine",
     "vision-engine": "/core/vision-engine",
     reference: "/core/reference-service",
-    "reference-service": "/core/reference-service"
+    "reference-service": "/core/reference-service",
+    colour: "/core/colour-engine",
+    "colour-engine": "/core/colour-engine"
   };
   return map[key];
 }
