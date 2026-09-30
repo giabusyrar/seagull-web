@@ -17,7 +17,8 @@ export interface FaceQuality {
 
 export interface Measurement {
   key: string;
-  value: number | null;
+  /** A number, or a list of numbers for catalogue entries with shape "list". */
+  value: number | number[] | null;
   unit: string;
   band: [number | null, number | null] | null;
   visibility: string;
@@ -34,6 +35,8 @@ export interface Classification {
   scores: Record<string, number>;
   notAssessable: string[];
   missingMeasurements?: string[];
+  /** Measurement keys the classifier reads (profile spec). Newer engines only. */
+  measurements?: string[];
   observedWeightShare?: number;
   reason?: string;
 }
@@ -45,6 +48,8 @@ export interface Trait {
   boundaryUncertain: boolean;
   alternative?: string;
   missingMeasurements?: string[];
+  /** Measurement keys the trait reads (profile spec). Newer engines only. */
+  measurements?: string[];
   reason?: string;
 }
 
@@ -98,6 +103,13 @@ export interface FaceArchitectureResult {
   traits: Record<string, Trait>;
   guidance: Guidance | null;
   provenance: Provenance;
+  /**
+   * The worker's landmarks in image pixels (same space as guidance
+   * polygons), indexed by landmark index. Absent from engines that predate
+   * the field, and null when the worker returned none — either way nothing
+   * can be drawn, and nothing is estimated in its place.
+   */
+  landmarks?: [number, number][] | null;
 }
 
 export interface FaceApiError {
@@ -196,3 +208,121 @@ export const REGION_CONFIDENCE_LABEL: Record<RegionConfidence, string> = {
   unverified: 'Anchor belum terkonfirmasi',
   unsourced: 'Penempatan tanpa sumber',
 };
+
+export type MeasurementGeometry =
+  | { kind: 'segment'; points: [[number, number], [number, number]]; anchor: [number, number] }
+  | { kind: 'angle'; points: [[number, number], [number, number], [number, number]]; anchor: [number, number] }
+  | { kind: 'points'; points: [number, number][]; anchor: [number, number] };
+
+/**
+ * Where a measurement sits on the photo, from the landmark indices it used.
+ * Only what the indices alone say is drawn: two points are the distance
+ * between them, three points of an angle are that angle (vertex in the
+ * middle). Any other set is shown as its points, unconnected — joining them
+ * in list order could draw a line the definition never measured.
+ *
+ * null when there is nothing honest to draw: no value, no landmarks from the
+ * engine, or an index it did not return.
+ */
+export function measurementGeometry(
+  m: Measurement,
+  landmarks: [number, number][] | null | undefined,
+): MeasurementGeometry | null {
+  if (m.value === null || !landmarks || m.landmarks.length === 0) return null;
+  const points: [number, number][] = [];
+  for (const i of m.landmarks) {
+    const p = landmarks[i];
+    if (!p || !Number.isFinite(p[0]) || !Number.isFinite(p[1])) return null;
+    points.push([p[0], p[1]]);
+  }
+  if (points.length === 2) {
+    const [a, b] = points;
+    return { kind: 'segment', points: [a, b], anchor: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2] };
+  }
+  if (points.length === 3 && m.unit === 'deg') {
+    const [a, v, b] = points;
+    return { kind: 'angle', points: [a, v, b], anchor: v };
+  }
+  const cx = points.reduce((sum, p) => sum + p[0], 0) / points.length;
+  const cy = points.reduce((sum, p) => sum + p[1], 0) / points.length;
+  return { kind: 'points', points, anchor: [cx, cy] };
+}
+
+// Display rounding for labels on the photo only; the card lists full values.
+const LABEL_DECIMALS = 2;
+
+const UNIT_SUFFIX: Record<string, string> = { iod: ' IOD', ratio: '', deg: '°' };
+
+export function formatMeasurementValue(m: Measurement): string {
+  if (m.value === null) return '';
+  const suffix = UNIT_SUFFIX[m.unit] ?? ` ${m.unit}`;
+  const fmt = (v: number) => `${Number(v.toFixed(LABEL_DECIMALS))}${suffix}`;
+  return Array.isArray(m.value) ? m.value.map(fmt).join(', ') : fmt(m.value);
+}
+
+export type Point = [number, number];
+
+function centroid(points: Point[]): Point | null {
+  if (points.length === 0) return null;
+  return [points.reduce((a, p) => a + p[0], 0) / points.length, points.reduce((a, p) => a + p[1], 0) / points.length];
+}
+
+/**
+ * Where a trait or classification belongs on the photo: the centre of the
+ * landmarks behind the measurements it reads. null when the engine did not
+ * say which measurements those are, or sent no landmarks — the result is
+ * then listed as not placeable rather than pinned somewhere plausible.
+ */
+export function anchorForMeasurementKeys(
+  keys: string[] | undefined,
+  measurements: Measurement[],
+  landmarks: Point[] | null | undefined,
+): Point | null {
+  if (!keys?.length || !landmarks) return null;
+  const byKey = new Map(measurements.map((m) => [m.key, m]));
+  const points: Point[] = [];
+  for (const key of keys) {
+    for (const i of byKey.get(key)?.landmarks ?? []) {
+      const p = landmarks[i];
+      if (p && Number.isFinite(p[0]) && Number.isFinite(p[1])) points.push([p[0], p[1]]);
+    }
+  }
+  return centroid(points);
+}
+
+export type PinKind = 'classification' | 'trait' | 'guidance';
+
+export interface Pin {
+  id: string;
+  kind: PinKind;
+  /** Short text for the on-photo label. */
+  label: string;
+  /** Image-pixel position, or null when the result has no place on the photo. */
+  anchor: Point | null;
+}
+
+/** Every result that gets an information mark, placed where the data puts it. */
+export function buildPins(result: FaceArchitectureResult): Pin[] {
+  const pins: Pin[] = [];
+  for (const [name, c] of Object.entries(result.classifications)) {
+    const assessed = c.status === 'single' || c.status === 'blend';
+    pins.push({
+      id: `classification:${name}`,
+      kind: 'classification',
+      label: assessed ? `${name}: ${c.primary}${c.secondary ? ` + ${c.secondary}` : ''}` : `${name}: ${CLASSIFICATION_STATUS_LABEL[c.status] || c.status}`,
+      anchor: anchorForMeasurementKeys(c.measurements, result.measurements, result.landmarks),
+    });
+  }
+  for (const [name, t] of Object.entries(result.traits)) {
+    pins.push({
+      id: `trait:${name}`,
+      kind: 'trait',
+      label: `${name}: ${t.label || TRAIT_STATUS_LABEL[t.status] || t.status}`,
+      anchor: anchorForMeasurementKeys(t.measurements, result.measurements, result.landmarks),
+    });
+  }
+  (result.guidance?.regions ?? []).forEach((r, i) => {
+    pins.push({ id: `guidance:${i}`, kind: 'guidance', label: `${r.role} · ${r.template}`, anchor: centroid(r.polygon) });
+  });
+  return pins;
+}
