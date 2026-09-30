@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Sparkles, ShieldAlert, Boxes, Play, Building, Smartphone, Palette } from 'lucide-react';
-import { PageHeader, TabNav, ConfirmDialog, type TabItem } from '@gateway-experience/shared';
+import { PageHeader, TabNav, ConfirmDialog, usePersistentState, type TabItem } from '@gateway-experience/shared';
 import type { ConflictMatrixRule, ProductGroup, ProductCatalogItem, Shade, ClinicalMatchResult } from '../types';
 
 import { ConflictMatrixTab } from './tabs/ConflictMatrixTab';
@@ -16,7 +16,7 @@ import { ShadeModal } from './modals/ShadeModal';
 import { resolveDynamicEndpoint } from '../../../core/collection-resolver';
 
 export const MatchManager: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'conflicts' | 'groups' | 'shades' | 'simulator'>('conflicts');
+  const [activeTab, setActiveTab] = usePersistentState<'conflicts' | 'groups' | 'shades' | 'simulator'>('xg.matchEngine.activeTab', 'conflicts');
   const [searchQuery, setSearchQuery] = useState('');
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [activeFilters, setActiveFilters] = useState<Record<string, any>>({});
@@ -35,8 +35,8 @@ export const MatchManager: React.FC = () => {
   });
 
   // Multi-Tenant Scoping Selection
-  const [selectedBrand, setSelectedBrand] = useState<string>('*');
-  const [selectedApp, setSelectedApp] = useState<string>('*');
+  const [selectedBrand, setSelectedBrand] = usePersistentState<string>('xg.matchEngine.brand', '*');
+  const [selectedApp, setSelectedApp] = usePersistentState<string>('xg.matchEngine.application', '*');
 
   // Data States
   const [conflicts, setConflicts] = useState<ConflictMatrixRule[]>([]);
@@ -55,16 +55,16 @@ export const MatchManager: React.FC = () => {
   const [editingGroup, setEditingGroup] = useState<ProductGroup | null>(null);
   const [editingShade, setEditingShade] = useState<Shade | null>(null);
 
-  // Simulator State
-  const [simBrand, setSimBrand] = useState('*');
-  const [simSkinType, setSimSkinType] = useState('OSPT');
-  const [simSebum, setSimSebum] = useState(75);
-  const [simHydration, setSimHydration] = useState(40);
-  const [simSensitivity, setSimSensitivity] = useState(65);
-  const [simPregnant, setSimPregnant] = useState(false);
-  const [simRetinol, setSimRetinol] = useState(true);
+  // Simulator State — inputs and the last result survive a reload.
+  const [simBrand, setSimBrand] = usePersistentState('xg.matchEngine.simulator.brand', '*');
+  const [simSkinType, setSimSkinType] = usePersistentState('xg.matchEngine.simulator.skinType', 'OSPT');
+  const [simSebum, setSimSebum] = usePersistentState('xg.matchEngine.simulator.sebum', 75);
+  const [simHydration, setSimHydration] = usePersistentState('xg.matchEngine.simulator.hydration', 40);
+  const [simSensitivity, setSimSensitivity] = usePersistentState('xg.matchEngine.simulator.sensitivity', 65);
+  const [simPregnant, setSimPregnant] = usePersistentState('xg.matchEngine.simulator.pregnant', false);
+  const [simRetinol, setSimRetinol] = usePersistentState('xg.matchEngine.simulator.retinol', true);
   const [isSimulating, setIsSimulating] = useState(false);
-  const [simResult, setSimResult] = useState<ClinicalMatchResult | null>(null);
+  const [simResult, setSimResult] = usePersistentState<ClinicalMatchResult | null>('xg.matchEngine.simulator.result', null);
 
   const loadData = () => {
     fetch(resolveDynamicEndpoint('match', '/api/matching/conflicts'))

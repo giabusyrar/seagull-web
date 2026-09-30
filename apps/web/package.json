@@ -6,7 +6,8 @@
     "dev": "next dev -p 3000",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint app components lib"
+    "lint": "eslint app components lib",
+    "test": "vitest run"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.24",

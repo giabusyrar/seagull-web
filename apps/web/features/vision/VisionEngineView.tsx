@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Sparkles, Sliders, Eye, Boxes } from 'lucide-react';
-import { PageHeader, TabNav, SearchableSelect, type TabItem, type SelectOption } from '@gateway-experience/shared';
+import { PageHeader, TabNav, SearchableSelect, usePersistentState, type TabItem, type SelectOption } from '@gateway-experience/shared';
 import { useToast } from '@/components/ui/toast';
 import { VisionSettingsTab, type VisionSettingItem } from './VisionSettingsTab';
 import { VisionSettingModal } from './VisionSettingModal';
@@ -28,11 +28,11 @@ export function VisionEngineView() {
   const { getEndpoint } = useCoreCollection();
 
   // Top level active tab: 'settings' (Vision Setting) vs 'simulator' (Vision Simulator) vs 'models' (Model Registry)
-  const [activeMainTab, setActiveMainTab] = useState<'settings' | 'simulator' | 'models'>('models');
+  const [activeMainTab, setActiveMainTab] = usePersistentState<'settings' | 'simulator' | 'models'>('xg.visionEngine.activeTab', 'models');
 
   // Brand & Application context
-  const [selectedBrand, setSelectedBrand] = useState('brand_wardah');
-  const [selectedApp, setSelectedApp] = useState('app_uv_aging_kiosk');
+  const [selectedBrand, setSelectedBrand] = usePersistentState('xg.visionEngine.brand', 'brand_wardah');
+  const [selectedApp, setSelectedApp] = usePersistentState('xg.visionEngine.application', 'app_uv_aging_kiosk');
 
   // ================= VISION SETTINGS TABLE STATE =================
   const [settingsList, setSettingsList] = useState<VisionSettingItem[]>([]);
