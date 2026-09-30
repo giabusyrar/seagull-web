@@ -8,6 +8,7 @@
   ],
   "scripts": {
     "dev": "npm run dev --workspace=apps/web",
+    "contracts:local": "node scripts/contracts-local.mjs",
     "build:packages": "npm run build -w @gateway-experience/shared && npm run build -w @gateway-experience/beauty-sdk",
     "build:web": "npm run build --workspace=apps/web",
     "build": "npm run build:packages && npm run build:web",

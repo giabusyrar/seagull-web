@@ -1,4 +1,11 @@
+import path from "node:path";
 import type { NextConfig } from "next";
+
+// Turbopack infers the workspace root from the nearest lockfile. This repo has
+// no package-lock.json yet (README: it cannot be generated honestly until
+// @gateway-experience/contracts is published), so the inference lands outside
+// the repo and the build fails. Pin it to the workspace root instead.
+const WORKSPACE_ROOT = path.resolve(import.meta.dirname, "..", "..");
 
 const baseHost = process.env.SERVICE_BASE_HOST || "127.0.0.1";
 const protocol = process.env.SERVICE_PROTOCOL || "http";
@@ -22,6 +29,7 @@ const GATEWAY_PROXY_URL =
 const nextConfig: NextConfig = {
   output: "standalone",
   devIndicators: false,
+  turbopack: { root: WORKSPACE_ROOT },
   async rewrites() {
     return [
       // 1. Dynamic API Gateway Collection Proxy Data Plane (:8080)
