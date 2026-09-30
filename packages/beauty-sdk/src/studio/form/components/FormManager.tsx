@@ -193,6 +193,8 @@ export const FormManager: React.FC = () => {
 
         {activeTab === 'simulator' && (
           <FormSimulatorTab
+            brandId={brandId}
+            applicationId={applicationId}
             questionnaires={questionnaires}
             selectedQCode={selectedQCode}
             setSelectedQCode={setSelectedQCode}

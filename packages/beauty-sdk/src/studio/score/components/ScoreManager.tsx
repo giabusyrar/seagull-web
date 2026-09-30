@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Sliders, SlidersHorizontal, Play, FileText } from 'lucide-react';
 import { PageHeader, TabNav, ConfirmDialog, usePersistentState, type TabItem } from '@gateway-experience/shared';
 import type { ScoreRuleset } from '../types';
+import { withTenantScope } from '../../../core/scope';
 
 import { RulesetsTab } from './tabs/RulesetsTab';
 import { BlendingTab } from './tabs/BlendingTab';
@@ -47,7 +48,9 @@ export const ScoreManager: React.FC = () => {
   });
 
   const loadRulesets = useCallback(() => {
-    fetch(`${SCORE}/rulesets`)
+    // The studio has no tenant selector: it lists every tenant's rulesets,
+    // scoped explicitly so the gateway cannot narrow it to one brand.
+    fetch(withTenantScope(`${SCORE}/rulesets`))
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data.rulesets)) {

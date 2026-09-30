@@ -10,10 +10,6 @@ const WORKSPACE_ROOT = path.resolve(import.meta.dirname, "..", "..");
 const baseHost = process.env.SERVICE_BASE_HOST || "127.0.0.1";
 const protocol = process.env.SERVICE_PROTOCOL || "http";
 
-const CORE_ENGINE_URL =
-  process.env.CORE_ENGINE_URL ||
-  `${protocol}://${baseHost}:${process.env.CORE_ENGINE_PORT || "8082"}`;
-
 const REFERENCE_SERVICE_URL =
   process.env.REFERENCE_SERVICE_URL ||
   `${protocol}://${baseHost}:${process.env.REFERENCE_SERVICE_PORT || "8086"}`;
@@ -33,6 +29,8 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       // 1. Dynamic API Gateway Collection Proxy Data Plane (:8080)
+      //    core-engine is reached only through here (/core/<module>/...);
+      //    the dashboard has no direct route to it.
       {
         source: "/core/:path*",
         destination: `${GATEWAY_PROXY_URL}/core/:path*`,
@@ -55,40 +53,6 @@ const nextConfig: NextConfig = {
       {
         source: "/api/:entity(brands|ingredients|dimensions|conditions|statuses|applications|skin-conditions)",
         destination: `${REFERENCE_SERVICE_URL}/api/reference/:entity`,
-      },
-
-      // 3. Core Engine Endpoints (:8082) - Scoring, Matching, Vision, Surveys
-      {
-        source: "/api/scoring/:path*",
-        destination: `${CORE_ENGINE_URL}/api/scoring/:path*`,
-      },
-      {
-        source: "/api/scoring",
-        destination: `${CORE_ENGINE_URL}/api/scoring`,
-      },
-      {
-        source: "/api/matching/:path*",
-        destination: `${CORE_ENGINE_URL}/api/matching/:path*`,
-      },
-      {
-        source: "/api/matching",
-        destination: `${CORE_ENGINE_URL}/api/matching`,
-      },
-      {
-        source: "/api/vision/:path*",
-        destination: `${CORE_ENGINE_URL}/api/vision/:path*`,
-      },
-      {
-        source: "/api/vision",
-        destination: `${CORE_ENGINE_URL}/api/vision`,
-      },
-      {
-        source: "/v1/survey/:path*",
-        destination: `${CORE_ENGINE_URL}/v1/survey/:path*`,
-      },
-      {
-        source: "/v1/survey",
-        destination: `${CORE_ENGINE_URL}/v1/survey`,
       },
 
       // 4. Gateway Engine Endpoints (:8081) - Auth & Collections Management

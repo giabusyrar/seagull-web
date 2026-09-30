@@ -16,12 +16,17 @@ const ANSWERS_KEY_PREFIX = 'xg.formEngine.simulator.answers.';
 const CUSTOMER_ID_KEY = 'xg.formEngine.simulator.customerId';
 
 interface FormSimulatorTabProps {
+  /** The Form Manager's selected tenant, which the questionnaires belong to. */
+  brandId: string;
+  applicationId: string;
   questionnaires: QuestionnaireItem[];
   selectedQCode: string;
   setSelectedQCode: (c: string) => void;
 }
 
 export const FormSimulatorTab: React.FC<FormSimulatorTabProps> = ({
+  brandId,
+  applicationId,
   questionnaires,
   selectedQCode,
   setSelectedQCode,
@@ -98,8 +103,8 @@ export const FormSimulatorTab: React.FC<FormSimulatorTabProps> = ({
   // The request body a client POSTs to Submit Answers
   // (POST /v1/survey/:code/evaluate). This is what you paste into the API workbench.
   const submitBody = {
-    brand_id: 'wardah',
-    application_id: 'skinverse',
+    brand_id: currentQ?.brandId || brandId,
+    application_id: currentQ?.applicationId || applicationId,
     customer_id: customerId,
     data,
   };
@@ -108,8 +113,8 @@ export const FormSimulatorTab: React.FC<FormSimulatorTabProps> = ({
   // Exact ScoreModuleRequest the Form Engine then forwards to the Score Engine.
   const payload = {
     code: currentQ?.code,
-    brand_id: 'wardah',
-    application_id: 'skinverse',
+    brand_id: currentQ?.brandId || brandId,
+    application_id: currentQ?.applicationId || applicationId,
     answer_list: core.answer_list,
     customer_condition: core.customer_condition,
     dimensions: core.dimensions,
