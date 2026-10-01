@@ -19,3 +19,7 @@ node_modules/
 
 # Log files
 *.log
+
+# MediaPipe files copied in for the colour capture check (docs/CAPTURE-CHECK.md)
+/public/models/
+/public/mediapipe-wasm/

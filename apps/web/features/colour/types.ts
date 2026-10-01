@@ -6,6 +6,8 @@ export interface Recommendation {
   shadeId: string;
   productId: string;
   productName: string;
+  /** The product's photo; '' (or absent, from an older engine) when the catalog has none. */
+  productImageUrl?: string;
   shadeName: string;
   hexColor: string;
   hueName: string;
@@ -22,6 +24,8 @@ export interface CatalogShade {
   shadeId: string;
   productId: string;
   productName: string;
+  /** The product's photo; '' (or absent, from an older engine) when the catalog has none. */
+  productImageUrl?: string;
   shadeName: string;
   hexColor: string;
   hueName: string;
@@ -79,6 +83,8 @@ export interface ApiError {
 export interface Product {
   productId: string;
   productName: string;
+  /** The product's photo, when the catalog has one. */
+  imageUrl?: string;
   shades: CatalogShade[];
 }
 
@@ -114,8 +120,17 @@ export function groupProducts(shades: CatalogShade[]): Product[] {
   const byId = new Map<string, Product>();
   for (const r of shades) {
     const p = byId.get(r.productId);
-    if (p) p.shades.push(r);
-    else byId.set(r.productId, { productId: r.productId, productName: r.productName, shades: [r] });
+    if (p) {
+      p.shades.push(r);
+      if (!p.imageUrl && r.productImageUrl) p.imageUrl = r.productImageUrl;
+    } else {
+      byId.set(r.productId, {
+        productId: r.productId,
+        productName: r.productName,
+        imageUrl: r.productImageUrl || undefined,
+        shades: [r],
+      });
+    }
   }
   return [...byId.values()];
 }
@@ -151,7 +166,8 @@ export const SOURCE_NOTE: Partial<Record<ColourSource, string>> = {
 };
 
 // Quality checks from the measurement pipeline (pipeline_03 QC_RULES), as
-// advice for the next photo.
+// advice: live while the camera is on (capture/), and for the next photo
+// after the analysis.
 export const QC_ADVICE: Record<string, string> = {
   tidak_ada_wajah: 'Wajah tidak terlihat. Pastikan seluruh wajah masuk bingkai.',
   wajah_ganda: 'Ada lebih dari satu wajah di foto. Foto sendiri saja.',
@@ -161,12 +177,12 @@ export const QC_ADVICE: Record<string, string> = {
   menoleh: 'Wajah menoleh. Hadapkan wajah lurus ke kamera.',
   mendongak_menunduk: 'Wajah mendongak atau menunduk. Tegakkan kepala.',
   miring: 'Kepala miring. Luruskan kepala.',
-  ekspresi: 'Ekspresi wajah kuat. Pakai ekspresi netral.',
+  ekspresi: 'Ekspresi wajah kuat. Rilekskan wajah, jangan tersenyum lebar atau membuka mulut.',
   mata_tertutup: 'Mata tertutup. Buka mata saat foto diambil.',
   tertutup: 'Sebagian wajah tertutup (rambut, tangan, atau kacamata). Buka area wajah.',
   blur: 'Foto buram. Pegang kamera lebih stabil.',
-  wajah_kecil: 'Wajah terlalu kecil di foto. Dekatkan kamera.',
-  wajah_besar: 'Wajah terlalu dekat. Jauhkan kamera sedikit.',
+  wajah_kecil: 'Wajah terlalu kecil di foto. Dekatkan wajah ke kamera.',
+  wajah_besar: 'Wajah terlalu dekat. Mundur sedikit dari kamera.',
   tidak_di_tengah: 'Wajah tidak di tengah. Posisikan wajah di tengah bingkai.',
 };
 
