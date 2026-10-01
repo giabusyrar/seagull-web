@@ -4,10 +4,44 @@ import React from 'react';
 import { Plus, Trash2, Lock } from 'lucide-react';
 import { SearchableSelect, type SelectOption } from '@gateway-experience/shared';
 
-const TYPE_OPTIONS: SelectOption[] = [
-  { value: 'dynamic', label: 'dynamic' },
-  { value: 'static', label: 'static' },
-];
+/**
+ * is_static: on means the value is fixed on the route, off means it is
+ * supplied per request. The stored field is still `type`
+ * ('static' | 'dynamic'); only the column reads as a flag.
+ *
+ * A file field is always sent with the request, so it can never be static:
+ * the switch is disabled rather than hidden, with a title saying why.
+ */
+function IsStaticSwitch({
+  isStatic,
+  onChange,
+  disabled,
+}: {
+  isStatic: boolean;
+  onChange: (next: boolean) => void;
+  disabled: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={isStatic}
+      aria-label="is_static"
+      disabled={disabled}
+      title={disabled ? 'A file field is always sent with the request, so it cannot be static.' : undefined}
+      onClick={() => onChange(!isStatic)}
+      className={`relative inline-flex h-4 w-8 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-none ${
+        isStatic ? 'bg-primary' : 'bg-muted'
+      } ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
+    >
+      <span
+        className={`pointer-events-none inline-block h-3 w-3 transform rounded-full bg-background shadow-xs ring-0 transition duration-200 ease-in-out ${
+          isStatic ? 'translate-x-4' : 'translate-x-0'
+        }`}
+      />
+    </button>
+  );
+}
 
 const FIELD_TYPE_OPTIONS: SelectOption[] = [
   { value: 'text', label: 'text' },
@@ -185,10 +219,10 @@ export const ParamsTable: React.FC<ParamsTableProps> = ({
               <thead>
                 <tr className="bg-muted/80 text-muted-foreground font-bold text-[10px] uppercase tracking-wider border-b border-border select-none">
                   <th className="px-3 py-2 w-1/4">Key</th>
-                  <th className="px-3 py-2 w-36">Type</th>
+                  <th className="px-3 py-2 w-24 text-center">is_static</th>
                   {kind === 'body' && <th className="px-3 py-2 w-32">Field type</th>}
                   <th className="px-3 py-2 w-24 text-center">Required</th>
-                  <th className="px-3 py-2">Value (Static only)</th>
+                  <th className="px-3 py-2">Value</th>
                   <th className="px-3 py-2 w-10 text-center"></th>
                 </tr>
               </thead>
@@ -218,13 +252,11 @@ export const ParamsTable: React.FC<ParamsTableProps> = ({
                           </span>
                         )}
                       </td>
-                      <td className="p-1.5">
-                        <SearchableSelect
-                          value={item.type}
-                          onChange={(v) => handleUpdateItem(idx, 'type', v)}
-                          options={item.fieldType === 'file' ? TYPE_OPTIONS.filter((o) => o.value === 'dynamic') : TYPE_OPTIONS}
-                          placeholder="Select type..."
-                          className="w-36"
+                      <td className="p-1.5 text-center align-middle">
+                        <IsStaticSwitch
+                          isStatic={item.type === 'static'}
+                          onChange={(next) => handleUpdateItem(idx, 'type', next ? 'static' : 'dynamic')}
+                          disabled={item.fieldType === 'file'}
                         />
                       </td>
                       {kind === 'body' && (
@@ -254,22 +286,26 @@ export const ParamsTable: React.FC<ParamsTableProps> = ({
                         </button>
                       </td>
                       <td className="p-1.5 px-3">
-                        <input
-                          type="text"
-                          value={item.value}
-                          disabled={item.type === 'dynamic' || item.fieldType === 'file'}
-                          onChange={(e) => handleUpdateItem(idx, 'value', e.target.value)}
-                          placeholder={
-                            item.fieldType === 'file'
-                              ? 'Files are always supplied by the caller'
-                              : isInherited
-                              ? 'Default from Collection Settings (Edit to override)'
-                              : item.type === 'dynamic'
-                              ? 'Dynamic value filled at runtime'
-                              : 'Static value injected by gateway'
-                          }
-                          className="w-full bg-transparent outline-none font-mono text-xs placeholder:text-muted-foreground/50 text-foreground disabled:opacity-40"
-                        />
+                        {/* Only a static param has a value to hold; a dynamic
+                            one is filled per request, so the cell says that
+                            instead of showing a field nobody can type in. */}
+                        {item.type === 'static' && item.fieldType !== 'file' ? (
+                          <input
+                            type="text"
+                            value={item.value}
+                            onChange={(e) => handleUpdateItem(idx, 'value', e.target.value)}
+                            placeholder={
+                              isInherited
+                                ? 'Default from Collection Settings (Edit to override)'
+                                : 'Static value injected by gateway'
+                            }
+                            className="w-full bg-transparent outline-none font-mono text-xs placeholder:text-muted-foreground/50 text-foreground"
+                          />
+                        ) : (
+                          <span className="font-mono text-xs text-muted-foreground/50 select-none">
+                            {item.fieldType === 'file' ? 'supplied by the caller' : 'filled at runtime'}
+                          </span>
+                        )}
                       </td>
                       <td className="p-1.5 text-center align-middle">
                         {isInherited ? (
