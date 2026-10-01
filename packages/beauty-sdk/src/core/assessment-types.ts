@@ -5,29 +5,23 @@
 // SDK carries its own — mirroring what core-engine's survey evaluate actually
 // returns (seagull-core internal/form/domain/evaluate.go, EvaluationOutput).
 
-export interface FormSubmission {
-  form_id?: string;
-  /** Survey code, when evaluating a specific survey. */
-  code?: string;
-  answers?: Record<string, unknown>;
-  answer_list?: Array<{ question_name?: string; value?: unknown }>;
-}
-
-export interface VisionSubmission {
-  photo_url?: string;
-  analysis_type?: string;
-  metrics?: Record<string, number>;
-}
-
+/**
+ * core-engine's SurveyEvaluateRequest (seagull-core
+ * internal/form/domain/survey.go). The survey code travels in the PATH, not
+ * the body, and the answers are `data` — not `answers`, and not `answer_list`,
+ * which is what the evaluation returns rather than what it takes.
+ */
 export interface AssessmentEvaluateRequest {
   brand_id: string;
   application_id: string;
-  customer_id?: string;
-  customer_token?: string;
+  /** Required on submit, so every answer set is attributable. */
+  customer_id: string;
+  /** Answers keyed by question name. */
+  data: Record<string, unknown>;
   customer_conditions?: Record<string, boolean>;
-  form?: FormSubmission;
-  vision?: VisionSubmission;
-  metadata?: Record<string, unknown>;
+  /** Vision metrics to fuse with the form's dimensions. */
+  vision_signals?: Record<string, number>;
+  computed_dimensions?: Array<Record<string, unknown>>;
 }
 
 export interface SkinGradingTier {

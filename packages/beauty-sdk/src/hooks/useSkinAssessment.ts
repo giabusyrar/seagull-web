@@ -14,6 +14,7 @@ export function useSkinAssessment(config: UseSkinAssessmentOptions) {
 
   const evaluate = useCallback(
     async (
+      surveyCode: string,
       request: Omit<AssessmentEvaluateRequest, 'brand_id' | 'application_id'> & {
         brand_id?: string;
         application_id?: string;
@@ -22,7 +23,7 @@ export function useSkinAssessment(config: UseSkinAssessmentOptions) {
       setIsLoading(true);
       setError(null);
       try {
-        const data = await client.evaluateAssessment(request);
+        const data = await client.evaluateAssessment(surveyCode, request);
         setResult(data);
         return data;
       } catch (err: any) {

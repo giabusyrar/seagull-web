@@ -1,10 +1,10 @@
-import { BeautyClientConfig } from './types/index.mjs';
-import { A as AssessmentEvaluateRequest, a as AssessmentEvaluateResponse } from './assessment-types-CZzJyusy.mjs';
+import { BeautyClientConfig } from './types/index.js';
+import { A as AssessmentEvaluateRequest, a as AssessmentEvaluateResponse } from './assessment-types-atxVAW_S.js';
 
 interface UseSkinAssessmentOptions extends BeautyClientConfig {
 }
 declare function useSkinAssessment(config: UseSkinAssessmentOptions): {
-    evaluate: (request: Omit<AssessmentEvaluateRequest, "brand_id" | "application_id"> & {
+    evaluate: (surveyCode: string, request: Omit<AssessmentEvaluateRequest, "brand_id" | "application_id"> & {
         brand_id?: string;
         application_id?: string;
     }) => Promise<AssessmentEvaluateResponse>;

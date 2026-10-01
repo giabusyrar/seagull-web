@@ -1,5 +1,5 @@
 import { BeautyClientConfig, VisionAnalysisOptions, VisionAnalysisResponse } from '../types/index.mjs';
-import { A as AssessmentEvaluateRequest, a as AssessmentEvaluateResponse } from '../assessment-types-CZzJyusy.mjs';
+import { A as AssessmentEvaluateRequest, a as AssessmentEvaluateResponse } from '../assessment-types-atxVAW_S.mjs';
 
 declare class FormSubClient {
     private client;
@@ -37,7 +37,7 @@ declare class ReferenceSubClient {
 declare class AssessmentsSubClient {
     private client;
     constructor(client: BeautyClient);
-    evaluate(request: Omit<AssessmentEvaluateRequest, 'brand_id' | 'application_id'> & {
+    evaluate(surveyCode: string, request: Omit<AssessmentEvaluateRequest, 'brand_id' | 'application_id'> & {
         brand_id?: string;
         application_id?: string;
     }): Promise<AssessmentEvaluateResponse>;
@@ -55,9 +55,13 @@ declare class BeautyClient {
      */
     request<T = any>(path: string, options?: RequestInit): Promise<T>;
     /**
-     * Unified single-hit multi-modal assessment evaluation (<50ms).
+     * Evaluate one survey and store the result as a customer assessment.
+     *
+     * core-engine takes the survey code from the path: its handler reads :code
+     * and looks the survey up with it, so a call without one finds nothing. The
+     * gateway's own /api/v1/assessments/evaluate is being retired.
      */
-    evaluateAssessment(request: Omit<AssessmentEvaluateRequest, 'brand_id' | 'application_id'> & {
+    evaluateAssessment(surveyCode: string, request: Omit<AssessmentEvaluateRequest, 'brand_id' | 'application_id'> & {
         brand_id?: string;
         application_id?: string;
     }): Promise<AssessmentEvaluateResponse>;
