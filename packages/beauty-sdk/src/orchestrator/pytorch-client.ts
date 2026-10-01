@@ -48,8 +48,14 @@ export async function dispatchPyTorchCapabilities(params: {
   timeoutMs: number;
   capabilities: string[];
   images?: { view: string; data: string }[];
+  /**
+   * Data-plane key, when the model server is reached through the gateway
+   * (it answers 401 without one). Supplied by the caller rather than read
+   * here, so a browser bundle never carries it.
+   */
+  apiKey?: string;
 }): Promise<CapabilityDispatchResult> {
-  const { serviceUrl, timeoutMs, capabilities, images } = params;
+  const { serviceUrl, timeoutMs, capabilities, images, apiKey } = params;
 
   if (!capabilities || capabilities.length === 0) return empty();
   if (!serviceUrl) return empty('No model server configured (MODEL_SERVER_URL).', capabilities);
@@ -60,7 +66,10 @@ export async function dispatchPyTorchCapabilities(params: {
 
     const res = await fetch(serviceUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(apiKey ? { 'x-api-key': apiKey } : {}),
+      },
       body: JSON.stringify({ capabilities, images }),
       signal: controller.signal,
     });

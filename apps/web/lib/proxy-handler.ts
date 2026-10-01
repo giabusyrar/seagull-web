@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   getGatewayEngineUrl,
   getGatewayProxyUrl,
-  getReferenceServiceUrl,
   getModelServerUrl,
 } from '@/lib/config/services';
 
@@ -60,19 +59,28 @@ export async function handleApiProxy(
       cleanPath === 'api/reference' ||
       cleanPath === 'reference-api'
     ) {
+      // reference-service, like core-engine, is reached only through the
+      // gateway data plane: its "/reference" collection forwards /reference/*
+      // unchanged, and reference-service serves the same handlers there.
       const subPath = cleanPath.replace(/^(api\/reference|reference-api)\/?/, '');
-      targetUrl = `${getReferenceServiceUrl()}/api/reference${subPath ? `/${subPath}` : ''}${search}`;
+      targetUrl = `${getGatewayProxyUrl()}/reference${subPath ? `/${subPath}` : ''}${search}`;
+      if (dataPlaneKey) headers['x-api-key'] = dataPlaneKey;
     } else if (cleanPath.startsWith('api/') && REFERENCE_ENTITIES.has(cleanPath.replace(/^api\//, '').split('/')[0])) {
       const subPath = cleanPath.replace(/^api\//, '');
-      targetUrl = `${getReferenceServiceUrl()}/api/reference/${subPath}${search}`;
+      targetUrl = `${getGatewayProxyUrl()}/reference/${subPath}${search}`;
+      if (dataPlaneKey) headers['x-api-key'] = dataPlaneKey;
     } else if (cleanPath.startsWith('api/vision-worker/')) {
       // Model registry: upload, download, activation, dispatch. These live on
       // worker-models (:8096), not the skin worker — Seagull-core moved them
       // there; the /api/v1/models/* routes and bodies are unchanged. The
       // client-side prefix still reads "vision-worker" so saved links keep
       // working; only the service it resolves to changed.
+      // Deployed, the model server sits behind the data plane like everything
+      // else, so the key travels with the request. Attached only when it is
+      // set, and a client-supplied one still wins in the header loop below.
       const subPath = cleanPath.replace(/^api\/vision-worker\//, '');
       targetUrl = `${getModelServerUrl()}/api/v1/${subPath}${search}`;
+      if (dataPlaneKey) headers['x-api-key'] = dataPlaneKey;
     } else if (DIRECT_CORE_ENGINE_PATH.test(cleanPath)) {
       // These used to go straight to a local core-engine. There is no direct
       // route any more; say where the endpoint lives rather than forwarding

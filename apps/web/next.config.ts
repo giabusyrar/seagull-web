@@ -10,10 +10,6 @@ const WORKSPACE_ROOT = path.resolve(import.meta.dirname, "..", "..");
 const baseHost = process.env.SERVICE_BASE_HOST || "127.0.0.1";
 const protocol = process.env.SERVICE_PROTOCOL || "http";
 
-const REFERENCE_SERVICE_URL =
-  process.env.REFERENCE_SERVICE_URL ||
-  `${protocol}://${baseHost}:${process.env.REFERENCE_SERVICE_PORT || "8086"}`;
-
 const GATEWAY_ENGINE_URL =
   process.env.GATEWAY_ENGINE_URL ||
   `${protocol}://${baseHost}:${process.env.GATEWAY_ENGINE_PORT || "8081"}`;
@@ -36,24 +32,10 @@ const nextConfig: NextConfig = {
         destination: `${GATEWAY_PROXY_URL}/core/:path*`,
       },
 
-      // 2. Reference Service Endpoints (:8086)
-      {
-        source: "/api/reference/:path*",
-        destination: `${REFERENCE_SERVICE_URL}/api/reference/:path*`,
-      },
-      {
-        source: "/reference-api/:path*",
-        destination: `${REFERENCE_SERVICE_URL}/api/reference/:path*`,
-      },
-      // Backward-compatible entity aliases to Reference Service
-      {
-        source: "/api/:entity(brands|ingredients|dimensions|conditions|statuses|applications|skin-conditions)/:path*",
-        destination: `${REFERENCE_SERVICE_URL}/api/reference/:entity/:path*`,
-      },
-      {
-        source: "/api/:entity(brands|ingredients|dimensions|conditions|statuses|applications|skin-conditions)",
-        destination: `${REFERENCE_SERVICE_URL}/api/reference/:entity`,
-      },
+      // 2. Reference data (/api/reference/*, /reference-api/*, /api/<entity>)
+      //    has no rewrite here: lib/proxy-handler.ts sends it through the
+      //    gateway's /reference collection, with the data-plane API key a
+      //    rewrite cannot attach.
 
       // 4. Gateway Engine Endpoints (:8081) - Auth & Collections Management
       {

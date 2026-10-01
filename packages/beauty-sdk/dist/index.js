@@ -9094,7 +9094,7 @@ var empty = (error, capabilities = []) => ({
   ...error ? { error } : {}
 });
 async function dispatchPyTorchCapabilities(params) {
-  const { serviceUrl, timeoutMs, capabilities, images } = params;
+  const { serviceUrl, timeoutMs, capabilities, images, apiKey } = params;
   if (!capabilities || capabilities.length === 0) return empty();
   if (!serviceUrl) return empty("No model server configured (MODEL_SERVER_URL).", capabilities);
   try {
@@ -9102,7 +9102,10 @@ async function dispatchPyTorchCapabilities(params) {
     const timeout = setTimeout(() => controller.abort(), timeoutMs || 3e3);
     const res = await fetch(serviceUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...apiKey ? { "x-api-key": apiKey } : {}
+      },
       body: JSON.stringify({ capabilities, images }),
       signal: controller.signal
     });
@@ -9313,7 +9316,10 @@ async function executeAssessmentPipeline(payload) {
     serviceUrl: config.vision.serviceUrl,
     timeoutMs: config.vision.timeoutMs,
     capabilities: dispatchedCaps,
-    images: payload.images
+    images: payload.images,
+    // Server-side only: process.env is empty in a browser bundle, so the key
+    // is simply absent there rather than shipped to one.
+    apiKey: process.env.GATEWAY_API_KEY
   });
   const visionSignals = visionDispatch.telemetry;
   timings["stage2_vision_ms"] = Date.now() - t1;

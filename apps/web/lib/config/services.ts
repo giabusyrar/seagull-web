@@ -35,12 +35,10 @@ export function getGatewayProxyUrl(): string {
   return normalizeUrl(rawUrl);
 }
 
-export function getReferenceServiceUrl(): string {
-  const rawUrl =
-    process.env.REFERENCE_SERVICE_URL ||
-    `${getProtocol()}://${getBaseHost()}:8086`;
-  return normalizeUrl(rawUrl);
-}
+// reference-service is not addressed directly any more: the dashboard reaches
+// it through the gateway's /reference collection (lib/proxy-handler.ts), which
+// is also what carries the data-plane key. There is no REFERENCE_SERVICE_URL
+// left to resolve.
 
 /**
  * worker-skin: segment-and-pose only. It was called the "vision ai worker"
@@ -70,7 +68,6 @@ export function getModelServerUrl(): string {
 export type ServiceKey =
   | 'GATEWAY_ENGINE_URL'
   | 'GATEWAY_PROXY_URL'
-  | 'REFERENCE_SERVICE_URL'
   | 'SKIN_WORKER_URL'
   | 'MODEL_SERVER_URL';
 
@@ -80,8 +77,6 @@ export function getServiceUrl(serviceKey: ServiceKey): string {
       return getGatewayEngineUrl();
     case 'GATEWAY_PROXY_URL':
       return getGatewayProxyUrl();
-    case 'REFERENCE_SERVICE_URL':
-      return getReferenceServiceUrl();
     case 'SKIN_WORKER_URL':
       return getSkinWorkerUrl();
     case 'MODEL_SERVER_URL':
