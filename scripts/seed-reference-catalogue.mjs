@@ -15,6 +15,7 @@
 
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { normaliseName } from './normalise-product-name.mjs';
 
 const API = (process.env.REFERENCE_API || 'http://127.0.0.1:3000/api/reference').replace(/\/+$/, '');
 const APPLY = process.argv.includes('--apply');
@@ -44,6 +45,7 @@ async function post(entity, payload) {
 
 const byCode = (list) => new Map(list.map((x) => [String(x.code || '').toLowerCase(), x]));
 
+
 const [brands, categories, existingTextures, existingProducts] = await Promise.all([
   get('brands'),
   get('categories'),
@@ -54,7 +56,15 @@ const [brands, categories, existingTextures, existingProducts] = await Promise.a
 const brandByCode = byCode(brands);
 const categoryByCode = byCode(categories);
 const textureByCode = byCode(existingTextures);
-const existingNames = new Set(existingProducts.map((p) => `${p.brandId}::${String(p.name).toLowerCase()}`));
+// Existing rows indexed by brand + normalised name, keeping the stored row so
+// a skip can say which product it matched.
+const brandNameById = new Map(brands.map((b) => [b.id, String(b.name || b.code || '')]));
+const existingByKey = new Map(
+  existingProducts.map((p) => [
+    `${p.brandId}::${normaliseName(p.name, brandNameById.get(p.brandId) || '')}`,
+    p,
+  ]),
+);
 
 console.log(`${API}`);
 console.log(`brands ${brands.length} · categories ${categories.length} · textures ${existingTextures.length} · products ${existingProducts.length}`);
@@ -87,7 +97,12 @@ for (const p of products) {
     problems.push(`${p.name}: no category with code ${p.category}`);
     continue;
   }
-  if (existingNames.has(`${brand.id}::${p.name.toLowerCase()}`)) {
+  const match = existingByKey.get(`${brand.id}::${normaliseName(p.name, brand.name || brand.code || '')}`);
+  if (match) {
+    // Printed, not silent: a wrong match would hide a product that should
+    // have been created, and only a reader of this list can catch that.
+    console.log(`skip      ${p.name}
+          ^ already stored as "${match.name}"`);
     skipped += 1;
     continue;
   }
