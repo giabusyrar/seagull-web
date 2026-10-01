@@ -4,7 +4,15 @@ export interface EntityFieldSchema {
   type: 'text' | 'number' | 'textarea' | 'select' | 'relation' | 'multi-relation';
   required?: boolean;
   options?: Array<{ value: string; label: string; description?: string }>;
-  relationEntity?: 'brands' | 'ingredients' | 'dimensions' | 'statuses' | 'conditions' | 'applications';
+  relationEntity?:
+    | 'brands'
+    | 'ingredients'
+    | 'dimensions'
+    | 'statuses'
+    | 'conditions'
+    | 'applications'
+    | 'categories'
+    | 'textures';
   // Backend field is a []string; the UI edits it as a comma-separated string
   // and must split it back into an array before submitting.
   isCsvArray?: boolean;
@@ -50,7 +58,43 @@ export const REFERENCE_ENTITY_CONFIGS: Record<string, EntityConfig> = {
       { key: 'name', label: 'Product Name', type: 'text', required: true },
       { key: 'code', label: 'Product Code', type: 'text' },
       { key: 'brandId', label: 'Brand', type: 'relation', relationEntity: 'brands', required: true },
+      // reference-service rejects a product without a category (400), so the
+      // form has to offer one — it had no category field at all.
+      { key: 'categoryId', label: 'Category', type: 'relation', relationEntity: 'categories', required: true },
+      { key: 'textureId', label: 'Texture', type: 'relation', relationEntity: 'textures' },
       { key: 'ingredientIds', label: 'Active Ingredients', type: 'multi-relation', relationEntity: 'ingredients' },
+      { key: 'imageUrl', label: 'Image URL', type: 'text' },
+      { key: 'description', label: 'Description', type: 'textarea' },
+    ],
+  },
+
+  categories: {
+    slug: 'categories',
+    title: 'Categories Master Reference',
+    singularTitle: 'Category',
+    description: 'Product categories a product is filed under',
+    iconName: 'LayoutGrid',
+    apiEndpoint: '/api/reference/categories',
+    dataKey: 'categories',
+    fields: [
+      { key: 'name', label: 'Category Name', type: 'text', required: true },
+      // Stored lower-cased by reference-service.
+      { key: 'code', label: 'Category Code', type: 'text', required: true },
+      { key: 'description', label: 'Description', type: 'textarea' },
+    ],
+  },
+
+  textures: {
+    slug: 'textures',
+    title: 'Textures Master Reference',
+    singularTitle: 'Texture',
+    description: 'Product textures a product can carry',
+    iconName: 'Droplet',
+    apiEndpoint: '/api/reference/textures',
+    dataKey: 'textures',
+    fields: [
+      { key: 'name', label: 'Texture Name', type: 'text', required: true },
+      { key: 'code', label: 'Texture Code', type: 'text', required: true },
       { key: 'description', label: 'Description', type: 'textarea' },
     ],
   },

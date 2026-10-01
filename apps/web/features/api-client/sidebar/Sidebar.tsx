@@ -9,6 +9,8 @@ import {
   X,
   Tag,
   Package,
+  LayoutGrid,
+  Droplet,
   CheckCircle,
   Sparkles,
   Layers,
@@ -263,6 +265,30 @@ export const ApiClientSidebar: React.FC<SidebarProps> = ({
             <Package className="h-4 w-4" />
             <span className="absolute left-12 bg-popover text-popover-foreground text-[10px] font-medium px-2 py-1 rounded border border-border shadow-xs opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-50">
               Products
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onOpenReference?.('categories')}
+            className="p-1.5 hover:bg-sidebar-accent hover:text-sidebar-foreground rounded-md text-muted-foreground transition cursor-pointer relative group"
+            title="Categories"
+          >
+            <LayoutGrid className="h-4 w-4" />
+            <span className="absolute left-12 bg-popover text-popover-foreground text-[10px] font-medium px-2 py-1 rounded border border-border shadow-xs opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-50">
+              Categories
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onOpenReference?.('textures')}
+            className="p-1.5 hover:bg-sidebar-accent hover:text-sidebar-foreground rounded-md text-muted-foreground transition cursor-pointer relative group"
+            title="Textures"
+          >
+            <Droplet className="h-4 w-4" />
+            <span className="absolute left-12 bg-popover text-popover-foreground text-[10px] font-medium px-2 py-1 rounded border border-border shadow-xs opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-50">
+              Textures
             </span>
           </button>
 
@@ -575,6 +601,38 @@ export const ApiClientSidebar: React.FC<SidebarProps> = ({
                   <div className="flex items-center gap-2 min-w-0">
                     <Package className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground shrink-0" />
                     <span className="text-xs font-medium text-foreground truncate" title="Products">Products</span>
+                  </div>
+                  <ExternalLink className="h-3 w-3 text-muted-foreground group-hover:text-foreground shrink-0 opacity-0 group-hover:opacity-100 transition" />
+                </button>
+
+                {/* Category */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    onOpenReference?.('categories');
+                    if (isMobileOpen && onCloseMobile) onCloseMobile();
+                  }}
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 bg-card hover:bg-sidebar-accent border border-sidebar-border hover:border-sidebar-ring/40 rounded-md text-left transition group cursor-pointer shadow-2xs"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <LayoutGrid className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground shrink-0" />
+                    <span className="text-xs font-medium text-foreground truncate" title="Categories">Categories</span>
+                  </div>
+                  <ExternalLink className="h-3 w-3 text-muted-foreground group-hover:text-foreground shrink-0 opacity-0 group-hover:opacity-100 transition" />
+                </button>
+
+                {/* Texture */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    onOpenReference?.('textures');
+                    if (isMobileOpen && onCloseMobile) onCloseMobile();
+                  }}
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 bg-card hover:bg-sidebar-accent border border-sidebar-border hover:border-sidebar-ring/40 rounded-md text-left transition group cursor-pointer shadow-2xs"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Droplet className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground shrink-0" />
+                    <span className="text-xs font-medium text-foreground truncate" title="Textures">Textures</span>
                   </div>
                   <ExternalLink className="h-3 w-3 text-muted-foreground group-hover:text-foreground shrink-0 opacity-0 group-hover:opacity-100 transition" />
                 </button>

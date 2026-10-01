@@ -21,7 +21,7 @@ interface EntityFieldSchema {
         label: string;
         description?: string;
     }>;
-    relationEntity?: 'brands' | 'ingredients' | 'dimensions' | 'statuses' | 'conditions' | 'applications';
+    relationEntity?: 'brands' | 'ingredients' | 'dimensions' | 'statuses' | 'conditions' | 'applications' | 'categories' | 'textures';
     isCsvArray?: boolean;
 }
 interface EntityConfig {

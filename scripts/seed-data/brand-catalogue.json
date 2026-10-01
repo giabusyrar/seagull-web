@@ -1,0 +1,51 @@
+{
+  "_source": {
+    "wardah": "https://www.wardahbeauty.com/id/product/list/make-up (sort/lip, sort/eye, sort/face), read 2026-10-01",
+    "makeOver": "https://www.makeoverforall.com/ and /collections/best-sellings, read 2026-10-01",
+    "_note": "Product names and the category labels are as the brands' own catalogues state them. Nothing here is invented: a product whose texture its own name does not state is left without one, rather than guessed."
+  },
+  "textures": [
+    { "code": "cream", "name": "Cream", "description": "Thick emulsion that stays where it is placed" },
+    { "code": "liquid", "name": "Liquid", "description": "Pourable, spreads thin" },
+    { "code": "powder", "name": "Powder", "description": "Dry pressed or loose" },
+    { "code": "cushion", "name": "Cushion", "description": "Liquid held in a sponge, applied with a puff" },
+    { "code": "balm", "name": "Balm", "description": "Waxy solid that melts on contact" },
+    { "code": "pencil", "name": "Pencil", "description": "Solid core in a barrel, drawn on" }
+  ],
+  "products": [
+    { "brand": "WARDAH", "category": "lip", "texture": "cream", "name": "Matte Lip Cream", "siteLabels": "LIP, LIP CREAM" },
+    { "brand": "WARDAH", "category": "lip", "texture": null, "name": "Colorfit Last All Day Lip Paint", "siteLabels": "LIP, LIP CREAM" },
+    { "brand": "WARDAH", "category": "lip", "texture": null, "name": "Colorfit Last All Day Lip Paint Around the World", "siteLabels": "LIP, LIP CREAM" },
+    { "brand": "WARDAH", "category": "lip", "texture": null, "name": "Everyday! Matte Lip Shot", "siteLabels": "LIP, LIP CREAM" },
+    { "brand": "WARDAH", "category": "lip", "texture": null, "name": "Colorfit Fresh Lip Ink Serum", "siteLabels": "LIP, LIP CREAM" },
+    { "brand": "WARDAH", "category": "lip", "texture": "balm", "name": "Lip Balm Picnic Limited Edition", "siteLabels": "LIP, LIP BALM" },
+    { "brand": "WARDAH", "category": "eyeshadow", "texture": null, "name": "Colorfit Quad Eye Palette Sunlit Blaze", "siteLabels": "EYE, EYESHADOW" },
+    { "brand": "WARDAH", "category": "eyeshadow", "texture": null, "name": "Colorfit Quad Eye Palette Brunette Dawn", "siteLabels": "EYE, EYESHADOW" },
+    { "brand": "WARDAH", "category": "eyeshadow", "texture": null, "name": "Colorfit Quad Eye Palette Rose Aurora", "siteLabels": "EYE, EYESHADOW" },
+    { "brand": "WARDAH", "category": "eyeliner", "texture": null, "name": "EyeXpert Perfect Precision Liner", "siteLabels": "EYELINER" },
+    { "brand": "WARDAH", "category": "brow", "texture": null, "name": "Eyexpert Matic Brow Definer", "siteLabels": "EYE, EYEBROW" },
+    { "brand": "WARDAH", "category": "mascara", "texture": null, "name": "EyeXpert Liftlast Waterproof Mascara", "siteLabels": "EYE, EYEBROW" },
+    { "brand": "WARDAH", "category": "complexion", "texture": "cushion", "name": "Colorfit 5D Blur Cloud Cushion", "siteLabels": "FACE, CUSHION" },
+    { "brand": "WARDAH", "category": "complexion", "texture": "cushion", "name": "Colorfit Perfect Glow Cushion", "siteLabels": "FACE, CUSHION" },
+    { "brand": "WARDAH", "category": "complexion", "texture": "cushion", "name": "Refill Colorfit Perfect Glow Cushion SPF 33 PA++", "siteLabels": "FACE, FOUNDATION" },
+    { "brand": "WARDAH", "category": "complexion", "texture": "liquid", "name": "Lightening Liquid Foundation 6ml", "siteLabels": "FACE, FOUNDATION" },
+    { "brand": "WARDAH", "category": "complexion", "texture": "liquid", "name": "Lightening Liquid Concealer", "siteLabels": "EYE, FACE, FOUNDATION" },
+    { "brand": "WARDAH", "category": "complexion", "texture": null, "name": "Colorfit Highlight Contour Palette", "siteLabels": "FACE" },
+    { "brand": "WARDAH", "category": "blush", "texture": "cream", "name": "Colorfit Cream Blush", "siteLabels": "FACE, BLUSH ON" },
+
+    { "brand": "MAKEOVER", "category": "complexion", "texture": "liquid", "name": "Ultra Cover Liquid Matt Foundation", "siteLabels": "best sellers" },
+    { "brand": "MAKEOVER", "category": "complexion", "texture": "liquid", "name": "Powerstay 24H Weightless Liquid Foundation", "siteLabels": "homepage" },
+    { "brand": "MAKEOVER", "category": "complexion", "texture": "powder", "name": "Powerstay 24H Matte Powder Foundation", "siteLabels": "homepage" },
+    { "brand": "MAKEOVER", "category": "complexion", "texture": "powder", "name": "Perfect Cover Powder Foundation", "siteLabels": "homepage" },
+    { "brand": "MAKEOVER", "category": "complexion", "texture": "powder", "name": "Perfect Cover Two Way Cake 12 g", "siteLabels": "best sellers" },
+    { "brand": "MAKEOVER", "category": "complexion", "texture": "cushion", "name": "Hydrastay Prismatic Glass Cushion", "siteLabels": "homepage" },
+    { "brand": "MAKEOVER", "category": "complexion", "texture": "cushion", "name": "Powerstay Sync Matte Cushion", "siteLabels": "homepage" },
+    { "brand": "MAKEOVER", "category": "complexion", "texture": "cushion", "name": "Hydrastay Lite Glow Cushion", "siteLabels": "best sellers" },
+    { "brand": "MAKEOVER", "category": "complexion", "texture": null, "name": "Powerskin Radiant Tinted Moisturizer", "siteLabels": "best sellers" },
+    { "brand": "MAKEOVER", "category": "complexion", "texture": null, "name": "Amplify Fluid Glass", "siteLabels": "homepage" },
+    { "brand": "MAKEOVER", "category": "lip", "texture": "cream", "name": "Powerstay Transferproof Matte Lip Cream", "siteLabels": "best sellers" },
+    { "brand": "MAKEOVER", "category": "lip", "texture": "cream", "name": "Intense Matte Lip Cream", "siteLabels": "best sellers" },
+    { "brand": "MAKEOVER", "category": "lip", "texture": null, "name": "Powerstay Glazed Lock Lip Pigment", "siteLabels": "homepage" },
+    { "brand": "MAKEOVER", "category": "eyeliner", "texture": "pencil", "name": "Hyperblack Superstay Liner 1 g", "siteLabels": "best sellers" }
+  ]
+}
