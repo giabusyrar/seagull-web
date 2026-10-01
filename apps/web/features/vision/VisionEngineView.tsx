@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Sparkles, Sliders, Eye, Boxes } from 'lucide-react';
+import { Sparkles, Sliders, Eye, Boxes, Package } from 'lucide-react';
 import { PageHeader, TabNav, SearchableSelect, usePersistentState, type TabItem, type SelectOption } from '@gateway-experience/shared';
 import { useToast } from '@/components/ui/toast';
 import { VisionSettingsTab, type VisionSettingItem } from './VisionSettingsTab';
 import { VisionSettingModal } from './VisionSettingModal';
 import { VisionSimulator } from './simulator';
 import { ModelRegistryPanel } from './ModelRegistryPanel';
+import { ModelAssetsPanel } from './ModelAssetsPanel';
 import { useCoreCollection } from '@/lib/hooks/use-core-collection';
 
 // The vision config backend route (list/save) doesn't exist yet — guard
@@ -28,7 +29,7 @@ export function VisionEngineView() {
   const { getEndpoint } = useCoreCollection();
 
   // Top level active tab: 'settings' (Vision Setting) vs 'simulator' (Vision Simulator) vs 'models' (Model Registry)
-  const [activeMainTab, setActiveMainTab] = usePersistentState<'settings' | 'simulator' | 'models'>('xg.visionEngine.activeTab', 'models');
+  const [activeMainTab, setActiveMainTab] = usePersistentState<'settings' | 'simulator' | 'models' | 'assets'>('xg.visionEngine.activeTab', 'models');
 
   // Brand & Application context
   const [selectedBrand, setSelectedBrand] = usePersistentState('xg.visionEngine.brand', 'brand_wardah');
@@ -140,6 +141,7 @@ export function VisionEngineView() {
 
   const navTabs: TabItem[] = [
     { id: 'models', label: 'Model Registry', icon: <Boxes className="h-3.5 w-3.5 text-emerald-400" /> },
+    { id: 'assets', label: 'Model Assets', icon: <Package className="h-3.5 w-3.5 text-violet-400" /> },
     { id: 'settings', label: 'Vision Setting', icon: <Sliders className="h-3.5 w-3.5 text-amber-400" />, badge: settingsList.length },
     { id: 'simulator', label: 'Vision Simulator', icon: <Eye className="h-3.5 w-3.5 text-cyan-400" /> },
   ];
@@ -159,7 +161,7 @@ export function VisionEngineView() {
         <TabNav
           tabs={navTabs}
           activeTab={activeMainTab}
-          onTabChange={(id) => setActiveMainTab(id as 'settings' | 'simulator' | 'models')}
+          onTabChange={(id) => setActiveMainTab(id as 'settings' | 'simulator' | 'models' | 'assets')}
         />
       </PageHeader>
 
@@ -271,6 +273,9 @@ export function VisionEngineView() {
 
         {/* TAB 3: MODEL REGISTRY (Upload/Download ONNX models per Vision Capability) */}
         {activeMainTab === 'models' && <ModelRegistryPanel />}
+
+        {/* TAB 4: MODEL ASSETS (shared files the workers fetch at start) */}
+        {activeMainTab === 'assets' && <ModelAssetsPanel />}
       </main>
 
       {/* Vision Setting Add / Edit Modal */}
