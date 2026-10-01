@@ -500,7 +500,7 @@ function InfoSection({ title, children }: { title: string; children: React.React
   );
 }
 
-function MeasurementSummary({
+export function MeasurementSummary({
   m,
   catalogue,
   mmPerIod,

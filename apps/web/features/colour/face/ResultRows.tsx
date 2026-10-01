@@ -87,7 +87,8 @@ export function ClassificationRow({ name, c }: { name: string; c: Classification
   );
 }
 
-export function TraitRow({ name, t }: { name: string; t: Trait }) {
+/** optionsNote: say per row that the engine sends no full option list; off where a list says it once. */
+export function TraitRow({ name, t, optionsNote = true }: { name: string; t: Trait; optionsNote?: boolean }) {
   const assessed = t.status === 'assessed';
   const options: Option[] = t.label
     ? [{ label: t.label, state: 'chosen' }, ...(t.alternative ? [{ label: t.alternative, state: 'possible' as const }] : [])]
@@ -105,7 +106,7 @@ export function TraitRow({ name, t }: { name: string; t: Trait }) {
           <span className="font-semibold text-foreground">{t.alternative}</span>.
         </p>
       )}
-      {assessed && (
+      {assessed && optionsNote && (
         <p className="mt-0.5 text-[11px] text-muted-foreground">
           Engine hanya mengirim hasil{t.alternative ? ' dan alternatif terdekat' : ''}, belum daftar semua opsi trait ini.
         </p>

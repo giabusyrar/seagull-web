@@ -25,11 +25,32 @@ export interface HeadStats {
   provenanceMissing: boolean;
 }
 
+/**
+ * A measurement drawn on the head, in the GLB's mesh space (metres). Points
+ * come from the report's landmarkPoints, never from a guessed vertex.
+ */
+export interface HeadMarker {
+  key: string;
+  kind: 'segment' | 'angle' | 'points';
+  points: [number, number, number][];
+  selected: boolean;
+}
+
+// Same green as the 2D measurement layer, so a line means the same thing on
+// the photo and on the head.
+const MARKER_COLOUR = '#059669';
+// Marker dot radius as a share of the head's height, and how far markers are
+// lifted off the skin in dot radii (layout only).
+const MARKER_DOT_SHARE = 0.006;
+const MARKER_LIFT = 0.8;
+
 interface Props {
   glb: ArrayBuffer;
   shading: HeadShading;
   onLoaded: (stats: HeadStats) => void;
   onError: (message: string) => void;
+  /** Measurements to draw on the head, on its surface; hidden when on the far side. */
+  markers?: HeadMarker[];
 }
 
 interface ShaderUniforms {
@@ -47,11 +68,17 @@ interface ShaderUniforms {
  * - provenance: texture where a photo saw the surface, grey where it did not;
  * - sigma: each vertex's model lower-bound uncertainty on a sequential ramp.
  */
-export function HeadViewer({ glb, shading, onLoaded, onError }: Props) {
+export function HeadViewer({ glb, shading, onLoaded, onError, markers = [] }: Props) {
   const mount = useRef<HTMLDivElement>(null);
   const uniforms = useRef<ShaderUniforms[]>([]);
   const redraw = useRef<() => void>(() => {});
   const sigmaMaxRef = useRef(1);
+  // Where markers hang: the node holding the head mesh, so they share its
+  // transform; and the head's height, to size the dots.
+  const markerParent = useRef<THREE.Object3D | null>(null);
+  const headHeight = useRef(1);
+  // The head's centre in the markers' frame: "outward" for lifting markers.
+  const headCentre = useRef(new THREE.Vector3());
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -167,11 +194,19 @@ export function HeadViewer({ glb, shading, onLoaded, onError }: Props) {
         });
 
         scene.add(gltf.scene);
+        let meshNode: THREE.Object3D | null = null;
+        gltf.scene.traverse((o) => {
+          if (!meshNode && (o as THREE.Mesh).isMesh) meshNode = o.parent ?? gltf.scene;
+        });
+        markerParent.current = meshNode ?? gltf.scene;
         // Frame the head: centred, its height filling most of the view, seen
         // from the front (+Z out of the face).
         const box = new THREE.Box3().setFromObject(gltf.scene);
         const centre = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
+        headHeight.current = size.y;
+        gltf.scene.updateMatrixWorld(true);
+        headCentre.current = (markerParent.current ?? gltf.scene).worldToLocal(centre.clone());
         const dist = (Math.max(size.y, size.x) / 2 / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))) * FRAME_MARGIN;
         camera.position.set(centre.x, centre.y, centre.z + dist);
         camera.near = dist / 100;
@@ -210,6 +245,7 @@ export function HeadViewer({ glb, shading, onLoaded, onError }: Props) {
           m.dispose();
         });
       });
+      markerParent.current = null;
       renderer.dispose();
       el.removeChild(renderer.domElement);
       setReady(false);
@@ -217,6 +253,56 @@ export function HeadViewer({ glb, shading, onLoaded, onError }: Props) {
     // Shading is applied through uniforms below, not by rebuilding the scene.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [glb]);
+
+  // Markers live in their own group, rebuilt when they change; the head is not reloaded.
+  const markerKey = JSON.stringify(markers);
+  useEffect(() => {
+    const parent = markerParent.current;
+    if (!ready || !parent) return;
+    const group = new THREE.Group();
+    group.renderOrder = 10;
+    const r = headHeight.current * MARKER_DOT_SHARE;
+    for (const mk of markers) {
+      const colour = new THREE.Color(MARKER_COLOUR);
+      const opacity = markers.some((m) => m.selected) && !mk.selected ? 0.35 : 1;
+      // Each point lies on the skin. Lift it a little outward (away from the
+      // head's centre) so the marker sits on the surface instead of half in it;
+      // depth-tested, so points on the far side stay hidden. Display only.
+      const pts = mk.points.map(([x, y, z]) => {
+        const p = new THREE.Vector3(x, y, z);
+        return p.add(p.clone().sub(headCentre.current).normalize().multiplyScalar(r * MARKER_LIFT));
+      });
+      if (mk.kind !== 'points' && pts.length > 1) {
+        const line = new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints(pts),
+          new THREE.LineBasicMaterial({ color: colour, transparent: true, opacity }),
+        );
+        line.renderOrder = 10;
+        group.add(line);
+      }
+      const dot = new THREE.SphereGeometry(r * (mk.selected ? 1.5 : 1), 12, 8);
+      const mat = new THREE.MeshBasicMaterial({ color: colour, transparent: true, opacity });
+      for (const p of pts) {
+        const m = new THREE.Mesh(dot, mat);
+        m.position.copy(p);
+        m.renderOrder = 11;
+        group.add(m);
+      }
+    }
+    parent.add(group);
+    redraw.current();
+    return () => {
+      parent.remove(group);
+      group.traverse((o) => {
+        const m = o as THREE.Mesh;
+        m.geometry?.dispose();
+        (m.material as THREE.Material | undefined)?.dispose();
+      });
+      redraw.current();
+    };
+    // markerKey stands for markers' content.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [markerKey, ready]);
 
   useEffect(() => {
     uniforms.current.forEach((u) => applyShading(u, shading, sigmaMaxRef.current));

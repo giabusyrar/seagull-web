@@ -99,7 +99,7 @@ export function HeadPanel({ front, brandId, applicationId, getEndpoint }: Props)
   );
 }
 
-function SidePhoto({ label, file, onChange }: { label: string; file?: File; onChange: (f: File | null) => void }) {
+export function SidePhoto({ label, file, onChange }: { label: string; file?: File; onChange: (f: File | null) => void }) {
   const input = useRef<HTMLInputElement>(null);
   return (
     <span className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2.5 py-1 text-[11px]">
@@ -136,7 +136,7 @@ function SidePhoto({ label, file, onChange }: { label: string; file?: File; onCh
   );
 }
 
-function ShadingControl({ shading, onChange, stats }: { shading: HeadShading; onChange: (s: HeadShading) => void; stats: HeadStats | null }) {
+export function ShadingControl({ shading, onChange, stats }: { shading: HeadShading; onChange: (s: HeadShading) => void; stats: HeadStats | null }) {
   const sigma = stats?.sigmaRange;
   return (
     <div className="space-y-1.5">
@@ -200,7 +200,7 @@ const CONSISTENCY_TEXT: Record<string, { text: string; warn: boolean }> = {
   undetermined: { text: 'Kecocokan antar foto tidak bisa ditentukan (salah satu foto gagal dicocokkan sendiri).', warn: true },
 };
 
-function HeadReportSummary({ report, provenanceMissing }: { report: HeadReport | null; provenanceMissing: boolean }) {
+export function HeadReportSummary({ report, provenanceMissing }: { report: HeadReport | null; provenanceMissing: boolean }) {
   if (!report) {
     return (
       <p className="text-[11px] text-warning">

@@ -10,11 +10,12 @@ import { CameraCapture } from './CameraCapture';
 import { ProductPicker } from './ProductPicker';
 import { useTryOn } from './useTryOn';
 import { FaceArchitectPanel } from './face/FaceArchitectPanel';
+import { CombinedAnalysisView } from './combined/CombinedAnalysisView';
+import { YesNoField, type YesNo } from './YesNoField';
 import { catalogOf, errorText, readApiError, type AnalyzeResult, type ApiError, type CatalogResult } from './types';
 
-type YesNo = 'yes' | 'no' | '';
 type Step = 'capture' | 'questions' | 'tryon';
-type StudioTab = 'colour' | 'face';
+type StudioTab = 'colour' | 'face' | 'all';
 
 // The last session — photo, answers, analysis and chosen look — survives a
 // reload. The photo is a file, so it goes to IndexedDB; the rest to
@@ -154,7 +155,11 @@ export function ColourStudioView() {
           <div className="space-y-0.5">
             <div className="text-[10px] font-bold uppercase tracking-wider text-primary">Personal Colour &amp; Virtual Try-On</div>
             <h1 className="text-lg font-bold text-foreground">
-              {tab === 'colour' ? 'Coba warna yang cocok untukmu' : 'Bentuk wajah dan penempatan makeup'}
+              {tab === 'colour'
+                ? 'Coba warna yang cocok untukmu'
+                : tab === 'face'
+                  ? 'Bentuk wajah dan penempatan makeup'
+                  : 'Kepala 3D, bentuk wajah, dan warna sekaligus'}
             </h1>
           </div>
           {tab === 'colour' && <Stepper step={step} />}
@@ -166,6 +171,7 @@ export function ColourStudioView() {
             [
               ['colour', 'Warna'],
               ['face', 'Bentuk Wajah'],
+              ['all', 'Analisis lengkap'],
             ] as const
           ).map(([key, label]) => (
             <button
@@ -183,6 +189,17 @@ export function ColourStudioView() {
         </div>
 
         {tab === 'face' && <FaceArchitectPanel file={file} photoUrl={photoUrl} onPhoto={choosePhoto} />}
+        {tab === 'all' && (
+          <CombinedAnalysisView
+            file={file}
+            photoUrl={photoUrl}
+            onPhoto={choosePhoto}
+            hijab={hijab}
+            onHijab={setHijab}
+            hairVisible={hairVisible}
+            onHairVisible={setHairVisible}
+          />
+        )}
 
         <div className={cn('grid grid-cols-1 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-5 items-start', tab !== 'colour' && 'hidden')}>
           {/* Left: photo */}
@@ -326,28 +343,5 @@ function Stepper({ step }: { step: Step }) {
         </li>
       ))}
     </ol>
-  );
-}
-
-function YesNoField({ label, value, onChange }: { label: string; value: YesNo; onChange: (v: YesNo) => void }) {
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-      <span className="text-foreground">{label}</span>
-      <div className="flex gap-1 rounded-xl border border-border bg-secondary/50 p-1">
-        {(['yes', 'no'] as const).map((v) => (
-          <button
-            key={v}
-            type="button"
-            onClick={() => onChange(v)}
-            className={cn(
-              'px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer',
-              value === v ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            {v === 'yes' ? 'Ya' : 'Tidak'}
-          </button>
-        ))}
-      </div>
-    </div>
   );
 }

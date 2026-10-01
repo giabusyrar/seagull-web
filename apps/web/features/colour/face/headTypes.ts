@@ -39,7 +39,19 @@ export interface HeadReport {
   /** "model_lower_bound": _SIGMA_MM is at least this uncertain, not an interval. */
   sigmaKind: string;
   components: { identity: number; lowerFace: number; eye: number };
+  /**
+   * 468 × [v0, v1, v2, w0, w1, w2], dense in MediaPipe order. The v are GNM
+   * model vertex indices, NOT indices into the GLB's re-indexed primitives,
+   * so the web cannot place a landmark from these alone.
+   */
   landmarkVertices: number[][];
+  /**
+   * 468 × [x, y, z] in the GLB's mesh space (metres), dense in MediaPipe
+   * order: each landmark's point on the fitted head. Requested from
+   * Seagull-core; absent from heads built before it — markers are then not
+   * drawn on the head.
+   */
+  landmarkPoints?: [number, number, number][];
   observedBits: Record<string, number>;
   notice: string;
 }

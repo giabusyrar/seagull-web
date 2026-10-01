@@ -9,8 +9,8 @@ import { FLAG_TEXT, QC_ADVICE, type AnalyzeResult } from './types';
  * WCPA result, compact. Never shows Lab, Munsell or raw scores (the normal
  * response does not carry them). "Provisional" is always shown when set.
  */
-export function AnalysisCard({ result }: { result: AnalyzeResult }) {
-  const [open, setOpen] = useState(false);
+export function AnalysisCard({ result, defaultOpen = false }: { result: AnalyzeResult; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
   const q = result.quadrant;
   const advice = (result.qualityFailed ?? []).map((c) => QC_ADVICE[c]).filter(Boolean);
 
