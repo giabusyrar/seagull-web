@@ -20,11 +20,19 @@ A bug you find there is reported there, not fixed from here.
 
 # The coupling that survived the split
 
-**Assessment types are not defined here.** `@gateway-experience/contracts` is
-generated from Go structs in Seagull-gateway and published to GitLab's package
-registry. To change a contract you change it there, publish, and bump the
-dependency here. `npm install` needs `.npmrc` pointed at the right project ID
-and `GITLAB_NPM_TOKEN` set — see `README.md`.
+**Assessment types used to come from `@gateway-experience/contracts`**,
+generated from Go structs in Seagull-gateway. That package was emptied on
+2026-10-01, when assessments moved to core-engine and the gateway retired its
+unified-assessment DTOs; the dependency was dropped with it, and with it the
+`.npmrc`, the GitLab registry and `GITLAB_NPM_TOKEN`. `npm install` needs
+nothing private now. The shapes this repo uses live in
+`packages/beauty-sdk/src/core/assessment-types.ts`.
+
+**The coupling that remains is the API, not a package.** Assessment reads and
+writes go to core-engine through the gateway data plane
+(`/core/assessments/*`, `/core/form-engine/survey/:code/evaluate`), so a change
+to those contracts is a change in Seagull-core, verified against the running
+service rather than against a published type.
 
 # Git Actions Restriction
 - **Do NOT execute git push**: Pushing changes to remote repositories is strictly reserved for the USER. You are only permitted to stage (`git add`) and commit (`git commit`) changes locally. Do not run any commands that push commits to a remote server.

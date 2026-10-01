@@ -81,7 +81,6 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@gateway-experience/contracts": "^0.1.0",
     "@gateway-experience/shared": "*",
     "@mediapipe/camera_utils": "^0.3.1675466862",
     "@mediapipe/face_mesh": "^0.4.1633559619",
