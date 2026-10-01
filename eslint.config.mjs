@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // MediaPipe wasm loaders copied in for the capture check (docs/CAPTURE-CHECK.md)
+    "apps/web/public/mediapipe-wasm/**",
   ]),
 ]);
 

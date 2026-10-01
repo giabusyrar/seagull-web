@@ -45,6 +45,10 @@ The dashboard talks to services this repo does not contain, and which services
 have to be up depends on what you are doing — see [docs/RUNNING.md](docs/RUNNING.md),
 including how to run locally against a deployed gateway.
 
+The camera check on `/colour-analysis` needs two `NEXT_PUBLIC_*` variables and
+two local files; without them the camera works unchecked. See
+[docs/CAPTURE-CHECK.md](docs/CAPTURE-CHECK.md).
+
 ## Things that cross repository boundaries
 
 - **Assessment types come from the gateway.** `Contracts` re-exported from the
