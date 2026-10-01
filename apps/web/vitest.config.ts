@@ -5,7 +5,7 @@ import { defineConfig } from 'vitest/config';
 // config and had no runner; it is included here too.
 export default defineConfig({
   test: {
-    include: ['{app,features,lib}/**/*.test.ts'],
+    include: ['{app,features,lib}/**/*.test.{ts,tsx}'],
   },
   resolve: {
     alias: { '@': path.resolve(import.meta.dirname) },
