@@ -19,6 +19,7 @@
     "@gateway-experience/shared": "*",
     "@mediapipe/camera_utils": "^0.3.1675466862",
     "@mediapipe/face_mesh": "^0.4.1633559619",
+    "@mediapipe/tasks-vision": "1.0.1",
     "@tiptap/pm": "^3.29.0",
     "@tiptap/react": "^3.29.0",
     "@tiptap/starter-kit": "^3.29.0",

@@ -226,15 +226,7 @@ function ProductCarousel({
                   Cocok
                 </span>
               )}
-              {/* Product photos are not in the catalog API yet; the circle shows the shade colour. */}
-              <div className="relative w-full aspect-square rounded-full flex items-center justify-center" style={{ backgroundColor: face.hexColor }}>
-                <span className="text-2xl font-extrabold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.35)] px-2 text-center leading-tight line-clamp-2">
-                  {chosen ? chosen.shadeName : `${p.shades.length}`}
-                </span>
-                {!chosen && (
-                  <span className="absolute bottom-[18%] text-[10px] font-bold uppercase tracking-wider text-white/90 drop-shadow">warna</span>
-                )}
-              </div>
+              <ProductFace product={p} face={face} chosen={chosen} />
               <span className="w-full text-[11px] font-bold uppercase tracking-wide text-foreground text-center line-clamp-2 min-h-[2.2em]">
                 {p.productName}
               </span>
@@ -267,6 +259,49 @@ function ProductCarousel({
           <ChevronRight className="h-4 w-4" />
         </button>
       )}
+    </div>
+  );
+}
+
+/**
+ * The top of a product card: the product's photo with the chosen (or first)
+ * shade's colour and the shade name or count. Without a photo, or when the
+ * photo does not load, a circle in the shade's colour.
+ */
+function ProductFace({ product, face, chosen }: { product: Product; face: CatalogShade; chosen: CatalogShade | undefined }) {
+  // The URL that failed, so a new URL for the same product is tried again.
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const src = product.imageUrl;
+
+  if (src && src !== failedUrl) {
+    return (
+      <div className="relative w-full aspect-square rounded-xl bg-white overflow-hidden">
+        {/* The URL is catalog data and may point at any host; next/image would need every host listed in next.config. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={src}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          referrerPolicy="no-referrer"
+          draggable={false}
+          onError={() => setFailedUrl(src)}
+          className="h-full w-full object-contain p-1"
+        />
+        <span className="absolute left-1.5 bottom-1.5 max-w-[calc(100%-0.75rem)] flex items-center gap-1 rounded-full border border-border bg-background/90 py-0.5 pl-0.5 pr-2 text-[10px] font-bold text-foreground shadow-xs">
+          <span className="h-3.5 w-3.5 shrink-0 rounded-full border border-black/10" style={{ backgroundColor: face.hexColor }} />
+          <span className="truncate">{chosen ? chosen.shadeName : `${product.shades.length} warna`}</span>
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative w-full aspect-square rounded-full flex items-center justify-center" style={{ backgroundColor: face.hexColor }}>
+      <span className="text-2xl font-extrabold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.35)] px-2 text-center leading-tight line-clamp-2">
+        {chosen ? chosen.shadeName : `${product.shades.length}`}
+      </span>
+      {!chosen && <span className="absolute bottom-[18%] text-[10px] font-bold uppercase tracking-wider text-white/90 drop-shadow">warna</span>}
     </div>
   );
 }
