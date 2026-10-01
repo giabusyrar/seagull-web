@@ -9,7 +9,7 @@ services from two repos still collide on the same machine.
 | 8080 | gateway-proxy | Seagull-gateway |
 | 8081 | gateway-engine | Seagull-gateway |
 | 8082 | core-engine | Seagull-core |
-| 8086 | reference-service | Seagull-core |
+| 8086 | reference-service | Seagull-core — reached through the gateway, not directly |
 | 8088 | worker-skin (was vision-ai-worker) | Seagull-core |
 | 8090 | worker-tryon | Seagull-core |
 | 8092 | worker-colour | Seagull-core |

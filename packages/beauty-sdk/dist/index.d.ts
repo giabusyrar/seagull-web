@@ -200,6 +200,12 @@ declare function dispatchPyTorchCapabilities(params: {
         view: string;
         data: string;
     }[];
+    /**
+     * Data-plane key, when the model server is reached through the gateway
+     * (it answers 401 without one). Supplied by the caller rather than read
+     * here, so a browser bundle never carries it.
+     */
+    apiKey?: string;
 }): Promise<CapabilityDispatchResult>;
 
 declare function fuseDimensionScores(formScores: Record<string, number>, visionScores: Record<string, number>, weights?: Record<string, {

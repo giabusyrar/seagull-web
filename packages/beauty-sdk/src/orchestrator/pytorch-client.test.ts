@@ -70,3 +70,22 @@ describe('dispatchPyTorchCapabilities', () => {
     expect(r).toEqual({ telemetry: {}, unavailable: {}, missing: [] });
   });
 });
+
+describe('the data-plane key', () => {
+  it('travels with the dispatch when the caller supplies one', async () => {
+    const fn = mockFetch(200, { telemetry: {} });
+    await dispatchPyTorchCapabilities({
+      serviceUrl: 'http://models.test',
+      timeoutMs: 100,
+      capabilities: CAPS,
+      apiKey: 'k',
+    });
+    expect(fn.mock.calls[0][1].headers['x-api-key']).toBe('k');
+  });
+
+  it('is absent when the caller has none, rather than sent empty', async () => {
+    const fn = mockFetch(200, { telemetry: {} });
+    await dispatchPyTorchCapabilities({ serviceUrl: 'http://models.test', timeoutMs: 100, capabilities: CAPS });
+    expect(fn.mock.calls[0][1].headers['x-api-key']).toBeUndefined();
+  });
+});

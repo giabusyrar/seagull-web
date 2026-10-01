@@ -14,7 +14,7 @@ see "If the dashboard is containerised again" at the bottom.)
 | gateway-engine | Seagull-gateway | `:8081` locally, `gw.<host>` deployed |
 | data plane | Seagull-gateway — gateway-proxy locally, APISIX deployed | `:8080` locally, `api.<host>` deployed |
 | core-engine | Seagull-core | never called directly: through the data plane, `/core/<module>/...` |
-| reference-service | Seagull-core | `:8086` |
+| reference-service | Seagull-core | behind the gateway's `/reference` |
 | worker-skin | Seagull-core | `:8088` |
 | worker-models (registry, dispatch) | Seagull-core | `:8096` |
 
@@ -38,9 +38,10 @@ same Upstash instance — each is documented in `.env.example`.
 ## Pointing at a deployed gateway
 
 To run the dashboard locally against a gateway on a VPS, set the gateway pair
-in `apps/web/.env.local` to the Caddy hostnames. core-engine then runs on the
-VPS behind APISIX, and nothing local is needed for it; reference-service and
-the Python workers stay on `127.0.0.1`:
+in `apps/web/.env.local` to the Caddy hostnames. Both core-engine and
+reference-service are then reached through APISIX — `/core/<module>/...` and
+`/reference/<entity>` — so neither needs anything local. Only the Python
+workers' own entries remain, for the paths that still address them directly:
 
 ```
 GATEWAY_ENGINE_URL=https://gw.<PUBLIC_HOST>

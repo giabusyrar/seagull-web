@@ -131,6 +131,9 @@ export async function executeAssessmentPipeline(
     timeoutMs: config.vision.timeoutMs,
     capabilities: dispatchedCaps,
     images: payload.images,
+    // Server-side only: process.env is empty in a browser bundle, so the key
+    // is simply absent there rather than shipped to one.
+    apiKey: process.env.GATEWAY_API_KEY,
   });
   const visionSignals = visionDispatch.telemetry;
 
