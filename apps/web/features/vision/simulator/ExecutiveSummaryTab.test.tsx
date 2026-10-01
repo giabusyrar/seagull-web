@@ -7,9 +7,9 @@ import type { VisionAnalysisResult, StructuredWarning } from './types';
 const captureContext: VisionAnalysisResult['captureContext'] = {
   captureMode: 'SINGLE_ANGLE',
   inputCount: 1,
-  providedAngles: ['front'],
+  providedAngles: ['FRONT'],
   coverageCompleteness: 'PARTIAL',
-  processedImages: [{ angle: 'front', fileName: 'a.jpg', landmarkDetected: true }],
+  processedImages: [{ angle: 'FRONT', fileName: 'a.jpg', landmarkDetected: true }],
 };
 
 const executionMetrics: VisionAnalysisResult['executionMetrics'] = {
