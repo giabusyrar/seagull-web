@@ -1,6 +1,4 @@
 export { A as ALL_TENANTS, i as Core, C as CoreCollectionKey, D as DynamicCollection, a as DynamicCollectionRoute, g as getActiveCoreCollections, b as getCollectionPrefix, r as resolveDynamicEndpoint, t as tenantScopeQuery, w as withTenantScope } from './index-UC3VkZph.js';
-import * as contracts from '@gateway-experience/contracts';
-export { contracts as Contracts };
 export { i as Hooks, U as UseSkinAssessmentOptions, u as useRegimenMatch, a as useSkinAssessment } from './index-CKDPHWHj.js';
 export { A as AgingProgressionSlider, a as AgingProgressionSliderProps, B as BeautyExperienceWidget, b as BeautyExperienceWidgetProps, D as DimensionOption, c as DimensionScoreCard, d as DimensionScoreCardProps, e as DimensionSelector, f as DimensionSelectorProps, P as PolygonHeatmap, g as PolygonHeatmapProps, h as ProductRecommendationCard, i as ProductRecommendationCardProps, j as UI, j as Vision } from './index-BsQ2or1V.js';
 export { i as Studio } from './index-ChDS1uIs.js';

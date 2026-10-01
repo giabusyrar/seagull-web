@@ -1,15 +1,12 @@
 # Dependencies Stage
 FROM node:22-alpine AS deps
 WORKDIR /app
-COPY package.json package-lock.json .npmrc ./
+COPY package.json package-lock.json ./
 COPY apps/web/package.json ./apps/web/
 COPY packages ./packages
-# @gateway-experience/contracts is published from the Seagull-gateway repo to
-# GitLab's Package Registry; .npmrc reads the token from this variable. It is
-# confined to this stage — only node_modules is carried into the builder — so
-# it does not reach the final image.
-ARG GITLAB_NPM_TOKEN
-ENV GITLAB_NPM_TOKEN=${GITLAB_NPM_TOKEN}
+# Every dependency now comes from the public registry: the one private
+# package, @gateway-experience/contracts, was dropped on 2026-10-01 when the
+# gateway emptied it. No .npmrc and no GITLAB_NPM_TOKEN are needed.
 RUN npm ci --ignore-scripts
 
 # Builder Stage

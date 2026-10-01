@@ -1,6 +1,5 @@
 'use strict';
 
-var contracts = require('@gateway-experience/contracts');
 var React12 = require('react');
 var jsxRuntime = require('react/jsx-runtime');
 var lucideReact = require('lucide-react');
@@ -10,25 +9,6 @@ var surveyReactUi = require('survey-react-ui');
 
 function _interopDefault (e) { return e && e.__esModule ? e : { default: e }; }
 
-function _interopNamespace(e) {
-  if (e && e.__esModule) return e;
-  var n = Object.create(null);
-  if (e) {
-    Object.keys(e).forEach(function (k) {
-      if (k !== 'default') {
-        var d = Object.getOwnPropertyDescriptor(e, k);
-        Object.defineProperty(n, k, d.get ? d : {
-          enumerable: true,
-          get: function () { return e[k]; }
-        });
-      }
-    });
-  }
-  n.default = e;
-  return Object.freeze(n);
-}
-
-var contracts__namespace = /*#__PURE__*/_interopNamespace(contracts);
 var React12__default = /*#__PURE__*/_interopDefault(React12);
 
 var __defProp = Object.defineProperty;
@@ -9462,7 +9442,6 @@ async function executeAssessmentPipeline(payload) {
   };
 }
 
-exports.Contracts = contracts__namespace;
 exports.ALL_TENANTS = ALL_TENANTS;
 exports.AgingProgressionSlider = AgingProgressionSlider;
 exports.AssessmentsSubClient = AssessmentsSubClient;

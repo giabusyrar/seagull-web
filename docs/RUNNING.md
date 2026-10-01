@@ -35,20 +35,6 @@ npm run dev                                    # :3000
 `ENCRYPTION_KEY` must be the same value the gateway uses, and `REDIS_URL` the
 same Upstash instance — each is documented in `.env.example`.
 
-### Contracts, without the package registry
-
-`npm install` resolves `@gateway-experience/contracts` from GitLab's package
-registry and needs `GITLAB_NPM_TOKEN` (see [../README.md](../README.md)). To
-work from a local Seagull-gateway checkout instead:
-
-```bash
-npm run contracts:local
-```
-
-It builds the contracts package in the sibling checkout and copies it into
-`node_modules`, leaving every tracked file alone. Re-run it after any
-`npm install`, and after a contract change on the gateway side.
-
 ## Pointing at a deployed gateway
 
 To run the dashboard locally against a gateway on a VPS, set the gateway pair
@@ -72,10 +58,7 @@ after changing them.
 
 ## If the dashboard is containerised again
 
-`apps/web/Dockerfile` runs `npm ci`, which needs a `package-lock.json` — and
-that lockfile must not be the one `npm run contracts:local` situations produce.
-A lockfile written while `packages/beauty-sdk` points at a `file:` path resolves
-only on the machine that made it, and the path lies outside any build context,
-so `npm ci` fails inside the image. Publish the contracts package first, install
-against the registry, and commit that lockfile. The gateway URLs are build-time
-`ARG`s in the Dockerfile, not runtime variables.
+`apps/web/Dockerfile` runs `npm ci` against the committed `package-lock.json`,
+and needs nothing private: the one package that did, `@gateway-experience/
+contracts`, was dropped on 2026-10-01. The gateway URLs are build-time `ARG`s
+in the Dockerfile, not runtime variables.

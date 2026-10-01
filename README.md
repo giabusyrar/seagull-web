@@ -11,53 +11,26 @@ monorepo; see [docs/SPLIT.md](docs/SPLIT.md) for what moved where.
 | `packages/beauty-sdk/` | — | `@gateway-experience/beauty-sdk` — studio UI, hooks and the API client. |
 | `packages/shared/` | — | `@gateway-experience/shared` — shared UI primitives and utilities. |
 
-## Before your first install
-
-`packages/beauty-sdk` depends on `@gateway-experience/contracts`, which is
-**published from the Seagull-gateway repo**, not built here. Resolving it needs
-two things:
-
-1. `.npmrc` — replace `REPLACE_ME_GITLAB_PROJECT_ID` with the numeric project ID
-   of the GitLab project that publishes the package.
-2. `GITLAB_NPM_TOKEN` in your environment — `CI_JOB_TOKEN` in CI, a personal
-   access token with `read_api` locally.
-
-Until the contracts package has been published at least once, `npm install`
-will fail on that dependency. To work from a local Seagull-gateway checkout
-instead:
+## Installing
 
 ```bash
-npm run contracts:local
+npm install
 ```
 
-It builds the contracts package there and copies it into `node_modules`, so no
-tracked file changes. Re-run it after any `npm install` — which wipes it — and
-after a contract change on the gateway side. Point it elsewhere with
-`SEAGULL_GATEWAY_PATH`; it defaults to `../seagull-gateway`.
+Nothing private is needed any more: no `.npmrc`, no `GITLAB_NPM_TOKEN`, no
+registry setup. `packages/beauty-sdk` used to depend on
+`@gateway-experience/contracts`, published from the Seagull-gateway repo, and
+that one package is what made installing here a two-step affair. The gateway
+emptied it on 2026-10-01 when assessments moved to core-engine, so the
+dependency was dropped; the assessment shapes the SDK needs now live in
+`packages/beauty-sdk/src/core/assessment-types.ts`.
 
-Do **not** install that path as a dependency instead
-(`npm install ../seagull-gateway/packages/contracts`): it writes a `file:` path
-into `packages/beauty-sdk/package.json` and the lockfile, neither of which can
-be committed — the path resolves on one machine only, and it points outside any
-Docker build context.
+`package-lock.json` is committed, so `npm ci` — and therefore
+`apps/web/Dockerfile` — works. Keep it in step with any dependency change.
 
-## There is no package-lock.json yet, and that is deliberate
-
-A lockfile cannot be generated honestly until `@gateway-experience/contracts`
-has been published at least once: locking it against a local `file:` path would
-produce a lockfile that only resolves on the machine that made it. It also
-matters for any container build — `apps/web/Dockerfile` runs `npm ci`, which
-requires a lockfile.
-
-The order is therefore:
-
-1. In Seagull-gateway: `make publish-contracts`.
-2. Here: put the publishing project ID in `.npmrc`, set `GITLAB_NPM_TOKEN`.
-3. `npm install` — this writes `package-lock.json`.
-4. Commit the lockfile.
-
-Without a lockfile, Turbopack cannot infer the workspace root on its own, so
-`apps/web/next.config.ts` pins `turbopack.root` explicitly.
+If a cross-repo contract package returns, add it back deliberately: a
+dependency, its registry configuration and the token it needs, documented
+together.
 
 ## Running it
 
