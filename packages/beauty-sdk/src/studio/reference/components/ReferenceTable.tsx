@@ -87,7 +87,6 @@ export const ReferenceTable: React.FC<ReferenceTableProps> = ({
           product: 'PRD',
           ingredients: 'ING',
           ingredient: 'ING',
-          statuses: 'ST',
           status: 'ST',
         };
         const prefix = fallbackPrefixMap[config.slug] || 'REF';

@@ -8,7 +8,6 @@ export interface EntityFieldSchema {
     | 'brands'
     | 'ingredients'
     | 'dimensions'
-    | 'statuses'
     | 'conditions'
     | 'applications'
     | 'categories'
@@ -129,20 +128,6 @@ export const REFERENCE_ENTITY_CONFIGS: Record<string, EntityConfig> = {
     ],
   },
 
-  statuses: {
-    slug: 'statuses',
-    title: 'Statuses Reference',
-    singularTitle: 'Status',
-    description: 'Manage operational status codes and definitions',
-    iconName: 'CheckCircle',
-    apiEndpoint: '/api/reference/statuses',
-    dataKey: 'statuses',
-    fields: [
-      { key: 'name', label: 'Status Name', type: 'text', required: true },
-      { key: 'code', label: 'Status Code', type: 'text' },
-      { key: 'description', label: 'Description', type: 'textarea' },
-    ],
-  },
   ingredients: {
     slug: 'ingredients',
     title: 'Ingredients Master Reference',
@@ -225,7 +210,6 @@ REFERENCE_ENTITY_CONFIGS['condition'] = REFERENCE_ENTITY_CONFIGS['conditions'];
 REFERENCE_ENTITY_CONFIGS['customer-conditions'] = REFERENCE_ENTITY_CONFIGS['conditions'];
 REFERENCE_ENTITY_CONFIGS['brand'] = REFERENCE_ENTITY_CONFIGS['brands'];
 REFERENCE_ENTITY_CONFIGS['product'] = REFERENCE_ENTITY_CONFIGS['products'];
-REFERENCE_ENTITY_CONFIGS['status'] = REFERENCE_ENTITY_CONFIGS['statuses'];
 REFERENCE_ENTITY_CONFIGS['ingredient'] = REFERENCE_ENTITY_CONFIGS['ingredients'];
 REFERENCE_ENTITY_CONFIGS['active-ingredients'] = REFERENCE_ENTITY_CONFIGS['ingredients'];
 REFERENCE_ENTITY_CONFIGS['application'] = REFERENCE_ENTITY_CONFIGS['applications'];

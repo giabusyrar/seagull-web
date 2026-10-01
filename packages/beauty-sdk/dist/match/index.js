@@ -649,7 +649,7 @@ var MatchSimulatorTab = ({
           ] }),
           /* @__PURE__ */ jsxRuntime.jsx("div", { className: "flex flex-wrap gap-2 mt-2", children: simResult.profileSummary.primaryConcerns.map((c, i) => /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-[10px] bg-muted text-foreground px-2 py-0.5 rounded border border-border", children: c }, i)) })
         ] }),
-        /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "text-right", children: [
+        typeof simResult.profileSummary.overallSuitabilityScore === "number" && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "text-right", children: [
           /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-[10px] text-muted-foreground font-bold uppercase tracking-wider block", children: "Clinical Match" }),
           /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "text-3xl font-black text-emerald-400 font-mono", children: [
             simResult.profileSummary.overallSuitabilityScore,

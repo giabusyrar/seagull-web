@@ -217,7 +217,7 @@ export const VisionSettingModal: React.FC<VisionSettingModalProps> = ({
       features: enabledFeatures,
       dispatchMode: isAutoDispatch ? 'AUTO_ALL' : 'SELECTIVE',
       globalAggregation: {
-        overallSkinHealthScore: '<0-100, 100 = optimal>',
+        overallSkinHealthScore: '<0-100, 100 = optimal; null when nothing was scored>',
         dimensions: buildMetricMap(dimensionCodes),
         skinConditions: buildMetricMap(plannedConditions.map((c) => c.code)),
       },

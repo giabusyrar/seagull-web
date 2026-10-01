@@ -1,8 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { SearchableSelect, type SelectOption } from '../SearchableSelect';
-import { extractReferenceList } from './extractReferenceList';
 
 export interface StatusSelectProps {
   value: string;
@@ -21,27 +20,18 @@ export const StatusSelect: React.FC<StatusSelectProps> = ({
   disabled = false,
   className = '',
 }) => {
-  const [statuses, setStatuses] = useState<Array<{ code: string; name: string }>>([
+  // A lifecycle state is not reference data: core-engine scores a ruleset only
+  // when its status is ACTIVE (score/entity/ruleset.go), so the set is fixed by
+  // the engine, not by a brand. reference-service dropped its statuses entity
+  // on 2026-10-01 — the list below is the whole truth, and it used to be
+  // silently overwritten by whatever that endpoint happened to return.
+  const statuses = [
     { code: 'ACTIVE', name: 'Active' },
     { code: 'DRAFT', name: 'Draft' },
     { code: 'INACTIVE', name: 'Inactive' },
     { code: 'ARCHIVED', name: 'Archived' },
-  ]);
-  const [isLoading, setIsLoading] = useState(false);
+  ];
 
-  useEffect(() => {
-    setIsLoading(true);
-    fetch('/api/statuses')
-      .then((res) => res.json())
-      .then((data) => {
-        const list = extractReferenceList(data, 'statuses');
-        if (list.length > 0) {
-          setStatuses(list.map((s: any) => ({ code: s.code, name: s.name || s.code })));
-        }
-      })
-      .catch(() => {})
-      .finally(() => setIsLoading(false));
-  }, []);
 
   const options: SelectOption[] = useMemo(() => {
     return statuses.map((s) => {
@@ -52,7 +42,7 @@ export const StatusSelect: React.FC<StatusSelectProps> = ({
         description: isLive ? 'Production live and active in assessments' : `Lifecycle state: ${s.code}`,
       };
     });
-  }, [statuses]);
+  }, []);
 
   return (
     <div className={`space-y-1 ${className}`}>
@@ -65,8 +55,8 @@ export const StatusSelect: React.FC<StatusSelectProps> = ({
         options={options}
         value={value}
         onChange={onChange}
-        disabled={disabled || isLoading}
-        placeholder={isLoading ? 'Loading statuses...' : placeholder}
+        disabled={disabled}
+        placeholder={placeholder}
         searchPlaceholder="Search statuses..."
       />
     </div>

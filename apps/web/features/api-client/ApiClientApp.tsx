@@ -449,7 +449,6 @@ export function ApiClientApp() {
       product: 'Reference: Products',
       products: 'Reference: Products',
       status: 'Reference: Statuses',
-      statuses: 'Reference: Statuses',
       ingredient: 'Reference: Ingredients',
       ingredients: 'Reference: Ingredients',
       dimension: 'Reference: Dimensions',

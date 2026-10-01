@@ -11,7 +11,6 @@ import {
   Package,
   LayoutGrid,
   Droplet,
-  CheckCircle,
   Sparkles,
   Layers,
   FileText,
@@ -681,22 +680,6 @@ export const ApiClientSidebar: React.FC<SidebarProps> = ({
                   <div className="flex items-center gap-2 min-w-0">
                     <ShieldAlert className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground shrink-0" />
                     <span className="text-xs font-medium text-foreground truncate" title="Skin Conditions">Skin Conditions</span>
-                  </div>
-                  <ExternalLink className="h-3 w-3 text-muted-foreground group-hover:text-foreground shrink-0 opacity-0 group-hover:opacity-100 transition" />
-                </button>
-
-                {/* Statuses */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    onOpenReference?.('statuses');
-                    if (isMobileOpen && onCloseMobile) onCloseMobile();
-                  }}
-                  className="w-full flex items-center justify-between px-2.5 py-1.5 bg-card hover:bg-sidebar-accent border border-sidebar-border hover:border-sidebar-ring/40 rounded-md text-left transition group cursor-pointer shadow-2xs"
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <CheckCircle className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground shrink-0" />
-                    <span className="text-xs font-medium text-foreground truncate" title="Statuses">Statuses</span>
                   </div>
                   <ExternalLink className="h-3 w-3 text-muted-foreground group-hover:text-foreground shrink-0 opacity-0 group-hover:opacity-100 transition" />
                 </button>

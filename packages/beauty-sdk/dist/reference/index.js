@@ -101,20 +101,6 @@ var REFERENCE_ENTITY_CONFIGS = {
       { key: "description", label: "Safety Gatekeeper Description", type: "textarea" }
     ]
   },
-  statuses: {
-    slug: "statuses",
-    title: "Statuses Reference",
-    singularTitle: "Status",
-    description: "Manage operational status codes and definitions",
-    iconName: "CheckCircle",
-    apiEndpoint: "/api/reference/statuses",
-    dataKey: "statuses",
-    fields: [
-      { key: "name", label: "Status Name", type: "text", required: true },
-      { key: "code", label: "Status Code", type: "text" },
-      { key: "description", label: "Description", type: "textarea" }
-    ]
-  },
   ingredients: {
     slug: "ingredients",
     title: "Ingredients Master Reference",
@@ -194,7 +180,6 @@ REFERENCE_ENTITY_CONFIGS["condition"] = REFERENCE_ENTITY_CONFIGS["conditions"];
 REFERENCE_ENTITY_CONFIGS["customer-conditions"] = REFERENCE_ENTITY_CONFIGS["conditions"];
 REFERENCE_ENTITY_CONFIGS["brand"] = REFERENCE_ENTITY_CONFIGS["brands"];
 REFERENCE_ENTITY_CONFIGS["product"] = REFERENCE_ENTITY_CONFIGS["products"];
-REFERENCE_ENTITY_CONFIGS["status"] = REFERENCE_ENTITY_CONFIGS["statuses"];
 REFERENCE_ENTITY_CONFIGS["ingredient"] = REFERENCE_ENTITY_CONFIGS["ingredients"];
 REFERENCE_ENTITY_CONFIGS["active-ingredients"] = REFERENCE_ENTITY_CONFIGS["ingredients"];
 REFERENCE_ENTITY_CONFIGS["application"] = REFERENCE_ENTITY_CONFIGS["applications"];
@@ -272,7 +257,6 @@ var ReferenceTable = ({
           product: "PRD",
           ingredients: "ING",
           ingredient: "ING",
-          statuses: "ST",
           status: "ST"
         };
         const prefix = fallbackPrefixMap[config.slug] || "REF";
@@ -448,7 +432,7 @@ var ReferenceFormModal = ({
           try {
             const res = await fetch(`/api/reference/${field.relationEntity}`);
             const data = await res.json();
-            const list = data.data || data[field.relationEntity] || data.dimensions || data.statuses || data.items || data.brands || data.products || data.ingredients || [];
+            const list = data.data || data[field.relationEntity] || data.dimensions || data.items || data.brands || data.products || data.ingredients || [];
             if (data.success && Array.isArray(list)) {
               setRelationOptions((prev) => ({ ...prev, [field.relationEntity]: list }));
             }
@@ -551,7 +535,7 @@ var ReferenceFormModal = ({
             ),
             field.type === "relation" && field.relationEntity && (() => {
               const opts = relationOptions[field.relationEntity] || [];
-              const isCodeBased = ["dimensions", "statuses"].includes(field.relationEntity);
+              const isCodeBased = field.relationEntity === "dimensions";
               field.relationEntity === "dimensions";
               const currentVal = (() => {
                 const direct = formData[field.key];
@@ -581,7 +565,7 @@ var ReferenceFormModal = ({
             })(),
             field.type === "multi-relation" && field.relationEntity && (() => {
               const opts = relationOptions[field.relationEntity] || [];
-              const isCodeBased = ["dimensions", "statuses"].includes(field.relationEntity);
+              const isCodeBased = field.relationEntity === "dimensions";
               const rawVal = formData[field.key] ?? (formData["ingredientIds"] || []);
               const selectedValues = Array.isArray(rawVal) ? rawVal.map((v) => {
                 if (typeof v === "string") {
@@ -1019,7 +1003,7 @@ var ReferenceEntityDashboard = ({ slug }) => {
       if (!res.ok) throw new Error("Failed to fetch reference items");
       const data = await res.json();
       const rawList = data.data || (config.dataKey ? data[config.dataKey] : null) || (config.slug ? data[config.slug] : null) || // reference-service wraps every collection as { data: [...], success: true }
-      (Array.isArray(data?.data) ? data.data : null) || data.items || data.brands || data.products || data.ingredients || data.statuses || data.eventTypes || data.reference || [];
+      (Array.isArray(data?.data) ? data.data : null) || data.items || data.brands || data.products || data.ingredients || data.eventTypes || data.reference || [];
       setItems(Array.isArray(rawList) ? rawList : []);
     } catch (err) {
       console.error("Fetch items error:", err);
@@ -1289,8 +1273,6 @@ var ReferenceManager = ({ initialEntity = "brands" }) => {
     products: "products",
     "event-type": "event-types",
     "event-types": "event-types",
-    status: "statuses",
-    statuses: "statuses",
     ingredient: "ingredients",
     ingredients: "ingredients",
     dimension: "dimensions",

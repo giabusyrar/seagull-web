@@ -102,7 +102,7 @@ export function CanvasVisualizer({
             let strokeColor = '#10b981';
             let strokeDash = 'none';
 
-            if (zone.isOccluded) {
+            if (zone.isVisible === false) {
               fillColor = 'rgba(100, 116, 139, 0.2)';
               strokeColor = '#64748b';
               strokeDash = '6,5';
@@ -128,7 +128,7 @@ export function CanvasVisualizer({
                   onMouseLeave={() => setHoveredZoneCode(null)}
                 />
 
-                {zone.isOccluded && zone.polygon[0] && (
+                {zone.isVisible === false && zone.polygon[0] && (
                   <text
                     x={zone.polygon[0].x * 1000 + 10}
                     y={zone.polygon[0].y * 1000 + 20}
@@ -137,7 +137,7 @@ export function CanvasVisualizer({
                     fontWeight="bold"
                     className="pointer-events-none drop-shadow-md select-none"
                   >
-                    Occluded
+                    Out of frame
                   </text>
                 )}
               </g>
@@ -147,7 +147,7 @@ export function CanvasVisualizer({
         {/* Defect Heatmap Points */}
         {layerState.showDefectHeatmap &&
           zones
-            .filter((z) => !z.isOccluded && zoneSeverity(z) !== 'optimal')
+            .filter((z) => z.isVisible !== false && zoneSeverity(z) !== 'optimal')
             .map((zone) => {
               if (!zone.polygon || zone.polygon.length === 0) return null;
               const avgX = (zone.polygon.reduce((acc, p) => acc + p.x, 0) / zone.polygon.length) * 1000;
@@ -192,13 +192,9 @@ export function CanvasVisualizer({
             <span className="font-mono text-[10px] text-slate-400">{hoveredZone.zoneCode}</span>
           </div>
           <div className="flex items-center gap-2 text-[11px] text-slate-300">
-            <span>Confidence:</span>
-            <span className="font-bold text-cyan-300 font-mono">
-              {Math.round(hoveredZone.confidence * 100)}%
-            </span>
-            {hoveredZone.isOccluded && (
+            {hoveredZone.isVisible === false && (
               <span className="bg-slate-500/20 text-slate-300 border border-slate-500/30 text-[9px] px-1 rounded">
-                Occluded
+                Out of frame
               </span>
             )}
           </div>
