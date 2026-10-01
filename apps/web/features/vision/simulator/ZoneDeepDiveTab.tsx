@@ -40,8 +40,8 @@ export function ZoneDeepDiveTab({
           {zones.map((zone) => {
             const isSelected = selectedZoneCode === zone.zoneCode;
             const worst = worstScore(zone);
-            const status = zone.isOccluded
-              ? 'occluded'
+            const status = zone.isVisible === false
+              ? 'out_of_frame'
               : worst === null
               ? 'unscored'
               : worst <= 35
@@ -89,9 +89,6 @@ export function ZoneDeepDiveTab({
                     }`}
                   >
                     {status.replace(/_/g, ' ')}
-                  </span>
-                  <span className="text-[9px] text-muted-foreground font-mono ml-auto">
-                    {Math.round(zone.confidence * 100)}% conf
                   </span>
                 </div>
               </div>

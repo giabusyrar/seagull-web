@@ -20,7 +20,6 @@ function MetricCard({ label, code, metric }: { label: string; code: string; metr
         </span>
       </div>
       <div className="flex items-center gap-2 flex-wrap text-[10px] text-muted-foreground">
-        <span>Confidence: <strong className="text-foreground">{Math.round(metric.confidence * 100)}%</strong></span>
         {metric.severity && (
           <span className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-1.5 py-0.5 rounded font-mono">
             {metric.severity}

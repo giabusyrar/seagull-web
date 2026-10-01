@@ -26,7 +26,6 @@ export interface LayerHUDState {
 
 export interface MetricValue {
   score: number;
-  confidence: number;
   severity?: string;
   detectedCount?: number;
   priority?: string;
@@ -43,8 +42,10 @@ export interface ZoneDiagnosticMetric {
   sourceAngle: ImageAngle;
   polygon: NormalizedPoint[];
   boundingBox: BoundingBox;
-  confidence: number;
-  isOccluded: boolean;
+  /** False when the zone was out of frame in every image. Nothing measures
+   *  occlusion, so there is no isOccluded any more, and no per-zone
+   *  confidence: both were constants dressed as measurements. */
+  isVisible: boolean;
   metrics: ZoneMetrics;
 }
 
@@ -59,7 +60,6 @@ export interface ProcessedImageMeta {
   angle: ImageAngle;
   fileName: string;
   landmarkDetected: boolean;
-  landmarkConfidence: number;
 }
 
 export interface CaptureContext {
@@ -71,7 +71,9 @@ export interface CaptureContext {
 }
 
 export interface GlobalAggregation {
-  overallSkinHealthScore: number;
+  /** Null when nothing was scored — no face, or no model for the requested
+   *  capabilities. It used to be 0.0, which reads as a measured zero. */
+  overallSkinHealthScore: number | null;
   dimensions: Record<string, MetricValue>;
   skinConditions: Record<string, MetricValue>;
 }

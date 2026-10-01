@@ -244,12 +244,17 @@ export const MatchSimulatorTab: React.FC<MatchSimulatorTabProps> = ({
                 </div>
               </div>
 
-              <div className="text-right">
-                <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider block">Clinical Match</span>
-                <span className="text-3xl font-black text-emerald-400 font-mono">
-                  {simResult.profileSummary.overallSuitabilityScore}%
-                </span>
-              </div>
+              {/* The match engine stopped sending overallSuitabilityScore: it
+                  was the constant 94.5 for every request, which is not a match
+                  quality. Shown only if a real one ever arrives. */}
+              {typeof simResult.profileSummary.overallSuitabilityScore === 'number' && (
+                <div className="text-right">
+                  <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider block">Clinical Match</span>
+                  <span className="text-3xl font-black text-emerald-400 font-mono">
+                    {simResult.profileSummary.overallSuitabilityScore}%
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Contraindication Matrix Warnings */}

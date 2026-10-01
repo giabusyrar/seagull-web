@@ -95,7 +95,9 @@ export interface ClinicalMatchResult {
   profileSummary: {
     skinType: string;
     primaryConcerns: string[];
-    overallSuitabilityScore: number;
+    /** Dropped by the match engine on 2026-10-01: it was the constant 94.5
+     *  for every request. Optional so a caller must check before showing it. */
+    overallSuitabilityScore?: number;
   };
   regimens: {
     amRoutine?: RegimenStep[];

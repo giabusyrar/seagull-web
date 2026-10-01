@@ -31,15 +31,29 @@ export function ExecutiveSummaryTab({ result }: ExecutiveSummaryTabProps) {
             </span>
             <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
           </div>
-          <div className="mt-1 flex items-baseline gap-1">
-            <span className="text-3xl font-black text-foreground">
-              {globalAggregation.overallSkinHealthScore.toFixed(1)}
-            </span>
-            <span className="text-xs text-muted-foreground">/ 100</span>
-          </div>
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            Composite index across {captureContext.processedImages.length} processed angle(s).
-          </p>
+          {/* Null when nothing was scored — no face, or no model uploaded for
+              the requested capabilities. It used to arrive as 0.0, which read
+              as a measured zero; saying "not measured" is the honest form. */}
+          {globalAggregation.overallSkinHealthScore === null ? (
+            <>
+              <div className="mt-1 text-xl font-bold text-muted-foreground">Not measured</div>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Nothing was scored in this analysis. See the warnings below for why.
+              </p>
+            </>
+          ) : (
+            <>
+              <div className="mt-1 flex items-baseline gap-1">
+                <span className="text-3xl font-black text-foreground">
+                  {globalAggregation.overallSkinHealthScore.toFixed(1)}
+                </span>
+                <span className="text-xs text-muted-foreground">/ 100</span>
+              </div>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Composite index across {captureContext.processedImages.length} processed angle(s).
+              </p>
+            </>
+          )}
         </div>
 
         {/* Selective Dispatch Efficiency */}
