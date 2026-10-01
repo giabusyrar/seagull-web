@@ -1,5 +1,5 @@
 import type { BeautyClientConfig, VisionAnalysisResponse, VisionAnalysisOptions } from './types';
-import type { UnifiedAssessmentRequest, UnifiedAssessmentResponse } from '@gateway-experience/contracts';
+import type { AssessmentEvaluateRequest, AssessmentEvaluateResponse } from './assessment-types';
 
 export class FormSubClient {
   constructor(private client: BeautyClient) {}
@@ -83,12 +83,13 @@ export class AssessmentsSubClient {
   constructor(private client: BeautyClient) {}
 
   async evaluate(
-    request: Omit<UnifiedAssessmentRequest, 'brand_id' | 'application_id'> & {
+    surveyCode: string,
+    request: Omit<AssessmentEvaluateRequest, 'brand_id' | 'application_id'> & {
       brand_id?: string;
       application_id?: string;
     }
-  ): Promise<UnifiedAssessmentResponse> {
-    return this.client.evaluateAssessment(request);
+  ): Promise<AssessmentEvaluateResponse> {
+    return this.client.evaluateAssessment(surveyCode, request);
   }
 }
 
@@ -145,18 +146,26 @@ export class BeautyClient {
   }
 
   /**
-   * Unified single-hit multi-modal assessment evaluation (<50ms).
+   * Evaluate one survey and store the result as a customer assessment.
+   *
+   * core-engine takes the survey code from the path: its handler reads :code
+   * and looks the survey up with it, so a call without one finds nothing. The
+   * gateway's own /api/v1/assessments/evaluate is being retired.
    */
   async evaluateAssessment(
-    request: Omit<UnifiedAssessmentRequest, 'brand_id' | 'application_id'> & {
+    surveyCode: string,
+    request: Omit<AssessmentEvaluateRequest, 'brand_id' | 'application_id'> & {
       brand_id?: string;
       application_id?: string;
     }
-  ): Promise<UnifiedAssessmentResponse> {
-    const payload: UnifiedAssessmentRequest = {
+  ): Promise<AssessmentEvaluateResponse> {
+    if (!surveyCode) {
+      throw new Error('evaluateAssessment needs a survey code: core-engine looks the survey up by it.');
+    }
+    const payload: AssessmentEvaluateRequest = {
+      ...request,
       brand_id: request.brand_id || this.config.brandId,
       application_id: request.application_id || this.config.applicationId,
-      ...request,
     };
 
     const headers: Record<string, string> = {
@@ -169,7 +178,7 @@ export class BeautyClient {
       headers['Authorization'] = `Bearer ${this.config.token}`;
     }
 
-    const url = `${this.config.gatewayUrl}/api/v1/assessments/evaluate`;
+    const url = `${this.config.gatewayUrl}/core/form-engine/survey/${encodeURIComponent(surveyCode)}/evaluate`;
     const response = await fetch(url, {
       method: 'POST',
       headers,

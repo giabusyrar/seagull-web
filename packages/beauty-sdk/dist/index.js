@@ -115,8 +115,8 @@ var AssessmentsSubClient = class {
   constructor(client) {
     this.client = client;
   }
-  async evaluate(request) {
-    return this.client.evaluateAssessment(request);
+  async evaluate(surveyCode, request) {
+    return this.client.evaluateAssessment(surveyCode, request);
   }
 };
 var BeautyClient = class {
@@ -157,13 +157,20 @@ var BeautyClient = class {
     return response.json();
   }
   /**
-   * Unified single-hit multi-modal assessment evaluation (<50ms).
+   * Evaluate one survey and store the result as a customer assessment.
+   *
+   * core-engine takes the survey code from the path: its handler reads :code
+   * and looks the survey up with it, so a call without one finds nothing. The
+   * gateway's own /api/v1/assessments/evaluate is being retired.
    */
-  async evaluateAssessment(request) {
+  async evaluateAssessment(surveyCode, request) {
+    if (!surveyCode) {
+      throw new Error("evaluateAssessment needs a survey code: core-engine looks the survey up by it.");
+    }
     const payload = {
+      ...request,
       brand_id: request.brand_id || this.config.brandId,
-      application_id: request.application_id || this.config.applicationId,
-      ...request
+      application_id: request.application_id || this.config.applicationId
     };
     const headers = {
       "Content-Type": "application/json"
@@ -174,7 +181,7 @@ var BeautyClient = class {
     if (this.config.token) {
       headers["Authorization"] = `Bearer ${this.config.token}`;
     }
-    const url = `${this.config.gatewayUrl}/api/v1/assessments/evaluate`;
+    const url = `${this.config.gatewayUrl}/core/form-engine/survey/${encodeURIComponent(surveyCode)}/evaluate`;
     const response = await fetch(url, {
       method: "POST",
       headers,
@@ -330,11 +337,11 @@ function useSkinAssessment(config) {
   const [error, setError] = React12.useState(null);
   const [result, setResult] = React12.useState(null);
   const evaluate = React12.useCallback(
-    async (request) => {
+    async (surveyCode, request) => {
       setIsLoading(true);
       setError(null);
       try {
-        const data = await client.evaluateAssessment(request);
+        const data = await client.evaluateAssessment(surveyCode, request);
         setResult(data);
         return data;
       } catch (err) {
