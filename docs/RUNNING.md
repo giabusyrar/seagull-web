@@ -15,7 +15,8 @@ see "If the dashboard is containerised again" at the bottom.)
 | data plane | Seagull-gateway — gateway-proxy locally, APISIX deployed | `:8080` locally, `api.<host>` deployed |
 | core-engine | Seagull-core | never called directly: through the data plane, `/core/<module>/...` |
 | reference-service | Seagull-core | `:8086` |
-| vision ai-worker | Seagull-core | `:8088` |
+| worker-skin | Seagull-core | `:8088` |
+| worker-models (registry, dispatch) | Seagull-core | `:8096` |
 
 Ports are global across the three repositories — see [PORTS.md](PORTS.md)
 before starting anything.
@@ -53,7 +54,7 @@ It builds the contracts package in the sibling checkout and copies it into
 To run the dashboard locally against a gateway on a VPS, set the gateway pair
 in `apps/web/.env.local` to the Caddy hostnames. core-engine then runs on the
 VPS behind APISIX, and nothing local is needed for it; reference-service and
-the vision ai-worker stay on `127.0.0.1`:
+the Python workers stay on `127.0.0.1`:
 
 ```
 GATEWAY_ENGINE_URL=https://gw.<PUBLIC_HOST>

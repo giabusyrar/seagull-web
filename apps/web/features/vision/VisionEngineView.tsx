@@ -38,21 +38,38 @@ export function VisionEngineView() {
   const [settingsList, setSettingsList] = useState<VisionSettingItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoadingSettings, setIsLoadingSettings] = useState(false);
+  const [listError, setListError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<VisionSettingItem | null>(null);
 
-  // Fetch all vision settings for the table
+  // Fetch all vision settings for the table.
+  //
+  // core-engine serves one config at a time (GET /config/:brandId/:applicationId)
+  // and has no endpoint that lists them; the '?list=true' call this used to make
+  // was answered with a 404 and swallowed, leaving an empty table that looked
+  // like "no configs exist". Until core-engine grows a list endpoint, say so
+  // rather than showing an emptiness we cannot vouch for.
   const fetchAllSettings = useCallback(async () => {
     setIsLoadingSettings(true);
+    setListError(null);
     try {
       const endpoint = getEndpoint('vision', '/api/vision/config?list=true');
       const res = await fetch(endpoint);
       const json = await safeJson(res);
       if (json?.success && Array.isArray(json.items)) {
         setSettingsList(json.items);
+        return;
       }
+      setSettingsList([]);
+      setListError(
+        res.status === 404
+          ? 'Core-engine has no endpoint that lists vision configs, so this table cannot be filled. A config is readable one scope at a time; saving one from here still works.'
+          : `Vision configs could not be listed (HTTP ${res.status}).`,
+      );
     } catch (err) {
       console.error('Failed to load vision settings list:', err);
+      setSettingsList([]);
+      setListError('Vision configs could not be listed: the request failed.');
     } finally {
       setIsLoadingSettings(false);
     }
@@ -149,6 +166,11 @@ export function VisionEngineView() {
       {/* Main Container */}
       <main className="flex-1 p-4 sm:p-6 space-y-6 max-w-7xl w-full mx-auto">
         {/* TAB 1: VISION SETTING TABLE VIEW */}
+        {activeMainTab === 'settings' && listError && (
+          <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-foreground">
+            {listError}
+          </div>
+        )}
         {activeMainTab === 'settings' && (
           <VisionSettingsTab
             items={settingsList}

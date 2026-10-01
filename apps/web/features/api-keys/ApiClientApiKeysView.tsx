@@ -73,9 +73,21 @@ export const ApiClientApiKeysView: React.FC<ApiClientApiKeysViewProps> = ({ coll
         });
         setAvailableBrands(Array.from(brandMap.entries()).map(([id, name]) => ({ id, name })));
       } else {
-        const refRes = await apiGet<{ success: boolean; items?: { id: string; name: string }[] }>('/api/reference/types/brand/items');
-        if (refRes.success && Array.isArray(refRes.items) && refRes.items.length > 0) {
-          setAvailableBrands(refRes.items.map((it) => ({ id: it.id, name: it.name })));
+        // reference-service serves brands at /api/reference/brands. The
+        // previous path, /api/reference/types/brand/items, is not a route it
+        // has ever had, so this fallback always 404'd and the picker stayed
+        // empty whenever there were no brand events.
+        const refRes = await apiGet<{ success: boolean; data?: { id: string; code?: string; name?: string }[] }>(
+          '/api/reference/brands',
+        );
+        const brands = Array.isArray(refRes?.data) ? refRes.data : [];
+        if (brands.length > 0) {
+          setAvailableBrands(
+            brands.map((b) => {
+              const id = b.id || b.code || '';
+              return { id, name: b.name || b.code || id };
+            }),
+          );
         }
       }
     } catch (err) {

@@ -42,10 +42,28 @@ export function getReferenceServiceUrl(): string {
   return normalizeUrl(rawUrl);
 }
 
-export function getVisionAiWorkerUrl(): string {
+/**
+ * worker-skin: segment-and-pose only. It was called the "vision ai worker"
+ * until Seagull-core split one worker per app; the host and port did not
+ * change, but VISION_AI_WORKER_URL is no longer the service's name, and
+ * core-engine now refuses to start when that variable is set.
+ */
+export function getSkinWorkerUrl(): string {
   const rawUrl =
-    process.env.VISION_AI_WORKER_URL ||
+    process.env.SKIN_WORKER_URL ||
     `${getProtocol()}://${getBaseHost()}:8088`;
+  return normalizeUrl(rawUrl);
+}
+
+/**
+ * worker-models: the model registry and ONNX capability dispatch
+ * (/api/v1/models/*). It left the skin worker in Seagull-core's model-server
+ * split; the routes and bodies are unchanged, only the host.
+ */
+export function getModelServerUrl(): string {
+  const rawUrl =
+    process.env.MODEL_SERVER_URL ||
+    `${getProtocol()}://${getBaseHost()}:8096`;
   return normalizeUrl(rawUrl);
 }
 
@@ -53,7 +71,8 @@ export type ServiceKey =
   | 'GATEWAY_ENGINE_URL'
   | 'GATEWAY_PROXY_URL'
   | 'REFERENCE_SERVICE_URL'
-  | 'VISION_AI_WORKER_URL';
+  | 'SKIN_WORKER_URL'
+  | 'MODEL_SERVER_URL';
 
 export function getServiceUrl(serviceKey: ServiceKey): string {
   switch (serviceKey) {
@@ -63,8 +82,10 @@ export function getServiceUrl(serviceKey: ServiceKey): string {
       return getGatewayProxyUrl();
     case 'REFERENCE_SERVICE_URL':
       return getReferenceServiceUrl();
-    case 'VISION_AI_WORKER_URL':
-      return getVisionAiWorkerUrl();
+    case 'SKIN_WORKER_URL':
+      return getSkinWorkerUrl();
+    case 'MODEL_SERVER_URL':
+      return getModelServerUrl();
   }
 }
 

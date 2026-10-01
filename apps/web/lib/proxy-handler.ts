@@ -3,7 +3,7 @@ import {
   getGatewayEngineUrl,
   getGatewayProxyUrl,
   getReferenceServiceUrl,
-  getVisionAiWorkerUrl,
+  getModelServerUrl,
 } from '@/lib/config/services';
 
 // core-engine's own mounts. It is reached only through the gateway data plane
@@ -66,9 +66,13 @@ export async function handleApiProxy(
       const subPath = cleanPath.replace(/^api\//, '');
       targetUrl = `${getReferenceServiceUrl()}/api/reference/${subPath}${search}`;
     } else if (cleanPath.startsWith('api/vision-worker/')) {
-      // Vision AI Worker (Python, :8088) — model registry upload/download/dispatch
+      // Model registry: upload, download, activation, dispatch. These live on
+      // worker-models (:8096), not the skin worker — Seagull-core moved them
+      // there; the /api/v1/models/* routes and bodies are unchanged. The
+      // client-side prefix still reads "vision-worker" so saved links keep
+      // working; only the service it resolves to changed.
       const subPath = cleanPath.replace(/^api\/vision-worker\//, '');
-      targetUrl = `${getVisionAiWorkerUrl()}/api/v1/${subPath}${search}`;
+      targetUrl = `${getModelServerUrl()}/api/v1/${subPath}${search}`;
     } else if (DIRECT_CORE_ENGINE_PATH.test(cleanPath)) {
       // These used to go straight to a local core-engine. There is no direct
       // route any more; say where the endpoint lives rather than forwarding
