@@ -8,6 +8,7 @@ import { CameraCapture } from '../CameraCapture';
 import { GuidanceOverlay } from './GuidanceOverlay';
 import { type DrawnMeasurement } from './MeasurementOverlay';
 import { FaceResultView } from './FaceResultView';
+import { HeadPanel } from './HeadPanel';
 import { ClassificationRow, Row, TraitRow } from './ResultRows';
 import { useFaceArchitecture } from './useFaceArchitecture';
 import {
@@ -69,9 +70,12 @@ export function FaceArchitectPanel({ file, photoUrl, onPhoto }: Props) {
                     result={result}
                     drawn={drawn}
                     selectedMeasurement={selectedMeasurement}
-                    onSelectMeasurement={(key) => setSelectedMeasurement((prev) => (prev === key ? null : key))}
+                    onSelectMeasurement={setSelectedMeasurement}
                     verifiedOnly={verifiedOnly}
                     onVerifiedOnlyChange={setVerifiedOnly}
+                    renderHead={() => (
+                      <HeadPanel front={file} brandId={brandId} applicationId={applicationId} getEndpoint={getEndpoint} />
+                    )}
                   />
                 ) : (
                   <GuidanceOverlay photoUrl={photoUrl} regions={[]} verifiedOnly={false} />

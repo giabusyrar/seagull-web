@@ -10,42 +10,88 @@ const COLOUR = '#059669';
 const HALO = '#ffffff';
 const PROXY_DASH = '5 4';
 
-export interface LabelBox {
-  /** Centre x and baseline y, image pixels. */
+// Layout-only estimate of a label's width per character, as a share of the
+// font size, for the sans-serif labels below. It only sizes the label pill
+// and decides spacing; nothing is measured with it.
+const CHAR_WIDTH_EM = 0.6;
+
+// Layout choice: an anchor within this share of the drawing's width from its
+// centre counts as on the midline and may go to either side.
+const MIDLINE_SHARE = 0.05;
+
+export interface Box {
   x: number;
   y: number;
   w: number;
   h: number;
 }
 
-// Layout-only estimate of a label's width per character, as a share of the
-// font size, for the sans-serif labels below. It only decides when two
-// labels would touch; nothing is measured with it.
-const CHAR_WIDTH_EM = 0.6;
-
-export function estimateLabelBox(text: string, x: number, y: number, fontSize: number): LabelBox {
-  return { x, y, w: text.length * fontSize * CHAR_WIDTH_EM, h: fontSize * 1.2 };
+export interface Callout {
+  /** The point the leader line runs to. */
+  anchor: Point;
+  w: number;
+  h: number;
 }
 
-function overlaps(a: LabelBox, b: LabelBox): boolean {
-  return Math.abs(a.x - b.x) * 2 < a.w + b.w && Math.abs(a.y - b.y) * 2 < a.h + b.h;
+export interface PlacedCallout {
+  side: 'left' | 'right';
+  /** Top-left of the label, image pixels. */
+  x: number;
+  y: number;
 }
 
 /**
- * Greedy de-overlap: labels are placed in the given order (most important
- * first), each moved up in steps of its own height until it touches neither
- * an earlier label nor an obstacle. Returns the final baseline per label.
+ * Callout layout: labels sit in two columns at the left and right edges of
+ * the visible photo, off the face, each joined to its measurement by a
+ * leader line. A label takes the side its anchor is on (midline anchors go to
+ * the side with fewer labels, then more room), and each column is stacked in
+ * anchor order, so labels never touch and leaders run in order.
  */
-export function layoutLabels(labels: LabelBox[], obstacles: LabelBox[], maxSteps = labels.length + obstacles.length): number[] {
-  const placed: LabelBox[] = [...obstacles];
-  return labels.map((box) => {
-    let candidate = box;
-    for (let step = 0; step < maxSteps && placed.some((p) => overlaps(candidate, p)); step++) {
-      candidate = { ...candidate, y: candidate.y - candidate.h };
+export function layoutCallouts(callouts: Callout[], drawing: { x0: number; x1: number }, view: Box, gap: number): PlacedCallout[] {
+  const mid = (drawing.x0 + drawing.x1) / 2;
+  const midlineBand = (drawing.x1 - drawing.x0) * MIDLINE_SHARE;
+  const room = { left: drawing.x0 - view.x, right: view.x + view.w - drawing.x1 };
+  const sides: ('left' | 'right')[] = new Array(callouts.length);
+  const count = { left: 0, right: 0 };
+
+  // Off-centre anchors first, so the midline ones can balance the columns.
+  const order = callouts.map((_, i) => i).sort((a, b) => Math.abs(callouts[b].anchor[0] - mid) - Math.abs(callouts[a].anchor[0] - mid));
+  for (const i of order) {
+    const dx = callouts[i].anchor[0] - mid;
+    let side: 'left' | 'right';
+    if (Math.abs(dx) > midlineBand) side = dx < 0 ? 'left' : 'right';
+    else if (count.left !== count.right) side = count.left < count.right ? 'left' : 'right';
+    else side = room.left >= room.right ? 'left' : 'right';
+    sides[i] = side;
+    count[side]++;
+  }
+
+  const placed: PlacedCallout[] = new Array(callouts.length);
+  for (const side of ['left', 'right'] as const) {
+    const column = callouts
+      .map((c, i) => ({ c, i }))
+      .filter(({ i }) => sides[i] === side)
+      .sort((a, b) => a.c.anchor[1] - b.c.anchor[1]);
+    const top = view.y + gap;
+    const bottom = view.y + view.h - gap;
+    // Down: each at its anchor's height, or just below the one above it.
+    const ys: number[] = [];
+    column.forEach(({ c }, k) => {
+      const want = Math.max(top, c.anchor[1] - c.h / 2);
+      ys.push(k === 0 ? want : Math.max(want, ys[k - 1] + column[k - 1].c.h + gap));
+    });
+    // Up: pull back inside the bottom edge without overlapping.
+    for (let k = column.length - 1; k >= 0; k--) {
+      const limit = k === column.length - 1 ? bottom - column[k].c.h : ys[k + 1] - gap - column[k].c.h;
+      ys[k] = Math.max(top, Math.min(ys[k], limit));
     }
-    placed.push(candidate);
-    return candidate.y;
-  });
+    // Columns at the photo's edges (hair and background), clear of the face.
+    column.forEach(({ c, i }, k) => {
+      const x = side === 'left' ? view.x + gap : view.x + view.w - gap - c.w;
+      placed[i] = { side, x, y: ys[k] };
+    });
+  }
+  return placed;
 }
 
 export interface DrawnMeasurement {
@@ -55,52 +101,68 @@ export interface DrawnMeasurement {
 
 interface Props {
   items: DrawnMeasurement[];
-  /** The one picked in the card: drawn on top, bolder, with its name. */
+  /** The one picked: drawn on top, bolder, its label filled. */
   selectedKey: string | null;
   /** The image's natural size, i.e. the SVG viewBox. */
   size: { w: number; h: number };
-  /** Name every label, not only the selected one. */
-  showNames: boolean;
+  /** Label every measurement, not only the selected one. */
+  showAll: boolean;
   onSelect: (key: string) => void;
-  /** Where information marks hang (below these points); labels keep clear. */
-  pinAnchors?: Point[];
+  /** The label text; by default the key and the raw value. */
+  labelOf?: (m: Measurement, selected: boolean) => string;
+  /** How far the photo is zoomed in, so strokes and text keep their on-screen size. */
+  zoom?: number;
+  /** The part of the photo on screen (image pixels); labels stay inside it. */
+  view?: Box;
 }
+
+const defaultLabel = (m: Measurement) => `${m.key}: ${formatMeasurementValue(m)}`;
 
 /**
  * Measurements drawn over the photo, in the SVG of GuidanceOverlay (image
- * pixel space). Every item is labelled with its value, above its anchor
- * (information marks sit below it); the selected one, or all of them with
- * showNames, also with its key. Clicking a measurement selects it.
+ * pixel space). Labels are callouts (layoutCallouts): a pill beside the
+ * drawing with a leader line to its measurement. Only the selected item is
+ * labelled, or every item with showAll. Clicking a line or a label selects it.
  */
-export function MeasurementLayer({ items, selectedKey, size, showNames, onSelect, pinAnchors = [] }: Props) {
+export function MeasurementLayer({
+  items,
+  selectedKey,
+  size,
+  showAll,
+  onSelect,
+  labelOf = defaultLabel,
+  zoom = 1,
+  view = { x: 0, y: 0, w: size.w, h: size.h },
+}: Props) {
   // Scale strokes and text with the photo, so they read the same on a
-  // small upload and a full-resolution camera frame.
-  const unit = Math.max(size.w, size.h) / 400;
-  // Drawn last = on top; laid out first = keeps its natural position.
+  // small upload and a full-resolution camera frame, and against the zoom.
+  const unit = Math.max(size.w, size.h) / 400 / zoom;
+  // Drawn last = on top.
   const ordered = [...items].sort((a, b) => Number(a.m.key === selectedKey) - Number(b.m.key === selectedKey));
-  const style = (m: Measurement) => {
+
+  const labelled = ordered.filter(({ m }) => showAll || m.key === selectedKey);
+  const pills = labelled.map(({ m, geometry }) => {
     const selected = m.key === selectedKey;
-    const r = unit * (selected ? 3 : 2);
-    const fontSize = unit * (selected ? 10 : 8);
-    const label = selected || showNames ? `${m.key}: ${formatMeasurementValue(m)}` : formatMeasurementValue(m);
-    return { selected, r, fontSize, label };
-  };
-  const byPriority = [...ordered].reverse();
-  // A pin is about two label-heights tall, hanging just below its anchor.
-  const pinSize = unit * 8 * 2.4;
-  const baselines = layoutLabels(
-    byPriority.map(({ m, geometry }) => {
-      const s = style(m);
-      return estimateLabelBox(s.label, geometry.anchor[0], geometry.anchor[1] - s.r * 2, s.fontSize);
-    }),
-    pinAnchors.map(([x, y]) => ({ x, y: y + pinSize / 2, w: pinSize, h: pinSize })),
-  );
-  const baselineOf = new Map(byPriority.map((d, i) => [d.m.key, baselines[i]]));
+    const text = labelOf(m, selected);
+    const fontSize = unit * (selected ? 8.5 : 7.5);
+    return {
+      key: m.key,
+      selected,
+      text,
+      fontSize,
+      anchor: geometry.anchor,
+      w: text.length * fontSize * CHAR_WIDTH_EM + fontSize * 1.4,
+      h: fontSize * 1.7,
+    };
+  });
+  const xs = items.flatMap(({ geometry }) => geometry.points.map((p) => p[0]));
+  const placed = layoutCallouts(pills, { x0: Math.min(...xs), x1: Math.max(...xs) }, view, unit * 4);
 
   return (
     <g aria-label={`${items.length} pengukuran`}>
       {ordered.map(({ m, geometry }) => {
-        const { selected, r, fontSize, label } = style(m);
+        const selected = m.key === selectedKey;
+        const r = unit * (selected ? 3 : 2);
         const stroke = unit * (selected ? 2.5 : 1.2);
         const dash = m.proxy ? PROXY_DASH.split(' ').map((n) => Number(n) * unit).join(' ') : undefined;
         return (
@@ -126,18 +188,57 @@ export function MeasurementLayer({ items, selectedKey, size, showNames, onSelect
             {geometry.points.map(([x, y], i) => (
               <circle key={i} cx={x} cy={y} r={r} fill={COLOUR} stroke={HALO} strokeWidth={unit * 0.6} />
             ))}
-            <text
-              x={geometry.anchor[0]}
-              y={baselineOf.get(m.key)}
-              fontSize={fontSize}
-              textAnchor="middle"
-              fill={COLOUR}
+          </g>
+        );
+      })}
+
+      {pills.map((p, i) => {
+        const { side, x, y } = placed[i];
+        const edgeX = side === 'left' ? x + p.w : x;
+        const midY = y + p.h / 2;
+        return (
+          <g
+            key={`label-${p.key}`}
+            onClick={() => onSelect(p.key)}
+            className="cursor-pointer"
+            style={{ pointerEvents: 'visiblePainted' }}
+            opacity={selectedKey && !p.selected ? 0.85 : 1}
+          >
+            <polyline
+              points={`${p.anchor[0]},${p.anchor[1]} ${edgeX + (side === 'left' ? unit * 3 : -unit * 3)},${midY} ${edgeX},${midY}`}
+              fill="none"
               stroke={HALO}
-              strokeWidth={fontSize / 4}
-              paintOrder="stroke"
-              fontWeight={selected ? 700 : 600}
+              strokeWidth={unit * 2}
+              strokeOpacity={0.7}
+            />
+            <polyline
+              points={`${p.anchor[0]},${p.anchor[1]} ${edgeX + (side === 'left' ? unit * 3 : -unit * 3)},${midY} ${edgeX},${midY}`}
+              fill="none"
+              stroke={COLOUR}
+              strokeWidth={unit * 0.9}
+            />
+            <circle cx={p.anchor[0]} cy={p.anchor[1]} r={unit * 1.6} fill={HALO} stroke={COLOUR} strokeWidth={unit * 0.9} />
+            <rect
+              x={x}
+              y={y}
+              width={p.w}
+              height={p.h}
+              rx={p.h / 2}
+              fill={p.selected ? COLOUR : HALO}
+              fillOpacity={p.selected ? 1 : 0.94}
+              stroke={COLOUR}
+              strokeWidth={unit * 0.8}
+            />
+            <text
+              x={x + p.w / 2}
+              y={midY}
+              fontSize={p.fontSize}
+              textAnchor="middle"
+              dominantBaseline="central"
+              fill={p.selected ? HALO : COLOUR}
+              fontWeight={p.selected ? 700 : 600}
             >
-              {label}
+              {p.text}
             </text>
           </g>
         );

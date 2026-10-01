@@ -21,13 +21,39 @@ interface Props {
   renderLayer?: (size: { w: number; h: number }) => React.ReactNode;
   /** HTML laid over the photo (pins, chips), positioned in the same box. */
   renderOverlay?: (size: { w: number; h: number }) => React.ReactNode;
+  /** Image-pixel box to zoom into; the photo and every layer zoom together. */
+  focus?: FocusBox | null;
+}
+
+export interface FocusBox {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+// Layout choices for the zoom, not data: how much room to leave around the
+// focus box (a share of its size per side), and the zoom ceiling past which
+// a phone photo turns to mush.
+const FOCUS_MARGIN = 0.6;
+const MAX_ZOOM = 3;
+
+/** Scale and offset (shares of the box) that centre the focus, kept inside the photo. */
+export function focusTransform(focus: FocusBox, size: { w: number; h: number }): { scale: number; tx: number; ty: number } {
+  const fw = Math.max(focus.w * (1 + 2 * FOCUS_MARGIN), 1);
+  const fh = Math.max(focus.h * (1 + 2 * FOCUS_MARGIN), 1);
+  const scale = Math.min(MAX_ZOOM, Math.max(1, Math.min(size.w / fw, size.h / fh)));
+  const clamp = (v: number) => Math.min(0, Math.max(1 - scale, v));
+  const cx = (focus.x + focus.w / 2) / size.w;
+  const cy = (focus.y + focus.h / 2) / size.h;
+  return { scale, tx: clamp(0.5 - cx * scale), ty: clamp(0.5 - cy * scale) };
 }
 
 /**
  * The guidance polygons over the photo. The polygons are in image pixels, so
  * the SVG uses the image's natural size as its viewBox and scales with it.
  */
-export function GuidanceOverlay({ photoUrl, regions, verifiedOnly, renderLayer, renderOverlay }: Props) {
+export function GuidanceOverlay({ photoUrl, regions, verifiedOnly, renderLayer, renderOverlay, focus }: Props) {
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
 
   useEffect(() => {
@@ -43,11 +69,16 @@ export function GuidanceOverlay({ photoUrl, regions, verifiedOnly, renderLayer, 
   }, [photoUrl]);
 
   const shown = verifiedOnly ? regions.filter((r) => regionConfidence(r) === 'verified') : regions;
+  const zoom = size && focus ? focusTransform(focus, size) : null;
 
   return (
-    <div className="relative inline-block max-w-full">
+    <div className="relative inline-block max-w-full overflow-hidden rounded border border-border">
+      <div
+        className="relative origin-top-left transition-transform duration-300"
+        style={zoom ? { transform: `translate(${zoom.tx * 100}%, ${zoom.ty * 100}%) scale(${zoom.scale})` } : undefined}
+      >
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={photoUrl} alt="Foto yang dianalisis" className="block max-w-full rounded border border-border" />
+      <img src={photoUrl} alt="Foto yang dianalisis" className="block max-w-full" />
       {size && (
         <svg
           viewBox={`0 0 ${size.w} ${size.h}`}
@@ -76,6 +107,7 @@ export function GuidanceOverlay({ photoUrl, regions, verifiedOnly, renderLayer, 
         </svg>
       )}
       {size && renderOverlay?.(size)}
+      </div>
     </div>
   );
 }
