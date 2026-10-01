@@ -2,11 +2,40 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { cn } from '@gateway-experience/shared';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import type { HeadReport } from './headTypes';
 
-export type HeadShading = 'provenance' | 'sigma';
+/**
+ * natural: the GLB as built (photo colour where seen, the worker's flat fill
+ * elsewhere); provenance: every unseen region (_OBSERVED = 0) forced grey;
+ * sigma: each vertex's model lower-bound uncertainty on a ramp.
+ */
+export type HeadShading = 'natural' | 'provenance' | 'sigma';
+
+// Part names (primitive extras.part) since realism A, Seagull-core
+// docs/superpowers/specs/2026-10-01-3d-head-realism-a-design.md. A GLB from
+// before it has no names and renders with its own materials.
+const PART_SKIN = 'skin';
+const PART_CORNEA = 'cornea';
+
+// Look tuning for the skin (visual only, not data): a soft sheen for a
+// subsurface-like skin. Eyeballs keep the GLB's own material: a glossier one
+// reflects the room and washes out the photographed iris.
+const SKIN_LOOK = { roughness: 0.6, sheen: 0.12, sheenRoughness: 0.9, sheenColor: '#b4503c', specularIntensity: 0.25 };
+// Image-based light strength: enough to model the face without washing out
+// the photo texture under ACES (visual only).
+const ENV_INTENSITY = 0.55;
+// three's ACES pre-scales by 1/0.6; this brings mid-tones back near the
+// photo's, so skin colour reads as photographed (visual only).
+const TONE_EXPOSURE = 0.75;
+// A thin clear shell: no refraction blur, a sharp highlight (visual only).
+const CORNEA_LOOK = { roughness: 0.02, thickness: 0, clearcoatRoughness: 0.02 };
+// Refractive index of the human cornea, 1.376 (Gullstrand schematic eye):
+// a property of the eye, not a choice. Gives the cornea its highlight.
+const CORNEA_IOR = 1.376;
 
 // Regions no photo saw (_OBSERVED = 0) are the model's estimate. They are
 // drawn this flat grey, untextured, so they cannot pass for skin; the worker
@@ -51,6 +80,8 @@ interface Props {
   onError: (message: string) => void;
   /** Measurements to draw on the head, on its surface; hidden when on the far side. */
   markers?: HeadMarker[];
+  /** Box sizing; by default a 4:5 frame at full width. */
+  className?: string;
 }
 
 interface ShaderUniforms {
@@ -68,7 +99,7 @@ interface ShaderUniforms {
  * - provenance: texture where a photo saw the surface, grey where it did not;
  * - sigma: each vertex's model lower-bound uncertainty on a sequential ramp.
  */
-export function HeadViewer({ glb, shading, onLoaded, onError, markers = [] }: Props) {
+export function HeadViewer({ glb, shading, onLoaded, onError, markers = [], className = 'aspect-[4/5] w-full' }: Props) {
   const mount = useRef<HTMLDivElement>(null);
   const uniforms = useRef<ShaderUniforms[]>([]);
   const redraw = useRef<() => void>(() => {});
@@ -90,11 +121,17 @@ export function HeadViewer({ glb, shading, onLoaded, onError, markers = [] }: Pr
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = TONE_EXPOSURE;
     el.appendChild(renderer.domElement);
 
+    // Image-based light from a neutral room, plus a soft key for shape.
     const scene = new THREE.Scene();
-    scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8a8a, 1.6));
-    const key = new THREE.DirectionalLight(0xffffff, 1.4);
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    const envMap = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    scene.environment = envMap;
+    scene.environmentIntensity = ENV_INTENSITY;
+    const key = new THREE.DirectionalLight(0xffffff, 0.6);
     key.position.set(0.4, 0.6, 1);
     scene.add(key);
 
@@ -149,6 +186,11 @@ export function HeadViewer({ glb, shading, onLoaded, onError, markers = [] }: Pr
           }
           geo.setAttribute('aSigma', sigma ?? new THREE.BufferAttribute(new Float32Array(count), 1));
 
+          const part = typeof geo.userData?.part === 'string' ? (geo.userData.part as string) : null;
+          if (part) mesh.material = partMaterial(part, mesh.material as THREE.MeshStandardMaterial);
+          // The cornea is a clear shell over the iris: never greyed or ramped.
+          if (part === PART_CORNEA) return;
+
           const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
           materials.forEach((mat) => {
             // Open edges of the mesh (the neck) show their inside when the
@@ -180,9 +222,9 @@ export function HeadViewer({ glb, shading, onLoaded, onError, markers = [] }: Pr
                   '#include <map_fragment>',
                   [
                     '#include <map_fragment>',
-                    'if (uMode < 0.5) {',
+                    'if (uMode > 0.5 && uMode < 1.5) {',
                     '  if (vObserved < 0.5) diffuseColor.rgb = uPriorGrey;',
-                    '} else {',
+                    '} else if (uMode > 1.5) {',
                     '  diffuseColor.rgb = mix(uRampLo, uRampHi, clamp(vSigma / max(uSigmaMax, 1e-6), 0.0, 1.0));',
                     '}',
                   ].join('\n'),
@@ -246,6 +288,8 @@ export function HeadViewer({ glb, shading, onLoaded, onError, markers = [] }: Pr
         });
       });
       markerParent.current = null;
+      envMap.dispose();
+      pmrem.dispose();
       renderer.dispose();
       el.removeChild(renderer.domElement);
       setReady(false);
@@ -312,14 +356,47 @@ export function HeadViewer({ glb, shading, onLoaded, onError, markers = [] }: Pr
   return (
     <div
       ref={mount}
-      className="aspect-[4/5] w-full cursor-grab touch-none overflow-hidden rounded-lg border border-border bg-muted/30 active:cursor-grabbing"
+      className={cn('cursor-grab touch-none overflow-hidden rounded-lg border border-border bg-muted/30 active:cursor-grabbing', className)}
       aria-label="Kepala 3D; seret untuk memutar, gulir untuk zoom"
     />
   );
 }
 
+/**
+ * The material a named part gets, keeping the GLB's texture. Skin: physical
+ * with sheen; cornea: a clear, transmissive
+ * shell with a clearcoat highlight. Unknown parts keep their own material.
+ */
+function partMaterial(part: string, from: THREE.MeshStandardMaterial): THREE.Material {
+  const map = from.map ?? null;
+  if (part === PART_SKIN) {
+    from.dispose();
+    return new THREE.MeshPhysicalMaterial({
+      map,
+      roughness: SKIN_LOOK.roughness,
+      sheen: SKIN_LOOK.sheen,
+      sheenRoughness: SKIN_LOOK.sheenRoughness,
+      sheenColor: new THREE.Color(SKIN_LOOK.sheenColor),
+      specularIntensity: SKIN_LOOK.specularIntensity,
+    });
+  }
+  if (part === PART_CORNEA) {
+    from.dispose();
+    return new THREE.MeshPhysicalMaterial({
+      transmission: 1,
+      transparent: true,
+      roughness: CORNEA_LOOK.roughness,
+      ior: CORNEA_IOR,
+      thickness: CORNEA_LOOK.thickness,
+      clearcoat: 1,
+      clearcoatRoughness: CORNEA_LOOK.clearcoatRoughness,
+    });
+  }
+  return from;
+}
+
 function applyShading(u: ShaderUniforms, shading: HeadShading, sigmaMax: number) {
-  u.uMode.value = shading === 'sigma' ? 1 : 0;
+  u.uMode.value = shading === 'sigma' ? 2 : shading === 'provenance' ? 1 : 0;
   if (Number.isFinite(sigmaMax)) u.uSigmaMax.value = sigmaMax;
 }
 

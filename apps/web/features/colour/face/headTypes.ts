@@ -53,6 +53,10 @@ export interface HeadReport {
    */
   landmarkPoints?: [number, number, number][];
   observedBits: Record<string, number>;
+  /** The photo segmenter behind _OBSERVED (realism A); absent from older heads. */
+  segmenter?: { name: string; version: string; sha256: string };
+  /** Per GLB part: textured, and whether any of it was observed from a photo (realism A). */
+  parts?: { name: string; textured: boolean; observedFromPhoto: boolean }[];
   notice: string;
 }
 

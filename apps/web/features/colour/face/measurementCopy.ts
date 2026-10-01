@@ -7,7 +7,9 @@ import { formatMm } from './physicalScale';
 // Seagull-core apps/workers/face/worker_face/facegeom/measures.py at the
 // catalogue version below. A definition change bumps that version, and a
 // result from any other version falls back to the raw key and number rather
-// than describe a measurement this copy was not written for.
+// than describe a measurement this copy was not written for. Keys can also be
+// ADDED within a version (Seagull-core docs/FACE-MEASURE.md "Catalogue
+// versioning"); a key with no entry here likewise shows as its raw key.
 export const MEASUREMENT_COPY_CATALOGUE = 'fa-measure/1';
 
 interface Copy {
@@ -62,6 +64,11 @@ export const MEASUREMENT_COPY: Record<string, Copy> = {
   cupid_bow_depth: { name: "Kedalaman cupid's bow" },
   mouth_corner_tilt_deg: { name: 'Kemiringan sudut bibir', positive: 'sudut bibir turun', negative: 'sudut bibir naik' },
   cheek_widest_height: { name: 'Posisi pipi terlebar', of: 'jalan dari garis mata ke bawah hidung' },
+  // Added within fa-measure/1 (Seagull-core feat/face-vendor-compare).
+  // Eye height over brow-top-to-eye-bottom, mean of both eyes.
+  eye_height_to_brow_distance: { name: 'Tinggi mata', of: 'jarak alis–bawah mata' },
+  // Nostril-base width over nose height (nasion to subnasale).
+  nose_aspect_ratio: { name: 'Lebar dasar hidung', of: 'tinggi hidung' },
   // Declared but not yet supported by the worker (no definition); named so
   // they read sensibly if a later worker fills them.
   eyelid_type: { name: 'Tipe kelopak mata' },

@@ -46,6 +46,18 @@ describe('friendlyValue', () => {
     expect(friendlyValue(other, 'fa-measure/2')?.long).toBe('0.88');
   });
 
+  it('names the keys added within fa-measure/1', () => {
+    const eye = m({ key: 'eye_height_to_brow_distance', unit: 'ratio', value: 0.42 });
+    expect(measurementName(eye, CAT)).toBe('Tinggi mata');
+    expect(friendlyValue(eye, CAT)?.long).toBe('42% dari jarak alis–bawah mata');
+    const nose = m({ key: 'nose_aspect_ratio', unit: 'ratio', value: 0.81 });
+    expect(friendlyValue(nose, CAT)?.long).toBe('81% dari tinggi hidung');
+  });
+
+  it('shows a key it has no copy for as the raw key', () => {
+    expect(measurementName(m({ key: 'added_later_key', unit: 'ratio', value: 0.5 }), CAT)).toBe('added_later_key');
+  });
+
   it('has nothing to say for a missing value', () => {
     expect(friendlyValue(m({ value: null }), CAT)).toBeNull();
   });

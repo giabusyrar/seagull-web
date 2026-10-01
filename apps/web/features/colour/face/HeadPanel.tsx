@@ -28,7 +28,7 @@ export function HeadPanel({ front, brandId, applicationId, getEndpoint }: Props)
   const [localGlb, setLocalGlb] = useState<{ name: string; data: ArrayBuffer } | null>(null);
   const [stats, setStats] = useState<HeadStats | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [shading, setShading] = useState<HeadShading>('provenance');
+  const [shading, setShading] = useState<HeadShading>('natural');
 
   // On demand: opening this panel builds the head; adding side photos does
   // not refit until asked ("Buat ulang"). Unmounting aborts the request.
@@ -143,6 +143,7 @@ export function ShadingControl({ shading, onChange, stats }: { shading: HeadShad
       <div role="radiogroup" aria-label="Pewarnaan" className="inline-flex rounded-lg border border-border bg-muted/40 p-0.5">
         {(
           [
+            ['natural', 'Natural'],
             ['provenance', 'Foto vs perkiraan'],
             ['sigma', 'Ketidakpastian'],
           ] as const
@@ -163,7 +164,11 @@ export function ShadingControl({ shading, onChange, stats }: { shading: HeadShad
           </button>
         ))}
       </div>
-      {shading === 'provenance' ? (
+      {shading === 'natural' ? (
+        <p className="text-[11px] text-muted-foreground">
+          Warna dari foto di bagian yang terlihat. Pilih “Foto vs perkiraan” untuk menandai bagian yang hanya perkiraan model.
+        </p>
+      ) : shading === 'provenance' ? (
         <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
           <span className="inline-block h-3 w-3 rounded-sm border border-border" style={{ backgroundColor: PRIOR_GREY }} />
           Abu-abu = tidak terlihat di foto mana pun; bentuknya perkiraan model, bukan hasil foto.
@@ -274,6 +279,14 @@ export function HeadReportSummary({ report, provenanceMissing }: { report: HeadR
           <dd>
             {report.model.name} {report.model.version}
           </dd>
+          {report.segmenter && (
+            <>
+              <dt>Segmenter</dt>
+              <dd>
+                {report.segmenter.name} {report.segmenter.version}
+              </dd>
+            </>
+          )}
           <dt>Korespondensi</dt>
           <dd>v{report.correspondence.version}</dd>
           <dt>Jarak dari rata-rata</dt>

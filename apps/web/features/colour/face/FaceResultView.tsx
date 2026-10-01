@@ -539,12 +539,12 @@ export function MeasurementSummary({
 }
 
 /** The part of the photo on screen when zoomed onto focus, in image pixels. */
-function visibleBox(focus: FocusBox, size: { w: number; h: number }): FocusBox {
+export function visibleBox(focus: FocusBox, size: { w: number; h: number }): FocusBox {
   const t = focusTransform(focus, size);
   return { x: (-t.tx * size.w) / t.scale, y: (-t.ty * size.h) / t.scale, w: size.w / t.scale, h: size.h / t.scale };
 }
 
-function boundsOf(points: [number, number][]): FocusBox {
+export function boundsOf(points: [number, number][]): FocusBox {
   const xs = points.map((p) => p[0]);
   const ys = points.map((p) => p[1]);
   const x = Math.min(...xs);
@@ -553,7 +553,7 @@ function boundsOf(points: [number, number][]): FocusBox {
 }
 
 /** Where the millimetres come from, and the PD input that replaces the estimate. */
-function ScaleNote({
+export function ScaleNote({
   scale,
   pdMm,
   onPdChange,

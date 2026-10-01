@@ -1,48 +1,60 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Download, Palette, RotateCcw, Sparkles, Undo2 } from 'lucide-react';
-import { Button, cn, loadBlob, saveBlob, usePersistentState } from '@gateway-experience/shared';
+import { Download, Palette, RotateCcw, ScanFace, Sparkles, Undo2 } from 'lucide-react';
+import { ApplicationSelect, BrandSelect, Button, cn, loadBlob, saveBlob, usePersistentState } from '@gateway-experience/shared';
 import { useCoreCollection } from '@/lib/hooks/use-core-collection';
 import { AnalysisCard } from './AnalysisCard';
-import { BeforeAfter } from './BeforeAfter';
 import { CameraCapture } from './CameraCapture';
 import { ProductPicker } from './ProductPicker';
 import { useTryOn } from './useTryOn';
-import { FaceArchitectPanel } from './face/FaceArchitectPanel';
-import { CombinedAnalysisView } from './combined/CombinedAnalysisView';
 import { YesNoField, type YesNo } from './YesNoField';
+import { FacePanel } from './studio/FacePanel';
+import { PhotoStage, type Panel, type Stage } from './studio/PhotoStage';
+import { SidePhoto } from './face/HeadPanel';
+import { measurementGeometry } from './face/faceTypes';
+import { physicalScale } from './face/physicalScale';
+import { useFaceArchitecture } from './face/useFaceArchitecture';
+import { useFaceHead } from './face/useFaceHead';
+import type { DrawnMeasurement } from './face/MeasurementOverlay';
 import { catalogOf, errorText, readApiError, type AnalyzeResult, type ApiError, type CatalogResult } from './types';
 
-type Step = 'capture' | 'questions' | 'tryon';
-type StudioTab = 'colour' | 'face' | 'all';
+type Step = 'capture' | 'questions' | 'result';
 
 // The last session — photo, answers, analysis and chosen look — survives a
 // reload. The photo is a file, so it goes to IndexedDB; the rest to
 // localStorage. Shared by the workbench tab and /colour-analysis.
 const PERSIST_PREFIX = 'xg.tryOnEngine.';
 const PHOTO_KEY = PERSIST_PREFIX + 'photo';
+// Shared with the face-architecture panel, so the profile scope and PD are set once.
+const FACE_PREFIX = 'xg.faceArchitect.';
 
 /**
- * Personal colour analysis + photo try-on, laid out like the brand's existing
- * try-on (photo with a before/after handle on the left; category tabs,
- * product cards and "Warna Tersedia" on the right), in the Seagull theme.
+ * Personal colour and face analysis from one photo, laid out like the
+ * brand's existing try-on (photo on the left, panels on the right), in the
+ * Seagull theme.
  *
- * Flow: photo (camera or upload) → two required questions → analysis
- * (POST /core/colour-engine/analyze, which also returns every shade to try,
- * the ones that suit the person marked) → try-on (POST
- * /core/colour-engine/tryon, one shade per category). The analysis can be
- * skipped: "Langsung coba makeup" loads the catalog (GET
- * /core/colour-engine/catalog) and goes straight to the try-on.
+ * Flow: photo (camera or upload) → two questions, optional side photos →
+ * one "Analisis" that runs, in parallel, the colour analysis (POST
+ * /core/colour-engine/analyze), face architecture (POST
+ * /core/vision-engine/face-architecture/:brand/:app) and the 3D head (…/head).
+ * The right side switches between Warna (result + try-on, POST
+ * /core/colour-engine/tryon) and Wajah (measurements, shape, guidance); the
+ * photo side has a floating 2D/3D switch. "Langsung coba makeup" skips the
+ * analyses and loads the catalog (GET /core/colour-engine/catalog).
  */
 export function ColourStudioView() {
   const { getEndpoint } = useCoreCollection();
 
-  const [tab, setTab] = useState<StudioTab>('colour');
   const [file, setFile] = useState<File | null>(null);
   const photoUrl = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
+  const [sides, setSides] = useState<Partial<Record<'left' | 'right', File>>>({});
   const [hijab, setHijab] = usePersistentState<YesNo>(PERSIST_PREFIX + 'hijab', '');
   const [hairVisible, setHairVisible] = usePersistentState<YesNo>(PERSIST_PREFIX + 'hairVisible', '');
+  const [brandId, setBrandId] = usePersistentState<string>(FACE_PREFIX + 'brand', '*');
+  const [applicationId, setApplicationId] = usePersistentState<string>(FACE_PREFIX + 'application', '*');
+  const [pdMm, setPdMm] = usePersistentState<number | null>(FACE_PREFIX + 'pdMm', null);
+
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = usePersistentState<AnalyzeResult | null>(PERSIST_PREFIX + 'result', null);
   const [plain, setPlain] = usePersistentState<CatalogResult | null>(PERSIST_PREFIX + 'catalog', null);
@@ -50,6 +62,13 @@ export function ColourStudioView() {
   const [error, setError] = useState<ApiError | null>(null);
   const [look, setLook] = usePersistentState<Record<string, string>>(PERSIST_PREFIX + 'look', {});
   const tryon = useTryOn(file, getEndpoint);
+
+  const views = useMemo(() => (file ? { front: file, ...sides } : {}), [file, sides]);
+  const face = useFaceArchitecture(file, getEndpoint);
+  const head = useFaceHead(views, getEndpoint);
+  const [panel, setPanel] = usePersistentState<Panel>(PERSIST_PREFIX + 'panel', 'colour');
+  const [stage, setStage] = useState<Stage>('2d');
+  const [selected, setSelected] = useState<string | null>(null);
 
   const choosePhoto = (f: File | null) => {
     setFile(f);
@@ -87,21 +106,41 @@ export function ColourStudioView() {
     [photoUrl],
   );
 
-  const step: Step = !file ? 'capture' : result || plain ? 'tryon' : 'questions';
+  const step: Step = !file ? 'capture' : result || plain ? 'result' : 'questions';
   const catalog = useMemo(() => (result ? catalogOf(result) : plain?.catalog ?? {}), [result, plain]);
+
+  const drawn = useMemo<DrawnMeasurement[]>(() => {
+    const r = face.result;
+    if (!r) return [];
+    return r.measurements.flatMap((m) => {
+      const geometry = measurementGeometry(m, r.landmarks);
+      return geometry ? [{ m, geometry }] : [];
+    });
+  }, [face.result]);
+  const drawableKeys = useMemo(() => new Set(drawn.map((d) => d.m.key)), [drawn]);
+  const scale = face.result ? physicalScale(face.result, pdMm) : null;
 
   const reset = () => {
     choosePhoto(null);
+    setSides({});
     setResult(null);
     setPlain(null);
     setError(null);
     setLook({});
     setHijab('');
     setHairVisible('');
+    setSelected(null);
+    setStage('2d');
+  };
+
+  const analyzeFace = () => {
+    void face.analyze(brandId, applicationId);
+    void head.build(brandId, applicationId);
   };
 
   const analyze = async () => {
     if (!file || hijab === '' || hairVisible === '') return;
+    analyzeFace();
     setAnalyzing(true);
     setError(null);
     try {
@@ -153,66 +192,38 @@ export function ColourStudioView() {
       <div className="mx-auto w-full max-w-6xl p-4 sm:p-6">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div className="space-y-0.5">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-primary">Personal Colour &amp; Virtual Try-On</div>
-            <h1 className="text-lg font-bold text-foreground">
-              {tab === 'colour'
-                ? 'Coba warna yang cocok untukmu'
-                : tab === 'face'
-                  ? 'Bentuk wajah dan penempatan makeup'
-                  : 'Kepala 3D, bentuk wajah, dan warna sekaligus'}
-            </h1>
+            <div className="text-[10px] font-bold uppercase tracking-wider text-primary">Personal Colour &amp; Face Analysis</div>
+            <h1 className="text-lg font-bold text-foreground">Kenali warna dan bentuk wajahmu</h1>
           </div>
-          {tab === 'colour' && <Stepper step={step} />}
+          <Stepper step={step} />
         </div>
 
-        {/* One photo, two analyses: switching tabs keeps the photo. */}
-        <div className="mb-4 flex gap-1 rounded-xl border border-border bg-secondary/50 p-1 w-fit">
-          {(
-            [
-              ['colour', 'Warna'],
-              ['face', 'Bentuk Wajah'],
-              ['all', 'Analisis lengkap'],
-            ] as const
-          ).map(([key, label]) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setTab(key)}
-              className={cn(
-                'px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer',
-                tab === key ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {tab === 'face' && <FaceArchitectPanel file={file} photoUrl={photoUrl} onPhoto={choosePhoto} />}
-        {tab === 'all' && (
-          <CombinedAnalysisView
-            file={file}
-            photoUrl={photoUrl}
-            onPhoto={choosePhoto}
-            hijab={hijab}
-            onHijab={setHijab}
-            hairVisible={hairVisible}
-            onHairVisible={setHairVisible}
-          />
-        )}
-
-        <div className={cn('grid grid-cols-1 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-5 items-start', tab !== 'colour' && 'hidden')}>
-          {/* Left: photo */}
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-5 items-start">
+          {/* Left: photo, 2D or 3D */}
           <div className="rounded-2xl border border-border bg-card p-3 shadow-xs lg:sticky lg:top-4">
             {step === 'capture' && <CameraCapture onPhoto={choosePhoto} />}
             {step !== 'capture' && photoUrl && (
               <div className="flex flex-col gap-3">
-                <BeforeAfter before={photoUrl} after={tryon.url} loading={tryon.loading} className="w-full aspect-[3/4]" />
+                <PhotoStage
+                  photoUrl={photoUrl}
+                  stage={stage}
+                  onStage={setStage}
+                  panel={panel}
+                  tryOnUrl={tryon.url}
+                  tryOnLoading={tryon.loading}
+                  face={face.result}
+                  drawn={drawn}
+                  selected={selected}
+                  onSelect={setSelected}
+                  mmPerIod={scale?.mmPerIod ?? null}
+                  head={head}
+                  canShow3d={step === 'result'}
+                />
                 <div className="flex flex-wrap gap-2">
                   <Button variant="outline" size="sm" leftIcon={<RotateCcw className="h-3.5 w-3.5" />} onClick={reset}>
                     Foto ulang
                   </Button>
-                  {step === 'tryon' && (
+                  {step === 'result' && panel === 'colour' && stage === '2d' && (
                     <>
                       <Button variant="outline" size="sm" leftIcon={<Undo2 className="h-3.5 w-3.5" />} onClick={clearLook} disabled={!Object.keys(look).length}>
                         Hapus semua
@@ -237,18 +248,15 @@ export function ColourStudioView() {
             )}
           </div>
 
-          {/* Right: questions, or the try-on panel */}
+          {/* Right: questions, or the Warna / Wajah panels */}
           <div className="flex flex-col gap-4 min-w-0">
             {step === 'capture' && (
               <div className="rounded-2xl border border-border bg-card p-5 shadow-xs space-y-3 text-sm">
                 <p className="font-bold text-foreground">Cara kerjanya</p>
                 <ol className="list-decimal pl-5 space-y-1.5 text-muted-foreground text-xs">
                   <li>Ambil atau unggah foto wajah.</li>
-                  <li>Jawab dua pertanyaan singkat untuk analisis warna, atau langsung coba makeup.</li>
-                  <li>
-                    Coba foundation, lipstik, eyeshadow, eyeliner, maskara, alis, dan blush langsung di fotomu. Setelah analisis, shade yang
-                    cocok untukmu ditandai.
-                  </li>
+                  <li>Jawab dua pertanyaan singkat. Sekali analisis untuk warna, bentuk wajah, dan kepala 3D.</li>
+                  <li>Lihat hasil warna dan coba makeup, atau pindah ke hasil wajah. Foto bisa dilihat dalam 2D atau 3D.</li>
                 </ol>
               </div>
             )}
@@ -258,6 +266,26 @@ export function ColourStudioView() {
                 <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Sebelum analisis</div>
                 <YesNoField label="Memakai hijab atau penutup kepala?" value={hijab} onChange={setHijab} />
                 <YesNoField label="Rambut terlihat di foto?" value={hairVisible} onChange={setHairVisible} />
+                <div className="space-y-1.5">
+                  <div className="flex flex-wrap gap-2">
+                    {(['left', 'right'] as const).map((side) => (
+                      <SidePhoto
+                        key={side}
+                        label={side === 'left' ? 'Samping kiri' : 'Samping kanan'}
+                        file={sides[side]}
+                        onChange={(f) => setSides((s) => ({ ...s, [side]: f ?? undefined }))}
+                      />
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">Foto samping (tiga perempat) opsional, untuk kepala 3D yang lebih akurat.</p>
+                </div>
+                <details className="text-xs">
+                  <summary className="cursor-pointer select-none text-[11px] text-muted-foreground">Scope profil bentuk wajah</summary>
+                  <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                    <BrandSelect value={brandId} onChange={setBrandId} includeUniversal label="Brand" />
+                    <ApplicationSelect value={applicationId} onChange={setApplicationId} includeUniversal label="Aplikasi" />
+                  </div>
+                </details>
                 <Button
                   size="lg"
                   className="w-full"
@@ -266,7 +294,7 @@ export function ColourStudioView() {
                   leftIcon={<Sparkles className="h-4 w-4" />}
                   onClick={analyze}
                 >
-                  {analyzing ? 'Menganalisis…' : 'Analisis warna'}
+                  {analyzing ? 'Menganalisis…' : 'Analisis'}
                 </Button>
                 {(hijab === '' || hairVisible === '') && <p className="text-[11px] text-muted-foreground">Jawab kedua pertanyaan untuk melanjutkan.</p>}
                 <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
@@ -292,24 +320,45 @@ export function ColourStudioView() {
               </div>
             )}
 
-            {step === 'tryon' && (
+            {step === 'result' && (
               <>
-                {result ? (
-                  <AnalysisCard result={result} />
-                ) : (
-                  <div className="rounded-2xl border border-border bg-card p-4 shadow-xs flex flex-wrap items-center justify-between gap-3">
-                    <div className="min-w-0 space-y-0.5">
-                      <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Analisis warna</div>
-                      <p className="text-xs text-muted-foreground">Belum dijalankan. Analisis untuk menandai shade yang cocok untukmu.</p>
+                <PanelSwitch panel={panel} onPanel={setPanel} faceBusy={face.loading} />
+
+                {panel === 'colour' && (
+                  <>
+                    {result ? (
+                      <AnalysisCard result={result} />
+                    ) : (
+                      <div className="rounded-2xl border border-border bg-card p-4 shadow-xs flex flex-wrap items-center justify-between gap-3">
+                        <div className="min-w-0 space-y-0.5">
+                          <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Analisis warna</div>
+                          <p className="text-xs text-muted-foreground">Belum dijalankan. Analisis untuk menandai shade yang cocok untukmu.</p>
+                        </div>
+                        <Button size="sm" leftIcon={<Sparkles className="h-3.5 w-3.5" />} onClick={() => setPlain(null)}>
+                          Analisis warna
+                        </Button>
+                      </div>
+                    )}
+                    <div className="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs">
+                      <ProductPicker catalog={catalog} look={look} onPick={pick} analyzed={!!result} />
                     </div>
-                    <Button size="sm" leftIcon={<Sparkles className="h-3.5 w-3.5" />} onClick={() => setPlain(null)}>
-                      Analisis warna
-                    </Button>
-                  </div>
+                  </>
                 )}
-                <div className="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs">
-                  <ProductPicker catalog={catalog} look={look} onPick={pick} analyzed={!!result} />
-                </div>
+
+                {panel === 'face' && (
+                  <FacePanel
+                    result={face.result}
+                    loading={face.loading}
+                    error={face.error}
+                    drawableKeys={drawableKeys}
+                    selected={selected}
+                    onSelect={setSelected}
+                    scale={scale}
+                    pdMm={pdMm}
+                    onPdChange={setPdMm}
+                    onAnalyze={analyzeFace}
+                  />
+                )}
               </>
             )}
           </div>
@@ -319,11 +368,40 @@ export function ColourStudioView() {
   );
 }
 
+function PanelSwitch({ panel, onPanel, faceBusy }: { panel: Panel; onPanel: (p: Panel) => void; faceBusy: boolean }) {
+  return (
+    <div role="tablist" aria-label="Hasil" className="flex w-fit gap-1 rounded-xl border border-border bg-secondary/50 p-1">
+      {(
+        [
+          ['colour', 'Analisis warna', Palette],
+          ['face', 'Analisis wajah', ScanFace],
+        ] as const
+      ).map(([key, label, Icon]) => (
+        <button
+          key={key}
+          type="button"
+          role="tab"
+          aria-selected={panel === key}
+          onClick={() => onPanel(key)}
+          className={cn(
+            'flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer',
+            panel === key ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground',
+          )}
+        >
+          <Icon className="h-3.5 w-3.5" />
+          {label}
+          {key === 'face' && faceBusy && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" />}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function Stepper({ step }: { step: Step }) {
   const steps: [Step, string][] = [
     ['capture', 'Foto'],
     ['questions', 'Analisis'],
-    ['tryon', 'Coba makeup'],
+    ['result', 'Hasil'],
   ];
   const at = steps.findIndex(([s]) => s === step);
   return (
