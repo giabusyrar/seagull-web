@@ -1,17 +1,17 @@
 import { BeautyClientConfig } from './types/index.mjs';
-import { UnifiedAssessmentRequest, UnifiedAssessmentResponse } from '@gateway-experience/contracts';
+import { A as AssessmentEvaluateRequest, a as AssessmentEvaluateResponse } from './assessment-types-CZzJyusy.mjs';
 
 interface UseSkinAssessmentOptions extends BeautyClientConfig {
 }
 declare function useSkinAssessment(config: UseSkinAssessmentOptions): {
-    evaluate: (request: Omit<UnifiedAssessmentRequest, "brand_id" | "application_id"> & {
+    evaluate: (request: Omit<AssessmentEvaluateRequest, "brand_id" | "application_id"> & {
         brand_id?: string;
         application_id?: string;
-    }) => Promise<UnifiedAssessmentResponse>;
+    }) => Promise<AssessmentEvaluateResponse>;
     reset: () => void;
     isLoading: boolean;
     error: Error | null;
-    result: UnifiedAssessmentResponse | null;
+    result: AssessmentEvaluateResponse | null;
 };
 
 declare function useRegimenMatch(): {

@@ -122,7 +122,7 @@ var BeautyClient = class {
     if (this.config.token) {
       headers["Authorization"] = `Bearer ${this.config.token}`;
     }
-    const url = `${this.config.gatewayUrl}/api/v1/assessments/evaluate`;
+    const url = `${this.config.gatewayUrl}/core/form-engine/evaluate`;
     const response = await fetch(url, {
       method: "POST",
       headers,

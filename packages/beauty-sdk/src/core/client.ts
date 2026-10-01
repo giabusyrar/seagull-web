@@ -1,5 +1,5 @@
 import type { BeautyClientConfig, VisionAnalysisResponse, VisionAnalysisOptions } from './types';
-import type { UnifiedAssessmentRequest, UnifiedAssessmentResponse } from '@gateway-experience/contracts';
+import type { AssessmentEvaluateRequest, AssessmentEvaluateResponse } from './assessment-types';
 
 export class FormSubClient {
   constructor(private client: BeautyClient) {}
@@ -83,11 +83,11 @@ export class AssessmentsSubClient {
   constructor(private client: BeautyClient) {}
 
   async evaluate(
-    request: Omit<UnifiedAssessmentRequest, 'brand_id' | 'application_id'> & {
+    request: Omit<AssessmentEvaluateRequest, 'brand_id' | 'application_id'> & {
       brand_id?: string;
       application_id?: string;
     }
-  ): Promise<UnifiedAssessmentResponse> {
+  ): Promise<AssessmentEvaluateResponse> {
     return this.client.evaluateAssessment(request);
   }
 }
@@ -148,12 +148,12 @@ export class BeautyClient {
    * Unified single-hit multi-modal assessment evaluation (<50ms).
    */
   async evaluateAssessment(
-    request: Omit<UnifiedAssessmentRequest, 'brand_id' | 'application_id'> & {
+    request: Omit<AssessmentEvaluateRequest, 'brand_id' | 'application_id'> & {
       brand_id?: string;
       application_id?: string;
     }
-  ): Promise<UnifiedAssessmentResponse> {
-    const payload: UnifiedAssessmentRequest = {
+  ): Promise<AssessmentEvaluateResponse> {
+    const payload: AssessmentEvaluateRequest = {
       brand_id: request.brand_id || this.config.brandId,
       application_id: request.application_id || this.config.applicationId,
       ...request,
@@ -169,7 +169,10 @@ export class BeautyClient {
       headers['Authorization'] = `Bearer ${this.config.token}`;
     }
 
-    const url = `${this.config.gatewayUrl}/api/v1/assessments/evaluate`;
+    // core-engine owns assessments now; the gateway's own
+    // /api/v1/assessments/evaluate is being retired. Survey evaluate stores
+    // the result and reports assessment_id.
+    const url = `${this.config.gatewayUrl}/core/form-engine/evaluate`;
     const response = await fetch(url, {
       method: 'POST',
       headers,

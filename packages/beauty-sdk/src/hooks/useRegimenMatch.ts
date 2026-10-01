@@ -1,6 +1,5 @@
 'use client';
 import { useState, useCallback } from 'react';
-import type { RecommendedProduct } from '@gateway-experience/contracts';
 
 export function useRegimenMatch() {
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);

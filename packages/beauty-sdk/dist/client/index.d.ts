@@ -1,5 +1,5 @@
 import { BeautyClientConfig, VisionAnalysisOptions, VisionAnalysisResponse } from '../types/index.js';
-import { UnifiedAssessmentRequest, UnifiedAssessmentResponse } from '@gateway-experience/contracts';
+import { A as AssessmentEvaluateRequest, a as AssessmentEvaluateResponse } from '../assessment-types-CZzJyusy.js';
 
 declare class FormSubClient {
     private client;
@@ -37,10 +37,10 @@ declare class ReferenceSubClient {
 declare class AssessmentsSubClient {
     private client;
     constructor(client: BeautyClient);
-    evaluate(request: Omit<UnifiedAssessmentRequest, 'brand_id' | 'application_id'> & {
+    evaluate(request: Omit<AssessmentEvaluateRequest, 'brand_id' | 'application_id'> & {
         brand_id?: string;
         application_id?: string;
-    }): Promise<UnifiedAssessmentResponse>;
+    }): Promise<AssessmentEvaluateResponse>;
 }
 declare class BeautyClient {
     config: BeautyClientConfig;
@@ -57,10 +57,10 @@ declare class BeautyClient {
     /**
      * Unified single-hit multi-modal assessment evaluation (<50ms).
      */
-    evaluateAssessment(request: Omit<UnifiedAssessmentRequest, 'brand_id' | 'application_id'> & {
+    evaluateAssessment(request: Omit<AssessmentEvaluateRequest, 'brand_id' | 'application_id'> & {
         brand_id?: string;
         application_id?: string;
-    }): Promise<UnifiedAssessmentResponse>;
+    }): Promise<AssessmentEvaluateResponse>;
     /**
      * Submits unlabelled face captures to Vision Engine in a single call.
      * Head pose and 8-zone arbitration are executed autonomously on the backend.

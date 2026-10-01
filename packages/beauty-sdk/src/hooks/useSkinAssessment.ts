@@ -2,7 +2,7 @@
 import { useState, useCallback } from 'react';
 import { BeautyClient } from '../core/client';
 import type { BeautyClientConfig } from '../core/types';
-import type { UnifiedAssessmentRequest, UnifiedAssessmentResponse } from '@gateway-experience/contracts';
+import type { AssessmentEvaluateRequest, AssessmentEvaluateResponse } from '../core/assessment-types';
 
 export interface UseSkinAssessmentOptions extends BeautyClientConfig {}
 
@@ -10,11 +10,11 @@ export function useSkinAssessment(config: UseSkinAssessmentOptions) {
   const [client] = useState(() => new BeautyClient(config));
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const [result, setResult] = useState<UnifiedAssessmentResponse | null>(null);
+  const [result, setResult] = useState<AssessmentEvaluateResponse | null>(null);
 
   const evaluate = useCallback(
     async (
-      request: Omit<UnifiedAssessmentRequest, 'brand_id' | 'application_id'> & {
+      request: Omit<AssessmentEvaluateRequest, 'brand_id' | 'application_id'> & {
         brand_id?: string;
         application_id?: string;
       }

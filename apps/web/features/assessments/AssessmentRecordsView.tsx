@@ -1,19 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import {
-  User,
-  Eye,
-  Activity,
-  Database,
-  Tag,
-  Sparkles,
-  Award,
-  Code,
-  Clock,
-  Layers,
-  X,
-} from 'lucide-react';
+import { User, Eye, Activity, Database, Code, Clock, X, AlertTriangle } from 'lucide-react';
 import {
   PageHeader,
   SearchFilterBar,
@@ -21,53 +9,94 @@ import {
   BrandTag,
   CodeBlock,
   Button,
-  SearchableSelect,
+  BrandSelect,
+  ApplicationSelect,
   type ColumnDef,
-  type SelectOption,
 } from '@gateway-experience/shared';
 
+/**
+ * Customer assessments, read from core-engine
+ * (GET /core/assessments/history and /core/assessments/customers/:customerId).
+ *
+ * They used to be read from the gateway's own assessment store, which is being
+ * retired. core-engine's records carry different fields, so this view shows
+ * what that store actually holds — the bio-age, UV and "assessment type"
+ * columns are gone because no such field exists; inventing them would have
+ * been worse than losing them.
+ */
 interface AssessmentRecord {
   id: string;
-  assessmentType: string;
+  customerId: string;
   brandId: string;
-  applicationId?: string;
-  customerIdentifier?: string;
-  chronologicalAge?: number;
-  predictedBioAge?: number;
-  bioAgeOffset?: number;
-  uvIndex?: number;
-  globalScores?: Record<string, number>;
-  recommendedProducts?: any[];
-  latencyMs?: number;
+  applicationId: string;
+  formId?: string;
+  totalScore?: number;
+  skinProfileCode?: string;
+  skinProfile?: string | null;
+  skinGradingTiers?: string | null;
+  dimensionScores?: string;
+  recommendedProducts?: string | null;
+  rawAnswers?: string | null;
+  visionMetrics?: string | null;
+  executionTimeMs?: number;
   createdAt: string;
+  updatedAt?: string | null;
+}
+
+// Both scopes are required by the API; without them it answers 400.
+const UNIVERSAL = '*';
+
+function parseJsonField(raw: string | null | undefined): unknown {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return raw;
+  }
 }
 
 export function AssessmentRecordsView() {
   const [assessments, setAssessments] = useState<AssessmentRecord[]>([]);
-  const [selectedBrand, setSelectedBrand] = useState('all');
-  const [selectedType, setSelectedType] = useState('all');
+  const [brandId, setBrandId] = useState('');
+  const [applicationId, setApplicationId] = useState('');
+  const [customerId, setCustomerId] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<AssessmentRecord | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [inspectRawJson, setInspectRawJson] = useState(false);
 
+  const scopeChosen = Boolean(brandId) && Boolean(applicationId);
+
   const fetchAssessments = useCallback(async () => {
+    if (!scopeChosen) {
+      setAssessments([]);
+      return;
+    }
     setLoading(true);
+    setError(null);
     try {
-      const url = `/api/assessments?brandId=${selectedBrand}&type=${selectedType}&limit=100`;
-      const res = await fetch(url, { cache: 'no-store' });
-      const data = await res.json();
-      if (data.success) {
-        setAssessments(data.data || []);
+      const params = new URLSearchParams({ brand_id: brandId, application_id: applicationId, limit: '100' });
+      const path = customerId.trim()
+        ? `/core/assessments/customers/${encodeURIComponent(customerId.trim())}`
+        : '/core/assessments/history';
+      const res = await fetch(`${path}?${params}`, { cache: 'no-store' });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        setAssessments([]);
+        setError(body?.error || `Could not read assessments (HTTP ${res.status}).`);
+        return;
       }
+      setAssessments(Array.isArray(body?.assessments) ? body.assessments : []);
     } catch (err) {
-      console.error('Failed to fetch assessments:', err);
+      setAssessments([]);
+      setError(err instanceof Error ? err.message : 'Could not reach core-engine.');
     } finally {
       setLoading(false);
     }
-  }, [selectedBrand, selectedType]);
+  }, [brandId, applicationId, customerId, scopeChosen]);
 
   useEffect(() => {
     fetchAssessments();
@@ -75,65 +104,33 @@ export function AssessmentRecordsView() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, selectedBrand, selectedType]);
+  }, [searchQuery, brandId, applicationId, customerId]);
 
   const filteredAssessments = useMemo(() => {
-    return assessments.filter((a) => {
-      if (!searchQuery.trim()) return true;
-      const q = searchQuery.toLowerCase();
-      return (
-        a.id.toLowerCase().includes(q) ||
-        (a.customerIdentifier && a.customerIdentifier.toLowerCase().includes(q)) ||
-        a.brandId.toLowerCase().includes(q) ||
-        a.assessmentType.toLowerCase().includes(q) ||
-        (a.applicationId && a.applicationId.toLowerCase().includes(q))
-      );
-    });
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return assessments;
+    return assessments.filter((a) =>
+      [a.id, a.customerId, a.formId, a.skinProfileCode].some((v) => v && v.toLowerCase().includes(q)),
+    );
   }, [assessments, searchQuery]);
 
   const totalItems = filteredAssessments.length;
   const totalPages = Math.ceil(totalItems / pageSize) || 1;
-  const paginatedItems = filteredAssessments.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize
-  );
+  const paginatedItems = filteredAssessments.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
-  const availableBrands = useMemo(() => {
-    return Array.from(new Set(assessments.map((a) => a.brandId).filter(Boolean)));
-  }, [assessments]);
-
-  const availableTypes = useMemo(() => {
-    return Array.from(new Set(assessments.map((a) => a.assessmentType).filter(Boolean)));
-  }, [assessments]);
-
-  const activeFilterCount = (selectedBrand !== 'all' ? 1 : 0) + (selectedType !== 'all' ? 1 : 0);
-
-  const brandFilterOptions: SelectOption[] = [
-    { value: 'all', label: `All Brands (${availableBrands.length})` },
-    ...availableBrands.map((b) => ({
-      value: b,
-      label: b.replace('brand_', '').replace(/^\w/, (c) => c.toUpperCase()),
-    })),
-  ];
-
-  const typeFilterOptions: SelectOption[] = [
-    { value: 'all', label: `All Types (${availableTypes.length})` },
-    ...availableTypes.map((t) => ({
-      value: t,
-      label: t.replace(/_/g, ' '),
-    })),
-  ];
+  const activeFilterCount = (brandId ? 1 : 0) + (applicationId ? 1 : 0) + (customerId.trim() ? 1 : 0);
 
   const customFilterContent = (
     <div className="space-y-3.5">
       <div className="flex items-center justify-between border-b border-border pb-2">
-        <span className="text-xs font-bold text-foreground uppercase tracking-wider">Assessment Filters</span>
+        <span className="text-xs font-bold text-foreground uppercase tracking-wider">Scope</span>
         {activeFilterCount > 0 && (
           <button
             type="button"
             onClick={() => {
-              setSelectedBrand('all');
-              setSelectedType('all');
+              setBrandId('');
+              setApplicationId('');
+              setCustomerId('');
             }}
             className="text-[10px] text-primary hover:underline cursor-pointer"
           >
@@ -142,31 +139,26 @@ export function AssessmentRecordsView() {
         )}
       </div>
 
-      <div className="space-y-1.5">
-        <label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
-          <Tag className="h-3 w-3 text-primary" />
-          <span>Brand Scope</span>
-        </label>
-        <SearchableSelect
-          value={selectedBrand}
-          onChange={setSelectedBrand}
-          options={brandFilterOptions}
-          placeholder="Select brand..."
-          searchPlaceholder="Search brands..."
-        />
-      </div>
+      {/* core-engine requires both scopes, so there is no "all brands" view. */}
+      <BrandSelect value={brandId} onChange={setBrandId} includeUniversal label="Brand (required)" />
+      <ApplicationSelect
+        value={applicationId}
+        onChange={setApplicationId}
+        includeUniversal
+        label="Application (required)"
+      />
 
       <div className="space-y-1.5">
         <label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
-          <Activity className="h-3 w-3 text-sky-400" />
-          <span>Assessment Type</span>
+          <User className="h-3 w-3 text-sky-400" />
+          <span>Customer ID (optional)</span>
         </label>
-        <SearchableSelect
-          value={selectedType}
-          onChange={setSelectedType}
-          options={typeFilterOptions}
-          placeholder="Select type..."
-          searchPlaceholder="Search types..."
+        <input
+          type="text"
+          value={customerId}
+          onChange={(e) => setCustomerId(e.target.value)}
+          placeholder="Leave empty for the whole history"
+          className="w-full bg-card border border-border rounded-md px-2 py-1.5 text-xs font-mono outline-none focus:border-primary"
         />
       </div>
     </div>
@@ -175,25 +167,29 @@ export function AssessmentRecordsView() {
   const columns: ColumnDef<AssessmentRecord>[] = [
     {
       key: 'brandId',
-      header: 'Brand & Type',
+      header: 'Brand & Profile',
       render: (item) => (
         <div className="flex flex-col gap-1 items-start">
-          <BrandTag name={item.brandId.replace('brand_', '')} />
-          <span className="inline-block font-mono text-[10px] bg-secondary text-muted-foreground px-1.5 py-0.5 rounded border border-border">
-            {item.assessmentType}
-          </span>
+          <BrandTag name={item.brandId === UNIVERSAL ? 'Universal' : item.brandId} />
+          {item.skinProfileCode ? (
+            <span className="inline-block font-mono text-[10px] bg-secondary text-muted-foreground px-1.5 py-0.5 rounded border border-border">
+              {item.skinProfileCode}
+            </span>
+          ) : (
+            <span className="text-[10px] text-muted-foreground">no profile code</span>
+          )}
         </div>
       ),
     },
     {
-      key: 'customerIdentifier',
-      header: 'Customer Identifier',
+      key: 'customerId',
+      header: 'Customer',
       render: (item) => (
         <div>
           <div className="font-semibold text-foreground flex items-center gap-1.5">
             <User className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="truncate max-w-[140px]" title={item.customerIdentifier || 'Anonymous'}>
-              {item.customerIdentifier || 'Guest / Anonymous'}
+            <span className="truncate max-w-[140px]" title={item.customerId}>
+              {item.customerId}
             </span>
           </div>
           <span className="text-[10px] font-mono text-muted-foreground block mt-0.5 truncate max-w-[140px]">
@@ -203,25 +199,18 @@ export function AssessmentRecordsView() {
       ),
     },
     {
-      key: 'globalScores',
-      header: 'Scores & Context',
+      key: 'totalScore',
+      header: 'Score & Form',
       render: (item) => (
-        <div className="flex flex-wrap items-center gap-1.5">
-          {item.globalScores?.UV_DEFENSE !== undefined && (
-            <span className="bg-beak/20 border border-beak/20 text-beak text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1">
-              <Sparkles className="h-2.5 w-2.5" /> UV: {Math.round(item.globalScores.UV_DEFENSE)}
+        <div className="flex flex-col gap-1 items-start">
+          {typeof item.totalScore === 'number' ? (
+            <span className="bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-[10px] font-bold px-1.5 py-0.5 rounded tabular-nums">
+              {Math.round(item.totalScore)}
             </span>
+          ) : (
+            <span className="text-[10px] text-muted-foreground">not scored</span>
           )}
-          {item.globalScores?.SKIN_LONGEVITY !== undefined && (
-            <span className="bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1">
-              <Award className="h-2.5 w-2.5" /> Longevity: {Math.round(item.globalScores.SKIN_LONGEVITY)}
-            </span>
-          )}
-          {item.chronologicalAge && (
-            <span className="text-[10px] text-muted-foreground font-mono">
-              Age: {item.chronologicalAge}
-            </span>
-          )}
+          {item.formId && <span className="text-[10px] font-mono text-muted-foreground">{item.formId}</span>}
         </div>
       ),
     },
@@ -237,6 +226,9 @@ export function AssessmentRecordsView() {
           <span className="text-[10px] text-muted-foreground">
             {new Date(item.createdAt).toLocaleTimeString('id-ID')}
           </span>
+          {typeof item.executionTimeMs === 'number' && (
+            <span className="text-[10px] block">{item.executionTimeMs} ms</span>
+          )}
         </div>
       ),
     },
@@ -245,12 +237,7 @@ export function AssessmentRecordsView() {
       header: 'Actions',
       align: 'right',
       render: (item) => (
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          onClick={() => setSelectedItem(item)}
-          title="Inspect Record"
-        >
+        <Button variant="ghost" size="icon-xs" onClick={() => setSelectedItem(item)} title="Inspect Record">
           <Eye className="h-3.5 w-3.5 text-primary" />
         </Button>
       ),
@@ -259,7 +246,6 @@ export function AssessmentRecordsView() {
 
   return (
     <div className="flex-1 min-w-0 h-full overflow-y-auto bg-background text-foreground font-sans flex flex-col select-none">
-      {/* Standard Unified PageHeader */}
       <PageHeader
         icon={<Database className="h-5 w-5 text-primary" />}
         breadcrumbs={[
@@ -268,23 +254,35 @@ export function AssessmentRecordsView() {
           { label: 'Diagnostic Assessments' },
         ]}
         title="Diagnostic & Survey Assessments"
+        description="Stored by core-engine when a survey is evaluated."
       />
 
-      {/* Main Body */}
       <main className="flex-1 p-4 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl w-full mx-auto">
         <SearchFilterBar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          searchPlaceholder="Search customer ID, assessment ID, type, application..."
+          searchPlaceholder="Search assessment ID, customer, form, profile code..."
           customFilterContent={customFilterContent}
           activeFilterCount={activeFilterCount}
           onRefresh={fetchAssessments}
           isLoading={loading}
         />
 
-        {/* Assessments Table & Inspection Layout */}
+        {!scopeChosen && (
+          <div className="rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
+            Choose a brand and an application to read assessments: core-engine scopes every record to both, and
+            answers nothing without them.
+          </div>
+        )}
+
+        {error && (
+          <div className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-foreground flex items-center gap-2">
+            <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0" />
+            {error}
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Left Table Panel */}
           <div className={`${selectedItem ? 'lg:col-span-7' : 'lg:col-span-12'} transition-all duration-200`}>
             <DataTable
               columns={columns}
@@ -293,9 +291,11 @@ export function AssessmentRecordsView() {
               isLoading={loading}
               onRowClick={(item) => setSelectedItem(item)}
               emptyMessage={
-                searchQuery
-                  ? 'No results matched your search query. Try adjusting your filters.'
-                  : 'No diagnostic or survey assessment records have been logged yet.'
+                !scopeChosen
+                  ? 'No scope chosen yet.'
+                  : searchQuery
+                    ? 'No results matched your search query.'
+                    : 'core-engine has no assessments stored for this brand and application.'
               }
               pagination={{
                 currentPage,
@@ -311,10 +311,8 @@ export function AssessmentRecordsView() {
             />
           </div>
 
-          {/* Right Inspection Drawer Panel */}
           {selectedItem && (
             <div className="lg:col-span-5 bg-card rounded-xl border border-border shadow-xl p-5 space-y-4 sticky top-6">
-              {/* Drawer Header */}
               <div className="flex items-center justify-between border-b border-border pb-3">
                 <div className="flex items-center gap-2">
                   <div className="p-1.5 bg-beak/10 rounded-lg border border-beak/20 text-primary">
@@ -334,115 +332,63 @@ export function AssessmentRecordsView() {
                   >
                     JSON
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    onClick={() => setSelectedItem(null)}
-                  >
+                  <Button variant="ghost" size="icon-xs" onClick={() => setSelectedItem(null)}>
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
 
               {inspectRawJson ? (
-                <CodeBlock
-                  code={JSON.stringify(selectedItem, null, 2)}
-                  language="json"
-                  maxHeight="380px"
-                />
+                <CodeBlock code={JSON.stringify(selectedItem, null, 2)} language="json" />
               ) : (
-                <div className="space-y-4">
-                  {/* Meta Profile Card */}
-                  <div className="grid grid-cols-2 gap-2 bg-secondary/40 p-3 rounded-xl border border-border">
-                    <div>
-                      <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Customer</span>
-                      <p className="text-xs font-semibold text-foreground truncate">
-                        {selectedItem.customerIdentifier || 'Guest / Anonymous'}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Brand</span>
-                      <div className="mt-0.5">
-                        <BrandTag name={selectedItem.brandId.replace('brand_', '')} />
-                      </div>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Chronological Age</span>
-                      <p className="text-xs font-semibold text-foreground">
-                        {selectedItem.chronologicalAge ? `${selectedItem.chronologicalAge} yrs` : 'N/A'}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Biological Bio-Age</span>
-                      <p className="text-xs font-semibold text-foreground">
-                        {selectedItem.predictedBioAge
-                          ? `${selectedItem.predictedBioAge} yrs (${
-                              selectedItem.bioAgeOffset && selectedItem.bioAgeOffset > 0
-                                ? `+${selectedItem.bioAgeOffset}`
-                                : selectedItem.bioAgeOffset
-                            }y)`
-                          : 'N/A'}
-                      </p>
-                    </div>
-                  </div>
+                <div className="space-y-3 text-xs">
+                  <Field label="Customer" value={selectedItem.customerId} mono />
+                  <Field label="Application" value={selectedItem.applicationId} mono />
+                  <Field label="Form" value={selectedItem.formId || '—'} mono />
+                  <Field
+                    label="Total score"
+                    value={typeof selectedItem.totalScore === 'number' ? String(selectedItem.totalScore) : 'not scored'}
+                  />
+                  <Field label="Skin profile" value={selectedItem.skinProfileCode || 'none'} />
 
-                  {/* Dimension Scores */}
-                  {selectedItem.globalScores && (
-                    <div>
-                      <span className="text-[11px] uppercase font-bold text-primary tracking-wider flex items-center gap-1 mb-2">
-                        <Sparkles className="h-3.5 w-3.5" /> Clinical Dimension Scores
-                      </span>
-                      <div className="grid grid-cols-2 gap-2">
-                        {Object.entries(selectedItem.globalScores).map(([key, val]) => (
-                          <div
-                            key={key}
-                            className="rounded-lg bg-secondary/50 border border-border p-2 flex justify-between items-center"
-                          >
-                            <span className="text-[11px] text-muted-foreground truncate max-w-[110px]" title={key}>
-                              {key}
-                            </span>
-                            <span className="text-xs font-bold text-foreground font-mono">
-                              {typeof val === 'number' ? Math.round(val) : val}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Matched Regimen Products */}
-                  {selectedItem.recommendedProducts && selectedItem.recommendedProducts.length > 0 && (
-                    <div>
-                      <span className="text-[11px] uppercase font-bold text-primary tracking-wider flex items-center gap-1 mb-2">
-                        <Layers className="h-3.5 w-3.5" /> Matched Regimen ({selectedItem.recommendedProducts.length})
-                      </span>
-                      <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-                        {selectedItem.recommendedProducts.map((p: any, idx: number) => (
-                          <div
-                            key={idx}
-                            className="rounded-xl bg-secondary/40 border border-border hover:border-beak/40 p-2.5 transition"
-                          >
-                            <div className="flex items-center justify-between">
-                              <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-beak/15 text-primary">
-                                {p.category || 'Product'}
-                              </span>
-                              <span className="text-[10px] font-mono text-muted-foreground">{p.sku}</span>
-                            </div>
-                            <h4 className="text-xs font-bold text-foreground mt-1">{p.name}</h4>
-                            {p.reason && (
-                              <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">{p.reason}</p>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                  {/* These arrive as JSON strings from core-engine. */}
+                  <JsonField label="Dimension scores" raw={selectedItem.dimensionScores} />
+                  <JsonField label="Skin grading tiers" raw={selectedItem.skinGradingTiers} />
+                  <JsonField label="Recommended products" raw={selectedItem.recommendedProducts} />
+                  <JsonField label="Vision metrics" raw={selectedItem.visionMetrics} />
                 </div>
               )}
             </div>
           )}
         </div>
       </main>
+    </div>
+  );
+}
+
+function Field({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <span className="text-muted-foreground shrink-0">{label}</span>
+      <span className={`text-right text-foreground ${mono ? 'font-mono text-[11px]' : ''}`}>{value}</span>
+    </div>
+  );
+}
+
+function JsonField({ label, raw }: { label: string; raw: string | null | undefined }) {
+  const parsed = parseJsonField(raw);
+  if (parsed === null) {
+    return (
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-muted-foreground">{label}</span>
+        <span className="text-muted-foreground text-[11px]">not stored</span>
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-1">
+      <span className="text-muted-foreground">{label}</span>
+      <CodeBlock code={JSON.stringify(parsed, null, 2)} language="json" />
     </div>
   );
 }
