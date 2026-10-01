@@ -45,7 +45,6 @@ export const ReferenceFormModal: React.FC<ReferenceFormModalProps> = ({
               data.data ||
               data[field.relationEntity!] ||
               data.dimensions ||
-              data.statuses ||
               data.items ||
               data.brands ||
               data.products ||
@@ -167,7 +166,7 @@ export const ReferenceFormModal: React.FC<ReferenceFormModalProps> = ({
 
                 {field.type === 'relation' && field.relationEntity && (() => {
                   const opts = relationOptions[field.relationEntity] || [];
-                  const isCodeBased = ['dimensions', 'statuses'].includes(field.relationEntity);
+                  const isCodeBased = field.relationEntity === 'dimensions';
                   const isDimensionRelation = field.relationEntity === 'dimensions';
 
                   const currentVal = ((): string => {
@@ -199,7 +198,7 @@ export const ReferenceFormModal: React.FC<ReferenceFormModalProps> = ({
 
                 {field.type === 'multi-relation' && field.relationEntity && (() => {
                   const opts = relationOptions[field.relationEntity] || [];
-                  const isCodeBased = ['dimensions', 'statuses'].includes(field.relationEntity);
+                  const isCodeBased = field.relationEntity === 'dimensions';
 
                   const rawVal = formData[field.key] ?? (formData['ingredientIds'] || []);
 

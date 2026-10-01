@@ -911,20 +911,6 @@ var REFERENCE_ENTITY_CONFIGS = {
       { key: "description", label: "Safety Gatekeeper Description", type: "textarea" }
     ]
   },
-  statuses: {
-    slug: "statuses",
-    title: "Statuses Reference",
-    singularTitle: "Status",
-    description: "Manage operational status codes and definitions",
-    iconName: "CheckCircle",
-    apiEndpoint: "/api/reference/statuses",
-    dataKey: "statuses",
-    fields: [
-      { key: "name", label: "Status Name", type: "text", required: true },
-      { key: "code", label: "Status Code", type: "text" },
-      { key: "description", label: "Description", type: "textarea" }
-    ]
-  },
   ingredients: {
     slug: "ingredients",
     title: "Ingredients Master Reference",
@@ -1004,7 +990,6 @@ REFERENCE_ENTITY_CONFIGS["condition"] = REFERENCE_ENTITY_CONFIGS["conditions"];
 REFERENCE_ENTITY_CONFIGS["customer-conditions"] = REFERENCE_ENTITY_CONFIGS["conditions"];
 REFERENCE_ENTITY_CONFIGS["brand"] = REFERENCE_ENTITY_CONFIGS["brands"];
 REFERENCE_ENTITY_CONFIGS["product"] = REFERENCE_ENTITY_CONFIGS["products"];
-REFERENCE_ENTITY_CONFIGS["status"] = REFERENCE_ENTITY_CONFIGS["statuses"];
 REFERENCE_ENTITY_CONFIGS["ingredient"] = REFERENCE_ENTITY_CONFIGS["ingredients"];
 REFERENCE_ENTITY_CONFIGS["active-ingredients"] = REFERENCE_ENTITY_CONFIGS["ingredients"];
 REFERENCE_ENTITY_CONFIGS["application"] = REFERENCE_ENTITY_CONFIGS["applications"];
@@ -1082,7 +1067,6 @@ var ReferenceTable = ({
           product: "PRD",
           ingredients: "ING",
           ingredient: "ING",
-          statuses: "ST",
           status: "ST"
         };
         const prefix = fallbackPrefixMap[config.slug] || "REF";
@@ -1258,7 +1242,7 @@ var ReferenceFormModal = ({
           try {
             const res = await fetch(`/api/reference/${field2.relationEntity}`);
             const data = await res.json();
-            const list = data.data || data[field2.relationEntity] || data.dimensions || data.statuses || data.items || data.brands || data.products || data.ingredients || [];
+            const list = data.data || data[field2.relationEntity] || data.dimensions || data.items || data.brands || data.products || data.ingredients || [];
             if (data.success && Array.isArray(list)) {
               setRelationOptions((prev) => ({ ...prev, [field2.relationEntity]: list }));
             }
@@ -1361,7 +1345,7 @@ var ReferenceFormModal = ({
             ),
             field2.type === "relation" && field2.relationEntity && (() => {
               const opts = relationOptions[field2.relationEntity] || [];
-              const isCodeBased = ["dimensions", "statuses"].includes(field2.relationEntity);
+              const isCodeBased = field2.relationEntity === "dimensions";
               field2.relationEntity === "dimensions";
               const currentVal = (() => {
                 const direct = formData[field2.key];
@@ -1391,7 +1375,7 @@ var ReferenceFormModal = ({
             })(),
             field2.type === "multi-relation" && field2.relationEntity && (() => {
               const opts = relationOptions[field2.relationEntity] || [];
-              const isCodeBased = ["dimensions", "statuses"].includes(field2.relationEntity);
+              const isCodeBased = field2.relationEntity === "dimensions";
               const rawVal = formData[field2.key] ?? (formData["ingredientIds"] || []);
               const selectedValues = Array.isArray(rawVal) ? rawVal.map((v) => {
                 if (typeof v === "string") {
@@ -1829,7 +1813,7 @@ var ReferenceEntityDashboard = ({ slug }) => {
       if (!res.ok) throw new Error("Failed to fetch reference items");
       const data = await res.json();
       const rawList = data.data || (config.dataKey ? data[config.dataKey] : null) || (config.slug ? data[config.slug] : null) || // reference-service wraps every collection as { data: [...], success: true }
-      (Array.isArray(data?.data) ? data.data : null) || data.items || data.brands || data.products || data.ingredients || data.statuses || data.eventTypes || data.reference || [];
+      (Array.isArray(data?.data) ? data.data : null) || data.items || data.brands || data.products || data.ingredients || data.eventTypes || data.reference || [];
       setItems(Array.isArray(rawList) ? rawList : []);
     } catch (err) {
       console.error("Fetch items error:", err);
@@ -2099,8 +2083,6 @@ var ReferenceManager = ({ initialEntity = "brands" }) => {
     products: "products",
     "event-type": "event-types",
     "event-types": "event-types",
-    status: "statuses",
-    statuses: "statuses",
     ingredient: "ingredients",
     ingredients: "ingredients",
     dimension: "dimensions",
@@ -7986,7 +7968,7 @@ var MatchSimulatorTab = ({
           ] }),
           /* @__PURE__ */ jsxRuntime.jsx("div", { className: "flex flex-wrap gap-2 mt-2", children: simResult.profileSummary.primaryConcerns.map((c, i) => /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-[10px] bg-muted text-foreground px-2 py-0.5 rounded border border-border", children: c }, i)) })
         ] }),
-        /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "text-right", children: [
+        typeof simResult.profileSummary.overallSuitabilityScore === "number" && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "text-right", children: [
           /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-[10px] text-muted-foreground font-bold uppercase tracking-wider block", children: "Clinical Match" }),
           /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "text-3xl font-black text-emerald-400 font-mono", children: [
             simResult.profileSummary.overallSuitabilityScore,

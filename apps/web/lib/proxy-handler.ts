@@ -14,7 +14,6 @@ const REFERENCE_ENTITIES = new Set([
   'ingredients',
   'dimensions',
   'conditions',
-  'statuses',
   'applications',
   'skin-conditions',
 ]);

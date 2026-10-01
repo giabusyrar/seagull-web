@@ -15,8 +15,6 @@ export const ReferenceManager: React.FC<ReferenceManagerProps> = ({ initialEntit
     products: 'products',
     'event-type': 'event-types',
     'event-types': 'event-types',
-    status: 'statuses',
-    statuses: 'statuses',
     ingredient: 'ingredients',
     ingredients: 'ingredients',
     dimension: 'dimensions',

@@ -1,11 +1,11 @@
 export { A as ALL_TENANTS, i as Core, C as CoreCollectionKey, D as DynamicCollection, a as DynamicCollectionRoute, g as getActiveCoreCollections, b as getCollectionPrefix, r as resolveDynamicEndpoint, t as tenantScopeQuery, w as withTenantScope } from './index-UC3VkZph.js';
 export { i as Hooks, U as UseSkinAssessmentOptions, u as useRegimenMatch, a as useSkinAssessment } from './index-CKDPHWHj.js';
 export { A as AgingProgressionSlider, a as AgingProgressionSliderProps, B as BeautyExperienceWidget, b as BeautyExperienceWidgetProps, D as DimensionOption, c as DimensionScoreCard, d as DimensionScoreCardProps, e as DimensionSelector, f as DimensionSelectorProps, P as PolygonHeatmap, g as PolygonHeatmapProps, h as ProductRecommendationCard, i as ProductRecommendationCardProps, j as UI, j as Vision } from './index-BsQ2or1V.js';
-export { i as Studio } from './index-ChDS1uIs.js';
+export { i as Studio } from './index-Ddrog6sA.js';
 export { i as Form, F as FormManager, i as FormStudio } from './index-n9j5sV1R.js';
 export { i as Score, S as ScoreManager, i as ScoreStudio } from './index-B7s8GHhY.js';
-export { i as Match, M as MatchManager, i as MatchStudio } from './index-qBDTpV0E.js';
-export { i as Reference, R as ReferenceManager, i as ReferenceStudio } from './index-Cgn5ikzH.js';
+export { i as Match, M as MatchManager, i as MatchStudio } from './index-1u2DBNaF.js';
+export { i as Reference, R as ReferenceManager, i as ReferenceStudio } from './index-iM6-lmmO.js';
 export { AgingProgressionResult, AgingTimelinePoint, BeautyClientConfig, ClinicalSummary, EnvironmentalContext, FacialZoneData, NormalizedPoint, RecommendedProduct, VisionAnalysisOptions, VisionAnalysisResponse, ZoneUvMetric } from './types/index.js';
 export { AssessmentsSubClient, BeautyClient, FormSubClient, MatchSubClient, ReferenceSubClient, VisionSubClient } from './client/index.js';
 import './assessment-types-atxVAW_S.js';

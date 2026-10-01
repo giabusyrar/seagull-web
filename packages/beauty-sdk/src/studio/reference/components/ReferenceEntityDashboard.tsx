@@ -113,7 +113,6 @@ export const ReferenceEntityDashboard: React.FC<ReferenceEntityDashboardProps> =
         data.brands ||
         data.products ||
         data.ingredients ||
-        data.statuses ||
         data.eventTypes ||
         data.reference ||
         [];
