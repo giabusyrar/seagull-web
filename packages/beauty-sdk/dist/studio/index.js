@@ -2099,7 +2099,11 @@ var XG_SURVEY_THEME = {
     "--sjs-shadow-inner": "none"
   }
 };
+var ANSWERS_KEY_PREFIX = "xg.formEngine.simulator.answers.";
+var CUSTOMER_ID_KEY = "xg.formEngine.simulator.customerId";
 var FormSimulatorTab = ({
+  brandId,
+  applicationId,
   questionnaires,
   selectedQCode,
   setSelectedQCode
@@ -2110,9 +2114,10 @@ var FormSimulatorTab = ({
     () => currentQ ? toSurveyModel(currentQ) : null,
     [currentQ]
   );
-  const [data, setData] = React9.useState({});
+  const answersKey = currentQ?.code ? ANSWERS_KEY_PREFIX + currentQ.code : null;
+  const [data, setData] = shared.usePersistentState(answersKey, {});
   const [showPayload, setShowPayload] = React9.useState(false);
-  const [customerId, setCustomerId] = React9.useState("demo-customer-001");
+  const [customerId, setCustomerId] = shared.usePersistentState(CUSTOMER_ID_KEY, "demo-customer-001");
   const [copied, setCopied] = React9.useState("");
   const copy = (text, tag) => {
     navigator.clipboard?.writeText(text).then(
@@ -2135,15 +2140,17 @@ var FormSimulatorTab = ({
     m.getAllQuestions().forEach((q) => {
       if (q.getType() === "boolean") q.renderAs = "radio";
     });
+    const saved = answersKey ? shared.readPersisted(answersKey) : void 0;
+    if (saved) m.data = saved;
     return m;
-  }, [schema, hasQuestions]);
+  }, [schema, hasQuestions, answersKey]);
   React9.useEffect(() => {
-    setData({});
+    setData({ ...survey?.data ?? {} });
     if (!survey) return;
     const onValue = (sender) => setData({ ...sender.data });
     survey.onValueChanged.add(onValue);
     return () => survey.onValueChanged.remove(onValue);
-  }, [survey]);
+  }, [survey, setData]);
   const core = React9.useMemo(
     () => schema ? buildScoreRequest(schema, data) : { answer_list: [], customer_condition: {}, dimensions: [] },
     [schema, data]
@@ -2155,16 +2162,16 @@ var FormSimulatorTab = ({
     value: Math.round(applyCalculationMethod(d.answers, d.calculation_method) * 100) / 100
   }));
   const submitBody = {
-    brand_id: "wardah",
-    application_id: "skinverse",
+    brand_id: currentQ?.brandId || brandId,
+    application_id: currentQ?.applicationId || applicationId,
     customer_id: customerId,
     data
   };
   const submitBodyJson = JSON.stringify(submitBody, null, 2);
   const payload = {
     code: currentQ?.code,
-    brand_id: "wardah",
-    application_id: "skinverse",
+    brand_id: currentQ?.brandId || brandId,
+    application_id: currentQ?.applicationId || applicationId,
     answer_list: core.answer_list,
     customer_condition: core.customer_condition,
     dimensions: core.dimensions,
@@ -3366,7 +3373,7 @@ var readTenant = () => {
   return { brandId: "wardah", applicationId: "skinverse" };
 };
 var FormManager = () => {
-  const [activeTab, setActiveTab] = React9.useState("questionnaires");
+  const [activeTab, setActiveTab] = shared.usePersistentState("xg.formEngine.activeTab", "questionnaires");
   const [searchQuery, setSearchQuery] = React9.useState("");
   const [deleteConfirm, setDeleteConfirm] = React9.useState({
     isOpen: false,
@@ -3379,7 +3386,7 @@ var FormManager = () => {
   const [questionnaires, setQuestionnaires] = React9.useState([]);
   const [isQuestionnaireModalOpen, setIsQuestionnaireModalOpen] = React9.useState(false);
   const [editingQ, setEditingQ] = React9.useState(null);
-  const [selectedQCode, setSelectedQCode] = React9.useState("");
+  const [selectedQCode, setSelectedQCode] = shared.usePersistentState("xg.formEngine.simulator.questionnaire", "");
   const loadData = () => {
     listQuestionnaires(brandId, applicationId).then(setQuestionnaires).catch(() => setQuestionnaires([]));
   };
@@ -3510,6 +3517,8 @@ var FormManager = () => {
       activeTab === "simulator" && /* @__PURE__ */ jsxRuntime.jsx(
         FormSimulatorTab,
         {
+          brandId,
+          applicationId,
           questionnaires,
           selectedQCode,
           setSelectedQCode
@@ -3578,7 +3587,7 @@ var QuestionnaireRunner = ({
     let alive = true;
     setLoading(true);
     setError(null);
-    getQuestionnaireModel(questionnaireCode).then((m) => {
+    getQuestionnaireModel(questionnaireCode, brandId, applicationId).then((m) => {
       if (!alive) return;
       if (m) setSchema(m);
       else setError("This questionnaire is not available.");
@@ -3586,7 +3595,7 @@ var QuestionnaireRunner = ({
     return () => {
       alive = false;
     };
-  }, [questionnaireCode, modelProp, questionnaire]);
+  }, [questionnaireCode, modelProp, questionnaire, brandId, applicationId]);
   const survey = React9.useMemo(() => {
     if (!schema) return null;
     const m = new surveyCore.Model(schema);
@@ -3668,6 +3677,15 @@ __export(score_exports, {
   decompileJDMToVisualComponents: () => decompileJDMToVisualComponents,
   defaultConcernLabel: () => defaultConcernLabel
 });
+
+// src/core/scope.ts
+var ALL_TENANTS = "*";
+function tenantScopeQuery(brandId = ALL_TENANTS, applicationId = ALL_TENANTS) {
+  return `brand_id=${encodeURIComponent(brandId || ALL_TENANTS)}&application_id=${encodeURIComponent(applicationId || ALL_TENANTS)}`;
+}
+function withTenantScope(path, brandId, applicationId) {
+  return `${path}${path.includes("?") ? "&" : "?"}${tenantScopeQuery(brandId, applicationId)}`;
+}
 var filterSelect = "h-8 rounded-md bg-muted/40 border border-border px-2.5 text-foreground text-xs outline-none focus:border-ring";
 var RulesetsTab = ({
   rulesets,
@@ -4706,25 +4724,15 @@ var ScoreSimulatorTab = ({
     [rulesetDims, fieldMapping, ageAxisKeys]
   );
   const visionDims = React9.useMemo(() => rulesetDims.filter((d) => fieldMapping[d]?.vision), [rulesetDims, fieldMapping]);
-  const formDimsKey = formDims.join(",");
-  const visionDimsKey = visionDims.join(",");
-  const [questionnaireValues, setQuestionnaireValues] = React9.useState({});
-  const [visionValues, setVisionValues] = React9.useState({});
-  const [respondentAge, setRespondentAge] = React9.useState(25);
-  React9.useEffect(() => {
-    setQuestionnaireValues((prev) => {
-      const next = {};
-      for (const d of formDims) next[d] = prev[d] ?? 50;
-      return next;
-    });
-  }, [formDimsKey]);
-  React9.useEffect(() => {
-    setVisionValues((prev) => {
-      const next = {};
-      for (const d of visionDims) next[d] = prev[d] ?? 50;
-      return next;
-    });
-  }, [visionDimsKey]);
+  const [questionnaireValues, setQuestionnaireValues] = shared.usePersistentState(
+    "xg.scoreEngine.simulator.questionnaireValues",
+    {}
+  );
+  const [visionValues, setVisionValues] = shared.usePersistentState(
+    "xg.scoreEngine.simulator.visionValues",
+    {}
+  );
+  const [respondentAge, setRespondentAge] = shared.usePersistentState("xg.scoreEngine.simulator.respondentAge", 25);
   const rulesetSafetyFlags = React9.useMemo(() => {
     if (!activeRuleset?.schema) return [];
     try {
@@ -4794,15 +4802,16 @@ var ScoreSimulatorTab = ({
     () => Array.from(/* @__PURE__ */ new Set([...rulesetSafetyFlags, ...surveySafetyFlags])),
     [rulesetSafetyFlags, surveySafetyFlags]
   );
-  const [selectedConditions, setSelectedConditions] = React9.useState({});
-  React9.useEffect(() => {
-    setSelectedConditions((prev) => {
-      const keys = allSafetyFlags.length > 0 ? allSafetyFlags : catalogSafetyFlags;
-      const next = {};
-      for (const k of keys) next[k] = prev[k] ?? false;
-      return next;
-    });
-  }, [allSafetyFlags, catalogSafetyFlags]);
+  const [conditionChoices, setConditionChoices] = shared.usePersistentState(
+    "xg.scoreEngine.simulator.conditions",
+    {}
+  );
+  const selectedConditions = React9.useMemo(() => {
+    const keys = allSafetyFlags.length > 0 ? allSafetyFlags : catalogSafetyFlags;
+    const out = {};
+    for (const k of keys) out[k] = conditionChoices[k] ?? false;
+    return out;
+  }, [allSafetyFlags, catalogSafetyFlags, conditionChoices]);
   const [simResponse, setSimResponse] = React9.useState(null);
   const [copiedReq, setCopiedReq] = React9.useState(false);
   const SIMULATE_PATH = "/core/score-engine/simulate";
@@ -4988,7 +4997,7 @@ var ScoreSimulatorTab = ({
           "button",
           {
             type: "button",
-            onClick: () => setSelectedConditions((p) => ({ ...p, [key]: !p[key] })),
+            onClick: () => setConditionChoices((p) => ({ ...p, [key]: !isChecked })),
             className: `p-2.5 rounded-md border text-left transition-colors flex items-center justify-between ${isChecked ? "border-beak/50 bg-beak/10 text-beak" : "border-border bg-muted/40 text-muted-foreground hover:text-foreground"}`,
             children: [
               /* @__PURE__ */ jsxRuntime.jsx("span", { children: key }),
@@ -6185,10 +6194,12 @@ var RulesetModal = ({
 };
 var SCORE = "/core/score-engine";
 var ScoreManager = () => {
-  const [activeTab, setActiveTab] = React9.useState("rulesets");
+  const [activeTab, setActiveTab] = shared.usePersistentState("xg.scoreEngine.activeTab", "rulesets");
   const [searchQuery, setSearchQuery] = React9.useState("");
   const [rulesets, setRulesets] = React9.useState([]);
-  const [selectedRuleset, setSelectedRuleset] = React9.useState(null);
+  const [selectedRulesetId, setSelectedRulesetId] = shared.usePersistentState("xg.scoreEngine.selectedRulesetId", null);
+  const selectedRuleset = rulesets.find((r) => r.id === selectedRulesetId) ?? null;
+  const setSelectedRuleset = (r) => setSelectedRulesetId(r?.id ?? null);
   const [isRulesetModalOpen, setIsRulesetModalOpen] = React9.useState(false);
   const [editingRuleset, setEditingRuleset] = React9.useState(null);
   const [deleteConfirm, setDeleteConfirm] = React9.useState({
@@ -6200,12 +6211,9 @@ var ScoreManager = () => {
     }
   });
   const loadRulesets = React9.useCallback(() => {
-    fetch(`${SCORE}/rulesets`).then((res) => res.json()).then((data) => {
+    fetch(withTenantScope(`${SCORE}/rulesets`)).then((res) => res.json()).then((data) => {
       if (Array.isArray(data.rulesets)) {
         setRulesets(data.rulesets);
-        if (data.rulesets.length > 0) {
-          setSelectedRuleset((prev) => prev || data.rulesets[0]);
-        }
       }
     }).catch(() => {
     });
@@ -7806,7 +7814,7 @@ var ShadeModal = ({ isOpen, onClose, onSave, editingShade, productId }) => {
   );
 };
 var MatchManager = () => {
-  const [activeTab, setActiveTab] = React9.useState("conflicts");
+  const [activeTab, setActiveTab] = shared.usePersistentState("xg.matchEngine.activeTab", "conflicts");
   const [searchQuery, setSearchQuery] = React9.useState("");
   const [isFilterPanelOpen, setIsFilterPanelOpen] = React9.useState(false);
   const [activeFilters, setActiveFilters] = React9.useState({});
@@ -7817,8 +7825,8 @@ var MatchManager = () => {
     onConfirm: () => {
     }
   });
-  const [selectedBrand, setSelectedBrand] = React9.useState("*");
-  const [selectedApp, setSelectedApp] = React9.useState("*");
+  const [selectedBrand, setSelectedBrand] = shared.usePersistentState("xg.matchEngine.brand", "*");
+  const [selectedApp, setSelectedApp] = shared.usePersistentState("xg.matchEngine.application", "*");
   const [conflicts, setConflicts] = React9.useState([]);
   const [productGroups, setProductGroups] = React9.useState([]);
   const [products, setProducts] = React9.useState([]);
@@ -7830,25 +7838,25 @@ var MatchManager = () => {
   const [editingConflict, setEditingConflict] = React9.useState(null);
   const [editingGroup, setEditingGroup] = React9.useState(null);
   const [editingShade, setEditingShade] = React9.useState(null);
-  const [simBrand, setSimBrand] = React9.useState("*");
-  const [simSkinType, setSimSkinType] = React9.useState("OSPT");
-  const [simSebum, setSimSebum] = React9.useState(75);
-  const [simHydration, setSimHydration] = React9.useState(40);
-  const [simSensitivity, setSimSensitivity] = React9.useState(65);
-  const [simPregnant, setSimPregnant] = React9.useState(false);
-  const [simRetinol, setSimRetinol] = React9.useState(true);
+  const [simBrand, setSimBrand] = shared.usePersistentState("xg.matchEngine.simulator.brand", "*");
+  const [simSkinType, setSimSkinType] = shared.usePersistentState("xg.matchEngine.simulator.skinType", "OSPT");
+  const [simSebum, setSimSebum] = shared.usePersistentState("xg.matchEngine.simulator.sebum", 75);
+  const [simHydration, setSimHydration] = shared.usePersistentState("xg.matchEngine.simulator.hydration", 40);
+  const [simSensitivity, setSimSensitivity] = shared.usePersistentState("xg.matchEngine.simulator.sensitivity", 65);
+  const [simPregnant, setSimPregnant] = shared.usePersistentState("xg.matchEngine.simulator.pregnant", false);
+  const [simRetinol, setSimRetinol] = shared.usePersistentState("xg.matchEngine.simulator.retinol", true);
   const [isSimulating, setIsSimulating] = React9.useState(false);
-  const [simResult, setSimResult] = React9.useState(null);
+  const [simResult, setSimResult] = shared.usePersistentState("xg.matchEngine.simulator.result", null);
   const loadData = () => {
-    fetch(resolveDynamicEndpoint("match", "/api/matching/conflicts")).then((res) => res.json()).then((data) => {
+    fetch(resolveDynamicEndpoint("match", withTenantScope("/api/matching/conflicts"))).then((res) => res.json()).then((data) => {
       if (Array.isArray(data.conflicts)) setConflicts(data.conflicts);
     }).catch(() => {
     });
-    fetch(resolveDynamicEndpoint("match", "/api/matching/product-groups")).then((res) => res.json()).then((data) => {
+    fetch(resolveDynamicEndpoint("match", withTenantScope("/api/matching/product-groups"))).then((res) => res.json()).then((data) => {
       if (Array.isArray(data.groups)) setProductGroups(data.groups);
     }).catch(() => {
     });
-    fetch(resolveDynamicEndpoint("match", "/api/matching/products")).then((res) => res.json()).then((data) => {
+    fetch(resolveDynamicEndpoint("match", withTenantScope("/api/matching/products"))).then((res) => res.json()).then((data) => {
       if (Array.isArray(data.products)) {
         setProducts(data.products);
         setShadeProductId((prev) => prev || data.products[0]?.id || "");

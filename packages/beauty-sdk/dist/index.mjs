@@ -3,7 +3,7 @@ export { contracts as Contracts };
 import React12, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { jsxs, jsx, Fragment } from 'react/jsx-runtime';
 import { Edit2, Trash2, Globe, ExternalLink, Sparkles, Target, Loader2, Save, Database, FileText, Play, ChevronDown, ChevronRight, Sliders, Check, AlertTriangle, Plus, SlidersHorizontal, ShieldAlert, Boxes, Palette, Layers, ChevronUp, Pencil, X, Copy, PanelRightOpen, PanelRightClose, Tag, ShieldCheck, Flag, Building, Smartphone, CheckCircle2, XCircle, Sun, Moon, Zap, Clock } from 'lucide-react';
-import { SearchFilterBar, EmptyState, BrandTag, getDomainFromUrl, DataTable, Modal, SearchableSelect, PageHeader, Pagination, ConfirmDialog, FilterPanel, TabNav, BrandSelect, ApplicationSelect, InfoTooltip, DimensionSelect, Button, ScoreRangeInput, SeveritySelect, StatusBadge, StatusSelect } from '@gateway-experience/shared';
+import { SearchFilterBar, EmptyState, BrandTag, getDomainFromUrl, DataTable, Modal, SearchableSelect, PageHeader, Pagination, ConfirmDialog, FilterPanel, usePersistentState, TabNav, BrandSelect, ApplicationSelect, InfoTooltip, DimensionSelect, Button, ScoreRangeInput, SeveritySelect, readPersisted, StatusBadge, StatusSelect } from '@gateway-experience/shared';
 import { Model } from 'survey-core';
 import { Survey } from 'survey-react-ui';
 
@@ -16,6 +16,7 @@ var __export = (target, all) => {
 // src/core/index.ts
 var core_exports = {};
 __export(core_exports, {
+  ALL_TENANTS: () => ALL_TENANTS,
   AssessmentsSubClient: () => AssessmentsSubClient,
   BeautyClient: () => BeautyClient,
   FormSubClient: () => FormSubClient,
@@ -24,7 +25,9 @@ __export(core_exports, {
   VisionSubClient: () => VisionSubClient,
   getActiveCoreCollections: () => getActiveCoreCollections,
   getCollectionPrefix: () => getCollectionPrefix,
-  resolveDynamicEndpoint: () => resolveDynamicEndpoint
+  resolveDynamicEndpoint: () => resolveDynamicEndpoint,
+  tenantScopeQuery: () => tenantScopeQuery,
+  withTenantScope: () => withTenantScope
 });
 
 // src/core/client.ts
@@ -280,6 +283,15 @@ function resolveDynamicEndpoint(key, routePattern, collections) {
     }
   }
   return `${prefix}${cleanPattern}`;
+}
+
+// src/core/scope.ts
+var ALL_TENANTS = "*";
+function tenantScopeQuery(brandId = ALL_TENANTS, applicationId = ALL_TENANTS) {
+  return `brand_id=${encodeURIComponent(brandId || ALL_TENANTS)}&application_id=${encodeURIComponent(applicationId || ALL_TENANTS)}`;
+}
+function withTenantScope(path, brandId, applicationId) {
+  return `${path}${path.includes("?") ? "&" : "?"}${tenantScopeQuery(brandId, applicationId)}`;
 }
 
 // src/hooks/index.ts
@@ -2863,7 +2875,11 @@ var XG_SURVEY_THEME = {
     "--sjs-shadow-inner": "none"
   }
 };
+var ANSWERS_KEY_PREFIX = "xg.formEngine.simulator.answers.";
+var CUSTOMER_ID_KEY = "xg.formEngine.simulator.customerId";
 var FormSimulatorTab = ({
+  brandId,
+  applicationId,
   questionnaires,
   selectedQCode,
   setSelectedQCode
@@ -2874,9 +2890,10 @@ var FormSimulatorTab = ({
     () => currentQ ? toSurveyModel(currentQ) : null,
     [currentQ]
   );
-  const [data, setData] = useState({});
+  const answersKey = currentQ?.code ? ANSWERS_KEY_PREFIX + currentQ.code : null;
+  const [data, setData] = usePersistentState(answersKey, {});
   const [showPayload, setShowPayload] = useState(false);
-  const [customerId, setCustomerId] = useState("demo-customer-001");
+  const [customerId, setCustomerId] = usePersistentState(CUSTOMER_ID_KEY, "demo-customer-001");
   const [copied, setCopied] = useState("");
   const copy = (text, tag) => {
     navigator.clipboard?.writeText(text).then(
@@ -2899,15 +2916,17 @@ var FormSimulatorTab = ({
     m.getAllQuestions().forEach((q) => {
       if (q.getType() === "boolean") q.renderAs = "radio";
     });
+    const saved = answersKey ? readPersisted(answersKey) : void 0;
+    if (saved) m.data = saved;
     return m;
-  }, [schema, hasQuestions]);
+  }, [schema, hasQuestions, answersKey]);
   useEffect(() => {
-    setData({});
+    setData({ ...survey?.data ?? {} });
     if (!survey) return;
     const onValue = (sender) => setData({ ...sender.data });
     survey.onValueChanged.add(onValue);
     return () => survey.onValueChanged.remove(onValue);
-  }, [survey]);
+  }, [survey, setData]);
   const core = useMemo(
     () => schema ? buildScoreRequest(schema, data) : { answer_list: [], customer_condition: {}, dimensions: [] },
     [schema, data]
@@ -2919,16 +2938,16 @@ var FormSimulatorTab = ({
     value: Math.round(applyCalculationMethod(d.answers, d.calculation_method) * 100) / 100
   }));
   const submitBody = {
-    brand_id: "wardah",
-    application_id: "skinverse",
+    brand_id: currentQ?.brandId || brandId,
+    application_id: currentQ?.applicationId || applicationId,
     customer_id: customerId,
     data
   };
   const submitBodyJson = JSON.stringify(submitBody, null, 2);
   const payload = {
     code: currentQ?.code,
-    brand_id: "wardah",
-    application_id: "skinverse",
+    brand_id: currentQ?.brandId || brandId,
+    application_id: currentQ?.applicationId || applicationId,
     answer_list: core.answer_list,
     customer_condition: core.customer_condition,
     dimensions: core.dimensions,
@@ -4130,7 +4149,7 @@ var readTenant = () => {
   return { brandId: "wardah", applicationId: "skinverse" };
 };
 var FormManager = () => {
-  const [activeTab, setActiveTab] = useState("questionnaires");
+  const [activeTab, setActiveTab] = usePersistentState("xg.formEngine.activeTab", "questionnaires");
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState({
     isOpen: false,
@@ -4143,7 +4162,7 @@ var FormManager = () => {
   const [questionnaires, setQuestionnaires] = useState([]);
   const [isQuestionnaireModalOpen, setIsQuestionnaireModalOpen] = useState(false);
   const [editingQ, setEditingQ] = useState(null);
-  const [selectedQCode, setSelectedQCode] = useState("");
+  const [selectedQCode, setSelectedQCode] = usePersistentState("xg.formEngine.simulator.questionnaire", "");
   const loadData = () => {
     listQuestionnaires(brandId, applicationId).then(setQuestionnaires).catch(() => setQuestionnaires([]));
   };
@@ -4274,6 +4293,8 @@ var FormManager = () => {
       activeTab === "simulator" && /* @__PURE__ */ jsx(
         FormSimulatorTab,
         {
+          brandId,
+          applicationId,
           questionnaires,
           selectedQCode,
           setSelectedQCode
@@ -4342,7 +4363,7 @@ var QuestionnaireRunner = ({
     let alive = true;
     setLoading(true);
     setError(null);
-    getQuestionnaireModel(questionnaireCode).then((m) => {
+    getQuestionnaireModel(questionnaireCode, brandId, applicationId).then((m) => {
       if (!alive) return;
       if (m) setSchema(m);
       else setError("This questionnaire is not available.");
@@ -4350,7 +4371,7 @@ var QuestionnaireRunner = ({
     return () => {
       alive = false;
     };
-  }, [questionnaireCode, modelProp, questionnaire]);
+  }, [questionnaireCode, modelProp, questionnaire, brandId, applicationId]);
   const survey = useMemo(() => {
     if (!schema) return null;
     const m = new Model(schema);
@@ -5470,25 +5491,15 @@ var ScoreSimulatorTab = ({
     [rulesetDims, fieldMapping, ageAxisKeys]
   );
   const visionDims = useMemo(() => rulesetDims.filter((d) => fieldMapping[d]?.vision), [rulesetDims, fieldMapping]);
-  const formDimsKey = formDims.join(",");
-  const visionDimsKey = visionDims.join(",");
-  const [questionnaireValues, setQuestionnaireValues] = useState({});
-  const [visionValues, setVisionValues] = useState({});
-  const [respondentAge, setRespondentAge] = useState(25);
-  useEffect(() => {
-    setQuestionnaireValues((prev) => {
-      const next = {};
-      for (const d of formDims) next[d] = prev[d] ?? 50;
-      return next;
-    });
-  }, [formDimsKey]);
-  useEffect(() => {
-    setVisionValues((prev) => {
-      const next = {};
-      for (const d of visionDims) next[d] = prev[d] ?? 50;
-      return next;
-    });
-  }, [visionDimsKey]);
+  const [questionnaireValues, setQuestionnaireValues] = usePersistentState(
+    "xg.scoreEngine.simulator.questionnaireValues",
+    {}
+  );
+  const [visionValues, setVisionValues] = usePersistentState(
+    "xg.scoreEngine.simulator.visionValues",
+    {}
+  );
+  const [respondentAge, setRespondentAge] = usePersistentState("xg.scoreEngine.simulator.respondentAge", 25);
   const rulesetSafetyFlags = useMemo(() => {
     if (!activeRuleset?.schema) return [];
     try {
@@ -5558,15 +5569,16 @@ var ScoreSimulatorTab = ({
     () => Array.from(/* @__PURE__ */ new Set([...rulesetSafetyFlags, ...surveySafetyFlags])),
     [rulesetSafetyFlags, surveySafetyFlags]
   );
-  const [selectedConditions, setSelectedConditions] = useState({});
-  useEffect(() => {
-    setSelectedConditions((prev) => {
-      const keys = allSafetyFlags.length > 0 ? allSafetyFlags : catalogSafetyFlags;
-      const next = {};
-      for (const k of keys) next[k] = prev[k] ?? false;
-      return next;
-    });
-  }, [allSafetyFlags, catalogSafetyFlags]);
+  const [conditionChoices, setConditionChoices] = usePersistentState(
+    "xg.scoreEngine.simulator.conditions",
+    {}
+  );
+  const selectedConditions = useMemo(() => {
+    const keys = allSafetyFlags.length > 0 ? allSafetyFlags : catalogSafetyFlags;
+    const out = {};
+    for (const k of keys) out[k] = conditionChoices[k] ?? false;
+    return out;
+  }, [allSafetyFlags, catalogSafetyFlags, conditionChoices]);
   const [simResponse, setSimResponse] = useState(null);
   const [copiedReq, setCopiedReq] = useState(false);
   const SIMULATE_PATH = "/core/score-engine/simulate";
@@ -5752,7 +5764,7 @@ var ScoreSimulatorTab = ({
           "button",
           {
             type: "button",
-            onClick: () => setSelectedConditions((p) => ({ ...p, [key]: !p[key] })),
+            onClick: () => setConditionChoices((p) => ({ ...p, [key]: !isChecked })),
             className: `p-2.5 rounded-md border text-left transition-colors flex items-center justify-between ${isChecked ? "border-beak/50 bg-beak/10 text-beak" : "border-border bg-muted/40 text-muted-foreground hover:text-foreground"}`,
             children: [
               /* @__PURE__ */ jsx("span", { children: key }),
@@ -6949,10 +6961,12 @@ var RulesetModal = ({
 };
 var SCORE = "/core/score-engine";
 var ScoreManager = () => {
-  const [activeTab, setActiveTab] = useState("rulesets");
+  const [activeTab, setActiveTab] = usePersistentState("xg.scoreEngine.activeTab", "rulesets");
   const [searchQuery, setSearchQuery] = useState("");
   const [rulesets, setRulesets] = useState([]);
-  const [selectedRuleset, setSelectedRuleset] = useState(null);
+  const [selectedRulesetId, setSelectedRulesetId] = usePersistentState("xg.scoreEngine.selectedRulesetId", null);
+  const selectedRuleset = rulesets.find((r) => r.id === selectedRulesetId) ?? null;
+  const setSelectedRuleset = (r) => setSelectedRulesetId(r?.id ?? null);
   const [isRulesetModalOpen, setIsRulesetModalOpen] = useState(false);
   const [editingRuleset, setEditingRuleset] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState({
@@ -6964,12 +6978,9 @@ var ScoreManager = () => {
     }
   });
   const loadRulesets = useCallback(() => {
-    fetch(`${SCORE}/rulesets`).then((res) => res.json()).then((data) => {
+    fetch(withTenantScope(`${SCORE}/rulesets`)).then((res) => res.json()).then((data) => {
       if (Array.isArray(data.rulesets)) {
         setRulesets(data.rulesets);
-        if (data.rulesets.length > 0) {
-          setSelectedRuleset((prev) => prev || data.rulesets[0]);
-        }
       }
     }).catch(() => {
     });
@@ -8546,7 +8557,7 @@ var ShadeModal = ({ isOpen, onClose, onSave, editingShade, productId }) => {
   );
 };
 var MatchManager = () => {
-  const [activeTab, setActiveTab] = useState("conflicts");
+  const [activeTab, setActiveTab] = usePersistentState("xg.matchEngine.activeTab", "conflicts");
   const [searchQuery, setSearchQuery] = useState("");
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [activeFilters, setActiveFilters] = useState({});
@@ -8557,8 +8568,8 @@ var MatchManager = () => {
     onConfirm: () => {
     }
   });
-  const [selectedBrand, setSelectedBrand] = useState("*");
-  const [selectedApp, setSelectedApp] = useState("*");
+  const [selectedBrand, setSelectedBrand] = usePersistentState("xg.matchEngine.brand", "*");
+  const [selectedApp, setSelectedApp] = usePersistentState("xg.matchEngine.application", "*");
   const [conflicts, setConflicts] = useState([]);
   const [productGroups, setProductGroups] = useState([]);
   const [products, setProducts] = useState([]);
@@ -8570,25 +8581,25 @@ var MatchManager = () => {
   const [editingConflict, setEditingConflict] = useState(null);
   const [editingGroup, setEditingGroup] = useState(null);
   const [editingShade, setEditingShade] = useState(null);
-  const [simBrand, setSimBrand] = useState("*");
-  const [simSkinType, setSimSkinType] = useState("OSPT");
-  const [simSebum, setSimSebum] = useState(75);
-  const [simHydration, setSimHydration] = useState(40);
-  const [simSensitivity, setSimSensitivity] = useState(65);
-  const [simPregnant, setSimPregnant] = useState(false);
-  const [simRetinol, setSimRetinol] = useState(true);
+  const [simBrand, setSimBrand] = usePersistentState("xg.matchEngine.simulator.brand", "*");
+  const [simSkinType, setSimSkinType] = usePersistentState("xg.matchEngine.simulator.skinType", "OSPT");
+  const [simSebum, setSimSebum] = usePersistentState("xg.matchEngine.simulator.sebum", 75);
+  const [simHydration, setSimHydration] = usePersistentState("xg.matchEngine.simulator.hydration", 40);
+  const [simSensitivity, setSimSensitivity] = usePersistentState("xg.matchEngine.simulator.sensitivity", 65);
+  const [simPregnant, setSimPregnant] = usePersistentState("xg.matchEngine.simulator.pregnant", false);
+  const [simRetinol, setSimRetinol] = usePersistentState("xg.matchEngine.simulator.retinol", true);
   const [isSimulating, setIsSimulating] = useState(false);
-  const [simResult, setSimResult] = useState(null);
+  const [simResult, setSimResult] = usePersistentState("xg.matchEngine.simulator.result", null);
   const loadData = () => {
-    fetch(resolveDynamicEndpoint("match", "/api/matching/conflicts")).then((res) => res.json()).then((data) => {
+    fetch(resolveDynamicEndpoint("match", withTenantScope("/api/matching/conflicts"))).then((res) => res.json()).then((data) => {
       if (Array.isArray(data.conflicts)) setConflicts(data.conflicts);
     }).catch(() => {
     });
-    fetch(resolveDynamicEndpoint("match", "/api/matching/product-groups")).then((res) => res.json()).then((data) => {
+    fetch(resolveDynamicEndpoint("match", withTenantScope("/api/matching/product-groups"))).then((res) => res.json()).then((data) => {
       if (Array.isArray(data.groups)) setProductGroups(data.groups);
     }).catch(() => {
     });
-    fetch(resolveDynamicEndpoint("match", "/api/matching/products")).then((res) => res.json()).then((data) => {
+    fetch(resolveDynamicEndpoint("match", withTenantScope("/api/matching/products"))).then((res) => res.json()).then((data) => {
       if (Array.isArray(data.products)) {
         setProducts(data.products);
         setShadeProductId((prev) => prev || data.products[0]?.id || "");
@@ -9031,31 +9042,16 @@ var CAPABILITY_METRIC_MAP = {
   erythema_vascular_net: ["sensitivity", "barrier"],
   texture_desquamation_net: ["hydration", "barrier"]
 };
-var SIMULATED_METRIC_VALUES = {
-  sebum: 72,
-  acne: 65,
-  pores: 58,
-  pigmentation: 54,
-  hypopigmentation: 40,
-  aging: 42,
-  sensitivity: 68,
-  barrier: 70,
-  hydration: 48
-};
+var empty = (error, capabilities = []) => ({
+  telemetry: {},
+  unavailable: {},
+  missing: [...capabilities],
+  ...error ? { error } : {}
+});
 async function dispatchPyTorchCapabilities(params) {
   const { serviceUrl, timeoutMs, capabilities, images } = params;
-  if (!capabilities || capabilities.length === 0) {
-    return {};
-  }
-  const simulatedTelemetry = {};
-  for (const cap of capabilities) {
-    for (const metricKey of CAPABILITY_METRIC_MAP[cap] || []) {
-      simulatedTelemetry[metricKey] = SIMULATED_METRIC_VALUES[metricKey];
-    }
-  }
-  if (!serviceUrl || serviceUrl.includes("mock") || serviceUrl.includes("localhost:0")) {
-    return simulatedTelemetry;
-  }
+  if (!capabilities || capabilities.length === 0) return empty();
+  if (!serviceUrl) return empty("No model server configured (MODEL_SERVER_URL).", capabilities);
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs || 3e3);
@@ -9066,22 +9062,30 @@ async function dispatchPyTorchCapabilities(params) {
       signal: controller.signal
     });
     clearTimeout(timeout);
-    if (res.ok) {
-      const data = await res.json();
-      const realByCapability = data.telemetry || {};
-      const telemetry = { ...simulatedTelemetry };
-      for (const cap of capabilities) {
-        if (!(cap in realByCapability)) continue;
-        for (const metricKey of CAPABILITY_METRIC_MAP[cap] || []) {
-          telemetry[metricKey] = realByCapability[cap];
-        }
-      }
-      return telemetry;
+    if (!res.ok) {
+      return empty(`Model server answered HTTP ${res.status}.`, capabilities);
     }
+    const data = await res.json();
+    const scored = data.telemetry || {};
+    const unavailable = data.unavailableCapabilities || {};
+    const telemetry = {};
+    const missing = [];
+    for (const cap of capabilities) {
+      if (cap in scored) {
+        for (const metricKey of CAPABILITY_METRIC_MAP[cap] || []) {
+          telemetry[metricKey] = scored[cap];
+        }
+      } else if (!(cap in unavailable)) {
+        missing.push(cap);
+      }
+    }
+    return { telemetry, unavailable, missing };
   } catch (err) {
-    console.warn("PyTorch inference fallback to telemetry model simulation:", err);
+    return empty(
+      err instanceof Error && err.name === "AbortError" ? "Model server did not answer in time." : `Model server could not be reached: ${err instanceof Error ? err.message : String(err)}`,
+      capabilities
+    );
   }
-  return simulatedTelemetry;
 }
 
 // src/orchestrator/score-fusion.ts
@@ -9106,7 +9110,77 @@ function fuseDimensionScores(formScores, visionScores, weights = {}) {
   return fused;
 }
 
+// src/orchestrator/match-client.ts
+var DEFAULT_MATCH_ENGINE_PATH = "/core/match-engine/evaluate";
+function toRoutine(steps) {
+  if (!Array.isArray(steps)) return [];
+  return steps.filter((s) => s?.primary_product).map((s) => ({
+    step: s.step_name || (s.step_number ? `Step ${s.step_number}` : s.category || "Step"),
+    productName: s.primary_product?.name || "",
+    // The engine's own score. Absent rather than invented when it sends none.
+    matchScore: typeof s.primary_product?.match_score === "number" ? s.primary_product.match_score : 0,
+    reason: (s.primary_product?.why_selected || []).join("; ")
+  }));
+}
+async function fetchRegimens(params) {
+  const { url, brandId, applicationId, dimensionScores, customerConditions, strategyId, timeoutMs } = params;
+  const none = (error) => ({
+    amRoutine: [],
+    pmRoutine: [],
+    phases: {},
+    warnings: [],
+    error
+  });
+  if (!url) return none("No match engine configured (MATCH_ENGINE_URL).");
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs || 5e3);
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        brand_id: brandId,
+        application_id: applicationId,
+        dimension_scores: dimensionScores,
+        ...customerConditions ? { customer_conditions: customerConditions } : {},
+        ...strategyId ? { strategy_id: strategyId } : {}
+      }),
+      signal: controller.signal
+    });
+    clearTimeout(timeout);
+    if (!res.ok) return none(`Match engine answered HTTP ${res.status}.`);
+    const data = await res.json();
+    if (data?.success === false) return none("Match engine reported a failure.");
+    const amRoutine = toRoutine(data?.regimens?.am_routine);
+    const pmRoutine = toRoutine(data?.regimens?.pm_routine);
+    const phases = {};
+    const rawPhases = data?.regimens?.phases;
+    if (rawPhases && typeof rawPhases === "object") {
+      for (const [name, steps] of Object.entries(rawPhases)) {
+        const mapped = toRoutine(steps || void 0);
+        if (mapped.length) phases[name] = mapped;
+      }
+    }
+    const warnings = Array.isArray(data?.clinical_conflict_matrix?.warnings) ? data.clinical_conflict_matrix.warnings : [];
+    const nothing = !amRoutine.length && !pmRoutine.length && !Object.keys(phases).length;
+    return {
+      amRoutine,
+      pmRoutine,
+      phases,
+      warnings,
+      // Answered, but with no step carrying a product: say so rather than
+      // leaving an empty panel to be read as "nothing suits you".
+      ...nothing ? { error: "The match engine returned no regimen for this brand and application." } : {}
+    };
+  } catch (err) {
+    return none(
+      err instanceof Error && err.name === "AbortError" ? "Match engine did not answer in time." : `Match engine could not be reached: ${err instanceof Error ? err.message : String(err)}`
+    );
+  }
+}
+
 // src/orchestrator/pipeline-executor.ts
+var DEFAULT_MODEL_SERVER_URL = "http://127.0.0.1:8096";
 async function executeAssessmentPipeline(payload) {
   const startTime = Date.now();
   const timings = {};
@@ -9115,7 +9189,12 @@ async function executeAssessmentPipeline(payload) {
     applicationId: payload.applicationId || "app_kiosk",
     executionStrategy: payload.configOverride?.executionStrategy || "dynamic_capability_dispatch",
     vision: {
-      serviceUrl: payload.configOverride?.vision?.serviceUrl || `${process.env.VISION_AI_WORKER_URL || "http://127.0.0.1:8088"}/api/v1/dispatch-capabilities`,
+      // Capability dispatch lives on worker-models (the model server), at
+      // /api/v1/models/dispatch-capabilities. It was addressed here as
+      // /api/v1/dispatch-capabilities on the skin worker, which that worker
+      // has never served — the call 404'd unless a configOverride supplied
+      // the whole URL.
+      serviceUrl: payload.configOverride?.vision?.serviceUrl || `${process.env.MODEL_SERVER_URL || DEFAULT_MODEL_SERVER_URL}/api/v1/models/dispatch-capabilities`,
       timeoutMs: 3e3},
     form: {
       dimensionMappingRules: {
@@ -9135,6 +9214,12 @@ async function executeAssessmentPipeline(payload) {
         sensitivity: { formWeight: 0.6, visionWeight: 0.4 },
         barrier: { formWeight: 0.5, visionWeight: 0.5 }
       }
+    },
+    matching: {
+      // MATCH_ENGINE_URL when the pipeline runs on a server; otherwise the
+      // app's own path, which the dashboard proxies to the gateway.
+      serviceUrl: process.env.MATCH_ENGINE_URL ? `${process.env.MATCH_ENGINE_URL}${DEFAULT_MATCH_ENGINE_PATH}` : `${payload.baseUrl || ""}${DEFAULT_MATCH_ENGINE_PATH}`,
+      timeoutMs: 5e3
     },
     ...payload.configOverride || {}
   };
@@ -9170,21 +9255,22 @@ async function executeAssessmentPipeline(payload) {
   const t1 = Date.now();
   let dispatchedCaps = [];
   if (config.executionStrategy === "dynamic_capability_dispatch") {
-    dispatchedCaps = await resolveRequiredCapabilitiesFromDb(detectedConditions);
+    dispatchedCaps = await resolveRequiredCapabilitiesFromDb(detectedConditions, payload.baseUrl || "");
   } else if (config.executionStrategy === "parallel_late_fusion" || config.executionStrategy === "vision_only") {
-    const allConditions = await fetchSkinConditionsFromDb();
+    const allConditions = await fetchSkinConditionsFromDb(payload.baseUrl || "");
     const allCaps = /* @__PURE__ */ new Set();
     allConditions.forEach((c) => {
       (c.visionCapabilities || []).forEach((cap) => allCaps.add(cap));
     });
     dispatchedCaps = Array.from(allCaps);
   }
-  const visionSignals = await dispatchPyTorchCapabilities({
+  const visionDispatch = await dispatchPyTorchCapabilities({
     serviceUrl: config.vision.serviceUrl,
     timeoutMs: config.vision.timeoutMs,
     capabilities: dispatchedCaps,
     images: payload.images
   });
+  const visionSignals = visionDispatch.telemetry;
   timings["stage2_vision_ms"] = Date.now() - t1;
   const t2 = Date.now();
   const fusedScores = fuseDimensionScores(
@@ -9192,15 +9278,18 @@ async function executeAssessmentPipeline(payload) {
     config.executionStrategy === "form_only" ? {} : visionSignals,
     config.scoring.dimensionFusionWeights
   );
-  const sebumScore = fusedScores.sebum ?? 50;
-  const sensScore = fusedScores.sensitivity ?? 40;
-  const pigScore = fusedScores.pigmentation ?? 35;
-  const agingScore = fusedScores.aging ?? 30;
-  const o_d = sebumScore >= 55 ? "O" : "D";
-  const s_r = sensScore >= 50 ? "S" : "R";
-  const p_n = pigScore >= 50 ? "P" : "N";
-  const w_t = agingScore >= 45 ? "W" : "T";
-  const profileCode = `${o_d}${s_r}${p_n}${w_t}`;
+  const CODE_DIMENSIONS = ["sebum", "sensitivity", "pigmentation", "aging"];
+  const missingDimensions = CODE_DIMENSIONS.filter((d) => typeof fusedScores[d] !== "number");
+  const indeterminate = missingDimensions.length > 0;
+  const sebumScore = fusedScores.sebum;
+  const sensScore = fusedScores.sensitivity;
+  const pigScore = fusedScores.pigmentation;
+  const agingScore = fusedScores.aging;
+  const o_d = sebumScore !== void 0 && sebumScore >= 55 ? "O" : "D";
+  const s_r = sensScore !== void 0 && sensScore >= 50 ? "S" : "R";
+  const p_n = pigScore !== void 0 && pigScore >= 50 ? "P" : "N";
+  const w_t = agingScore !== void 0 && agingScore >= 45 ? "W" : "T";
+  const profileCode = indeterminate ? "" : `${o_d}${s_r}${p_n}${w_t}`;
   const profileNames = {
     OSNW: "Oily Sensitive Non-Pigmented Wrinkle-Prone",
     OSNT: "Oily Sensitive Non-Pigmented Tight",
@@ -9215,29 +9304,40 @@ async function executeAssessmentPipeline(payload) {
     DRNW: "Dry Resistant Non-Pigmented Wrinkle-Prone",
     DRNT: "Dry Resistant Non-Pigmented Tight"
   };
-  const skinProfile = {
+  const skinProfile = indeterminate ? {
+    code: "",
+    name: "Indeterminate",
+    indeterminate: true,
+    description: `No profile: ${missingDimensions.join(", ")} ${missingDimensions.length === 1 ? "was" : "were"} not scored by the form or the model server.`
+  } : {
     code: profileCode,
     name: profileNames[profileCode] || `Diagnostic Profile ${profileCode}`,
     category: o_d === "O" ? "Lipid Imbalanced" : "Alipidic / Barrier Compromised",
     description: `Clinical diagnosis reflects ${o_d === "O" ? "elevated sebum shine" : "reduced barrier moisture"} blended with ${s_r === "S" ? "reactive sensitivity" : "resilient resistance"}.`
   };
-  const severityTiers = {
-    sebum: {
+  const severityTiers = {};
+  if (sebumScore !== void 0) {
+    severityTiers.sebum = {
       gradeName: sebumScore >= 70 ? "High Shine / Hyper-Seborrhea" : sebumScore >= 40 ? "Balanced Lipid" : "Dry / Alipidic",
       severity: sebumScore >= 70 ? "severe" : sebumScore >= 50 ? "moderate" : "optimal"
-    },
-    sensitivity: {
+    };
+  }
+  if (sensScore !== void 0) {
+    severityTiers.sensitivity = {
       gradeName: sensScore >= 65 ? "Reactive Erythema" : "Tolerant Resilient",
       severity: sensScore >= 65 ? "severe" : "optimal"
-    },
-    pigmentation: {
+    };
+  }
+  if (pigScore !== void 0) {
+    severityTiers.pigmentation = {
       gradeName: pigScore >= 60 ? "Localized Melasma" : "Uniform Tone",
       severity: pigScore >= 60 ? "moderate" : "optimal"
-    }
-  };
-  const totalScore = Math.round(
-    ((fusedScores.sebum || 50) + (fusedScores.sensitivity || 50) + (fusedScores.pigmentation || 50) + (fusedScores.aging || 50)) / 4
+    };
+  }
+  const scoredValues = CODE_DIMENSIONS.map((d) => fusedScores[d]).filter(
+    (v) => typeof v === "number"
   );
+  const totalScore = scoredValues.length ? Math.round(scoredValues.reduce((a, b) => a + b, 0) / scoredValues.length) : 0;
   timings["stage3_scoring_ms"] = Date.now() - t2;
   const t3 = Date.now();
   const isPregnant = payload.customerConditions?.is_pregnant ?? false;
@@ -9249,54 +9349,17 @@ async function executeAssessmentPipeline(payload) {
   if (usesRetinol) {
     contraindicationWarnings.push("Active retinoid user: High-concentration AHA/BHA exfoliants slotted exclusively for alternate night PM use.");
   }
-  const isOily = o_d === "O";
-  const isSensitive = s_r === "S";
-  const amRoutine = [
-    {
-      step: "Step 1: Cleanse",
-      productName: isOily ? "Gentle Purifying Gel Cleanser" : "Hydrating Barrier Foam Wash",
-      matchScore: 96,
-      reason: isOily ? "Balances excess sebum without stripping acid mantle" : "Restores ceramides and moisture during morning cleanse"
-    },
-    {
-      step: "Step 2: Treatment Serum",
-      productName: isSensitive ? "5% Niacinamide + Centella Soothing Serum" : "10% Vitamin C + Ferulic Radiance Serum",
-      matchScore: 92,
-      reason: isSensitive ? "Reduces vascular redness and strengthens epidermal barrier" : "Antioxidant defense against daytime free radicals"
-    },
-    {
-      step: "Step 3: Moisturizer",
-      productName: isOily ? "Oil-Free Matte Hydro-Gel" : "Ceramide Deep Barrier Cream",
-      matchScore: 90,
-      reason: isOily ? "Weightless hydration with micro-sponge oil control" : "Locks in trans-epidermal hydration"
-    },
-    {
-      step: "Step 4: Sunscreen",
-      productName: "Physical Mineral UV Shield SPF 50+ PA++++",
-      matchScore: 98,
-      reason: "Broad spectrum non-comedogenic physical protection"
-    }
-  ];
-  const pmRoutine = [
-    {
-      step: "Step 1: First Cleanse",
-      productName: "Micellar Calming Cleansing Water",
-      matchScore: 94,
-      reason: "Gently dissolves sunscreen and urban particulate matter"
-    },
-    {
-      step: "Step 2: Active Treatment",
-      productName: isPregnant ? "Bakuchiol 2% Restorative Ampoule" : isSensitive ? "Azelaic Acid 10% Clarifying Fluid" : "Retinol 0.2% Micro-Encapsulated Serum",
-      matchScore: 95,
-      reason: isPregnant ? "Pregnancy-safe phyto-retinol cellular renewal" : "Nightly targeted recovery aligned with clinical profile"
-    },
-    {
-      step: "Step 3: Barrier Recovery",
-      productName: "Ceramide Peptide Overnight Recovery Balm",
-      matchScore: 91,
-      reason: "Intensive nocturnal epidermal lipid repair"
-    }
-  ];
+  const regimens = await fetchRegimens({
+    url: config.matching.serviceUrl,
+    brandId: config.brandId,
+    applicationId: config.applicationId,
+    dimensionScores: fusedScores,
+    customerConditions: payload.customerConditions,
+    timeoutMs: config.matching.timeoutMs
+  });
+  const amRoutine = regimens.amRoutine;
+  const pmRoutine = regimens.pmRoutine;
+  contraindicationWarnings.push(...regimens.warnings);
   timings["stage4_matching_ms"] = Date.now() - t3;
   timings["total_pipeline_ms"] = Date.now() - startTime;
   return {
@@ -9310,24 +9373,30 @@ async function executeAssessmentPipeline(payload) {
       },
       vision: {
         dispatchedCapabilities: dispatchedCaps,
-        telemetrySignals: visionSignals
+        telemetrySignals: visionSignals,
+        ...Object.keys(visionDispatch.unavailable).length ? { unavailableCapabilities: visionDispatch.unavailable } : {},
+        ...visionDispatch.missing.length ? { missingCapabilities: visionDispatch.missing } : {},
+        ...visionDispatch.error ? { dispatchError: visionDispatch.error } : {}
       },
       scoring: {
         fusedDimensionScores: fusedScores,
         skinProfile,
         severityTiers,
-        totalScore
+        totalScore,
+        ...missingDimensions.length ? { missingDimensions: [...missingDimensions] } : {}
       },
       matching: {
         amRoutine,
         pmRoutine,
-        contraindicationWarnings
+        contraindicationWarnings,
+        ...Object.keys(regimens.phases).length ? { phases: regimens.phases } : {},
+        ...regimens.error ? { regimenError: regimens.error } : {}
       }
     },
     timings
   };
 }
 
-export { AgingProgressionSlider, AssessmentsSubClient, BeautyClient, BeautyExperienceWidget, core_exports as Core, DimensionScoreCard, DimensionSelector, form_exports as Form, FormManager, form_exports as FormStudio, FormSubClient, hooks_exports as Hooks, match_exports as Match, MatchManager, match_exports as MatchStudio, MatchSubClient, orchestrator_exports as Orchestrator, PolygonHeatmap, ProductRecommendationCard, reference_exports as Reference, ReferenceManager, reference_exports as ReferenceStudio, ReferenceSubClient, score_exports as Score, ScoreManager, score_exports as ScoreStudio, studio_exports as Studio, ui_exports as UI, ui_exports as Vision, VisionSubClient, dispatchPyTorchCapabilities, executeAssessmentPipeline, fetchSkinConditionsFromDb, fuseDimensionScores, getActiveCoreCollections, getCollectionPrefix, invalidateSkinConditionCache, resolveDynamicEndpoint, resolveRequiredCapabilities, resolveRequiredCapabilitiesFromDb, useRegimenMatch, useSkinAssessment };
+export { ALL_TENANTS, AgingProgressionSlider, AssessmentsSubClient, BeautyClient, BeautyExperienceWidget, core_exports as Core, DimensionScoreCard, DimensionSelector, form_exports as Form, FormManager, form_exports as FormStudio, FormSubClient, hooks_exports as Hooks, match_exports as Match, MatchManager, match_exports as MatchStudio, MatchSubClient, orchestrator_exports as Orchestrator, PolygonHeatmap, ProductRecommendationCard, reference_exports as Reference, ReferenceManager, reference_exports as ReferenceStudio, ReferenceSubClient, score_exports as Score, ScoreManager, score_exports as ScoreStudio, studio_exports as Studio, ui_exports as UI, ui_exports as Vision, VisionSubClient, dispatchPyTorchCapabilities, executeAssessmentPipeline, fetchSkinConditionsFromDb, fuseDimensionScores, getActiveCoreCollections, getCollectionPrefix, invalidateSkinConditionCache, resolveDynamicEndpoint, resolveRequiredCapabilities, resolveRequiredCapabilitiesFromDb, tenantScopeQuery, useRegimenMatch, useSkinAssessment, withTenantScope };
 //# sourceMappingURL=index.mjs.map
 //# sourceMappingURL=index.mjs.map

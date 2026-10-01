@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { ShieldAlert, Boxes, Palette, Play, Sparkles, AlertTriangle, Tag, ShieldCheck, Loader2, X, Building, Smartphone, Pencil, Trash2, CheckCircle2, XCircle, Sun, Moon, Layers, Zap, Clock } from 'lucide-react';
-import { PageHeader, TabNav, ConfirmDialog, SearchFilterBar, DataTable, EmptyState, Modal, SearchableSelect, InfoTooltip, Button } from '@gateway-experience/shared';
+import { usePersistentState, PageHeader, TabNav, ConfirmDialog, SearchFilterBar, DataTable, EmptyState, Modal, SearchableSelect, InfoTooltip, Button } from '@gateway-experience/shared';
 import { jsx, jsxs, Fragment } from 'react/jsx-runtime';
 
 var ConflictMatrixTab = ({
@@ -1286,8 +1286,17 @@ var ShadeModal = ({ isOpen, onClose, onSave, editingShade, productId }) => {
     }
   );
 };
+
+// src/core/scope.ts
+var ALL_TENANTS = "*";
+function tenantScopeQuery(brandId = ALL_TENANTS, applicationId = ALL_TENANTS) {
+  return `brand_id=${encodeURIComponent(brandId || ALL_TENANTS)}&application_id=${encodeURIComponent(applicationId || ALL_TENANTS)}`;
+}
+function withTenantScope(path, brandId, applicationId) {
+  return `${path}${path.includes("?") ? "&" : "?"}${tenantScopeQuery(brandId, applicationId)}`;
+}
 var MatchManager = () => {
-  const [activeTab, setActiveTab] = useState("conflicts");
+  const [activeTab, setActiveTab] = usePersistentState("xg.matchEngine.activeTab", "conflicts");
   const [searchQuery, setSearchQuery] = useState("");
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [activeFilters, setActiveFilters] = useState({});
@@ -1298,8 +1307,8 @@ var MatchManager = () => {
     onConfirm: () => {
     }
   });
-  const [selectedBrand, setSelectedBrand] = useState("*");
-  const [selectedApp, setSelectedApp] = useState("*");
+  const [selectedBrand, setSelectedBrand] = usePersistentState("xg.matchEngine.brand", "*");
+  const [selectedApp, setSelectedApp] = usePersistentState("xg.matchEngine.application", "*");
   const [conflicts, setConflicts] = useState([]);
   const [productGroups, setProductGroups] = useState([]);
   const [products, setProducts] = useState([]);
@@ -1311,25 +1320,25 @@ var MatchManager = () => {
   const [editingConflict, setEditingConflict] = useState(null);
   const [editingGroup, setEditingGroup] = useState(null);
   const [editingShade, setEditingShade] = useState(null);
-  const [simBrand, setSimBrand] = useState("*");
-  const [simSkinType, setSimSkinType] = useState("OSPT");
-  const [simSebum, setSimSebum] = useState(75);
-  const [simHydration, setSimHydration] = useState(40);
-  const [simSensitivity, setSimSensitivity] = useState(65);
-  const [simPregnant, setSimPregnant] = useState(false);
-  const [simRetinol, setSimRetinol] = useState(true);
+  const [simBrand, setSimBrand] = usePersistentState("xg.matchEngine.simulator.brand", "*");
+  const [simSkinType, setSimSkinType] = usePersistentState("xg.matchEngine.simulator.skinType", "OSPT");
+  const [simSebum, setSimSebum] = usePersistentState("xg.matchEngine.simulator.sebum", 75);
+  const [simHydration, setSimHydration] = usePersistentState("xg.matchEngine.simulator.hydration", 40);
+  const [simSensitivity, setSimSensitivity] = usePersistentState("xg.matchEngine.simulator.sensitivity", 65);
+  const [simPregnant, setSimPregnant] = usePersistentState("xg.matchEngine.simulator.pregnant", false);
+  const [simRetinol, setSimRetinol] = usePersistentState("xg.matchEngine.simulator.retinol", true);
   const [isSimulating, setIsSimulating] = useState(false);
-  const [simResult, setSimResult] = useState(null);
+  const [simResult, setSimResult] = usePersistentState("xg.matchEngine.simulator.result", null);
   const loadData = () => {
-    fetch(resolveDynamicEndpoint("match", "/api/matching/conflicts")).then((res) => res.json()).then((data) => {
+    fetch(resolveDynamicEndpoint("match", withTenantScope("/api/matching/conflicts"))).then((res) => res.json()).then((data) => {
       if (Array.isArray(data.conflicts)) setConflicts(data.conflicts);
     }).catch(() => {
     });
-    fetch(resolveDynamicEndpoint("match", "/api/matching/product-groups")).then((res) => res.json()).then((data) => {
+    fetch(resolveDynamicEndpoint("match", withTenantScope("/api/matching/product-groups"))).then((res) => res.json()).then((data) => {
       if (Array.isArray(data.groups)) setProductGroups(data.groups);
     }).catch(() => {
     });
-    fetch(resolveDynamicEndpoint("match", "/api/matching/products")).then((res) => res.json()).then((data) => {
+    fetch(resolveDynamicEndpoint("match", withTenantScope("/api/matching/products"))).then((res) => res.json()).then((data) => {
       if (Array.isArray(data.products)) {
         setProducts(data.products);
         setShadeProductId((prev) => prev || data.products[0]?.id || "");

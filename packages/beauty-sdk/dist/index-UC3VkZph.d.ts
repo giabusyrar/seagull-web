@@ -35,6 +35,23 @@ declare function getCollectionPrefix(key: CoreCollectionKey): string;
  */
 declare function resolveDynamicEndpoint(key: CoreCollectionKey, routePattern: string, collections?: DynamicCollection[]): string;
 
+/**
+ * Tenant scope on core-engine list calls.
+ *
+ * `*` is core-engine's own wildcard for brand and application: a list asked
+ * for `*` returns every tenant's rows (score RulesetRepo.ListRulesets, match
+ * matchesScope). It is the engine's definition, not a choice made here.
+ *
+ * Always send the scope explicitly. A call that omits brand_id /
+ * application_id gets whatever the gateway injects for the collection, and
+ * that silently becomes the tenant the call runs as.
+ */
+declare const ALL_TENANTS = "*";
+declare function tenantScopeQuery(brandId?: string, applicationId?: string): string;
+/** Appends the tenant scope to a path that may already carry a query. */
+declare function withTenantScope(path: string, brandId?: string, applicationId?: string): string;
+
+declare const index_ALL_TENANTS: typeof ALL_TENANTS;
 declare const index_AgingProgressionResult: typeof AgingProgressionResult;
 declare const index_AgingTimelinePoint: typeof AgingTimelinePoint;
 declare const index_AssessmentsSubClient: typeof AssessmentsSubClient;
@@ -58,8 +75,10 @@ declare const index_ZoneUvMetric: typeof ZoneUvMetric;
 declare const index_getActiveCoreCollections: typeof getActiveCoreCollections;
 declare const index_getCollectionPrefix: typeof getCollectionPrefix;
 declare const index_resolveDynamicEndpoint: typeof resolveDynamicEndpoint;
+declare const index_tenantScopeQuery: typeof tenantScopeQuery;
+declare const index_withTenantScope: typeof withTenantScope;
 declare namespace index {
-  export { index_AgingProgressionResult as AgingProgressionResult, index_AgingTimelinePoint as AgingTimelinePoint, index_AssessmentsSubClient as AssessmentsSubClient, index_BeautyClient as BeautyClient, index_BeautyClientConfig as BeautyClientConfig, index_ClinicalSummary as ClinicalSummary, type index_CoreCollectionKey as CoreCollectionKey, type index_DynamicCollection as DynamicCollection, type index_DynamicCollectionRoute as DynamicCollectionRoute, index_EnvironmentalContext as EnvironmentalContext, index_FacialZoneData as FacialZoneData, index_FormSubClient as FormSubClient, index_MatchSubClient as MatchSubClient, index_NormalizedPoint as NormalizedPoint, index_RecommendedProduct as RecommendedProduct, index_ReferenceSubClient as ReferenceSubClient, index_VisionAnalysisOptions as VisionAnalysisOptions, index_VisionAnalysisResponse as VisionAnalysisResponse, index_VisionSubClient as VisionSubClient, index_ZoneUvMetric as ZoneUvMetric, index_getActiveCoreCollections as getActiveCoreCollections, index_getCollectionPrefix as getCollectionPrefix, index_resolveDynamicEndpoint as resolveDynamicEndpoint };
+  export { index_ALL_TENANTS as ALL_TENANTS, index_AgingProgressionResult as AgingProgressionResult, index_AgingTimelinePoint as AgingTimelinePoint, index_AssessmentsSubClient as AssessmentsSubClient, index_BeautyClient as BeautyClient, index_BeautyClientConfig as BeautyClientConfig, index_ClinicalSummary as ClinicalSummary, type index_CoreCollectionKey as CoreCollectionKey, type index_DynamicCollection as DynamicCollection, type index_DynamicCollectionRoute as DynamicCollectionRoute, index_EnvironmentalContext as EnvironmentalContext, index_FacialZoneData as FacialZoneData, index_FormSubClient as FormSubClient, index_MatchSubClient as MatchSubClient, index_NormalizedPoint as NormalizedPoint, index_RecommendedProduct as RecommendedProduct, index_ReferenceSubClient as ReferenceSubClient, index_VisionAnalysisOptions as VisionAnalysisOptions, index_VisionAnalysisResponse as VisionAnalysisResponse, index_VisionSubClient as VisionSubClient, index_ZoneUvMetric as ZoneUvMetric, index_getActiveCoreCollections as getActiveCoreCollections, index_getCollectionPrefix as getCollectionPrefix, index_resolveDynamicEndpoint as resolveDynamicEndpoint, index_tenantScopeQuery as tenantScopeQuery, index_withTenantScope as withTenantScope };
 }
 
-export { type CoreCollectionKey as C, type DynamicCollection as D, type DynamicCollectionRoute as a, getCollectionPrefix as b, getActiveCoreCollections as g, index as i, resolveDynamicEndpoint as r };
+export { ALL_TENANTS as A, type CoreCollectionKey as C, type DynamicCollection as D, type DynamicCollectionRoute as a, getCollectionPrefix as b, getActiveCoreCollections as g, index as i, resolveDynamicEndpoint as r, tenantScopeQuery as t, withTenantScope as w };

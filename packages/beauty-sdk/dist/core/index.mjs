@@ -253,6 +253,15 @@ function resolveDynamicEndpoint(key, routePattern, collections) {
   return `${prefix}${cleanPattern}`;
 }
 
-export { AssessmentsSubClient, BeautyClient, FormSubClient, MatchSubClient, ReferenceSubClient, VisionSubClient, getActiveCoreCollections, getCollectionPrefix, resolveDynamicEndpoint };
+// src/core/scope.ts
+var ALL_TENANTS = "*";
+function tenantScopeQuery(brandId = ALL_TENANTS, applicationId = ALL_TENANTS) {
+  return `brand_id=${encodeURIComponent(brandId || ALL_TENANTS)}&application_id=${encodeURIComponent(applicationId || ALL_TENANTS)}`;
+}
+function withTenantScope(path, brandId, applicationId) {
+  return `${path}${path.includes("?") ? "&" : "?"}${tenantScopeQuery(brandId, applicationId)}`;
+}
+
+export { ALL_TENANTS, AssessmentsSubClient, BeautyClient, FormSubClient, MatchSubClient, ReferenceSubClient, VisionSubClient, getActiveCoreCollections, getCollectionPrefix, resolveDynamicEndpoint, tenantScopeQuery, withTenantScope };
 //# sourceMappingURL=index.mjs.map
 //# sourceMappingURL=index.mjs.map

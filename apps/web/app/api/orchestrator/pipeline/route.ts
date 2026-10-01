@@ -4,7 +4,13 @@ import { executeAssessmentPipeline, AssessmentPayload } from '@gateway-experienc
 export async function POST(req: Request) {
   try {
     const body: AssessmentPayload = await req.json();
-    const response = await executeAssessmentPipeline(body);
+    // The pipeline calls back through this app (match engine, skin conditions)
+    // using paths that are relative in the browser. On the server there is no
+    // page to be relative to, so hand it this request's origin.
+    const response = await executeAssessmentPipeline({
+      ...body,
+      baseUrl: body.baseUrl || new URL(req.url).origin,
+    });
     return NextResponse.json(response);
   } catch (err: any) {
     return NextResponse.json(

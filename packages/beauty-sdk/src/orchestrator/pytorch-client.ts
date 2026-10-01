@@ -1,6 +1,5 @@
 // Maps a capability (backed by an uploaded ONNX model, one score 0-100 per
-// capability) to the display metric key(s) it feeds. A capability with no
-// uploaded model yet keeps using its simulated value below.
+// capability) to the display metric key(s) it feeds.
 const CAPABILITY_METRIC_MAP: Record<string, string[]> = {
   sebum_shine_detector: ['sebum'],
   comedone_pore_detector: ['acne', 'pores'],
@@ -12,48 +11,49 @@ const CAPABILITY_METRIC_MAP: Record<string, string[]> = {
   texture_desquamation_net: ['hydration', 'barrier'],
 };
 
-const SIMULATED_METRIC_VALUES: Record<string, number> = {
-  sebum: 72,
-  acne: 65,
-  pores: 58,
-  pigmentation: 54,
-  hypopigmentation: 40,
-  aging: 42,
-  sensitivity: 68,
-  barrier: 70,
-  hydration: 48,
-};
+export interface CapabilityDispatchResult {
+  /**
+   * Measured values only, keyed by display metric. A capability the model
+   * server did not score is absent — never filled in with a stand-in, so a
+   * caller cannot mistake a guess for a measurement.
+   */
+  telemetry: Record<string, number>;
+  /** Capabilities the server could not run, with its reason. */
+  unavailable: Record<string, string>;
+  /** Capabilities asked for that the response said nothing about. */
+  missing: string[];
+  /** Why nothing was dispatched at all; absent when the call succeeded. */
+  error?: string;
+}
 
+const empty = (error?: string, capabilities: string[] = []): CapabilityDispatchResult => ({
+  telemetry: {},
+  unavailable: {},
+  missing: [...capabilities],
+  ...(error ? { error } : {}),
+});
+
+/**
+ * Dispatch capabilities to the model server
+ * (POST <serviceUrl>, /api/v1/models/dispatch-capabilities).
+ *
+ * This used to return a table of invented scores — sebum 72, acne 65 and so
+ * on — whenever a capability had no model, the endpoint was unreachable or
+ * the URL looked like a mock. Those numbers were shaped exactly like measured
+ * ones, so nothing downstream could tell them apart. They are gone: what was
+ * not measured is simply absent, and the reason travels with the result.
+ */
 export async function dispatchPyTorchCapabilities(params: {
   serviceUrl: string;
   timeoutMs: number;
   capabilities: string[];
   images?: { view: string; data: string }[];
-}): Promise<Record<string, number>> {
+}): Promise<CapabilityDispatchResult> {
   const { serviceUrl, timeoutMs, capabilities, images } = params;
 
-  if (!capabilities || capabilities.length === 0) {
-    return {};
-  }
+  if (!capabilities || capabilities.length === 0) return empty();
+  if (!serviceUrl) return empty('No model server configured (MODEL_SERVER_URL).', capabilities);
 
-  // Simulated fallback, keyed by display metric name — used for any
-  // capability with no uploaded model (or when the real endpoint is
-  // unreachable / not configured).
-  const simulatedTelemetry: Record<string, number> = {};
-  for (const cap of capabilities) {
-    for (const metricKey of CAPABILITY_METRIC_MAP[cap] || []) {
-      simulatedTelemetry[metricKey] = SIMULATED_METRIC_VALUES[metricKey];
-    }
-  }
-
-  if (!serviceUrl || serviceUrl.includes('mock') || serviceUrl.includes('localhost:0')) {
-    return simulatedTelemetry;
-  }
-
-  // Real endpoint returns telemetry keyed by CAPABILITY code (one score per
-  // uploaded model), e.g. { "sebum_shine_detector": 81.2 }. Remap into
-  // display metric keys, filling in only the capabilities it actually has a
-  // model for and leaving everything else on the simulated fallback.
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs || 3000);
@@ -66,21 +66,35 @@ export async function dispatchPyTorchCapabilities(params: {
     });
 
     clearTimeout(timeout);
-    if (res.ok) {
-      const data = await res.json();
-      const realByCapability: Record<string, number> = data.telemetry || {};
-      const telemetry = { ...simulatedTelemetry };
-      for (const cap of capabilities) {
-        if (!(cap in realByCapability)) continue;
-        for (const metricKey of CAPABILITY_METRIC_MAP[cap] || []) {
-          telemetry[metricKey] = realByCapability[cap];
-        }
-      }
-      return telemetry;
+    if (!res.ok) {
+      return empty(`Model server answered HTTP ${res.status}.`, capabilities);
     }
-  } catch (err) {
-    console.warn('PyTorch inference fallback to telemetry model simulation:', err);
-  }
 
-  return simulatedTelemetry;
+    const data = await res.json();
+    const scored: Record<string, number> = data.telemetry || {};
+    // Additive field from the model server: capabilities whose model could
+    // not be loaded, as {capability: reason}.
+    const unavailable: Record<string, string> = data.unavailableCapabilities || {};
+
+    const telemetry: Record<string, number> = {};
+    const missing: string[] = [];
+    for (const cap of capabilities) {
+      if (cap in scored) {
+        for (const metricKey of CAPABILITY_METRIC_MAP[cap] || []) {
+          telemetry[metricKey] = scored[cap];
+        }
+      } else if (!(cap in unavailable)) {
+        missing.push(cap);
+      }
+    }
+
+    return { telemetry, unavailable, missing };
+  } catch (err) {
+    return empty(
+      err instanceof Error && err.name === 'AbortError'
+        ? 'Model server did not answer in time.'
+        : `Model server could not be reached: ${err instanceof Error ? err.message : String(err)}`,
+      capabilities,
+    );
+  }
 }

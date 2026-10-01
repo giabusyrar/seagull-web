@@ -114,3 +114,4 @@ export { StatusSelect, type StatusSelectProps } from './components/reference/Sta
 export { DimensionSelect, type DimensionSelectProps } from './components/reference/DimensionSelect';
 export { SeveritySelect, type SeveritySelectProps } from './components/reference/SeveritySelect';
 export { cn } from './utils';
+export { usePersistentState, readPersisted, writePersisted, saveBlob, loadBlob } from './persistent-state';

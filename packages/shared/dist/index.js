@@ -35,3 +35,4 @@ export { StatusSelect } from './components/reference/StatusSelect';
 export { DimensionSelect } from './components/reference/DimensionSelect';
 export { SeveritySelect } from './components/reference/SeveritySelect';
 export { cn } from './utils';
+export { usePersistentState, readPersisted, writePersisted, saveBlob, loadBlob } from './persistent-state';

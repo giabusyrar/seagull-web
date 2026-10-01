@@ -645,6 +645,15 @@ export function PipelineSimulatorView() {
                 </div>
               )}
 
+              {/* An empty routine means the match engine recommended nothing,
+                  or could not be reached. Say which — the panel used to be
+                  filled with placeholder products either way. */}
+              {pipelineResult?.stages?.matching?.regimenError && (
+                <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[11px] text-foreground">
+                  No regimen: {pipelineResult.stages.matching.regimenError}
+                </div>
+              )}
+
               {/* Routine Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* AM Routine */}

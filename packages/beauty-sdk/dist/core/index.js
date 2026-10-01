@@ -255,6 +255,16 @@ function resolveDynamicEndpoint(key, routePattern, collections) {
   return `${prefix}${cleanPattern}`;
 }
 
+// src/core/scope.ts
+var ALL_TENANTS = "*";
+function tenantScopeQuery(brandId = ALL_TENANTS, applicationId = ALL_TENANTS) {
+  return `brand_id=${encodeURIComponent(brandId || ALL_TENANTS)}&application_id=${encodeURIComponent(applicationId || ALL_TENANTS)}`;
+}
+function withTenantScope(path, brandId, applicationId) {
+  return `${path}${path.includes("?") ? "&" : "?"}${tenantScopeQuery(brandId, applicationId)}`;
+}
+
+exports.ALL_TENANTS = ALL_TENANTS;
 exports.AssessmentsSubClient = AssessmentsSubClient;
 exports.BeautyClient = BeautyClient;
 exports.FormSubClient = FormSubClient;
@@ -264,5 +274,7 @@ exports.VisionSubClient = VisionSubClient;
 exports.getActiveCoreCollections = getActiveCoreCollections;
 exports.getCollectionPrefix = getCollectionPrefix;
 exports.resolveDynamicEndpoint = resolveDynamicEndpoint;
+exports.tenantScopeQuery = tenantScopeQuery;
+exports.withTenantScope = withTenantScope;
 //# sourceMappingURL=index.js.map
 //# sourceMappingURL=index.js.map

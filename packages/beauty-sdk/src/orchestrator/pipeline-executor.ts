@@ -2,6 +2,11 @@ import { AssessmentPayload, UnifiedAssessmentResponse, OrchestratorPipelineConfi
 import { resolveRequiredCapabilitiesFromDb, fetchSkinConditionsFromDb } from './capability-registry';
 import { dispatchPyTorchCapabilities } from './pytorch-client';
 import { fuseDimensionScores } from './score-fusion';
+import { fetchRegimens, DEFAULT_MATCH_ENGINE_PATH } from './match-client';
+
+// Where worker-models listens in local development (Seagull-core
+// docs/PORTS.md). Deployments set MODEL_SERVER_URL instead.
+const DEFAULT_MODEL_SERVER_URL = 'http://127.0.0.1:8096';
 
 export async function executeAssessmentPipeline(
   payload: AssessmentPayload
@@ -16,9 +21,14 @@ export async function executeAssessmentPipeline(
     channel: 'kiosk',
     executionStrategy: payload.configOverride?.executionStrategy || 'dynamic_capability_dispatch',
     vision: {
+      // Capability dispatch lives on worker-models (the model server), at
+      // /api/v1/models/dispatch-capabilities. It was addressed here as
+      // /api/v1/dispatch-capabilities on the skin worker, which that worker
+      // has never served — the call 404'd unless a configOverride supplied
+      // the whole URL.
       serviceUrl:
         payload.configOverride?.vision?.serviceUrl ||
-        `${process.env.VISION_AI_WORKER_URL || 'http://127.0.0.1:8088'}/api/v1/dispatch-capabilities`,
+        `${process.env.MODEL_SERVER_URL || DEFAULT_MODEL_SERVER_URL}/api/v1/models/dispatch-capabilities`,
       timeoutMs: 3000,
       inputMode: 'single_image',
       confidenceThreshold: 0.6,
@@ -50,6 +60,12 @@ export async function executeAssessmentPipeline(
       strictContraindications: true,
       maxAmRoutineSteps: 4,
       maxPmRoutineSteps: 4,
+      // MATCH_ENGINE_URL when the pipeline runs on a server; otherwise the
+      // app's own path, which the dashboard proxies to the gateway.
+      serviceUrl: process.env.MATCH_ENGINE_URL
+        ? `${process.env.MATCH_ENGINE_URL}${DEFAULT_MATCH_ENGINE_PATH}`
+        : `${payload.baseUrl || ''}${DEFAULT_MATCH_ENGINE_PATH}`,
+      timeoutMs: 5000,
     },
     ...(payload.configOverride || {}),
   };
@@ -97,12 +113,12 @@ export async function executeAssessmentPipeline(
   let dispatchedCaps: string[] = [];
 
   if (config.executionStrategy === 'dynamic_capability_dispatch') {
-    dispatchedCaps = await resolveRequiredCapabilitiesFromDb(detectedConditions);
+    dispatchedCaps = await resolveRequiredCapabilitiesFromDb(detectedConditions, payload.baseUrl || '');
   } else if (
     config.executionStrategy === 'parallel_late_fusion' ||
     config.executionStrategy === 'vision_only'
   ) {
-    const allConditions = await fetchSkinConditionsFromDb();
+    const allConditions = await fetchSkinConditionsFromDb(payload.baseUrl || '');
     const allCaps = new Set<string>();
     allConditions.forEach((c) => {
       (c.visionCapabilities || []).forEach((cap) => allCaps.add(cap));
@@ -110,12 +126,13 @@ export async function executeAssessmentPipeline(
     dispatchedCaps = Array.from(allCaps);
   }
 
-  const visionSignals = await dispatchPyTorchCapabilities({
+  const visionDispatch = await dispatchPyTorchCapabilities({
     serviceUrl: config.vision.serviceUrl,
     timeoutMs: config.vision.timeoutMs,
     capabilities: dispatchedCaps,
     images: payload.images,
   });
+  const visionSignals = visionDispatch.telemetry;
 
   timings['stage2_vision_ms'] = Date.now() - t1;
 
@@ -129,17 +146,25 @@ export async function executeAssessmentPipeline(
     config.scoring.dimensionFusionWeights
   );
 
-  const sebumScore = fusedScores.sebum ?? 50;
-  const sensScore = fusedScores.sensitivity ?? 40;
-  const pigScore = fusedScores.pigmentation ?? 35;
-  const agingScore = fusedScores.aging ?? 30;
+  // The four dimensions the Baumann code is built from. A dimension with no
+  // score used to fall back to a fixed number (50 / 40 / 35 / 30), which
+  // decided a letter of the code on no evidence at all. Missing is now
+  // missing: the code is only computed when all four were scored.
+  const CODE_DIMENSIONS = ['sebum', 'sensitivity', 'pigmentation', 'aging'] as const;
+  const missingDimensions = CODE_DIMENSIONS.filter((d) => typeof fusedScores[d] !== 'number');
+  const indeterminate = missingDimensions.length > 0;
+
+  const sebumScore = fusedScores.sebum;
+  const sensScore = fusedScores.sensitivity;
+  const pigScore = fusedScores.pigmentation;
+  const agingScore = fusedScores.aging;
 
   // Determine Baumann 4-letter Code: [O/D]-[S/R]-[P/N]-[W/T]
-  const o_d = sebumScore >= 55 ? 'O' : 'D';
-  const s_r = sensScore >= 50 ? 'S' : 'R';
-  const p_n = pigScore >= 50 ? 'P' : 'N';
-  const w_t = agingScore >= 45 ? 'W' : 'T';
-  const profileCode = `${o_d}${s_r}${p_n}${w_t}`;
+  const o_d = sebumScore !== undefined && sebumScore >= 55 ? 'O' : 'D';
+  const s_r = sensScore !== undefined && sensScore >= 50 ? 'S' : 'R';
+  const p_n = pigScore !== undefined && pigScore >= 50 ? 'P' : 'N';
+  const w_t = agingScore !== undefined && agingScore >= 45 ? 'W' : 'T';
+  const profileCode = indeterminate ? '' : `${o_d}${s_r}${p_n}${w_t}`;
 
   const profileNames: Record<string, string> = {
     OSNW: 'Oily Sensitive Non-Pigmented Wrinkle-Prone',
@@ -156,31 +181,53 @@ export async function executeAssessmentPipeline(
     DRNT: 'Dry Resistant Non-Pigmented Tight',
   };
 
-  const skinProfile = {
-    code: profileCode,
-    name: profileNames[profileCode] || `Diagnostic Profile ${profileCode}`,
-    category: o_d === 'O' ? 'Lipid Imbalanced' : 'Alipidic / Barrier Compromised',
-    description: `Clinical diagnosis reflects ${o_d === 'O' ? 'elevated sebum shine' : 'reduced barrier moisture'} blended with ${s_r === 'S' ? 'reactive sensitivity' : 'resilient resistance'}.`,
-  };
+  const skinProfile = indeterminate
+    ? {
+        code: '',
+        name: 'Indeterminate',
+        indeterminate: true,
+        description: `No profile: ${missingDimensions.join(', ')} ${
+          missingDimensions.length === 1 ? 'was' : 'were'
+        } not scored by the form or the model server.`,
+      }
+    : {
+        code: profileCode,
+        name: profileNames[profileCode] || `Diagnostic Profile ${profileCode}`,
+        category: o_d === 'O' ? 'Lipid Imbalanced' : 'Alipidic / Barrier Compromised',
+        description: `Clinical diagnosis reflects ${o_d === 'O' ? 'elevated sebum shine' : 'reduced barrier moisture'} blended with ${s_r === 'S' ? 'reactive sensitivity' : 'resilient resistance'}.`,
+      };
 
-  const severityTiers: Record<string, { gradeName: string; severity: string }> = {
-    sebum: {
+  // A tier is graded only for a dimension that was scored; an unscored one is
+  // left out rather than graded against a stand-in.
+  const severityTiers: Record<string, { gradeName: string; severity: string }> = {};
+  if (sebumScore !== undefined) {
+    severityTiers.sebum = {
       gradeName: sebumScore >= 70 ? 'High Shine / Hyper-Seborrhea' : sebumScore >= 40 ? 'Balanced Lipid' : 'Dry / Alipidic',
       severity: sebumScore >= 70 ? 'severe' : sebumScore >= 50 ? 'moderate' : 'optimal',
-    },
-    sensitivity: {
+    };
+  }
+  if (sensScore !== undefined) {
+    severityTiers.sensitivity = {
       gradeName: sensScore >= 65 ? 'Reactive Erythema' : 'Tolerant Resilient',
       severity: sensScore >= 65 ? 'severe' : 'optimal',
-    },
-    pigmentation: {
+    };
+  }
+  if (pigScore !== undefined) {
+    severityTiers.pigmentation = {
       gradeName: pigScore >= 60 ? 'Localized Melasma' : 'Uniform Tone',
       severity: pigScore >= 60 ? 'moderate' : 'optimal',
-    },
-  };
+    };
+  }
 
-  const totalScore = Math.round(
-    ((fusedScores.sebum || 50) + (fusedScores.sensitivity || 50) + (fusedScores.pigmentation || 50) + (fusedScores.aging || 50)) / 4
+  // Averaged over the dimensions that were actually scored. Averaging a
+  // stand-in 50 into the total was how an unmeasured dimension still moved
+  // the number.
+  const scoredValues = CODE_DIMENSIONS.map((d) => fusedScores[d]).filter(
+    (v): v is number => typeof v === 'number',
   );
+  const totalScore = scoredValues.length
+    ? Math.round(scoredValues.reduce((a, b) => a + b, 0) / scoredValues.length)
+    : 0;
 
   timings['stage3_scoring_ms'] = Date.now() - t2;
 
@@ -199,56 +246,20 @@ export async function executeAssessmentPipeline(
     contraindicationWarnings.push('Active retinoid user: High-concentration AHA/BHA exfoliants slotted exclusively for alternate night PM use.');
   }
 
-  const isOily = o_d === 'O';
-  const isSensitive = s_r === 'S';
-
-  const amRoutine = [
-    {
-      step: 'Step 1: Cleanse',
-      productName: isOily ? 'Gentle Purifying Gel Cleanser' : 'Hydrating Barrier Foam Wash',
-      matchScore: 96,
-      reason: isOily ? 'Balances excess sebum without stripping acid mantle' : 'Restores ceramides and moisture during morning cleanse',
-    },
-    {
-      step: 'Step 2: Treatment Serum',
-      productName: isSensitive ? '5% Niacinamide + Centella Soothing Serum' : '10% Vitamin C + Ferulic Radiance Serum',
-      matchScore: 92,
-      reason: isSensitive ? 'Reduces vascular redness and strengthens epidermal barrier' : 'Antioxidant defense against daytime free radicals',
-    },
-    {
-      step: 'Step 3: Moisturizer',
-      productName: isOily ? 'Oil-Free Matte Hydro-Gel' : 'Ceramide Deep Barrier Cream',
-      matchScore: 90,
-      reason: isOily ? 'Weightless hydration with micro-sponge oil control' : 'Locks in trans-epidermal hydration',
-    },
-    {
-      step: 'Step 4: Sunscreen',
-      productName: 'Physical Mineral UV Shield SPF 50+ PA++++',
-      matchScore: 98,
-      reason: 'Broad spectrum non-comedogenic physical protection',
-    },
-  ];
-
-  const pmRoutine = [
-    {
-      step: 'Step 1: First Cleanse',
-      productName: 'Micellar Calming Cleansing Water',
-      matchScore: 94,
-      reason: 'Gently dissolves sunscreen and urban particulate matter',
-    },
-    {
-      step: 'Step 2: Active Treatment',
-      productName: isPregnant ? 'Bakuchiol 2% Restorative Ampoule' : isSensitive ? 'Azelaic Acid 10% Clarifying Fluid' : 'Retinol 0.2% Micro-Encapsulated Serum',
-      matchScore: 95,
-      reason: isPregnant ? 'Pregnancy-safe phyto-retinol cellular renewal' : 'Nightly targeted recovery aligned with clinical profile',
-    },
-    {
-      step: 'Step 3: Barrier Recovery',
-      productName: 'Ceramide Peptide Overnight Recovery Balm',
-      matchScore: 91,
-      reason: 'Intensive nocturnal epidermal lipid repair',
-    },
-  ];
+  // Routines come from the match engine. They used to be literals in this
+  // file — fixed product names and fixed scores dressed as engine output —
+  // which meant the dashboard showed recommendations no catalogue had made.
+  const regimens = await fetchRegimens({
+    url: config.matching.serviceUrl,
+    brandId: config.brandId,
+    applicationId: config.applicationId,
+    dimensionScores: fusedScores,
+    customerConditions: payload.customerConditions,
+    timeoutMs: config.matching.timeoutMs,
+  });
+  const amRoutine = regimens.amRoutine;
+  const pmRoutine = regimens.pmRoutine;
+  contraindicationWarnings.push(...regimens.warnings);
 
   timings['stage4_matching_ms'] = Date.now() - t3;
   timings['total_pipeline_ms'] = Date.now() - startTime;
@@ -265,17 +276,25 @@ export async function executeAssessmentPipeline(
       vision: {
         dispatchedCapabilities: dispatchedCaps,
         telemetrySignals: visionSignals,
+        ...(Object.keys(visionDispatch.unavailable).length
+          ? { unavailableCapabilities: visionDispatch.unavailable }
+          : {}),
+        ...(visionDispatch.missing.length ? { missingCapabilities: visionDispatch.missing } : {}),
+        ...(visionDispatch.error ? { dispatchError: visionDispatch.error } : {}),
       },
       scoring: {
         fusedDimensionScores: fusedScores,
         skinProfile,
         severityTiers,
         totalScore,
+        ...(missingDimensions.length ? { missingDimensions: [...missingDimensions] } : {}),
       },
       matching: {
         amRoutine,
         pmRoutine,
         contraindicationWarnings,
+        ...(Object.keys(regimens.phases).length ? { phases: regimens.phases } : {}),
+        ...(regimens.error ? { regimenError: regimens.error } : {}),
       },
     },
     timings,

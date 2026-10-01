@@ -1288,8 +1288,17 @@ var ShadeModal = ({ isOpen, onClose, onSave, editingShade, productId }) => {
     }
   );
 };
+
+// src/core/scope.ts
+var ALL_TENANTS = "*";
+function tenantScopeQuery(brandId = ALL_TENANTS, applicationId = ALL_TENANTS) {
+  return `brand_id=${encodeURIComponent(brandId || ALL_TENANTS)}&application_id=${encodeURIComponent(applicationId || ALL_TENANTS)}`;
+}
+function withTenantScope(path, brandId, applicationId) {
+  return `${path}${path.includes("?") ? "&" : "?"}${tenantScopeQuery(brandId, applicationId)}`;
+}
 var MatchManager = () => {
-  const [activeTab, setActiveTab] = react.useState("conflicts");
+  const [activeTab, setActiveTab] = shared.usePersistentState("xg.matchEngine.activeTab", "conflicts");
   const [searchQuery, setSearchQuery] = react.useState("");
   const [isFilterPanelOpen, setIsFilterPanelOpen] = react.useState(false);
   const [activeFilters, setActiveFilters] = react.useState({});
@@ -1300,8 +1309,8 @@ var MatchManager = () => {
     onConfirm: () => {
     }
   });
-  const [selectedBrand, setSelectedBrand] = react.useState("*");
-  const [selectedApp, setSelectedApp] = react.useState("*");
+  const [selectedBrand, setSelectedBrand] = shared.usePersistentState("xg.matchEngine.brand", "*");
+  const [selectedApp, setSelectedApp] = shared.usePersistentState("xg.matchEngine.application", "*");
   const [conflicts, setConflicts] = react.useState([]);
   const [productGroups, setProductGroups] = react.useState([]);
   const [products, setProducts] = react.useState([]);
@@ -1313,25 +1322,25 @@ var MatchManager = () => {
   const [editingConflict, setEditingConflict] = react.useState(null);
   const [editingGroup, setEditingGroup] = react.useState(null);
   const [editingShade, setEditingShade] = react.useState(null);
-  const [simBrand, setSimBrand] = react.useState("*");
-  const [simSkinType, setSimSkinType] = react.useState("OSPT");
-  const [simSebum, setSimSebum] = react.useState(75);
-  const [simHydration, setSimHydration] = react.useState(40);
-  const [simSensitivity, setSimSensitivity] = react.useState(65);
-  const [simPregnant, setSimPregnant] = react.useState(false);
-  const [simRetinol, setSimRetinol] = react.useState(true);
+  const [simBrand, setSimBrand] = shared.usePersistentState("xg.matchEngine.simulator.brand", "*");
+  const [simSkinType, setSimSkinType] = shared.usePersistentState("xg.matchEngine.simulator.skinType", "OSPT");
+  const [simSebum, setSimSebum] = shared.usePersistentState("xg.matchEngine.simulator.sebum", 75);
+  const [simHydration, setSimHydration] = shared.usePersistentState("xg.matchEngine.simulator.hydration", 40);
+  const [simSensitivity, setSimSensitivity] = shared.usePersistentState("xg.matchEngine.simulator.sensitivity", 65);
+  const [simPregnant, setSimPregnant] = shared.usePersistentState("xg.matchEngine.simulator.pregnant", false);
+  const [simRetinol, setSimRetinol] = shared.usePersistentState("xg.matchEngine.simulator.retinol", true);
   const [isSimulating, setIsSimulating] = react.useState(false);
-  const [simResult, setSimResult] = react.useState(null);
+  const [simResult, setSimResult] = shared.usePersistentState("xg.matchEngine.simulator.result", null);
   const loadData = () => {
-    fetch(resolveDynamicEndpoint("match", "/api/matching/conflicts")).then((res) => res.json()).then((data) => {
+    fetch(resolveDynamicEndpoint("match", withTenantScope("/api/matching/conflicts"))).then((res) => res.json()).then((data) => {
       if (Array.isArray(data.conflicts)) setConflicts(data.conflicts);
     }).catch(() => {
     });
-    fetch(resolveDynamicEndpoint("match", "/api/matching/product-groups")).then((res) => res.json()).then((data) => {
+    fetch(resolveDynamicEndpoint("match", withTenantScope("/api/matching/product-groups"))).then((res) => res.json()).then((data) => {
       if (Array.isArray(data.groups)) setProductGroups(data.groups);
     }).catch(() => {
     });
-    fetch(resolveDynamicEndpoint("match", "/api/matching/products")).then((res) => res.json()).then((data) => {
+    fetch(resolveDynamicEndpoint("match", withTenantScope("/api/matching/products"))).then((res) => res.json()).then((data) => {
       if (Array.isArray(data.products)) {
         setProducts(data.products);
         setShadeProductId((prev) => prev || data.products[0]?.id || "");

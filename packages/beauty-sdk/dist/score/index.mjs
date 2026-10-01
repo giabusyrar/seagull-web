@@ -1,9 +1,18 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { ChevronDown, ChevronRight, Trash2, Sliders, Check, AlertTriangle, Plus, SlidersHorizontal, Play, FileText, Copy, Pencil, PanelRightOpen, PanelRightClose } from 'lucide-react';
-import { DimensionSelect, InfoTooltip, EmptyState, Button, ScoreRangeInput, SeveritySelect, PageHeader, TabNav, ConfirmDialog, SearchFilterBar, StatusBadge, Modal, StatusSelect, BrandSelect, ApplicationSelect } from '@gateway-experience/shared';
+import { DimensionSelect, InfoTooltip, EmptyState, Button, ScoreRangeInput, SeveritySelect, usePersistentState, PageHeader, TabNav, ConfirmDialog, SearchFilterBar, StatusBadge, Modal, StatusSelect, BrandSelect, ApplicationSelect } from '@gateway-experience/shared';
 import { jsxs, jsx, Fragment } from 'react/jsx-runtime';
 
 // src/studio/score/components/ScoreManager.tsx
+
+// src/core/scope.ts
+var ALL_TENANTS = "*";
+function tenantScopeQuery(brandId = ALL_TENANTS, applicationId = ALL_TENANTS) {
+  return `brand_id=${encodeURIComponent(brandId || ALL_TENANTS)}&application_id=${encodeURIComponent(applicationId || ALL_TENANTS)}`;
+}
+function withTenantScope(path, brandId, applicationId) {
+  return `${path}${path.includes("?") ? "&" : "?"}${tenantScopeQuery(brandId, applicationId)}`;
+}
 var filterSelect = "h-8 rounded-md bg-muted/40 border border-border px-2.5 text-foreground text-xs outline-none focus:border-ring";
 var RulesetsTab = ({
   rulesets,
@@ -1055,25 +1064,15 @@ var ScoreSimulatorTab = ({
     [rulesetDims, fieldMapping, ageAxisKeys]
   );
   const visionDims = useMemo(() => rulesetDims.filter((d) => fieldMapping[d]?.vision), [rulesetDims, fieldMapping]);
-  const formDimsKey = formDims.join(",");
-  const visionDimsKey = visionDims.join(",");
-  const [questionnaireValues, setQuestionnaireValues] = useState({});
-  const [visionValues, setVisionValues] = useState({});
-  const [respondentAge, setRespondentAge] = useState(25);
-  useEffect(() => {
-    setQuestionnaireValues((prev) => {
-      const next = {};
-      for (const d of formDims) next[d] = prev[d] ?? 50;
-      return next;
-    });
-  }, [formDimsKey]);
-  useEffect(() => {
-    setVisionValues((prev) => {
-      const next = {};
-      for (const d of visionDims) next[d] = prev[d] ?? 50;
-      return next;
-    });
-  }, [visionDimsKey]);
+  const [questionnaireValues, setQuestionnaireValues] = usePersistentState(
+    "xg.scoreEngine.simulator.questionnaireValues",
+    {}
+  );
+  const [visionValues, setVisionValues] = usePersistentState(
+    "xg.scoreEngine.simulator.visionValues",
+    {}
+  );
+  const [respondentAge, setRespondentAge] = usePersistentState("xg.scoreEngine.simulator.respondentAge", 25);
   const rulesetSafetyFlags = useMemo(() => {
     if (!activeRuleset?.schema) return [];
     try {
@@ -1143,15 +1142,16 @@ var ScoreSimulatorTab = ({
     () => Array.from(/* @__PURE__ */ new Set([...rulesetSafetyFlags, ...surveySafetyFlags])),
     [rulesetSafetyFlags, surveySafetyFlags]
   );
-  const [selectedConditions, setSelectedConditions] = useState({});
-  useEffect(() => {
-    setSelectedConditions((prev) => {
-      const keys = allSafetyFlags.length > 0 ? allSafetyFlags : catalogSafetyFlags;
-      const next = {};
-      for (const k of keys) next[k] = prev[k] ?? false;
-      return next;
-    });
-  }, [allSafetyFlags, catalogSafetyFlags]);
+  const [conditionChoices, setConditionChoices] = usePersistentState(
+    "xg.scoreEngine.simulator.conditions",
+    {}
+  );
+  const selectedConditions = useMemo(() => {
+    const keys = allSafetyFlags.length > 0 ? allSafetyFlags : catalogSafetyFlags;
+    const out = {};
+    for (const k of keys) out[k] = conditionChoices[k] ?? false;
+    return out;
+  }, [allSafetyFlags, catalogSafetyFlags, conditionChoices]);
   const [simResponse, setSimResponse] = useState(null);
   const [copiedReq, setCopiedReq] = useState(false);
   const SIMULATE_PATH = "/core/score-engine/simulate";
@@ -1337,7 +1337,7 @@ var ScoreSimulatorTab = ({
           "button",
           {
             type: "button",
-            onClick: () => setSelectedConditions((p) => ({ ...p, [key]: !p[key] })),
+            onClick: () => setConditionChoices((p) => ({ ...p, [key]: !isChecked })),
             className: `p-2.5 rounded-md border text-left transition-colors flex items-center justify-between ${isChecked ? "border-beak/50 bg-beak/10 text-beak" : "border-border bg-muted/40 text-muted-foreground hover:text-foreground"}`,
             children: [
               /* @__PURE__ */ jsx("span", { children: key }),
@@ -2534,10 +2534,12 @@ var RulesetModal = ({
 };
 var SCORE = "/core/score-engine";
 var ScoreManager = () => {
-  const [activeTab, setActiveTab] = useState("rulesets");
+  const [activeTab, setActiveTab] = usePersistentState("xg.scoreEngine.activeTab", "rulesets");
   const [searchQuery, setSearchQuery] = useState("");
   const [rulesets, setRulesets] = useState([]);
-  const [selectedRuleset, setSelectedRuleset] = useState(null);
+  const [selectedRulesetId, setSelectedRulesetId] = usePersistentState("xg.scoreEngine.selectedRulesetId", null);
+  const selectedRuleset = rulesets.find((r) => r.id === selectedRulesetId) ?? null;
+  const setSelectedRuleset = (r) => setSelectedRulesetId(r?.id ?? null);
   const [isRulesetModalOpen, setIsRulesetModalOpen] = useState(false);
   const [editingRuleset, setEditingRuleset] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState({
@@ -2549,12 +2551,9 @@ var ScoreManager = () => {
     }
   });
   const loadRulesets = useCallback(() => {
-    fetch(`${SCORE}/rulesets`).then((res) => res.json()).then((data) => {
+    fetch(withTenantScope(`${SCORE}/rulesets`)).then((res) => res.json()).then((data) => {
       if (Array.isArray(data.rulesets)) {
         setRulesets(data.rulesets);
-        if (data.rulesets.length > 0) {
-          setSelectedRuleset((prev) => prev || data.rulesets[0]);
-        }
       }
     }).catch(() => {
     });

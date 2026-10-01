@@ -10,6 +10,15 @@ function _interopDefault (e) { return e && e.__esModule ? e : { default: e }; }
 var React__default = /*#__PURE__*/_interopDefault(React);
 
 // src/studio/score/components/ScoreManager.tsx
+
+// src/core/scope.ts
+var ALL_TENANTS = "*";
+function tenantScopeQuery(brandId = ALL_TENANTS, applicationId = ALL_TENANTS) {
+  return `brand_id=${encodeURIComponent(brandId || ALL_TENANTS)}&application_id=${encodeURIComponent(applicationId || ALL_TENANTS)}`;
+}
+function withTenantScope(path, brandId, applicationId) {
+  return `${path}${path.includes("?") ? "&" : "?"}${tenantScopeQuery(brandId, applicationId)}`;
+}
 var filterSelect = "h-8 rounded-md bg-muted/40 border border-border px-2.5 text-foreground text-xs outline-none focus:border-ring";
 var RulesetsTab = ({
   rulesets,
@@ -1061,25 +1070,15 @@ var ScoreSimulatorTab = ({
     [rulesetDims, fieldMapping, ageAxisKeys]
   );
   const visionDims = React.useMemo(() => rulesetDims.filter((d) => fieldMapping[d]?.vision), [rulesetDims, fieldMapping]);
-  const formDimsKey = formDims.join(",");
-  const visionDimsKey = visionDims.join(",");
-  const [questionnaireValues, setQuestionnaireValues] = React.useState({});
-  const [visionValues, setVisionValues] = React.useState({});
-  const [respondentAge, setRespondentAge] = React.useState(25);
-  React.useEffect(() => {
-    setQuestionnaireValues((prev) => {
-      const next = {};
-      for (const d of formDims) next[d] = prev[d] ?? 50;
-      return next;
-    });
-  }, [formDimsKey]);
-  React.useEffect(() => {
-    setVisionValues((prev) => {
-      const next = {};
-      for (const d of visionDims) next[d] = prev[d] ?? 50;
-      return next;
-    });
-  }, [visionDimsKey]);
+  const [questionnaireValues, setQuestionnaireValues] = shared.usePersistentState(
+    "xg.scoreEngine.simulator.questionnaireValues",
+    {}
+  );
+  const [visionValues, setVisionValues] = shared.usePersistentState(
+    "xg.scoreEngine.simulator.visionValues",
+    {}
+  );
+  const [respondentAge, setRespondentAge] = shared.usePersistentState("xg.scoreEngine.simulator.respondentAge", 25);
   const rulesetSafetyFlags = React.useMemo(() => {
     if (!activeRuleset?.schema) return [];
     try {
@@ -1149,15 +1148,16 @@ var ScoreSimulatorTab = ({
     () => Array.from(/* @__PURE__ */ new Set([...rulesetSafetyFlags, ...surveySafetyFlags])),
     [rulesetSafetyFlags, surveySafetyFlags]
   );
-  const [selectedConditions, setSelectedConditions] = React.useState({});
-  React.useEffect(() => {
-    setSelectedConditions((prev) => {
-      const keys = allSafetyFlags.length > 0 ? allSafetyFlags : catalogSafetyFlags;
-      const next = {};
-      for (const k of keys) next[k] = prev[k] ?? false;
-      return next;
-    });
-  }, [allSafetyFlags, catalogSafetyFlags]);
+  const [conditionChoices, setConditionChoices] = shared.usePersistentState(
+    "xg.scoreEngine.simulator.conditions",
+    {}
+  );
+  const selectedConditions = React.useMemo(() => {
+    const keys = allSafetyFlags.length > 0 ? allSafetyFlags : catalogSafetyFlags;
+    const out = {};
+    for (const k of keys) out[k] = conditionChoices[k] ?? false;
+    return out;
+  }, [allSafetyFlags, catalogSafetyFlags, conditionChoices]);
   const [simResponse, setSimResponse] = React.useState(null);
   const [copiedReq, setCopiedReq] = React.useState(false);
   const SIMULATE_PATH = "/core/score-engine/simulate";
@@ -1343,7 +1343,7 @@ var ScoreSimulatorTab = ({
           "button",
           {
             type: "button",
-            onClick: () => setSelectedConditions((p) => ({ ...p, [key]: !p[key] })),
+            onClick: () => setConditionChoices((p) => ({ ...p, [key]: !isChecked })),
             className: `p-2.5 rounded-md border text-left transition-colors flex items-center justify-between ${isChecked ? "border-beak/50 bg-beak/10 text-beak" : "border-border bg-muted/40 text-muted-foreground hover:text-foreground"}`,
             children: [
               /* @__PURE__ */ jsxRuntime.jsx("span", { children: key }),
@@ -2540,10 +2540,12 @@ var RulesetModal = ({
 };
 var SCORE = "/core/score-engine";
 var ScoreManager = () => {
-  const [activeTab, setActiveTab] = React.useState("rulesets");
+  const [activeTab, setActiveTab] = shared.usePersistentState("xg.scoreEngine.activeTab", "rulesets");
   const [searchQuery, setSearchQuery] = React.useState("");
   const [rulesets, setRulesets] = React.useState([]);
-  const [selectedRuleset, setSelectedRuleset] = React.useState(null);
+  const [selectedRulesetId, setSelectedRulesetId] = shared.usePersistentState("xg.scoreEngine.selectedRulesetId", null);
+  const selectedRuleset = rulesets.find((r) => r.id === selectedRulesetId) ?? null;
+  const setSelectedRuleset = (r) => setSelectedRulesetId(r?.id ?? null);
   const [isRulesetModalOpen, setIsRulesetModalOpen] = React.useState(false);
   const [editingRuleset, setEditingRuleset] = React.useState(null);
   const [deleteConfirm, setDeleteConfirm] = React.useState({
@@ -2555,12 +2557,9 @@ var ScoreManager = () => {
     }
   });
   const loadRulesets = React.useCallback(() => {
-    fetch(`${SCORE}/rulesets`).then((res) => res.json()).then((data) => {
+    fetch(withTenantScope(`${SCORE}/rulesets`)).then((res) => res.json()).then((data) => {
       if (Array.isArray(data.rulesets)) {
         setRulesets(data.rulesets);
-        if (data.rulesets.length > 0) {
-          setSelectedRuleset((prev) => prev || data.rulesets[0]);
-        }
       }
     }).catch(() => {
     });

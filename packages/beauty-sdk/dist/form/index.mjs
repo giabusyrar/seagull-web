@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { FileText, Play, Plus, ChevronUp, ChevronDown, Pencil, Trash2, ChevronRight, X, Flag } from 'lucide-react';
-import { PageHeader, TabNav, BrandSelect, ApplicationSelect, InfoTooltip, ConfirmDialog, SearchFilterBar, EmptyState, Modal, Button } from '@gateway-experience/shared';
+import { usePersistentState, PageHeader, TabNav, BrandSelect, ApplicationSelect, InfoTooltip, ConfirmDialog, SearchFilterBar, EmptyState, readPersisted, Modal, Button } from '@gateway-experience/shared';
 import { jsx, jsxs, Fragment } from 'react/jsx-runtime';
 import { Model } from 'survey-core';
 import { Survey } from 'survey-react-ui';
@@ -773,7 +773,11 @@ var XG_SURVEY_THEME = {
     "--sjs-shadow-inner": "none"
   }
 };
+var ANSWERS_KEY_PREFIX = "xg.formEngine.simulator.answers.";
+var CUSTOMER_ID_KEY = "xg.formEngine.simulator.customerId";
 var FormSimulatorTab = ({
+  brandId,
+  applicationId,
   questionnaires,
   selectedQCode,
   setSelectedQCode
@@ -784,9 +788,10 @@ var FormSimulatorTab = ({
     () => currentQ ? toSurveyModel(currentQ) : null,
     [currentQ]
   );
-  const [data, setData] = useState({});
+  const answersKey = currentQ?.code ? ANSWERS_KEY_PREFIX + currentQ.code : null;
+  const [data, setData] = usePersistentState(answersKey, {});
   const [showPayload, setShowPayload] = useState(false);
-  const [customerId, setCustomerId] = useState("demo-customer-001");
+  const [customerId, setCustomerId] = usePersistentState(CUSTOMER_ID_KEY, "demo-customer-001");
   const [copied, setCopied] = useState("");
   const copy = (text, tag) => {
     navigator.clipboard?.writeText(text).then(
@@ -809,15 +814,17 @@ var FormSimulatorTab = ({
     m.getAllQuestions().forEach((q) => {
       if (q.getType() === "boolean") q.renderAs = "radio";
     });
+    const saved = answersKey ? readPersisted(answersKey) : void 0;
+    if (saved) m.data = saved;
     return m;
-  }, [schema, hasQuestions]);
+  }, [schema, hasQuestions, answersKey]);
   useEffect(() => {
-    setData({});
+    setData({ ...survey?.data ?? {} });
     if (!survey) return;
     const onValue = (sender) => setData({ ...sender.data });
     survey.onValueChanged.add(onValue);
     return () => survey.onValueChanged.remove(onValue);
-  }, [survey]);
+  }, [survey, setData]);
   const core = useMemo(
     () => schema ? buildScoreRequest(schema, data) : { answer_list: [], customer_condition: {}, dimensions: [] },
     [schema, data]
@@ -829,16 +836,16 @@ var FormSimulatorTab = ({
     value: Math.round(applyCalculationMethod(d.answers, d.calculation_method) * 100) / 100
   }));
   const submitBody = {
-    brand_id: "wardah",
-    application_id: "skinverse",
+    brand_id: currentQ?.brandId || brandId,
+    application_id: currentQ?.applicationId || applicationId,
     customer_id: customerId,
     data
   };
   const submitBodyJson = JSON.stringify(submitBody, null, 2);
   const payload = {
     code: currentQ?.code,
-    brand_id: "wardah",
-    application_id: "skinverse",
+    brand_id: currentQ?.brandId || brandId,
+    application_id: currentQ?.applicationId || applicationId,
     answer_list: core.answer_list,
     customer_condition: core.customer_condition,
     dimensions: core.dimensions,
@@ -2040,7 +2047,7 @@ var readTenant = () => {
   return { brandId: "wardah", applicationId: "skinverse" };
 };
 var FormManager = () => {
-  const [activeTab, setActiveTab] = useState("questionnaires");
+  const [activeTab, setActiveTab] = usePersistentState("xg.formEngine.activeTab", "questionnaires");
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState({
     isOpen: false,
@@ -2053,7 +2060,7 @@ var FormManager = () => {
   const [questionnaires, setQuestionnaires] = useState([]);
   const [isQuestionnaireModalOpen, setIsQuestionnaireModalOpen] = useState(false);
   const [editingQ, setEditingQ] = useState(null);
-  const [selectedQCode, setSelectedQCode] = useState("");
+  const [selectedQCode, setSelectedQCode] = usePersistentState("xg.formEngine.simulator.questionnaire", "");
   const loadData = () => {
     listQuestionnaires(brandId, applicationId).then(setQuestionnaires).catch(() => setQuestionnaires([]));
   };
@@ -2184,6 +2191,8 @@ var FormManager = () => {
       activeTab === "simulator" && /* @__PURE__ */ jsx(
         FormSimulatorTab,
         {
+          brandId,
+          applicationId,
           questionnaires,
           selectedQCode,
           setSelectedQCode
@@ -2252,7 +2261,7 @@ var QuestionnaireRunner = ({
     let alive = true;
     setLoading(true);
     setError(null);
-    getQuestionnaireModel(questionnaireCode).then((m) => {
+    getQuestionnaireModel(questionnaireCode, brandId, applicationId).then((m) => {
       if (!alive) return;
       if (m) setSchema(m);
       else setError("This questionnaire is not available.");
@@ -2260,7 +2269,7 @@ var QuestionnaireRunner = ({
     return () => {
       alive = false;
     };
-  }, [questionnaireCode, modelProp, questionnaire]);
+  }, [questionnaireCode, modelProp, questionnaire, brandId, applicationId]);
   const survey = useMemo(() => {
     if (!schema) return null;
     const m = new Model(schema);
