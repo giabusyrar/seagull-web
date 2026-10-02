@@ -23,14 +23,14 @@ export interface BeautyProviderProps {
 }
 
 export function BeautyProvider({ baseUrl = '/api/beauty', client, locale = 'id', messages, children }: BeautyProviderProps) {
-  const value = useMemo<BeautyContext>(() => {
+  // The client depends only on how it is reached, so a brand passing `messages`
+  // inline does not get a new client (and refire client-keyed hooks) every render.
+  const resolvedClient = useMemo(() => client ?? createBeautyClient({ baseUrl }), [client, baseUrl]);
+  const t = useMemo(() => {
     const dict = { ...defaultMessages[locale], ...messages };
-    return {
-      client: client ?? createBeautyClient({ baseUrl }),
-      locale,
-      t: (key, vars) => format(dict[key] ?? key, vars),
-    };
-  }, [baseUrl, client, locale, messages]);
+    return (key: string, vars?: Record<string, string | number>) => format(dict[key] ?? key, vars);
+  }, [locale, messages]);
+  const value = useMemo<BeautyContext>(() => ({ client: resolvedClient, locale, t }), [resolvedClient, locale, t]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 

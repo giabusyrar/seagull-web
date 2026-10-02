@@ -31,6 +31,20 @@ describe('BeautyProvider', () => {
     expect(screen.getByTestId('out').dataset.hasClient).toBe('true');
   });
 
+  it('keeps the client stable when messages is a fresh object each render', () => {
+    const seen: unknown[] = [];
+    function Capture() {
+      const { client, t } = useBeauty();
+      seen.push(client);
+      return <span data-testid="out">{t('photo.front')}</span>;
+    }
+    const { rerender } = render(<BeautyProvider baseUrl="/api/beauty" messages={{ 'photo.front': 'A' }}><Capture /></BeautyProvider>);
+    rerender(<BeautyProvider baseUrl="/api/beauty" messages={{ 'photo.front': 'B' }}><Capture /></BeautyProvider>);
+    expect(screen.getByTestId('out').textContent).toBe('B');
+    expect(seen.length).toBeGreaterThan(1);
+    expect(new Set(seen).size).toBe(1);
+  });
+
   it('throws a clear error outside the provider', () => {
     expect(() => render(<Probe k="photo.front" />)).toThrow(/BeautyProvider/);
   });
