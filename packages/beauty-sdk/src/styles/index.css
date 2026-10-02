@@ -5,8 +5,10 @@
 @layer bsdk.base, bsdk.theme, bsdk.utilities;
 
 @import 'tailwindcss/theme.css' layer(bsdk.theme) prefix(bsdk);
-@import 'tailwindcss/utilities.css' layer(bsdk.utilities);
+@import 'tailwindcss/utilities.css' layer(bsdk.utilities) source(none);
 
+/* Scan only src/. Without source(none) Tailwind also auto-detects from the
+ * package root and picks up class-like strings in scripts/ (the css test). */
 @source '../';
 
 /* Defaults for the brand-overridable tokens (a styling starting point, not
