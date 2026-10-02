@@ -1,0 +1,44 @@
+/* The SDK's stylesheet. Brands import it before their own CSS:
+ *   import '@gateway-experience/beauty-sdk/styles.css';
+ * Everything sits in the bsdk layer, declared first, so any brand CSS —
+ * layered later or unlayered — wins without !important. No preflight. */
+@layer bsdk.base, bsdk.theme, bsdk.utilities;
+
+@import 'tailwindcss/theme.css' layer(bsdk.theme) prefix(bsdk);
+@import 'tailwindcss/utilities.css' layer(bsdk.utilities);
+
+@source '../';
+
+/* Defaults for the brand-overridable tokens (a styling starting point, not
+ * data). Brands set any of these on :root or on a container. */
+@layer bsdk.base {
+  :where(:root) {
+    --bsdk-primary: #0f172a;
+    --bsdk-primary-foreground: #ffffff;
+    --bsdk-foreground: #0f172a;
+    --bsdk-muted: #f1f5f9;
+    --bsdk-muted-foreground: #64748b;
+    --bsdk-border: #e2e8f0;
+    --bsdk-card: #ffffff;
+    --bsdk-destructive: #dc2626;
+    --bsdk-warning: #d97706;
+    --bsdk-success: #059669;
+    --bsdk-radius: 0.75rem;
+    --bsdk-font: ui-sans-serif, system-ui, sans-serif;
+  }
+}
+
+@theme inline {
+  --color-primary: var(--bsdk-primary);
+  --color-primary-foreground: var(--bsdk-primary-foreground);
+  --color-foreground: var(--bsdk-foreground);
+  --color-muted: var(--bsdk-muted);
+  --color-muted-foreground: var(--bsdk-muted-foreground);
+  --color-border: var(--bsdk-border);
+  --color-card: var(--bsdk-card);
+  --color-destructive: var(--bsdk-destructive);
+  --color-warning: var(--bsdk-warning);
+  --color-success: var(--bsdk-success);
+  --radius-bsdk: var(--bsdk-radius);
+  --font-bsdk: var(--bsdk-font);
+}

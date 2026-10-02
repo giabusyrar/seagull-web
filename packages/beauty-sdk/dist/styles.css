@@ -1,0 +1,2 @@
+/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+@layer bsdk.base{:where(:root){--bsdk-primary:#0f172a;--bsdk-primary-foreground:#fff;--bsdk-foreground:#0f172a;--bsdk-muted:#f1f5f9;--bsdk-muted-foreground:#64748b;--bsdk-border:#e2e8f0;--bsdk-card:#fff;--bsdk-destructive:#dc2626;--bsdk-warning:#d97706;--bsdk-success:#059669;--bsdk-radius:.75rem;--bsdk-font:ui-sans-serif, system-ui, sans-serif}}@layer bsdk.theme,bsdk.utilities;
