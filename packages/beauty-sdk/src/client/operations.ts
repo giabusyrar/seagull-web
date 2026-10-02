@@ -56,6 +56,19 @@ export interface Scope {
 
 const split = (p: string) => p.split('/').filter(Boolean);
 
+/** Check if a value is safe for use as a path parameter: not '.', '..' or containing '/' or '\' */
+function isSafePathParam(value: string): boolean {
+  if (value === '.' || value === '..') return false;
+  if (value.includes('/') || value.includes('\\')) return false;
+  return true;
+}
+
+/** Check if a value is safe for use as a scope value: not '.' or '..' */
+function isSafeScopeValue(value: string): boolean {
+  if (value === '.' || value === '..') return false;
+  return true;
+}
+
 export function matchOperation(method: string, path: string): { op: Operation; params: Record<string, string> } | null {
   const segs = split(path);
   for (const op of OPERATIONS) {
@@ -65,8 +78,21 @@ export function matchOperation(method: string, path: string): { op: Operation; p
     const params: Record<string, string> = {};
     let ok = true;
     for (let i = 0; i < pat.length && ok; i++) {
-      if (pat[i].startsWith(':')) params[pat[i].slice(1)] = decodeURIComponent(segs[i]);
-      else ok = pat[i] === segs[i];
+      if (pat[i].startsWith(':')) {
+        try {
+          const decoded = decodeURIComponent(segs[i]);
+          if (!isSafePathParam(decoded)) {
+            ok = false;
+          } else {
+            params[pat[i].slice(1)] = decoded;
+          }
+        } catch {
+          // Malformed percent-encoding
+          return null;
+        }
+      } else {
+        ok = pat[i] === segs[i];
+      }
     }
     if (ok) return { op, params };
   }
@@ -76,7 +102,9 @@ export function matchOperation(method: string, path: string): { op: Operation; p
 const fillParams = (path: string, params: Record<string, string>) =>
   path.replace(/:([A-Za-z]+)/g, (_, k: string) => {
     if (!(k in params)) throw new Error(`Missing path parameter "${k}"`);
-    return encodeURIComponent(params[k]);
+    const value = params[k];
+    if (!isSafePathParam(value)) throw new Error(`Unsafe path parameter: "${k}"`);
+    return encodeURIComponent(value);
   });
 
 export function sdkUrl(op: Operation, params: Record<string, string>): string {
@@ -87,6 +115,7 @@ export function gatewayUrl(op: Operation, params: Record<string, string>, scope:
   const withScope = op.gatewayPath.replace(/\{(brandId|applicationId|customerId)\}/g, (_, k: keyof Scope) => {
     const v = scope[k];
     if (!v) throw new Error(`Missing scope "${k}" for ${op.id}`);
+    if (!isSafeScopeValue(v)) throw new Error(`Unsafe scope "${k}": "${v}"`);
     return encodeURIComponent(v);
   });
   return fillParams(withScope, params);
@@ -97,10 +126,24 @@ export function injectScope(
   body: FormData | Record<string, unknown> | undefined,
   scope: Scope,
 ): FormData | Record<string, unknown> | undefined {
-  if (op.scope === 'json') return { ...(body as Record<string, unknown>), brand_id: scope.brandId, application_id: scope.applicationId };
-  if (op.scope === 'multipart' && body instanceof FormData) {
-    body.set('brandId', scope.brandId);
-    body.set('applicationId', scope.applicationId);
+  if (op.scope === 'json') {
+    if (body instanceof FormData) {
+      throw new Error(`${op.id} requires JSON body, got FormData`);
+    }
+    return { ...(body as Record<string, unknown>), brand_id: scope.brandId, application_id: scope.applicationId };
+  }
+  if (op.scope === 'multipart') {
+    if (!(body instanceof FormData)) {
+      throw new Error(`${op.id} requires FormData body`);
+    }
+    // Create a new FormData to avoid mutating the input
+    const newFormData = new FormData();
+    for (const [key, value] of body) {
+      newFormData.set(key, value);
+    }
+    newFormData.set('brandId', scope.brandId);
+    newFormData.set('applicationId', scope.applicationId);
+    return newFormData;
   }
   return body;
 }

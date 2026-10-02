@@ -47,4 +47,98 @@ describe('operations', () => {
     const fd = new FormData();
     expect(injectScope(op('colour.analyze'), fd, scope)).toBe(fd);
   });
+
+  // Security: Dot-segment traversal prevention
+  describe('dot-segment traversal prevention', () => {
+    it('rejects matchOperation with . in path', () => {
+      expect(matchOperation('POST', '/forms/./evaluate')).toBeNull();
+    });
+
+    it('rejects matchOperation with .. in path', () => {
+      expect(matchOperation('POST', '/forms/../evaluate')).toBeNull();
+    });
+
+    it('rejects matchOperation with encoded .. (%2e%2e)', () => {
+      expect(matchOperation('POST', '/forms/%2e%2e/evaluate')).toBeNull();
+    });
+
+    it('rejects matchOperation with encoded . (%2e)', () => {
+      expect(matchOperation('POST', '/forms/%2e/evaluate')).toBeNull();
+    });
+
+    it('rejects matchOperation with encoded slash (%2F) in param', () => {
+      expect(matchOperation('POST', '/forms/a%2Fb/evaluate')).toBeNull();
+    });
+
+    it('rejects matchOperation with backslash in decoded param', () => {
+      expect(matchOperation('POST', '/forms/a%5Cb/evaluate')).toBeNull();
+    });
+
+    it('throws sdkUrl for . in params', () => {
+      expect(() => sdkUrl(op('forms.evaluate'), { code: '.' })).toThrow();
+    });
+
+    it('throws sdkUrl for .. in params', () => {
+      expect(() => sdkUrl(op('forms.evaluate'), { code: '..' })).toThrow();
+    });
+
+    it('throws sdkUrl for / in params', () => {
+      expect(() => sdkUrl(op('forms.evaluate'), { code: 'a/b' })).toThrow();
+    });
+
+    it('throws gatewayUrl for . in scope brandId', () => {
+      expect(() => gatewayUrl(op('face.head'), {}, { ...scope, brandId: '.' })).toThrow();
+    });
+
+    it('throws gatewayUrl for .. in scope applicationId', () => {
+      expect(() => gatewayUrl(op('face.head'), {}, { ...scope, applicationId: '..' })).toThrow();
+    });
+
+    it('throws gatewayUrl for .. in scope customerId', () => {
+      expect(() => gatewayUrl(op('assessments.history'), {}, { ...scope, customerId: '..' })).toThrow();
+    });
+  });
+
+  // Security: injectScope fails closed
+  describe('injectScope security', () => {
+    it('throws for multipart when body is not FormData', () => {
+      expect(() => injectScope(op('skin.analyze'), { some: 'object' }, scope)).toThrow();
+    });
+
+    it('throws for multipart when body is null', () => {
+      expect(() => injectScope(op('skin.analyze'), null as any, scope)).toThrow();
+    });
+
+    it('throws for json when body is FormData', () => {
+      const fd = new FormData();
+      expect(() => injectScope(op('forms.evaluate'), fd, scope)).toThrow();
+    });
+
+    it('returns new FormData for multipart (does not mutate input)', () => {
+      const inputFd = new FormData();
+      inputFd.set('brandId', 'original');
+      inputFd.set('other', 'data');
+      const outputFd = injectScope(op('skin.analyze'), inputFd, scope) as FormData;
+      expect(outputFd).not.toBe(inputFd);
+      expect(outputFd.get('brandId')).toBe('brd-1');
+      expect(outputFd.get('other')).toBe('data');
+      // Input should be unchanged
+      expect(inputFd.get('brandId')).toBe('original');
+    });
+
+    it('allows undefined for json scope', () => {
+      const result = injectScope(op('forms.evaluate'), undefined, scope);
+      expect(result).toEqual({
+        brand_id: 'brd-1',
+        application_id: 'app/1',
+      });
+    });
+  });
+
+  // Security: Malformed percent-encoding
+  describe('malformed percent-encoding', () => {
+    it('returns null for incomplete percent-encoding in matchOperation', () => {
+      expect(matchOperation('POST', '/forms/%E0%A4%A/evaluate')).toBeNull();
+    });
+  });
 });
