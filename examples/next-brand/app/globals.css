@@ -1,0 +1,12 @@
+:root {
+  --bsdk-primary: #b0306a;
+  --bsdk-radius: 1rem;
+  --bsdk-font: Georgia, serif;
+}
+body {
+  margin: 0;
+  padding: 24px;
+}
+[data-bsdk-part='slot'] {
+  border-color: #b0306a;
+}

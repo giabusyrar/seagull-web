@@ -66,3 +66,7 @@ next-env.d.ts
 
 # Claude Code worktrees (isolated workspaces)
 /.claude/worktrees/
+
+examples/next-brand/.sdk/
+examples/next-brand/.next/
+examples/next-brand/node_modules/
