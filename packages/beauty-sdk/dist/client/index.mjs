@@ -1,212 +1,165 @@
-// src/core/client.ts
-var FormSubClient = class {
-  constructor(client) {
-    this.client = client;
-  }
-  async evaluate(code, payload) {
-    return this.client.request(`/core/form-engine/survey/${code}/evaluate`, {
-      method: "POST",
-      body: JSON.stringify({
-        brand_id: payload.brand_id || this.client.config.brandId,
-        application_id: payload.application_id || this.client.config.applicationId,
-        ...payload
-      })
-    });
-  }
-  async getQuestionnaire(code) {
-    return this.client.request(`/core/form-engine/survey/${code}`, {
-      method: "GET"
-    });
+// src/client/errors.ts
+var BeautyApiError = class extends Error {
+  constructor(init) {
+    super(init.message || init.code || `HTTP ${init.status}`);
+    this.name = "BeautyApiError";
+    this.status = init.status;
+    this.code = init.code;
+    this.details = init.details;
   }
 };
-var VisionSubClient = class {
-  constructor(client) {
-    this.client = client;
+var isEntry = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+var str = (v) => typeof v === "string" ? v : "";
+async function parseApiError(res) {
+  const text = await res.text();
+  let body;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    return new BeautyApiError({ status: res.status, code: "", message: text, details: [] });
   }
-  async analyzeImages(images, options) {
-    return this.client.analyzeImages(images, options);
-  }
-  async analyzeImage(imageBlob, options) {
-    return this.client.analyzeImages(imageBlob, options);
-  }
-};
-var MatchSubClient = class {
-  constructor(client) {
-    this.client = client;
-  }
-  async evaluate(payload) {
-    return this.client.request(`/core/match-engine/evaluate`, {
-      method: "POST",
-      body: JSON.stringify({
-        brand_id: payload.brand_id || this.client.config.brandId,
-        application_id: payload.application_id || this.client.config.applicationId,
-        ...payload
-      })
-    });
-  }
-};
-var ReferenceSubClient = class {
-  constructor(client) {
-    this.client = client;
-  }
-  async getSkinDimensions() {
-    return this.client.request(`/core/reference-service/api/dimensions`, {
-      method: "GET"
-    });
-  }
-};
-var AssessmentsSubClient = class {
-  constructor(client) {
-    this.client = client;
-  }
-  async evaluate(surveyCode, request) {
-    return this.client.evaluateAssessment(surveyCode, request);
-  }
-};
-var BeautyClient = class {
-  constructor(config) {
-    this.config = {
-      ...config,
-      gatewayUrl: config.gatewayUrl.replace(/\/$/, "")
-    };
-    this.form = new FormSubClient(this);
-    this.vision = new VisionSubClient(this);
-    this.match = new MatchSubClient(this);
-    this.reference = new ReferenceSubClient(this);
-    this.assessments = new AssessmentsSubClient(this);
-  }
-  /**
-   * Internal generic request helper with auth headers
-   */
-  async request(path, options = {}) {
-    const url = `${this.config.gatewayUrl}${path.startsWith("/") ? path : "/" + path}`;
-    const headers = {
-      "Content-Type": "application/json",
-      ...options.headers || {}
-    };
-    if (this.config.apiKey) {
-      headers["X-API-Key"] = this.config.apiKey;
-    }
-    if (this.config.token) {
-      headers["Authorization"] = `Bearer ${this.config.token}`;
-    }
-    const response = await fetch(url, {
-      ...options,
-      headers
-    });
-    if (!response.ok) {
-      const errBody = await response.text();
-      throw new Error(`Gateway request to ${path} failed (${response.status}): ${errBody}`);
-    }
-    return response.json();
-  }
-  /**
-   * Evaluate one survey and store the result as a customer assessment.
-   *
-   * core-engine takes the survey code from the path: its handler reads :code
-   * and looks the survey up with it, so a call without one finds nothing. The
-   * gateway's own /api/v1/assessments/evaluate is being retired.
-   */
-  async evaluateAssessment(surveyCode, request) {
-    if (!surveyCode) {
-      throw new Error("evaluateAssessment needs a survey code: core-engine looks the survey up by it.");
-    }
-    const payload = {
-      ...request,
-      brand_id: request.brand_id || this.config.brandId,
-      application_id: request.application_id || this.config.applicationId
-    };
-    const headers = {
-      "Content-Type": "application/json"
-    };
-    if (this.config.apiKey) {
-      headers["X-API-Key"] = this.config.apiKey;
-    }
-    if (this.config.token) {
-      headers["Authorization"] = `Bearer ${this.config.token}`;
-    }
-    const url = `${this.config.gatewayUrl}/core/form-engine/survey/${encodeURIComponent(surveyCode)}/evaluate`;
-    const response = await fetch(url, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(payload)
-    });
-    if (!response.ok) {
-      const errBody = await response.text();
-      throw new Error(`Assessment evaluation failed (${response.status}): ${errBody}`);
-    }
-    return response.json();
-  }
-  /**
-   * Submits unlabelled face captures to Vision Engine in a single call.
-   * Head pose and 8-zone arbitration are executed autonomously on the backend.
-   */
-  async analyzeImages(images, options) {
-    const formData = new FormData();
-    const imageList = Array.isArray(images) ? images : [images];
-    imageList.forEach((blob, idx) => {
-      formData.append("images", blob, `capture_${idx + 1}.jpg`);
-    });
-    if (imageList.length > 0) {
-      formData.append("image", imageList[0], "capture_1.jpg");
-    }
-    formData.append("brandId", this.config.brandId);
-    formData.append("applicationId", this.config.applicationId);
-    if (options?.dimensions && options.dimensions.length > 0) {
-      formData.append("dimensions", options.dimensions.join(","));
-    }
-    if (options?.skinConcerns && options.skinConcerns.length > 0) {
-      formData.append("skinConcerns", options.skinConcerns.join(","));
-    }
-    if (options?.chronologicalAge !== void 0) {
-      formData.append("chronologicalAge", options.chronologicalAge.toString());
-    } else if (options?.currentAge !== void 0) {
-      formData.append("currentAge", options.currentAge.toString());
-    }
-    if (options?.uvIndex !== void 0) {
-      formData.append("uvIndex", options.uvIndex.toString());
-    }
-    if (options?.baselineScore !== void 0) {
-      formData.append("baselineScore", options.baselineScore.toString());
-    }
-    if (options?.regimenEfficacyFactor !== void 0) {
-      formData.append("regimenEfficacyFactor", options.regimenEfficacyFactor.toString());
-    }
-    const headers = {};
-    if (this.config.apiKey) {
-      headers["X-API-Key"] = this.config.apiKey;
-    }
-    if (this.config.token) {
-      headers["Authorization"] = `Bearer ${this.config.token}`;
-    }
-    const url = `${this.config.gatewayUrl}/api/vision/analyze`;
-    let response = await fetch(url, {
-      method: "POST",
-      headers,
-      body: formData
-    });
-    if (!response.ok && response.status === 404) {
-      const fallbackUrl = `${this.config.gatewayUrl}/core/vision-engine/analyze-image`;
-      response = await fetch(fallbackUrl, {
-        method: "POST",
-        headers,
-        body: formData
-      });
-    }
-    if (!response.ok) {
-      const errBody = await response.text();
-      throw new Error(`Vision analysis failed (${response.status}): ${errBody}`);
-    }
-    return response.json();
-  }
-  /**
-   * Submits a single captured face image to Vision Engine.
-   */
-  async analyzeImage(imageBlob, options) {
-    return this.analyzeImages(imageBlob, options);
-  }
-};
+  const b = isEntry(body) ? body : {};
+  const detail = b.detail;
+  const details = Array.isArray(detail) ? detail.filter(isEntry) : isEntry(detail) ? [detail] : [];
+  const first = details[0] ?? {};
+  return new BeautyApiError({
+    status: res.status,
+    code: str(first.code) || str(b.code),
+    message: str(first.reason) || str(first.message) || str(b.error) || str(b.message),
+    details
+  });
+}
 
-export { AssessmentsSubClient, BeautyClient, FormSubClient, MatchSubClient, ReferenceSubClient, VisionSubClient };
+// src/client/operations.ts
+var OPERATIONS = [
+  { id: "colour.analyze", method: "POST", sdkPath: "/colour/analyze", gatewayPath: "/core/colour-engine/analyze", scope: "none", customer: false, query: [] },
+  { id: "colour.tryOn", method: "POST", sdkPath: "/colour/tryon", gatewayPath: "/core/colour-engine/tryon", scope: "none", customer: false, query: [] },
+  { id: "colour.catalog", method: "GET", sdkPath: "/colour/catalog", gatewayPath: "/core/colour-engine/catalog", scope: "none", customer: false, query: [] },
+  { id: "face.analyze", method: "POST", sdkPath: "/face/analyze", gatewayPath: "/core/vision-engine/face-architecture/{brandId}/{applicationId}", scope: "path", customer: false, query: [] },
+  { id: "face.head", method: "POST", sdkPath: "/face/head", gatewayPath: "/core/vision-engine/face-architecture/{brandId}/{applicationId}/head", scope: "path", customer: false, query: [] },
+  { id: "skin.analyze", method: "POST", sdkPath: "/skin/analyze", gatewayPath: "/core/vision-engine/analyze-image", scope: "multipart", customer: false, query: [] },
+  { id: "reference.brands", method: "GET", sdkPath: "/reference/brands", gatewayPath: "/reference/brands", scope: "none", customer: false, query: [] },
+  { id: "reference.products", method: "GET", sdkPath: "/reference/products", gatewayPath: "/reference/products", scope: "none", customer: false, query: ["brandId"] },
+  { id: "forms.evaluate", method: "POST", sdkPath: "/forms/:code/evaluate", gatewayPath: "/core/form-engine/survey/:code/evaluate", scope: "json", customer: false, query: [] },
+  { id: "assessments.history", method: "GET", sdkPath: "/assessments/history", gatewayPath: "/core/assessments/customers/{customerId}", scope: "none", customer: true, query: [] }
+];
+function isSafePathParam(value) {
+  if (value === "." || value === "..") return false;
+  if (value.includes("/") || value.includes("\\")) return false;
+  return true;
+}
+function isSafeScopeValue(value) {
+  if (value === "." || value === "..") return false;
+  return true;
+}
+var fillParams = (path, params) => path.replace(/:([A-Za-z]+)/g, (_, k) => {
+  if (!(k in params)) throw new Error(`Missing path parameter "${k}"`);
+  const value = params[k];
+  if (!isSafePathParam(value)) throw new Error(`Unsafe path parameter: "${k}"`);
+  return encodeURIComponent(value);
+});
+function sdkUrl(op, params) {
+  return fillParams(op.sdkPath, params);
+}
+function gatewayUrl(op, params, scope) {
+  const withScope = op.gatewayPath.replace(/\{(brandId|applicationId|customerId)\}/g, (_, k) => {
+    const v = scope[k];
+    if (!v) throw new Error(`Missing scope "${k}" for ${op.id}`);
+    if (!isSafeScopeValue(v)) throw new Error(`Unsafe scope "${k}": "${v}"`);
+    return encodeURIComponent(v);
+  });
+  return fillParams(withScope, params);
+}
+function injectScope(op, body, scope) {
+  if (op.scope === "json") {
+    if (body instanceof FormData) {
+      throw new Error(`${op.id} requires JSON body, got FormData`);
+    }
+    return { ...body, brand_id: scope.brandId, application_id: scope.applicationId };
+  }
+  if (op.scope === "multipart") {
+    if (!(body instanceof FormData)) {
+      throw new Error(`${op.id} requires FormData body`);
+    }
+    const newFormData = new FormData();
+    for (const [key, value] of body) {
+      newFormData.set(key, value);
+    }
+    newFormData.set("brandId", scope.brandId);
+    newFormData.set("applicationId", scope.applicationId);
+    return newFormData;
+  }
+  return body;
+}
+
+// src/client/reference.ts
+function referenceMethods(client) {
+  return {
+    brands: async (signal) => {
+      const res = await client.json("reference.brands", { signal });
+      if (!("data" in res) || res.data === void 0) {
+        throw new Error("reference.brands: response has no data list");
+      }
+      return res.data;
+    },
+    products: async (signal) => {
+      const res = await client.json("reference.products", { signal });
+      if (!("data" in res) || res.data === void 0) {
+        throw new Error("reference.products: response has no data list");
+      }
+      return res.data;
+    }
+  };
+}
+
+// src/client/transport.ts
+function createBeautyClient(opts) {
+  const direct = opts.apiKey !== void 0;
+  if (direct && typeof window !== "undefined") {
+    throw new Error("createBeautyClient: an apiKey may only be used on the server. In the browser, pass the proxy route as baseUrl.");
+  }
+  if (direct && (!opts.apiKey || !opts.apiKey.trim())) {
+    throw new Error("createBeautyClient: apiKey is empty. Set it from server env, or omit it to use the proxy.");
+  }
+  if (direct && (!opts.brandId || !opts.brandId.trim() || !opts.applicationId || !opts.applicationId.trim())) {
+    throw new Error("createBeautyClient: brandId and applicationId are required with an apiKey.");
+  }
+  const base = opts.baseUrl.replace(/\/+$/, "");
+  const doFetch = opts.fetch ?? fetch;
+  const scope = { brandId: opts.brandId ?? "", applicationId: opts.applicationId ?? "", customerId: opts.customerId };
+  const call = async (id, init = {}) => {
+    const op = OPERATIONS.find((o) => o.id === id);
+    if (!op) throw new Error(`Unknown operation ${id}`);
+    const params = init.params ?? {};
+    const path = direct ? gatewayUrl(op, params, scope) : sdkUrl(op, params);
+    const query = direct ? Object.fromEntries(Object.entries(init.query ?? {}).filter(([k]) => op.query.includes(k))) : init.query ?? {};
+    const qs = Object.keys(query).length ? `?${new URLSearchParams(query)}` : "";
+    const body = direct ? injectScope(op, init.body, scope) : init.body;
+    const headers = new Headers();
+    if (direct) headers.set("x-api-key", opts.apiKey);
+    let payload;
+    if (body instanceof FormData) payload = body;
+    else if (body !== void 0) {
+      headers.set("content-type", "application/json");
+      payload = JSON.stringify(body);
+    }
+    return doFetch(`${base}${path}${qs}`, { method: op.method, headers, body: payload, signal: init.signal });
+  };
+  const checked = async (id, init) => {
+    const res = await call(id, init);
+    if (!res.ok) throw await parseApiError(res);
+    return res;
+  };
+  const client = {
+    call,
+    json: async (id, init) => await (await checked(id, init)).json(),
+    binary: async (id, init) => (await checked(id, init)).arrayBuffer(),
+    reference: void 0
+  };
+  client.reference = referenceMethods(client);
+  return client;
+}
+
+export { BeautyApiError, OPERATIONS, createBeautyClient, parseApiError };
 //# sourceMappingURL=index.mjs.map
 //# sourceMappingURL=index.mjs.map

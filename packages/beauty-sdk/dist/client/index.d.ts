@@ -1,79 +1,66 @@
-import { BeautyClientConfig, VisionAnalysisOptions, VisionAnalysisResponse } from '../types/index.js';
-import { A as AssessmentEvaluateRequest, a as AssessmentEvaluateResponse } from '../assessment-types-atxVAW_S.js';
+import { O as OperationId } from '../operations-Wgq0we7R.js';
+export { a as OPERATIONS, b as Operation, S as ScopePlacement } from '../operations-Wgq0we7R.js';
 
-declare class FormSubClient {
-    private client;
-    constructor(client: BeautyClient);
-    evaluate(code: string, payload: {
-        answers: any;
-        customer_conditions?: Record<string, boolean>;
-        brand_id?: string;
-        application_id?: string;
-    }): Promise<any>;
-    getQuestionnaire(code: string): Promise<any>;
+interface ReferenceBrand {
+    id: string;
+    code: string;
+    name: string;
 }
-declare class VisionSubClient {
-    private client;
-    constructor(client: BeautyClient);
-    analyzeImages(images: Blob | Blob[], options?: VisionAnalysisOptions): Promise<VisionAnalysisResponse>;
-    analyzeImage(imageBlob: Blob, options?: VisionAnalysisOptions): Promise<VisionAnalysisResponse>;
+interface ReferenceProduct {
+    id: string;
+    brandId: string | null;
+    categoryId: string | null;
+    name: string;
+    imageUrl: string;
+    isActive: boolean;
 }
-declare class MatchSubClient {
-    private client;
-    constructor(client: BeautyClient);
-    evaluate(payload: {
-        dimension_scores: Record<string, number>;
-        customer_conditions?: Record<string, boolean>;
-        preferences?: any;
-        brand_id?: string;
-        application_id?: string;
-    }): Promise<any>;
-}
-declare class ReferenceSubClient {
-    private client;
-    constructor(client: BeautyClient);
-    getSkinDimensions(): Promise<any>;
-}
-declare class AssessmentsSubClient {
-    private client;
-    constructor(client: BeautyClient);
-    evaluate(surveyCode: string, request: Omit<AssessmentEvaluateRequest, 'brand_id' | 'application_id'> & {
-        brand_id?: string;
-        application_id?: string;
-    }): Promise<AssessmentEvaluateResponse>;
-}
-declare class BeautyClient {
-    config: BeautyClientConfig;
-    form: FormSubClient;
-    vision: VisionSubClient;
-    match: MatchSubClient;
-    reference: ReferenceSubClient;
-    assessments: AssessmentsSubClient;
-    constructor(config: BeautyClientConfig);
-    /**
-     * Internal generic request helper with auth headers
-     */
-    request<T = any>(path: string, options?: RequestInit): Promise<T>;
-    /**
-     * Evaluate one survey and store the result as a customer assessment.
-     *
-     * core-engine takes the survey code from the path: its handler reads :code
-     * and looks the survey up with it, so a call without one finds nothing. The
-     * gateway's own /api/v1/assessments/evaluate is being retired.
-     */
-    evaluateAssessment(surveyCode: string, request: Omit<AssessmentEvaluateRequest, 'brand_id' | 'application_id'> & {
-        brand_id?: string;
-        application_id?: string;
-    }): Promise<AssessmentEvaluateResponse>;
-    /**
-     * Submits unlabelled face captures to Vision Engine in a single call.
-     * Head pose and 8-zone arbitration are executed autonomously on the backend.
-     */
-    analyzeImages(images: Blob | Blob[], options?: VisionAnalysisOptions): Promise<VisionAnalysisResponse>;
-    /**
-     * Submits a single captured face image to Vision Engine.
-     */
-    analyzeImage(imageBlob: Blob, options?: VisionAnalysisOptions): Promise<VisionAnalysisResponse>;
+interface ReferenceMethods {
+    brands(signal?: AbortSignal): Promise<ReferenceBrand[]>;
+    products(signal?: AbortSignal): Promise<ReferenceProduct[]>;
 }
 
-export { AssessmentsSubClient, BeautyClient, FormSubClient, MatchSubClient, ReferenceSubClient, VisionSubClient };
+interface BeautyClientOptions {
+    /** Browser: the proxy route (e.g. "/api/beauty"). Server: the gateway url. */
+    baseUrl: string;
+    /** Server only. With a key the client talks to the gateway directly. */
+    apiKey?: string;
+    brandId?: string;
+    applicationId?: string;
+    customerId?: string;
+    fetch?: typeof fetch;
+}
+interface CallInit {
+    params?: Record<string, string>;
+    query?: Record<string, string>;
+    body?: FormData | Record<string, unknown>;
+    signal?: AbortSignal;
+}
+interface BeautyClient {
+    call(id: OperationId, init?: CallInit): Promise<Response>;
+    json<T>(id: OperationId, init?: CallInit): Promise<T>;
+    binary(id: OperationId, init?: CallInit): Promise<ArrayBuffer>;
+    reference: ReferenceMethods;
+}
+declare function createBeautyClient(opts: BeautyClientOptions): BeautyClient;
+
+/** Every failed SDK call, whatever the engine. Nothing is invented: a body
+ *  that is not JSON stays the message, and no code is claimed for it. */
+declare class BeautyApiError extends Error {
+    readonly status: number;
+    readonly code: string;
+    readonly details: Record<string, unknown>[];
+    constructor(init: {
+        status: number;
+        code: string;
+        message: string;
+        details: Record<string, unknown>[];
+    });
+}
+/**
+ * Core answers errors in two shapes: `{ detail: {...} | [...] }` (vision,
+ * face architecture, head) and `{ code, error | message }` (colour). Both
+ * become one BeautyApiError; every detail entry is kept.
+ */
+declare function parseApiError(res: Response): Promise<BeautyApiError>;
+
+export { BeautyApiError, type BeautyClient, type BeautyClientOptions, type CallInit, OperationId, type ReferenceBrand, type ReferenceProduct, createBeautyClient, parseApiError };

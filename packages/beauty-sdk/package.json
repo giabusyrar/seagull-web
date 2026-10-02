@@ -1,12 +1,13 @@
 {
   "name": "@gateway-experience/beauty-sdk",
   "version": "0.2.0",
-  "private": true,
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "CHANGELOG.md"
   ],
   "exports": {
     ".": {
@@ -14,6 +15,27 @@
       "import": "./dist/index.mjs",
       "require": "./dist/index.js"
     },
+    "./client": {
+      "types": "./dist/client/index.d.ts",
+      "import": "./dist/client/index.mjs",
+      "require": "./dist/client/index.js"
+    },
+    "./server": {
+      "types": "./dist/server/index.d.ts",
+      "import": "./dist/server/index.mjs",
+      "require": "./dist/server/index.js"
+    },
+    "./react": {
+      "types": "./dist/react/index.d.ts",
+      "import": "./dist/react/index.mjs",
+      "require": "./dist/react/index.js"
+    },
+    "./photo": {
+      "types": "./dist/photo/index.d.ts",
+      "import": "./dist/photo/index.mjs",
+      "require": "./dist/photo/index.js"
+    },
+    "./styles.css": "./dist/styles.css",
     "./core": {
       "types": "./dist/core/index.d.ts",
       "import": "./dist/core/index.mjs",
@@ -33,11 +55,6 @@
       "types": "./dist/vision/index.d.ts",
       "import": "./dist/vision/index.mjs",
       "require": "./dist/vision/index.js"
-    },
-    "./client": {
-      "types": "./dist/client/index.d.ts",
-      "import": "./dist/client/index.mjs",
-      "require": "./dist/client/index.js"
     },
     "./types": {
       "types": "./dist/types/index.d.ts",
@@ -74,6 +91,18 @@
   "peerDependencies": {
     "next": "^16.0.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "three": ">=0.180.0"
+  },
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "peerDependenciesMeta": {
+    "three": {
+      "optional": true
+    },
+    "next": {
+      "optional": true
+    }
   }
 }
