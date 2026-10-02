@@ -54,7 +54,9 @@
   "dependencies": {
     "@mediapipe/camera_utils": "^0.3.1675466862",
     "@mediapipe/face_mesh": "^0.4.1633559619",
-    "lucide-react": "^1.27.0"
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.27.0",
+    "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
     "@tailwindcss/cli": "^4",
