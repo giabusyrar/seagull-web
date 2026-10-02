@@ -38,17 +38,8 @@ __export(photo_exports, {
 module.exports = __toCommonJS(photo_exports);
 
 // src/photo/PhotoSet.tsx
-var import_react2 = __toESM(require("react"));
-
-// src/react/BeautyProvider.tsx
-var import_react = require("react");
-var import_jsx_runtime = require("react/jsx-runtime");
-var Ctx = (0, import_react.createContext)(null);
-function useBeauty() {
-  const ctx = (0, import_react.useContext)(Ctx);
-  if (!ctx) throw new Error("useBeauty must be used inside <BeautyProvider>.");
-  return ctx;
-}
+var import_react = __toESM(require("react"));
+var import_react2 = require("@gateway-experience/beauty-sdk/react");
 
 // src/photo/cn.ts
 var import_clsx = require("clsx");
@@ -59,21 +50,21 @@ function cn(...inputs) {
 }
 
 // src/photo/PhotoSet.tsx
-var import_jsx_runtime2 = require("react/jsx-runtime");
+var import_jsx_runtime = require("react/jsx-runtime");
 var LABEL_KEY = { front: "photo.front", left: "photo.left", right: "photo.right" };
 function PhotoSet({ photos, onChange, views = ["left", "right"], disabled, className, classNames = {}, renderSlot }) {
-  const { t } = useBeauty();
+  const { t } = (0, import_react2.useBeauty)();
   const sides = views.some((v) => v !== "front");
-  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { "data-bsdk-part": "root", className: cn("bsdk:space-y-1.5 bsdk:font-bsdk", className, classNames.root), children: [
-    sides && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { "data-bsdk-part": "header", className: cn("bsdk:flex bsdk:items-baseline bsdk:justify-between bsdk:gap-2", classNames.header), children: [
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { "data-bsdk-part": "title", className: cn("bsdk:text-[10px] bsdk:font-bold bsdk:uppercase bsdk:tracking-wider bsdk:text-muted-foreground", classNames.title), children: t("photo.sides.title") }),
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { "data-bsdk-part": "why", className: cn("bsdk:text-[11px] bsdk:text-muted-foreground", classNames.why), children: t("photo.sides.why") })
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { "data-bsdk-part": "root", className: cn("bsdk:space-y-1.5 bsdk:font-bsdk", className, classNames.root), children: [
+    sides && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { "data-bsdk-part": "header", className: cn("bsdk:flex bsdk:items-baseline bsdk:justify-between bsdk:gap-2", classNames.header), children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { "data-bsdk-part": "title", className: cn("bsdk:text-[10px] bsdk:font-bold bsdk:uppercase bsdk:tracking-wider bsdk:text-muted-foreground", classNames.title), children: t("photo.sides.title") }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { "data-bsdk-part": "why", className: cn("bsdk:text-[11px] bsdk:text-muted-foreground", classNames.why), children: t("photo.sides.why") })
     ] }),
-    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { "data-bsdk-part": "grid", className: cn("bsdk:grid bsdk:grid-cols-2 bsdk:gap-2", classNames.grid), children: views.map((view) => {
-      const slot = /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Slot, { view, file: photos[view], onChange: (f) => onChange(view, f), disabled, classNames }, view);
-      return renderSlot ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_react2.default.Fragment, { children: renderSlot({ view, file: photos[view] }, slot) }, view) : slot;
+    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { "data-bsdk-part": "grid", className: cn("bsdk:grid bsdk:grid-cols-2 bsdk:gap-2", classNames.grid), children: views.map((view) => {
+      const slot = /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Slot, { view, file: photos[view], onChange: (f) => onChange(view, f), disabled, classNames }, view);
+      return renderSlot ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_react.default.Fragment, { children: renderSlot({ view, file: photos[view] }, slot) }, view) : slot;
     }) }),
-    sides && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("p", { "data-bsdk-part": "hint", className: cn("bsdk:text-[11px] bsdk:text-muted-foreground", classNames.hint), children: t("photo.sides.guide") })
+    sides && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { "data-bsdk-part": "hint", className: cn("bsdk:text-[11px] bsdk:text-muted-foreground", classNames.hint), children: t("photo.sides.guide") })
   ] });
 }
 function Slot({
@@ -83,10 +74,10 @@ function Slot({
   disabled,
   classNames
 }) {
-  const { t } = useBeauty();
-  const input = (0, import_react2.useRef)(null);
-  const [url, setUrl] = (0, import_react2.useState)(null);
-  (0, import_react2.useEffect)(() => {
+  const { t } = (0, import_react2.useBeauty)();
+  const input = (0, import_react.useRef)(null);
+  const [url, setUrl] = (0, import_react.useState)(null);
+  (0, import_react.useEffect)(() => {
     if (!file) {
       setUrl(null);
       return;
@@ -96,8 +87,8 @@ function Slot({
     return () => URL.revokeObjectURL(created);
   }, [file]);
   const label = t(LABEL_KEY[view]);
-  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { "data-bsdk-part": "item", className: cn("bsdk:relative", classNames.item), children: [
-    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { "data-bsdk-part": "item", className: cn("bsdk:relative", classNames.item), children: [
+    /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
       "input",
       {
         ref: input,
@@ -110,7 +101,7 @@ function Slot({
         }
       }
     ),
-    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+    /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
       "button",
       {
         type: "button",
@@ -126,17 +117,17 @@ function Slot({
         ),
         children: url ? (
           // eslint-disable-next-line @next/next/no-img-element
-          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("img", { "data-bsdk-part": "image", src: url, alt: label, className: cn("bsdk:h-full bsdk:w-full bsdk:object-cover", classNames.image) })
-        ) : /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { "data-bsdk-part": "label", className: cn("bsdk:text-xs bsdk:font-semibold bsdk:text-foreground", classNames.label), children: label }),
-          view !== "front" && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { "data-bsdk-part": "hint", className: cn("bsdk:text-[11px] bsdk:text-muted-foreground", classNames.hint), children: t(`photo.${view}.hint`) }),
-          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { "data-bsdk-part": "hint", className: cn("bsdk:text-[11px] bsdk:text-muted-foreground", classNames.hint), children: t("photo.optional") })
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", { "data-bsdk-part": "image", src: url, alt: label, className: cn("bsdk:h-full bsdk:w-full bsdk:object-cover", classNames.image) })
+        ) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { "data-bsdk-part": "label", className: cn("bsdk:text-xs bsdk:font-semibold bsdk:text-foreground", classNames.label), children: label }),
+          view !== "front" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { "data-bsdk-part": "hint", className: cn("bsdk:text-[11px] bsdk:text-muted-foreground", classNames.hint), children: t(`photo.${view}.hint`) }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { "data-bsdk-part": "hint", className: cn("bsdk:text-[11px] bsdk:text-muted-foreground", classNames.hint), children: t("photo.optional") })
         ] })
       }
     ),
-    file && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { "data-bsdk-part": "badge", className: cn("bsdk:pointer-events-none bsdk:absolute bsdk:left-1.5 bsdk:top-1.5 bsdk:rounded-full bsdk:bg-primary bsdk:text-primary-foreground bsdk:px-2 bsdk:py-0.5 bsdk:text-[10px] bsdk:font-bold", classNames.badge), children: label }),
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+    file && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { "data-bsdk-part": "badge", className: cn("bsdk:pointer-events-none bsdk:absolute bsdk:left-1.5 bsdk:top-1.5 bsdk:rounded-full bsdk:bg-primary bsdk:text-primary-foreground bsdk:px-2 bsdk:py-0.5 bsdk:text-[10px] bsdk:font-bold", classNames.badge), children: label }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
         "button",
         {
           type: "button",

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useMemo } from 'react';
-import { createBeautyClient, type BeautyClient } from '../client/transport';
+import { createBeautyClient, type BeautyClient } from '@gateway-experience/beauty-sdk/client';
 import { defaultMessages, format, type Locale, type Messages } from './messages';
 
 interface BeautyContext {

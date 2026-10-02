@@ -11,7 +11,14 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "baseUrl": ".",
+    "paths": {
+      "@gateway-experience/beauty-sdk/client": ["src/client/index.ts"],
+      "@gateway-experience/beauty-sdk/server": ["src/server/index.ts"],
+      "@gateway-experience/beauty-sdk/react": ["src/react/index.ts"],
+      "@gateway-experience/beauty-sdk/photo": ["src/photo/index.ts"]
+    }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"],
   "exclude": ["node_modules", "dist"]

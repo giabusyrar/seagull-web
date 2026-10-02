@@ -2,17 +2,8 @@
 "use client";
 
 // src/photo/PhotoSet.tsx
-import React2, { useEffect, useRef, useState } from "react";
-
-// src/react/BeautyProvider.tsx
-import { createContext, useContext, useMemo } from "react";
-import { jsx } from "react/jsx-runtime";
-var Ctx = createContext(null);
-function useBeauty() {
-  const ctx = useContext(Ctx);
-  if (!ctx) throw new Error("useBeauty must be used inside <BeautyProvider>.");
-  return ctx;
-}
+import React, { useEffect, useRef, useState } from "react";
+import { useBeauty } from "@gateway-experience/beauty-sdk/react";
 
 // src/photo/cn.ts
 import { clsx } from "clsx";
@@ -23,21 +14,21 @@ function cn(...inputs) {
 }
 
 // src/photo/PhotoSet.tsx
-import { Fragment, jsx as jsx2, jsxs } from "react/jsx-runtime";
+import { Fragment, jsx, jsxs } from "react/jsx-runtime";
 var LABEL_KEY = { front: "photo.front", left: "photo.left", right: "photo.right" };
 function PhotoSet({ photos, onChange, views = ["left", "right"], disabled, className, classNames = {}, renderSlot }) {
   const { t } = useBeauty();
   const sides = views.some((v) => v !== "front");
   return /* @__PURE__ */ jsxs("div", { "data-bsdk-part": "root", className: cn("bsdk:space-y-1.5 bsdk:font-bsdk", className, classNames.root), children: [
     sides && /* @__PURE__ */ jsxs("div", { "data-bsdk-part": "header", className: cn("bsdk:flex bsdk:items-baseline bsdk:justify-between bsdk:gap-2", classNames.header), children: [
-      /* @__PURE__ */ jsx2("span", { "data-bsdk-part": "title", className: cn("bsdk:text-[10px] bsdk:font-bold bsdk:uppercase bsdk:tracking-wider bsdk:text-muted-foreground", classNames.title), children: t("photo.sides.title") }),
-      /* @__PURE__ */ jsx2("span", { "data-bsdk-part": "why", className: cn("bsdk:text-[11px] bsdk:text-muted-foreground", classNames.why), children: t("photo.sides.why") })
+      /* @__PURE__ */ jsx("span", { "data-bsdk-part": "title", className: cn("bsdk:text-[10px] bsdk:font-bold bsdk:uppercase bsdk:tracking-wider bsdk:text-muted-foreground", classNames.title), children: t("photo.sides.title") }),
+      /* @__PURE__ */ jsx("span", { "data-bsdk-part": "why", className: cn("bsdk:text-[11px] bsdk:text-muted-foreground", classNames.why), children: t("photo.sides.why") })
     ] }),
-    /* @__PURE__ */ jsx2("div", { "data-bsdk-part": "grid", className: cn("bsdk:grid bsdk:grid-cols-2 bsdk:gap-2", classNames.grid), children: views.map((view) => {
-      const slot = /* @__PURE__ */ jsx2(Slot, { view, file: photos[view], onChange: (f) => onChange(view, f), disabled, classNames }, view);
-      return renderSlot ? /* @__PURE__ */ jsx2(React2.Fragment, { children: renderSlot({ view, file: photos[view] }, slot) }, view) : slot;
+    /* @__PURE__ */ jsx("div", { "data-bsdk-part": "grid", className: cn("bsdk:grid bsdk:grid-cols-2 bsdk:gap-2", classNames.grid), children: views.map((view) => {
+      const slot = /* @__PURE__ */ jsx(Slot, { view, file: photos[view], onChange: (f) => onChange(view, f), disabled, classNames }, view);
+      return renderSlot ? /* @__PURE__ */ jsx(React.Fragment, { children: renderSlot({ view, file: photos[view] }, slot) }, view) : slot;
     }) }),
-    sides && /* @__PURE__ */ jsx2("p", { "data-bsdk-part": "hint", className: cn("bsdk:text-[11px] bsdk:text-muted-foreground", classNames.hint), children: t("photo.sides.guide") })
+    sides && /* @__PURE__ */ jsx("p", { "data-bsdk-part": "hint", className: cn("bsdk:text-[11px] bsdk:text-muted-foreground", classNames.hint), children: t("photo.sides.guide") })
   ] });
 }
 function Slot({
@@ -61,7 +52,7 @@ function Slot({
   }, [file]);
   const label = t(LABEL_KEY[view]);
   return /* @__PURE__ */ jsxs("div", { "data-bsdk-part": "item", className: cn("bsdk:relative", classNames.item), children: [
-    /* @__PURE__ */ jsx2(
+    /* @__PURE__ */ jsx(
       "input",
       {
         ref: input,
@@ -74,7 +65,7 @@ function Slot({
         }
       }
     ),
-    /* @__PURE__ */ jsx2(
+    /* @__PURE__ */ jsx(
       "button",
       {
         type: "button",
@@ -90,17 +81,17 @@ function Slot({
         ),
         children: url ? (
           // eslint-disable-next-line @next/next/no-img-element
-          /* @__PURE__ */ jsx2("img", { "data-bsdk-part": "image", src: url, alt: label, className: cn("bsdk:h-full bsdk:w-full bsdk:object-cover", classNames.image) })
+          /* @__PURE__ */ jsx("img", { "data-bsdk-part": "image", src: url, alt: label, className: cn("bsdk:h-full bsdk:w-full bsdk:object-cover", classNames.image) })
         ) : /* @__PURE__ */ jsxs(Fragment, { children: [
-          /* @__PURE__ */ jsx2("span", { "data-bsdk-part": "label", className: cn("bsdk:text-xs bsdk:font-semibold bsdk:text-foreground", classNames.label), children: label }),
-          view !== "front" && /* @__PURE__ */ jsx2("span", { "data-bsdk-part": "hint", className: cn("bsdk:text-[11px] bsdk:text-muted-foreground", classNames.hint), children: t(`photo.${view}.hint`) }),
-          /* @__PURE__ */ jsx2("span", { "data-bsdk-part": "hint", className: cn("bsdk:text-[11px] bsdk:text-muted-foreground", classNames.hint), children: t("photo.optional") })
+          /* @__PURE__ */ jsx("span", { "data-bsdk-part": "label", className: cn("bsdk:text-xs bsdk:font-semibold bsdk:text-foreground", classNames.label), children: label }),
+          view !== "front" && /* @__PURE__ */ jsx("span", { "data-bsdk-part": "hint", className: cn("bsdk:text-[11px] bsdk:text-muted-foreground", classNames.hint), children: t(`photo.${view}.hint`) }),
+          /* @__PURE__ */ jsx("span", { "data-bsdk-part": "hint", className: cn("bsdk:text-[11px] bsdk:text-muted-foreground", classNames.hint), children: t("photo.optional") })
         ] })
       }
     ),
     file && /* @__PURE__ */ jsxs(Fragment, { children: [
-      /* @__PURE__ */ jsx2("span", { "data-bsdk-part": "badge", className: cn("bsdk:pointer-events-none bsdk:absolute bsdk:left-1.5 bsdk:top-1.5 bsdk:rounded-full bsdk:bg-primary bsdk:text-primary-foreground bsdk:px-2 bsdk:py-0.5 bsdk:text-[10px] bsdk:font-bold", classNames.badge), children: label }),
-      /* @__PURE__ */ jsx2(
+      /* @__PURE__ */ jsx("span", { "data-bsdk-part": "badge", className: cn("bsdk:pointer-events-none bsdk:absolute bsdk:left-1.5 bsdk:top-1.5 bsdk:rounded-full bsdk:bg-primary bsdk:text-primary-foreground bsdk:px-2 bsdk:py-0.5 bsdk:text-[10px] bsdk:font-bold", classNames.badge), children: label }),
+      /* @__PURE__ */ jsx(
         "button",
         {
           type: "button",

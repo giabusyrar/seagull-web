@@ -6,7 +6,9 @@ const shared = {
   splitting: false,
   sourcemap: true,
   treeshake: true,
-  external: ['react', 'react-dom', 'next', 'three'],
+  // Entries reference each other only via package subpaths, kept external, so each
+  // module (React context, BeautyApiError) exists exactly once across entries.
+  external: ['react', 'react-dom', 'next', 'three', /^@gateway-experience\/beauty-sdk\//],
 };
 
 export default defineConfig([

@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { useBeauty } from '../react/BeautyProvider';
-import type { PhotoView, Photos } from '../react/usePhotoSet';
+import { useBeauty, type PhotoView, type Photos } from '@gateway-experience/beauty-sdk/react';
 import { cn } from './cn';
 
 export type PhotoSetPart = 'root' | 'header' | 'grid' | 'item' | 'title' | 'why' | 'label' | 'slot' | 'image' | 'badge' | 'remove' | 'hint';

@@ -1,38 +1,5 @@
 import React from 'react';
-export { b as PhotoSetState, a as PhotoView, P as Photos, p as photosKey, u as usePhotoSet } from '../usePhotoSet-Bg507P58.mjs';
-
-type OperationId = 'colour.analyze' | 'colour.tryOn' | 'colour.catalog' | 'face.analyze' | 'face.head' | 'skin.analyze' | 'reference.brands' | 'reference.products' | 'forms.evaluate' | 'assessments.history';
-
-interface ReferenceBrand {
-    id: string;
-    code: string;
-    name: string;
-}
-interface ReferenceProduct {
-    id: string;
-    brandId: string | null;
-    categoryId: string | null;
-    name: string;
-    imageUrl: string;
-    isActive: boolean;
-}
-interface ReferenceMethods {
-    brands(signal?: AbortSignal): Promise<ReferenceBrand[]>;
-    products(signal?: AbortSignal): Promise<ReferenceProduct[]>;
-}
-
-interface CallInit {
-    params?: Record<string, string>;
-    query?: Record<string, string>;
-    body?: FormData | Record<string, unknown>;
-    signal?: AbortSignal;
-}
-interface BeautyClient {
-    call(id: OperationId, init?: CallInit): Promise<Response>;
-    json<T>(id: OperationId, init?: CallInit): Promise<T>;
-    binary(id: OperationId, init?: CallInit): Promise<ArrayBuffer>;
-    reference: ReferenceMethods;
-}
+import { BeautyClient } from '@gateway-experience/beauty-sdk/client';
 
 type Locale = 'id' | 'en';
 type Messages = Record<string, string>;
@@ -72,4 +39,18 @@ interface OperationState<T> {
  */
 declare function useOperation<T>(fn: (signal: AbortSignal) => Promise<T>, inputKey: string): OperationState<T>;
 
-export { BeautyProvider, type BeautyProviderProps, type Locale, type Messages, type OperationState, type OperationStatus, defaultMessages, format, useBeauty, useOperation };
+type PhotoView = 'front' | 'left' | 'right';
+type Photos = Partial<Record<PhotoView, File>>;
+interface PhotoSetState {
+    photos: Photos;
+    set(view: PhotoView, file: File | null): void;
+    clear(): void;
+    /** Identity of the set, for tying results to it (useOperation's inputKey). */
+    key: string;
+}
+declare function photosKey(photos: Photos): string;
+/** The photos one analysis runs on: a front photo and optional left/right
+ *  three-quarter views. Kept in memory only. */
+declare function usePhotoSet(initial?: Photos): PhotoSetState;
+
+export { BeautyProvider, type BeautyProviderProps, type Locale, type Messages, type OperationState, type OperationStatus, type PhotoSetState, type PhotoView, type Photos, defaultMessages, format, photosKey, useBeauty, useOperation, usePhotoSet };

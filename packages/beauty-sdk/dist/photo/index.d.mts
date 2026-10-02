@@ -1,5 +1,5 @@
 import React from 'react';
-import { P as Photos, a as PhotoView } from '../usePhotoSet-Bg507P58.mjs';
+import { Photos, PhotoView } from '@gateway-experience/beauty-sdk/react';
 import { ClassValue } from 'clsx';
 
 type PhotoSetPart = 'root' | 'header' | 'grid' | 'item' | 'title' | 'why' | 'label' | 'slot' | 'image' | 'badge' | 'remove' | 'hint';
