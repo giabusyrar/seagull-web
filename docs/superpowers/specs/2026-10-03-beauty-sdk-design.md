@@ -55,6 +55,7 @@ SDK entry points:
 | `/client` | Typed client per engine, all response types, pure helpers | yes |
 | `/server` | `createBeautyProxy()` | server only |
 | `/react` | `BeautyProvider`, message dictionary, all headless hooks | client (`"use client"`) |
+| `/photo` | Photo components shared by every experience (photo set with front and ¾ slots; camera capture with quality checks from phase 2) | client |
 | `/colour` | Colour studio and try-on components | client |
 | `/face` | Face architecture components (measurements, 2D overlay, panel) | client |
 | `/skin` | Skin analysis components (visualizer, zones, dimensions, summary) | client |
