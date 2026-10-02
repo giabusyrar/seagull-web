@@ -70,3 +70,7 @@ next-env.d.ts
 examples/next-brand/.sdk/
 examples/next-brand/.next/
 examples/next-brand/node_modules/
+
+# CI writes the registry token into these at publish time; never commit them.
+/.npmrc
+packages/*/.npmrc
