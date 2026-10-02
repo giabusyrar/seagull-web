@@ -1,0 +1,30 @@
+# Publishes @gateway-experience/beauty-sdk to this project's GitLab npm
+# registry when a tag beauty-sdk-v<version> is pushed. The registry url and
+# token come from GitLab's own CI variables; nothing project-specific is in
+# this file.
+stages: [test, publish]
+
+default:
+  image: node:24
+
+test-beauty-sdk:
+  stage: test
+  script:
+    - npm install
+    - npm test -w @gateway-experience/beauty-sdk
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^beauty-sdk-v/'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+
+publish-beauty-sdk:
+  stage: publish
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^beauty-sdk-v/'
+  script:
+    - npm install
+    - npm run build -w @gateway-experience/beauty-sdk
+    - test "beauty-sdk-v$(node -p "require('./packages/beauty-sdk/package.json').version")" = "$CI_COMMIT_TAG"
+    - echo "@gateway-experience:registry=${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/npm/" > packages/beauty-sdk/.npmrc
+    # CI_API_V4_URL is https://<host>/api/v4; npm's auth key is the same url without the scheme.
+    - echo "${CI_API_V4_URL#https:}/projects/${CI_PROJECT_ID}/packages/npm/:_authToken=${CI_JOB_TOKEN}" >> packages/beauty-sdk/.npmrc
+    - cd packages/beauty-sdk && npm publish

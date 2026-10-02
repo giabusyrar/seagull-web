@@ -1,0 +1,4 @@
+# Copy to your app's .npmrc. Ask the platform team for the project id and a
+# read-only deploy token; keep the token in an environment variable.
+@gateway-experience:registry=https://gitlab.com/api/v4/projects/<PROJECT_ID>/packages/npm/
+//gitlab.com/api/v4/projects/<PROJECT_ID>/packages/npm/:_authToken=${GITLAB_NPM_TOKEN}

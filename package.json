@@ -12,9 +12,12 @@
     "build:web": "npm run build --workspace=apps/web",
     "build": "npm run build:packages && npm run build:web",
     "test": "npm run build",
-    "lint": "eslint"
+    "lint": "eslint",
+    "changeset": "changeset",
+    "version-packages": "changeset version"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.27.0",
     "typescript": "^5.0.0"
   }
 }
