@@ -33,19 +33,21 @@ export interface Operation {
   scope: ScopePlacement;
   /** Needs a signed-in customer (authorize must return a customerId). */
   customer: boolean;
+  /** Query keys that may reach the gateway; everything else is dropped. */
+  query: readonly string[];
 }
 
 export const OPERATIONS: readonly Operation[] = [
-  { id: 'colour.analyze', method: 'POST', sdkPath: '/colour/analyze', gatewayPath: '/core/colour-engine/analyze', scope: 'none', customer: false },
-  { id: 'colour.tryOn', method: 'POST', sdkPath: '/colour/tryon', gatewayPath: '/core/colour-engine/tryon', scope: 'none', customer: false },
-  { id: 'colour.catalog', method: 'GET', sdkPath: '/colour/catalog', gatewayPath: '/core/colour-engine/catalog', scope: 'none', customer: false },
-  { id: 'face.analyze', method: 'POST', sdkPath: '/face/analyze', gatewayPath: '/core/vision-engine/face-architecture/{brandId}/{applicationId}', scope: 'path', customer: false },
-  { id: 'face.head', method: 'POST', sdkPath: '/face/head', gatewayPath: '/core/vision-engine/face-architecture/{brandId}/{applicationId}/head', scope: 'path', customer: false },
-  { id: 'skin.analyze', method: 'POST', sdkPath: '/skin/analyze', gatewayPath: '/core/vision-engine/analyze-image', scope: 'multipart', customer: false },
-  { id: 'reference.brands', method: 'GET', sdkPath: '/reference/brands', gatewayPath: '/reference/brands', scope: 'none', customer: false },
-  { id: 'reference.products', method: 'GET', sdkPath: '/reference/products', gatewayPath: '/reference/products', scope: 'none', customer: false },
-  { id: 'forms.evaluate', method: 'POST', sdkPath: '/forms/:code/evaluate', gatewayPath: '/core/form-engine/survey/:code/evaluate', scope: 'json', customer: false },
-  { id: 'assessments.history', method: 'GET', sdkPath: '/assessments/history', gatewayPath: '/core/assessments/customers/{customerId}', scope: 'none', customer: true },
+  { id: 'colour.analyze', method: 'POST', sdkPath: '/colour/analyze', gatewayPath: '/core/colour-engine/analyze', scope: 'none', customer: false, query: [] },
+  { id: 'colour.tryOn', method: 'POST', sdkPath: '/colour/tryon', gatewayPath: '/core/colour-engine/tryon', scope: 'none', customer: false, query: [] },
+  { id: 'colour.catalog', method: 'GET', sdkPath: '/colour/catalog', gatewayPath: '/core/colour-engine/catalog', scope: 'none', customer: false, query: [] },
+  { id: 'face.analyze', method: 'POST', sdkPath: '/face/analyze', gatewayPath: '/core/vision-engine/face-architecture/{brandId}/{applicationId}', scope: 'path', customer: false, query: [] },
+  { id: 'face.head', method: 'POST', sdkPath: '/face/head', gatewayPath: '/core/vision-engine/face-architecture/{brandId}/{applicationId}/head', scope: 'path', customer: false, query: [] },
+  { id: 'skin.analyze', method: 'POST', sdkPath: '/skin/analyze', gatewayPath: '/core/vision-engine/analyze-image', scope: 'multipart', customer: false, query: [] },
+  { id: 'reference.brands', method: 'GET', sdkPath: '/reference/brands', gatewayPath: '/reference/brands', scope: 'none', customer: false, query: [] },
+  { id: 'reference.products', method: 'GET', sdkPath: '/reference/products', gatewayPath: '/reference/products', scope: 'none', customer: false, query: ['brandId'] },
+  { id: 'forms.evaluate', method: 'POST', sdkPath: '/forms/:code/evaluate', gatewayPath: '/core/form-engine/survey/:code/evaluate', scope: 'json', customer: false, query: [] },
+  { id: 'assessments.history', method: 'GET', sdkPath: '/assessments/history', gatewayPath: '/core/assessments/customers/{customerId}', scope: 'none', customer: true, query: [] },
 ];
 
 export interface Scope {

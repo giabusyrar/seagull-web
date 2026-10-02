@@ -20,7 +20,9 @@ const problem = (status: number, code: string) =>
 
 // Only these response headers reach the browser; nothing from the gateway
 // that could carry cookies or credentials.
-const PASS_HEADERS = ['content-type', 'content-length', 'content-disposition', 'cache-control'];
+// content-length and content-encoding are left out on purpose: fetch has
+// already decoded the body, so the upstream values would no longer describe it.
+const PASS_HEADERS = ['content-type', 'content-disposition', 'cache-control'];
 
 /**
  * The brand's server-side door to the gateway, for
@@ -48,7 +50,9 @@ export function createBeautyProxy(opts: BeautyProxyOptions): { GET: RouteHandler
     if (op.customer && !customerId) return problem(401, 'customer_required');
 
     const scope = { brandId: opts.brandId, applicationId: opts.applicationId, customerId };
-    const search = new URL(req.url).search;
+    const query = new URLSearchParams();
+    for (const [k, v] of new URL(req.url).searchParams) if (op.query.includes(k)) query.append(k, v);
+    const search = query.size ? `?${query}` : '';
     const url = `${base}${gatewayUrl(op, params, scope)}${search}`;
 
     const headers = new Headers({ 'x-api-key': opts.apiKey });
@@ -66,7 +70,7 @@ export function createBeautyProxy(opts: BeautyProxyOptions): { GET: RouteHandler
         } else {
           const type = req.headers.get('content-type');
           if (type) headers.set('content-type', type);
-          body = await req.arrayBuffer();
+          body = req.body ?? undefined;
         }
       } catch {
         // A body the proxy cannot read for this operation is the caller's
@@ -79,7 +83,7 @@ export function createBeautyProxy(opts: BeautyProxyOptions): { GET: RouteHandler
     const signal = AbortSignal.any([req.signal, AbortSignal.timeout(timeout)]);
     let upstream: Response;
     try {
-      upstream = await doFetch(url, { method: op.method, headers, body, signal });
+      upstream = await doFetch(url, { method: op.method, headers, body, signal, duplex: 'half' } as RequestInit);
     } catch (e) {
       if (e instanceof DOMException && (e.name === 'TimeoutError' || e.name === 'AbortError') && !req.signal.aborted) return problem(504, 'timeout');
       return problem(502, 'gateway_unreachable');

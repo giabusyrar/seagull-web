@@ -22,6 +22,9 @@ describe('createBeautyProxy', () => {
     const [url, init] = fetch.mock.calls[0];
     expect(url).toBe('https://gw.test/core/vision-engine/face-architecture/brd/app/head');
     expect(new Headers(init.headers).get('x-api-key')).toBe('secret');
+    expect(init.body).toBeInstanceOf(ReadableStream);
+    expect(init.duplex).toBe('half');
+    expect(new Headers(init.headers).get('content-type')).toMatch(/^multipart\/form-data/);
     expect(res.headers.get('content-type')).toBe('model/gltf-binary');
     expect(new Uint8Array(await res.arrayBuffer())).toEqual(new Uint8Array([7]));
   });
@@ -116,6 +119,25 @@ describe('createBeautyProxy', () => {
     expect(await res.json()).toEqual({ detail: { code: 'no_face' } });
     expect(res.headers.get('set-cookie')).toBeNull();
     expect([...res.headers.values()].join(' ')).not.toContain('secret');
+  });
+
+  it('forwards only the query keys the operation allows', async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response('{}'));
+    const { GET } = createBeautyProxy({ ...base, fetch });
+    await GET(new Request('https://brand.test/api/beauty/colour/catalog?brand_id=x&applicationId=y'), ctx('colour', 'catalog'));
+    await GET(new Request('https://brand.test/api/beauty/reference/products?brandId=b1&brand_id=evil'), ctx('reference', 'products'));
+    expect(fetch.mock.calls[0][0]).toBe('https://gw.test/core/colour-engine/catalog');
+    expect(fetch.mock.calls[1][0]).toBe('https://gw.test/reference/products?brandId=b1');
+  });
+
+  it('does not forward content-length or content-encoding, and returns the whole body', async () => {
+    const upstream = new Response(new Uint8Array(10).fill(9), { headers: { 'content-encoding': 'gzip', 'content-length': '3', 'content-type': 'application/octet-stream' } });
+    const fetch = vi.fn().mockResolvedValue(upstream);
+    const { GET } = createBeautyProxy({ ...base, fetch });
+    const res = await GET(new Request('https://brand.test/api/beauty/colour/catalog'), ctx('colour', 'catalog'));
+    expect(res.headers.get('content-length')).toBeNull();
+    expect(res.headers.get('content-encoding')).toBeNull();
+    expect((await res.arrayBuffer()).byteLength).toBe(10);
   });
 
   it('answers 504 with a timeout code when the gateway is too slow', async () => {

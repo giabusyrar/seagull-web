@@ -47,7 +47,10 @@ export function createBeautyClient(opts: BeautyClientOptions): BeautyClient {
     if (!op) throw new Error(`Unknown operation ${id}`);
     const params = init.params ?? {};
     const path = direct ? gatewayUrl(op, params, scope) : sdkUrl(op, params);
-    const qs = init.query && Object.keys(init.query).length ? `?${new URLSearchParams(init.query)}` : '';
+    // Direct mode talks to the gateway itself, so it applies the same query
+    // allowlist the proxy does; proxy mode sends what it is given.
+    const query = direct ? Object.fromEntries(Object.entries(init.query ?? {}).filter(([k]) => op.query.includes(k))) : (init.query ?? {});
+    const qs = Object.keys(query).length ? `?${new URLSearchParams(query)}` : '';
     const body = direct ? injectScope(op, init.body, scope) : init.body;
     const headers = new Headers();
     if (direct) headers.set('x-api-key', opts.apiKey!);

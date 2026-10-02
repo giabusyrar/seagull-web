@@ -38,6 +38,15 @@ describe('createBeautyClient', () => {
     expect(fetch.mock.calls[0][0]).toBe('/api/beauty/reference/products?brandId=x');
   });
 
+  it('drops query keys outside the operation allowlist in direct mode', async () => {
+    const fetch = vi.fn().mockResolvedValue(ok({ data: [] }));
+    const client = createBeautyClient({ baseUrl: 'https://gw.test', apiKey: 'k', brandId: 'b', applicationId: 'a', fetch });
+    await client.call('reference.products', { query: { brandId: 'x', brand_id: 'evil' } });
+    await client.call('colour.catalog', { query: { brandId: 'x' } });
+    expect(fetch.mock.calls[0][0]).toBe('https://gw.test/reference/products?brandId=x');
+    expect(fetch.mock.calls[1][0]).toBe('https://gw.test/core/colour-engine/catalog');
+  });
+
   it('throws BeautyApiError for a failed response', async () => {
     const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ detail: { code: 'no_face' } }), { status: 422 }));
     await expect(createBeautyClient({ baseUrl: '/api/beauty', fetch }).json('face.analyze', { body: new FormData() })).rejects.toMatchObject({
