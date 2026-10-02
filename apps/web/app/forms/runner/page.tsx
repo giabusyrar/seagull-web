@@ -4,7 +4,7 @@ import { useState } from 'react';
 import {
   QuestionnaireRunner,
   type QuestionnaireRunnerPayload,
-} from '@gateway-experience/beauty-sdk/form';
+} from '@gateway-experience/studio/form';
 
 // Demo harness for the consumer-facing QuestionnaireRunner.
 // Point `code` at any saved questionnaire; the payload lands in the panel below.

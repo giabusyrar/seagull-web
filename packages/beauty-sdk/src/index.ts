@@ -22,17 +22,5 @@ export * as Hooks from './hooks';
 export * from './ui';
 export * as UI from './ui';
 
-// 5. Studio Layer (Admin & Backoffice Management UI)
-export * from './studio';
-export * as Studio from './studio';
-
-// 6. Orchestrator Layer (Unified 4-Engine Diagnostic Pipeline)
-export * from './orchestrator';
-export * as Orchestrator from './orchestrator';
-
 // Backward-compatible module aliases for legacy imports
 export * as Vision from './ui';
-export * as Form from './studio/form';
-export * as Score from './studio/score';
-export * as Match from './studio/match';
-export * as Reference from './studio/reference';

@@ -1,4 +1,4 @@
-import { MatchManager } from '@gateway-experience/beauty-sdk/match';
+import { MatchManager } from '@gateway-experience/studio/match';
 
 
 export const metadata = {

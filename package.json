@@ -8,7 +8,7 @@
   ],
   "scripts": {
     "dev": "npm run dev --workspace=apps/web",
-    "build:packages": "npm run build -w @gateway-experience/shared && npm run build -w @gateway-experience/beauty-sdk",
+    "build:packages": "npm run build -w @gateway-experience/shared && npm run build -w @gateway-experience/beauty-sdk && npm run build -w @gateway-experience/studio",
     "build:web": "npm run build --workspace=apps/web",
     "build": "npm run build:packages && npm run build:web",
     "test": "npm run build",

@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { ReferenceEntityDashboard, REFERENCE_ENTITY_CONFIGS } from '@gateway-experience/beauty-sdk/reference';
+import { ReferenceEntityDashboard, REFERENCE_ENTITY_CONFIGS } from '@gateway-experience/studio/reference';
 
 
 export default async function ReferenceEntityPage({

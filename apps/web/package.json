@@ -17,6 +17,7 @@
     "@base-ui/react": "^1.6.0",
     "@gateway-experience/beauty-sdk": "*",
     "@gateway-experience/shared": "*",
+    "@gateway-experience/studio": "*",
     "@mediapipe/camera_utils": "^0.3.1675466862",
     "@mediapipe/face_mesh": "^0.4.1633559619",
     "@mediapipe/tasks-vision": "1.0.1",

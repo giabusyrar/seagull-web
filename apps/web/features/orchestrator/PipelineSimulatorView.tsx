@@ -25,7 +25,7 @@ import type {
   PipelineExecutionStrategy,
   UnifiedAssessmentResponse,
   AssessmentPayload,
-} from '@gateway-experience/beauty-sdk';
+} from '@gateway-experience/studio/orchestrator';
 
 interface PersonaPreset {
   id: string;

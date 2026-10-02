@@ -6,7 +6,7 @@ import {
   getActiveCoreCollections,
   resolveDynamicEndpoint,
   CoreCollectionKey,
-} from '@gateway-experience/beauty-sdk';
+} from '@gateway-experience/studio/core';
 
 /**
  * Custom React Hook to dynamically resolve API Gateway Core Collections & Routes

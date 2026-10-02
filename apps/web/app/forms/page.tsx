@@ -1,4 +1,4 @@
-import { FormManager } from '@gateway-experience/beauty-sdk/form';
+import { FormManager } from '@gateway-experience/studio/form';
 
 
 export const metadata = {

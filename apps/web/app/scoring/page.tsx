@@ -1,4 +1,4 @@
-import { ScoreManager } from '@gateway-experience/beauty-sdk/score';
+import { ScoreManager } from '@gateway-experience/studio/score';
 
 
 export const metadata = {

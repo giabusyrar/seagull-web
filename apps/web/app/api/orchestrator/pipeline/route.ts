@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { executeAssessmentPipeline, AssessmentPayload } from '@gateway-experience/beauty-sdk/orchestrator';
+import { executeAssessmentPipeline, AssessmentPayload } from '@gateway-experience/studio/orchestrator';
 
 export async function POST(req: Request) {
   try {

@@ -1,4 +1,4 @@
-import { ReferenceManager } from '@gateway-experience/beauty-sdk/reference';
+import { ReferenceManager } from '@gateway-experience/studio/reference';
 
 
 export const metadata = {

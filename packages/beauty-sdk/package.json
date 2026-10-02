@@ -29,45 +29,15 @@
       "import": "./dist/ui/index.mjs",
       "require": "./dist/ui/index.js"
     },
-    "./studio": {
-      "types": "./dist/studio/index.d.ts",
-      "import": "./dist/studio/index.mjs",
-      "require": "./dist/studio/index.js"
-    },
     "./vision": {
       "types": "./dist/vision/index.d.ts",
       "import": "./dist/vision/index.mjs",
       "require": "./dist/vision/index.js"
     },
-    "./form": {
-      "types": "./dist/form/index.d.ts",
-      "import": "./dist/form/index.mjs",
-      "require": "./dist/form/index.js"
-    },
-    "./score": {
-      "types": "./dist/score/index.d.ts",
-      "import": "./dist/score/index.mjs",
-      "require": "./dist/score/index.js"
-    },
-    "./match": {
-      "types": "./dist/match/index.d.ts",
-      "import": "./dist/match/index.mjs",
-      "require": "./dist/match/index.js"
-    },
-    "./reference": {
-      "types": "./dist/reference/index.d.ts",
-      "import": "./dist/reference/index.mjs",
-      "require": "./dist/reference/index.js"
-    },
     "./client": {
       "types": "./dist/client/index.d.ts",
       "import": "./dist/client/index.mjs",
       "require": "./dist/client/index.js"
-    },
-    "./orchestrator": {
-      "types": "./dist/orchestrator/index.d.ts",
-      "import": "./dist/orchestrator/index.mjs",
-      "require": "./dist/orchestrator/index.js"
     },
     "./types": {
       "types": "./dist/types/index.d.ts",
@@ -81,12 +51,9 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@gateway-experience/shared": "*",
     "@mediapipe/camera_utils": "^0.3.1675466862",
     "@mediapipe/face_mesh": "^0.4.1633559619",
-    "lucide-react": "^1.27.0",
-    "survey-core": "^3.0.2",
-    "survey-react-ui": "^3.0.2"
+    "lucide-react": "^1.27.0"
   },
   "devDependencies": {
     "tsup": "^8.5.1",
