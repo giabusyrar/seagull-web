@@ -63,3 +63,6 @@ next-env.d.ts
 /scratch/
 /brain/
 
+
+# Claude Code worktrees (isolated workspaces)
+/.claude/worktrees/
