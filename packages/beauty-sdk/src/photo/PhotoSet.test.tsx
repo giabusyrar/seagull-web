@@ -1,3 +1,4 @@
+import React from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BeautyProvider } from '../react/BeautyProvider';
@@ -49,5 +50,48 @@ describe('PhotoSet', () => {
   it('uses the message dictionary', () => {
     wrap(<PhotoSet photos={{}} onChange={() => {}} views={['left']} />);
     expect(screen.getByText('Turn to your left')).toBeTruthy();
+  });
+});
+
+describe('PhotoSet fixes', () => {
+  it('keeps a live preview URL under StrictMode', () => {
+    let n = 0;
+    const revoked: string[] = [];
+    URL.createObjectURL = vi.fn(() => `blob:${++n}`);
+    URL.revokeObjectURL = vi.fn((u: string) => {
+      revoked.push(u);
+    });
+    const { container } = render(
+      <React.StrictMode>
+        <BeautyProvider baseUrl="/x" locale="en">
+          <PhotoSet photos={{ left: file }} onChange={() => {}} views={['left']} />
+        </BeautyProvider>
+      </React.StrictMode>,
+    );
+    const src = container.querySelector('img')!.getAttribute('src')!;
+    expect(src).toMatch(/^blob:/);
+    expect(revoked).not.toContain(src);
+  });
+
+  it('does not force the camera on phones', () => {
+    const { container } = wrap(<PhotoSet photos={{}} onChange={() => {}} views={['left']} />);
+    expect(container.querySelector('input[type=file]')!.hasAttribute('capture')).toBe(false);
+  });
+
+  it('exposes every rendered part and applies classNames.root', () => {
+    const { container } = wrap(<PhotoSet photos={{}} onChange={() => {}} views={['left']} classNames={{ root: 'brand-r' }} />);
+    for (const part of ['root', 'header', 'title', 'why', 'grid', 'item', 'slot', 'label', 'hint']) {
+      expect(container.querySelector(`[data-bsdk-part="${part}"]`), part).not.toBeNull();
+    }
+    expect(container.querySelector('[data-bsdk-part="root"]')!.className).toContain('brand-r');
+  });
+
+  it('disables both buttons and dims remove', () => {
+    wrap(<PhotoSet photos={{ left: file }} onChange={() => {}} views={['left']} disabled />);
+    const remove = screen.getByRole('button', { name: 'Remove Left ¾ photo' }) as HTMLButtonElement;
+    const slot = screen.getByRole('button', { name: 'Replace Left ¾ photo' }) as HTMLButtonElement;
+    expect(remove.disabled).toBe(true);
+    expect(slot.disabled).toBe(true);
+    expect(remove.className).toContain('bsdk:opacity-50');
   });
 });
