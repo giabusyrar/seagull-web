@@ -57,4 +57,38 @@ describe('createBeautyClient', () => {
     const fetch = vi.fn().mockResolvedValue(ok({ success: true, data: [{ id: 'b1', code: 'MO', name: 'Make Over' }] }));
     expect(await createBeautyClient({ baseUrl: '/api/beauty', fetch }).reference.brands()).toEqual([{ id: 'b1', code: 'MO', name: 'Make Over' }]);
   });
+
+  it('rejects an empty apiKey', () => {
+    expect(() => createBeautyClient({ baseUrl: 'https://gw.test', apiKey: '', brandId: 'b', applicationId: 'a' })).toThrow(/empty/);
+  });
+
+  it('rejects a whitespace-only apiKey', () => {
+    expect(() => createBeautyClient({ baseUrl: 'https://gw.test', apiKey: '   ', brandId: 'b', applicationId: 'a' })).toThrow(/empty/);
+  });
+
+  it('rejects missing brandId with apiKey', () => {
+    expect(() => createBeautyClient({ baseUrl: 'https://gw.test', apiKey: 'k', applicationId: 'a' })).toThrow(/brandId.*required/);
+  });
+
+  it('rejects missing applicationId with apiKey', () => {
+    expect(() => createBeautyClient({ baseUrl: 'https://gw.test', apiKey: 'k', brandId: 'b' })).toThrow(/applicationId.*required/);
+  });
+
+  it('rejects empty brandId with apiKey', () => {
+    expect(() => createBeautyClient({ baseUrl: 'https://gw.test', apiKey: 'k', brandId: '', applicationId: 'a' })).toThrow(/brandId.*required/);
+  });
+
+  it('rejects empty applicationId with apiKey', () => {
+    expect(() => createBeautyClient({ baseUrl: 'https://gw.test', apiKey: 'k', brandId: 'b', applicationId: '' })).toThrow(/applicationId.*required/);
+  });
+
+  it('throws when reference response has no data array', async () => {
+    const fetch = vi.fn().mockResolvedValue(ok({ success: true }));
+    await expect(createBeautyClient({ baseUrl: '/api/beauty', fetch }).reference.brands()).rejects.toThrow(/reference\.brands.*no data/);
+  });
+
+  it('returns empty array when reference response has empty data', async () => {
+    const fetch = vi.fn().mockResolvedValue(ok({ success: true, data: [] }));
+    expect(await createBeautyClient({ baseUrl: '/api/beauty', fetch }).reference.brands()).toEqual([]);
+  });
 });

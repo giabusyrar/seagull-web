@@ -28,9 +28,15 @@ export interface BeautyClient {
 }
 
 export function createBeautyClient(opts: BeautyClientOptions): BeautyClient {
-  const direct = !!opts.apiKey;
+  const direct = opts.apiKey !== undefined;
   if (direct && typeof window !== 'undefined') {
     throw new Error('createBeautyClient: an apiKey may only be used on the server. In the browser, pass the proxy route as baseUrl.');
+  }
+  if (direct && (!opts.apiKey || !opts.apiKey.trim())) {
+    throw new Error('createBeautyClient: apiKey is empty. Set it from server env, or omit it to use the proxy.');
+  }
+  if (direct && (!opts.brandId || !opts.brandId.trim() || !opts.applicationId || !opts.applicationId.trim())) {
+    throw new Error('createBeautyClient: brandId and applicationId are required with an apiKey.');
   }
   const base = opts.baseUrl.replace(/\/+$/, '');
   const doFetch = opts.fetch ?? fetch;

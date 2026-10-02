@@ -23,7 +23,19 @@ export interface ReferenceMethods {
 // reference-service wraps lists as { success, data }.
 export function referenceMethods(client: Pick<BeautyClient, 'json'>): ReferenceMethods {
   return {
-    brands: async (signal) => (await client.json<{ data?: ReferenceBrand[] }>('reference.brands', { signal })).data ?? [],
-    products: async (signal) => (await client.json<{ data?: ReferenceProduct[] }>('reference.products', { signal })).data ?? [],
+    brands: async (signal) => {
+      const res = await client.json<{ data?: ReferenceBrand[] }>('reference.brands', { signal });
+      if (!('data' in res) || res.data === undefined) {
+        throw new Error('reference.brands: response has no data list');
+      }
+      return res.data;
+    },
+    products: async (signal) => {
+      const res = await client.json<{ data?: ReferenceProduct[] }>('reference.products', { signal });
+      if (!('data' in res) || res.data === undefined) {
+        throw new Error('reference.products: response has no data list');
+      }
+      return res.data;
+    },
   };
 }
