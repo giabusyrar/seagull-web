@@ -1,10 +1,5 @@
 import { createBeautyProxy } from '@gateway-experience/beauty-sdk/server';
-
-const env = (k: string) => {
-  const v = process.env[k];
-  if (!v) throw new Error(`${k} is not set (see .env.example)`);
-  return v;
-};
+import { env } from '../../../env';
 
 export const { GET, POST } = createBeautyProxy({
   gatewayUrl: env('BEAUTY_GATEWAY_URL'),

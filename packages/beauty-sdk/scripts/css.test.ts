@@ -165,4 +165,10 @@ describe('dist/styles.css', () => {
   it('ships no global reset', () => {
     expect(resetViolations(css)).toEqual([]);
   });
+
+  it('makes SDK form controls inherit the brand font, scoped to SDK parts', () => {
+    const flat = css.replace(/\s+/g, '');
+    const m = /@layerbsdk\.base\{[^]*?\[data-bsdk-part\]:where\(button,input,select,textarea\),:where\(button,input,select,textarea\)\[data-bsdk-part\]\{font:inherit/.exec(flat);
+    expect(m).not.toBeNull();
+  });
 });

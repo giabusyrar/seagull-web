@@ -28,6 +28,12 @@
     --bsdk-radius: 0.75rem;
     --bsdk-font: ui-sans-serif, system-ui, sans-serif;
   }
+
+  /* SDK form controls take the brand font (--bsdk-font); scoped to SDK parts, not a reset. */
+  [data-bsdk-part] :where(button, input, select, textarea),
+  :where(button, input, select, textarea)[data-bsdk-part] {
+    font: inherit;
+  }
 }
 
 @theme inline {

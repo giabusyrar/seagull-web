@@ -9,3 +9,9 @@ What a brand app looks like on `@gateway-experience/beauty-sdk`:
 - `app/brands/page.tsx` — a Server Component using the React-free client.
 
 `npm run verify` builds and packs the SDK, installs the tarball and runs `next build`.
+
+## Run it
+
+1. `npm install`, then `npm run sdk`. The SDK tarball is installed with `--no-save`, so a plain `npm install` removes it; run `npm run sdk` again before `dev` or `build`.
+2. Copy `.env.example` to `.env.local` and fill it in before the first request.
+3. `npm run dev` serves the app on port 3100.
