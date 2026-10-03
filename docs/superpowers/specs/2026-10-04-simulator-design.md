@@ -77,10 +77,10 @@ Core (`/svc/core` + `/core/<engine>` paths):
   (`POST survey/:code/evaluate`, JSON `data` editor prefilled from the survey
   schema questions) and evaluate-with-photos (multipart).
 - **Score** — `POST score-engine/evaluate` (JSON), `POST evaluate/:code` (V2
-  multipart, optional photo), `POST simulate` (ruleset from `GET rulesets/active`,
-  form/vision score sliders).
-- **Match** — `POST match-engine/evaluate` with `dimension_scores` editor;
-  "use last score result" button copies dimension scores from the Score screen.
+  multipart, optional photo), `POST simulate` (paste the ruleset from `GET rulesets/active`;
+  form/vision scores as JSON).
+- **Match** — `POST match-engine/evaluate` with a `dimension_scores` JSON editor
+  (paste from a score result).
 - **Vision** — `POST vision-engine/analyze-image` (front/left/right, dimensions
   and skin conditions picked from `GET registry`).
 - **Colour** — `POST colour-engine/analyze` (hijab, hairVisible), catalog,
@@ -100,8 +100,8 @@ show transcript / tool / state events in a timeline; close/delete.
 Workers:
 
 - **Colour** — `/pca/analyze`, `/vto/render` (layer builder → PNG + `X-Render-Log`), `/vto/render-params`, `/colour/munsell`.
-- **Face** — `/api/v1/face-measure/catalogue`, `/api/v1/face-measure` (optional landmarks overlay), `/api/v1/face-head` → GLB.
-- **Skin** — `/api/v1/segment-and-pose` (declaredAngle), zones drawn over the image.
+- **Face** — `/api/v1/face-measure/catalogue`, `/api/v1/face-measure` (optional landmarks in the JSON), `/api/v1/face-head` → GLB.
+- **Skin** — `/api/v1/segment-and-pose` (declaredAngle); zones shown as JSON.
 - **Try-on** — `/extract`; labelled "async: result goes to core-engine callback, not here".
 
 ## Errors
