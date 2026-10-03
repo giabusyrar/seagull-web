@@ -10,9 +10,9 @@ describe('createBeautyClient', () => {
   it('in the browser, calls the SDK path under the proxy base url without scope or key', async () => {
     const fetch = vi.fn().mockResolvedValue(ok({ data: [] }));
     const c = createBeautyClient({ baseUrl: '/api/beauty', fetch });
-    await c.call('forms.evaluate', { params: { code: 'quiz' }, body: { answers: {} } });
+    await c.call('colour.analyze', { body: { answers: {} } });
     const [url, init] = fetch.mock.calls[0];
-    expect(url).toBe('/api/beauty/forms/quiz/evaluate');
+    expect(url).toBe('/api/beauty/colour/analyze');
     expect(init.method).toBe('POST');
     expect(JSON.parse(init.body)).toEqual({ answers: {} });
     expect(new Headers(init.headers).get('x-api-key')).toBeNull();
@@ -94,6 +94,12 @@ describe('createBeautyClient', () => {
   it('throws when reference response has no data array', async () => {
     const fetch = vi.fn().mockResolvedValue(ok({ success: true }));
     await expect(createBeautyClient({ baseUrl: '/api/beauty', fetch }).reference.brands()).rejects.toThrow(/reference\.brands.*no data/);
+  });
+
+  it('throws when reference data is null, like a missing list', async () => {
+    const fetch = vi.fn().mockImplementation(async () => ok({ success: true, data: null }));
+    await expect(createBeautyClient({ baseUrl: '/api/beauty', fetch }).reference.brands()).rejects.toThrow(/reference\.brands.*no data/);
+    await expect(createBeautyClient({ baseUrl: '/api/beauty', fetch }).reference.products()).rejects.toThrow(/reference\.products.*no data/);
   });
 
   it('returns empty array when reference response has empty data', async () => {

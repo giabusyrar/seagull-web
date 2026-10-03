@@ -13,9 +13,7 @@ export type OperationId =
   | 'face.head'
   | 'skin.analyze'
   | 'reference.brands'
-  | 'reference.products'
-  | 'forms.evaluate'
-  | 'assessments.history';
+  | 'reference.products';
 
 /** Where brand and application go: the gateway path, a JSON body
  *  (brand_id / application_id), a multipart body (brandId / applicationId),
@@ -46,8 +44,11 @@ export const OPERATIONS: readonly Operation[] = [
   { id: 'skin.analyze', method: 'POST', sdkPath: '/skin/analyze', gatewayPath: '/core/vision-engine/analyze-image', scope: 'multipart', customer: false, query: [] },
   { id: 'reference.brands', method: 'GET', sdkPath: '/reference/brands', gatewayPath: '/reference/brands', scope: 'none', customer: false, query: [] },
   { id: 'reference.products', method: 'GET', sdkPath: '/reference/products', gatewayPath: '/reference/products', scope: 'none', customer: false, query: ['brandId'] },
-  { id: 'forms.evaluate', method: 'POST', sdkPath: '/forms/:code/evaluate', gatewayPath: '/core/form-engine/survey/:code/evaluate', scope: 'json', customer: false, query: [] },
-  { id: 'assessments.history', method: 'GET', sdkPath: '/assessments/history', gatewayPath: '/core/assessments/customers/{customerId}', scope: 'none', customer: true, query: [] },
+  // forms.evaluate and assessments.history are not here on purpose. Both are
+  // broken against core today (evaluate needs the customer id written into the
+  // body, history needs brand/application written into the query), and the
+  // SDK has neither placement yet. They return in phase 5, once
+  // customer-in-body and scope-in-query placement exist.
 ];
 
 export interface Scope {
@@ -123,6 +124,9 @@ export function gatewayUrl(op: Operation, params: Record<string, string>, scope:
   return fillParams(withScope, params);
 }
 
+// brand_id, brandId, BRAND_ID, Brand-Id ... all normalise to these.
+const SCOPE_KEYS = new Set(['brandid', 'applicationid']);
+
 export function injectScope(
   op: Operation,
   body: FormData | Record<string, unknown> | undefined,
@@ -132,7 +136,16 @@ export function injectScope(
     if (body instanceof FormData) {
       throw new Error(`${op.id} requires JSON body, got FormData`);
     }
-    return { ...(body as Record<string, unknown>), brand_id: scope.brandId, application_id: scope.applicationId };
+    // Core's Go JSON decoder matches keys case-insensitively and the last one
+    // wins, so a client key such as BRAND_ID would override the server value.
+    // Drop every client key that names the scope, in any case or spelling.
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries((body ?? {}) as Record<string, unknown>)) {
+      if (!SCOPE_KEYS.has(k.toLowerCase().replace(/[_-]/g, ''))) out[k] = v;
+    }
+    out.brand_id = scope.brandId;
+    out.application_id = scope.applicationId;
+    return out;
   }
   if (op.scope === 'multipart') {
     if (!(body instanceof FormData)) {
@@ -141,8 +154,10 @@ export function injectScope(
     // Create a new FormData to avoid mutating the input
     const newFormData = new FormData();
     for (const [key, value] of body) {
-      newFormData.set(key, value);
+      newFormData.append(key, value); // append: repeated keys (several images) survive
     }
+    newFormData.delete('brandId');
+    newFormData.delete('applicationId');
     newFormData.set('brandId', scope.brandId);
     newFormData.set('applicationId', scope.applicationId);
     return newFormData;

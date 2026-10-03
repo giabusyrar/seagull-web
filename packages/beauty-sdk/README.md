@@ -23,7 +23,7 @@ Copy `.npmrc.example` to your app's `.npmrc` (registry + read-only token), then:
          // authorize: async (req) => ({ customerId: ... }) — needed for customer history
        });
 
-   The API key must come from server env (never a NEXT_PUBLIC_ variable); the browser client never sees it.
+   The API key must come from server env (never a NEXT_PUBLIC_ variable); the browser client never sees it. `createBeautyProxy` throws at construction, naming the field, if any of the four options is missing or empty.
 
 2. `app/layout.tsx` — import the stylesheet before your own CSS:
 

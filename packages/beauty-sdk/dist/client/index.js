@@ -24,10 +24,13 @@ async function parseApiError(res) {
   const detail = b.detail;
   const details = Array.isArray(detail) ? detail.filter(isEntry) : isEntry(detail) ? [detail] : [];
   const first = details[0] ?? {};
+  if (!details.length && Array.isArray(b.errors)) {
+    for (const m of b.errors) if (typeof m === "string") details.push({ message: m });
+  }
   return new BeautyApiError({
     status: res.status,
-    code: str(first.code) || str(b.code),
-    message: str(first.reason) || str(first.message) || str(b.error) || str(b.message),
+    code: str(first.code) || str(b.code) || str(b.error_code),
+    message: str(first.reason) || str(first.message) || str(b.error) || str(b.message) || str(detail),
     details
   });
 }
@@ -41,9 +44,12 @@ var OPERATIONS = [
   { id: "face.head", method: "POST", sdkPath: "/face/head", gatewayPath: "/core/vision-engine/face-architecture/{brandId}/{applicationId}/head", scope: "path", customer: false, query: [] },
   { id: "skin.analyze", method: "POST", sdkPath: "/skin/analyze", gatewayPath: "/core/vision-engine/analyze-image", scope: "multipart", customer: false, query: [] },
   { id: "reference.brands", method: "GET", sdkPath: "/reference/brands", gatewayPath: "/reference/brands", scope: "none", customer: false, query: [] },
-  { id: "reference.products", method: "GET", sdkPath: "/reference/products", gatewayPath: "/reference/products", scope: "none", customer: false, query: ["brandId"] },
-  { id: "forms.evaluate", method: "POST", sdkPath: "/forms/:code/evaluate", gatewayPath: "/core/form-engine/survey/:code/evaluate", scope: "json", customer: false, query: [] },
-  { id: "assessments.history", method: "GET", sdkPath: "/assessments/history", gatewayPath: "/core/assessments/customers/{customerId}", scope: "none", customer: true, query: [] }
+  { id: "reference.products", method: "GET", sdkPath: "/reference/products", gatewayPath: "/reference/products", scope: "none", customer: false, query: ["brandId"] }
+  // forms.evaluate and assessments.history are not here on purpose. Both are
+  // broken against core today (evaluate needs the customer id written into the
+  // body, history needs brand/application written into the query), and the
+  // SDK has neither placement yet. They return in phase 5, once
+  // customer-in-body and scope-in-query placement exist.
 ];
 function isSafePathParam(value) {
   if (value === "." || value === "..") return false;
@@ -72,12 +78,19 @@ function gatewayUrl(op, params, scope) {
   });
   return fillParams(withScope, params);
 }
+var SCOPE_KEYS = /* @__PURE__ */ new Set(["brandid", "applicationid"]);
 function injectScope(op, body, scope) {
   if (op.scope === "json") {
     if (body instanceof FormData) {
       throw new Error(`${op.id} requires JSON body, got FormData`);
     }
-    return { ...body, brand_id: scope.brandId, application_id: scope.applicationId };
+    const out = {};
+    for (const [k, v] of Object.entries(body ?? {})) {
+      if (!SCOPE_KEYS.has(k.toLowerCase().replace(/[_-]/g, ""))) out[k] = v;
+    }
+    out.brand_id = scope.brandId;
+    out.application_id = scope.applicationId;
+    return out;
   }
   if (op.scope === "multipart") {
     if (!(body instanceof FormData)) {
@@ -85,8 +98,10 @@ function injectScope(op, body, scope) {
     }
     const newFormData = new FormData();
     for (const [key, value] of body) {
-      newFormData.set(key, value);
+      newFormData.append(key, value);
     }
+    newFormData.delete("brandId");
+    newFormData.delete("applicationId");
     newFormData.set("brandId", scope.brandId);
     newFormData.set("applicationId", scope.applicationId);
     return newFormData;
@@ -99,14 +114,14 @@ function referenceMethods(client) {
   return {
     brands: async (signal) => {
       const res = await client.json("reference.brands", { signal });
-      if (!("data" in res) || res.data === void 0) {
+      if (!Array.isArray(res.data)) {
         throw new Error("reference.brands: response has no data list");
       }
       return res.data;
     },
     products: async (signal) => {
       const res = await client.json("reference.products", { signal });
-      if (!("data" in res) || res.data === void 0) {
+      if (!Array.isArray(res.data)) {
         throw new Error("reference.products: response has no data list");
       }
       return res.data;

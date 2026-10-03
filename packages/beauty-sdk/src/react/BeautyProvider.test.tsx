@@ -26,6 +26,11 @@ describe('BeautyProvider', () => {
     expect(screen.getByTestId('out').textContent).toBe('nope.missing');
   });
 
+  it('shows an Object.prototype name as itself, not the inherited member', () => {
+    render(<BeautyProvider baseUrl="/api/beauty"><Probe k="constructor" vars={{ a: 1 }} /></BeautyProvider>);
+    expect(screen.getByTestId('out').textContent).toBe('constructor');
+  });
+
   it('provides a client', () => {
     render(<BeautyProvider baseUrl="/api/beauty"><Probe k="photo.front" /></BeautyProvider>);
     expect(screen.getByTestId('out').dataset.hasClient).toBe('true');
@@ -51,6 +56,10 @@ describe('BeautyProvider', () => {
 });
 
 describe('format', () => {
+  it('leaves a placeholder named like an Object.prototype member alone', () => {
+    expect(format('x {constructor}', { a: 1 })).toBe('x {constructor}');
+  });
+
   it('fills {name} placeholders and leaves unknown ones', () => {
     expect(format('Hi {name}, {x}', { name: 'Ana' })).toBe('Hi Ana, {x}');
   });

@@ -1,4 +1,4 @@
-type OperationId = 'colour.analyze' | 'colour.tryOn' | 'colour.catalog' | 'face.analyze' | 'face.head' | 'skin.analyze' | 'reference.brands' | 'reference.products' | 'forms.evaluate' | 'assessments.history';
+type OperationId = 'colour.analyze' | 'colour.tryOn' | 'colour.catalog' | 'face.analyze' | 'face.head' | 'skin.analyze' | 'reference.brands' | 'reference.products';
 /** Where brand and application go: the gateway path, a JSON body
  *  (brand_id / application_id), a multipart body (brandId / applicationId),
  *  or nowhere. */

@@ -31,4 +31,18 @@ describe('parseApiError', () => {
     expect(e.message).toBe('Bad Gateway');
     expect(e.details).toEqual([]);
   });
+
+  it('reads core Go bodies: error_code, error and the errors list', async () => {
+    const e = await parseApiError(res(422, JSON.stringify({ success: false, error: 'validation failed', error_code: 'VALIDATION_FAILED', errors: ['customer_id is required', 'answers is empty'] })));
+    expect(e.code).toBe('VALIDATION_FAILED');
+    expect(e.message).toBe('validation failed');
+    expect(e.details).toEqual([{ message: 'customer_id is required' }, { message: 'answers is empty' }]);
+  });
+
+  it('keeps the message of a FastAPI string detail', async () => {
+    const e = await parseApiError(res(404, JSON.stringify({ detail: 'Not Found' })));
+    expect(e.message).toBe('Not Found');
+    expect(e.code).toBe('');
+    expect(e.details).toEqual([]);
+  });
 });

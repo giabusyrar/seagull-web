@@ -69,7 +69,7 @@ var defaultMessages = {
 };
 function format(template, vars) {
   if (!vars) return template;
-  return template.replace(/\{(\w+)\}/g, (all, k) => k in vars ? String(vars[k]) : all);
+  return template.replace(/\{(\w+)\}/g, (all, k) => Object.hasOwn(vars, k) ? String(vars[k]) : all);
 }
 
 // src/react/BeautyProvider.tsx
@@ -79,7 +79,7 @@ function BeautyProvider({ baseUrl = "/api/beauty", client, locale = "id", messag
   const resolvedClient = (0, import_react.useMemo)(() => client ?? (0, import_client.createBeautyClient)({ baseUrl }), [client, baseUrl]);
   const t = (0, import_react.useMemo)(() => {
     const dict = { ...defaultMessages[locale], ...messages };
-    return (key, vars) => format(dict[key] ?? key, vars);
+    return (key, vars) => format(Object.hasOwn(dict, key) ? dict[key] : key, vars);
   }, [locale, messages]);
   const value = (0, import_react.useMemo)(() => ({ client: resolvedClient, locale, t }), [resolvedClient, locale, t]);
   return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Ctx.Provider, { value, children });

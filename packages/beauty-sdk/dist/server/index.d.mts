@@ -1,4 +1,4 @@
-import { O as OperationId } from '../operations-Wgq0we7R.mjs';
+import { O as OperationId } from '../operations-CF8cOMm9.mjs';
 
 interface BeautyProxyOptions {
     gatewayUrl: string;
@@ -33,7 +33,7 @@ declare function createBeautyProxy(opts: BeautyProxyOptions): {
 };
 
 /** For operations with no core-engine timeout to derive from (reference
- *  reads, survey evaluate, assessment history). A proxy-side choice,
+ *  reads). A proxy-side choice,
  *  overridable per operation. */
 declare const DEFAULT_PROXY_TIMEOUT_MS = 15000;
 declare const OPERATION_TIMEOUT_MS: Record<OperationId, number>;

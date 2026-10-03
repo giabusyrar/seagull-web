@@ -32,6 +32,12 @@ const PASS_HEADERS = ['content-type', 'content-disposition', 'cache-control'];
  * signed-in customer) itself, adds the API key, and streams bodies through.
  */
 export function createBeautyProxy(opts: BeautyProxyOptions): { GET: RouteHandler; POST: RouteHandler } {
+  for (const field of ['gatewayUrl', 'apiKey', 'brandId', 'applicationId'] as const) {
+    const v = opts[field];
+    if (typeof v !== 'string' || !v.trim()) {
+      throw new Error(`createBeautyProxy: "${field}" is required and must not be empty (is its environment variable set?)`);
+    }
+  }
   const base = opts.gatewayUrl.replace(/\/+$/, '');
   const doFetch = opts.fetch ?? fetch;
 
@@ -43,7 +49,14 @@ export function createBeautyProxy(opts: BeautyProxyOptions): { GET: RouteHandler
 
     let customerId: string | undefined;
     if (opts.authorize) {
-      const auth = await opts.authorize(req);
+      // A throwing authorize means the brand could not establish who this is:
+      // refuse, never fall through unauthenticated.
+      let auth: Awaited<ReturnType<NonNullable<typeof opts.authorize>>>;
+      try {
+        auth = await opts.authorize(req);
+      } catch {
+        return problem(401, 'authorize_failed');
+      }
       if (auth instanceof Response) return auth;
       customerId = auth.customerId;
     }
@@ -53,7 +66,13 @@ export function createBeautyProxy(opts: BeautyProxyOptions): { GET: RouteHandler
     const query = new URLSearchParams();
     for (const [k, v] of new URL(req.url).searchParams) if (op.query.includes(k)) query.append(k, v);
     const search = query.size ? `?${query}` : '';
-    const url = `${base}${gatewayUrl(op, params, scope)}${search}`;
+    let path: string;
+    try {
+      path = gatewayUrl(op, params, scope);
+    } catch {
+      return problem(400, 'invalid_params');
+    }
+    const url = `${base}${path}${search}`;
 
     const headers = new Headers({ 'x-api-key': opts.apiKey });
     const accept = req.headers.get('accept');

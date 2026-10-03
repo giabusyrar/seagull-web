@@ -1,5 +1,5 @@
-import { O as OperationId } from '../operations-Wgq0we7R.mjs';
-export { a as OPERATIONS, b as Operation, S as ScopePlacement } from '../operations-Wgq0we7R.mjs';
+import { O as OperationId } from '../operations-CF8cOMm9.mjs';
+export { a as OPERATIONS, b as Operation, S as ScopePlacement } from '../operations-CF8cOMm9.mjs';
 
 interface ReferenceBrand {
     id: string;
@@ -57,9 +57,15 @@ declare class BeautyApiError extends Error {
     });
 }
 /**
- * Core answers errors in two shapes: `{ detail: {...} | [...] }` (vision,
- * face architecture, head) and `{ code, error | message }` (colour). Both
- * become one BeautyApiError; every detail entry is kept.
+ * The engines answer errors in four shapes, all read into one BeautyApiError:
+ * - `{ detail: {...} | [...] }`  vision, face architecture, head (code and
+ *   reason/message come from the first entry; every entry is kept as details);
+ * - `{ detail: "text" }`  FastAPI's plain errors (the text is the message);
+ * - `{ code, error | message }`  colour;
+ * - `{ success, error, error_code, errors: string[] }`  core-engine's Go
+ *   envelope (error_code is the code, error the message, each `errors` entry a
+ *   `{ message }` detail).
+ * A body that is not JSON stays the message, with no code claimed.
  */
 declare function parseApiError(res: Response): Promise<BeautyApiError>;
 

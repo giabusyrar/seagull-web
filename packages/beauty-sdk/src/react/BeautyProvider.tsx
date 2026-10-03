@@ -28,7 +28,7 @@ export function BeautyProvider({ baseUrl = '/api/beauty', client, locale = 'id',
   const resolvedClient = useMemo(() => client ?? createBeautyClient({ baseUrl }), [client, baseUrl]);
   const t = useMemo(() => {
     const dict = { ...defaultMessages[locale], ...messages };
-    return (key: string, vars?: Record<string, string | number>) => format(dict[key] ?? key, vars);
+    return (key: string, vars?: Record<string, string | number>) => format(Object.hasOwn(dict, key) ? dict[key] : key, vars);
   }, [locale, messages]);
   const value = useMemo<BeautyContext>(() => ({ client: resolvedClient, locale, t }), [resolvedClient, locale, t]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

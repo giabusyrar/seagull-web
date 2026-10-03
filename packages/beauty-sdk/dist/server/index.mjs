@@ -7,9 +7,12 @@ var OPERATIONS = [
   { id: "face.head", method: "POST", sdkPath: "/face/head", gatewayPath: "/core/vision-engine/face-architecture/{brandId}/{applicationId}/head", scope: "path", customer: false, query: [] },
   { id: "skin.analyze", method: "POST", sdkPath: "/skin/analyze", gatewayPath: "/core/vision-engine/analyze-image", scope: "multipart", customer: false, query: [] },
   { id: "reference.brands", method: "GET", sdkPath: "/reference/brands", gatewayPath: "/reference/brands", scope: "none", customer: false, query: [] },
-  { id: "reference.products", method: "GET", sdkPath: "/reference/products", gatewayPath: "/reference/products", scope: "none", customer: false, query: ["brandId"] },
-  { id: "forms.evaluate", method: "POST", sdkPath: "/forms/:code/evaluate", gatewayPath: "/core/form-engine/survey/:code/evaluate", scope: "json", customer: false, query: [] },
-  { id: "assessments.history", method: "GET", sdkPath: "/assessments/history", gatewayPath: "/core/assessments/customers/{customerId}", scope: "none", customer: true, query: [] }
+  { id: "reference.products", method: "GET", sdkPath: "/reference/products", gatewayPath: "/reference/products", scope: "none", customer: false, query: ["brandId"] }
+  // forms.evaluate and assessments.history are not here on purpose. Both are
+  // broken against core today (evaluate needs the customer id written into the
+  // body, history needs brand/application written into the query), and the
+  // SDK has neither placement yet. They return in phase 5, once
+  // customer-in-body and scope-in-query placement exist.
 ];
 var split = (p) => p.split("/").filter(Boolean);
 function isSafePathParam(value) {
@@ -64,12 +67,19 @@ function gatewayUrl(op, params, scope) {
   });
   return fillParams(withScope, params);
 }
+var SCOPE_KEYS = /* @__PURE__ */ new Set(["brandid", "applicationid"]);
 function injectScope(op, body, scope) {
   if (op.scope === "json") {
     if (body instanceof FormData) {
       throw new Error(`${op.id} requires JSON body, got FormData`);
     }
-    return { ...body, brand_id: scope.brandId, application_id: scope.applicationId };
+    const out = {};
+    for (const [k, v] of Object.entries(body ?? {})) {
+      if (!SCOPE_KEYS.has(k.toLowerCase().replace(/[_-]/g, ""))) out[k] = v;
+    }
+    out.brand_id = scope.brandId;
+    out.application_id = scope.applicationId;
+    return out;
   }
   if (op.scope === "multipart") {
     if (!(body instanceof FormData)) {
@@ -77,8 +87,10 @@ function injectScope(op, body, scope) {
     }
     const newFormData = new FormData();
     for (const [key, value] of body) {
-      newFormData.set(key, value);
+      newFormData.append(key, value);
     }
+    newFormData.delete("brandId");
+    newFormData.delete("applicationId");
     newFormData.set("brandId", scope.brandId);
     newFormData.set("applicationId", scope.applicationId);
     return newFormData;
@@ -101,15 +113,19 @@ var OPERATION_TIMEOUT_MS = {
   "face.head": CORE_FACE_HEAD_MS + MARGIN_MS,
   "skin.analyze": CORE_VISION_DAG_MS + MARGIN_MS,
   "reference.brands": DEFAULT_PROXY_TIMEOUT_MS,
-  "reference.products": DEFAULT_PROXY_TIMEOUT_MS,
-  "forms.evaluate": DEFAULT_PROXY_TIMEOUT_MS,
-  "assessments.history": DEFAULT_PROXY_TIMEOUT_MS
+  "reference.products": DEFAULT_PROXY_TIMEOUT_MS
 };
 
 // src/server/proxy.ts
 var problem = (status, code) => new Response(JSON.stringify({ detail: { code } }), { status, headers: { "content-type": "application/json" } });
 var PASS_HEADERS = ["content-type", "content-disposition", "cache-control"];
 function createBeautyProxy(opts) {
+  for (const field of ["gatewayUrl", "apiKey", "brandId", "applicationId"]) {
+    const v = opts[field];
+    if (typeof v !== "string" || !v.trim()) {
+      throw new Error(`createBeautyProxy: "${field}" is required and must not be empty (is its environment variable set?)`);
+    }
+  }
   const base = opts.gatewayUrl.replace(/\/+$/, "");
   const doFetch = opts.fetch ?? fetch;
   const handle = async (req, ctx) => {
@@ -119,7 +135,12 @@ function createBeautyProxy(opts) {
     const { op, params } = match;
     let customerId;
     if (opts.authorize) {
-      const auth = await opts.authorize(req);
+      let auth;
+      try {
+        auth = await opts.authorize(req);
+      } catch {
+        return problem(401, "authorize_failed");
+      }
       if (auth instanceof Response) return auth;
       customerId = auth.customerId;
     }
@@ -128,7 +149,13 @@ function createBeautyProxy(opts) {
     const query = new URLSearchParams();
     for (const [k, v] of new URL(req.url).searchParams) if (op.query.includes(k)) query.append(k, v);
     const search = query.size ? `?${query}` : "";
-    const url = `${base}${gatewayUrl(op, params, scope)}${search}`;
+    let path;
+    try {
+      path = gatewayUrl(op, params, scope);
+    } catch {
+      return problem(400, "invalid_params");
+    }
+    const url = `${base}${path}${search}`;
     const headers = new Headers({ "x-api-key": opts.apiKey });
     const accept = req.headers.get("accept");
     if (accept) headers.set("accept", accept);

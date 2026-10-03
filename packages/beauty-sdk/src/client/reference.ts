@@ -25,14 +25,14 @@ export function referenceMethods(client: Pick<BeautyClient, 'json'>): ReferenceM
   return {
     brands: async (signal) => {
       const res = await client.json<{ data?: ReferenceBrand[] }>('reference.brands', { signal });
-      if (!('data' in res) || res.data === undefined) {
+      if (!Array.isArray(res.data)) {
         throw new Error('reference.brands: response has no data list');
       }
       return res.data;
     },
     products: async (signal) => {
       const res = await client.json<{ data?: ReferenceProduct[] }>('reference.products', { signal });
-      if (!('data' in res) || res.data === undefined) {
+      if (!Array.isArray(res.data)) {
         throw new Error('reference.products: response has no data list');
       }
       return res.data;

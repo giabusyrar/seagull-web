@@ -29,20 +29,6 @@ describe('createBeautyProxy', () => {
     expect(new Uint8Array(await res.arrayBuffer())).toEqual(new Uint8Array([7]));
   });
 
-  it('overwrites brand/application in JSON bodies', async () => {
-    const fetch = vi.fn().mockResolvedValue(new Response('{}'));
-    const { POST } = createBeautyProxy({ ...base, fetch });
-    await POST(
-      new Request('https://brand.test/api/beauty/forms/quiz/evaluate', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ answers: { a: 1 }, brand_id: 'spoofed' }),
-      }),
-      ctx('forms', 'quiz', 'evaluate'),
-    );
-    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ answers: { a: 1 }, brand_id: 'brd', application_id: 'app' });
-  });
-
   it('overwrites brand/application in multipart bodies', async () => {
     const fetch = vi.fn().mockResolvedValue(new Response('{}'));
     const { POST } = createBeautyProxy({ ...base, fetch });
@@ -52,22 +38,6 @@ describe('createBeautyProxy', () => {
     const sent = fetch.mock.calls[0][1].body as FormData;
     expect(sent.get('brandId')).toBe('brd');
     expect(sent.get('applicationId')).toBe('app');
-  });
-
-  it('answers 400 invalid_body for unparseable JSON, without calling the gateway', async () => {
-    const fetch = vi.fn();
-    const { POST } = createBeautyProxy({ ...base, fetch });
-    const res = await POST(
-      new Request('https://brand.test/api/beauty/forms/quiz/evaluate', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: '{not json',
-      }),
-      ctx('forms', 'quiz', 'evaluate'),
-    );
-    expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ detail: { code: 'invalid_body' } });
-    expect(fetch).not.toHaveBeenCalled();
   });
 
   it('answers 400 invalid_body for a non-multipart body on a multipart operation', async () => {
@@ -84,21 +54,6 @@ describe('createBeautyProxy', () => {
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ detail: { code: 'invalid_body' } });
     expect(fetch).not.toHaveBeenCalled();
-  });
-
-  it('refuses customer routes without authorize', async () => {
-    const fetch = vi.fn();
-    const { GET } = createBeautyProxy({ ...base, fetch });
-    const res = await GET(new Request('https://brand.test/api/beauty/assessments/history'), ctx('assessments', 'history'));
-    expect(res.status).toBe(401);
-    expect(fetch).not.toHaveBeenCalled();
-  });
-
-  it('uses the customer from authorize', async () => {
-    const fetch = vi.fn().mockResolvedValue(new Response('[]'));
-    const { GET } = createBeautyProxy({ ...base, fetch, authorize: () => ({ customerId: 'cus-1' }) });
-    await GET(new Request('https://brand.test/api/beauty/assessments/history'), ctx('assessments', 'history'));
-    expect(fetch.mock.calls[0][0]).toBe('https://gw.test/core/assessments/customers/cus-1');
   });
 
   it('returns the Response authorize gives to refuse', async () => {
@@ -156,5 +111,31 @@ describe('createBeautyProxy', () => {
     const res = await GET(new Request('https://brand.test/api/beauty/colour/catalog'), ctx('colour', 'catalog'));
     expect(res.status).toBe(502);
     expect(await res.json()).toEqual({ detail: { code: 'gateway_unreachable' } });
+  });
+
+  describe('configuration', () => {
+    it.each(['gatewayUrl', 'apiKey', 'brandId', 'applicationId'] as const)('throws at construction naming %s when it is missing or empty', (field) => {
+      expect(() => createBeautyProxy({ ...base, [field]: undefined as unknown as string })).toThrow(new RegExp(field));
+      expect(() => createBeautyProxy({ ...base, [field]: '' })).toThrow(new RegExp(field));
+      expect(() => createBeautyProxy({ ...base, [field]: '   ' })).toThrow(new RegExp(field));
+    });
+  });
+
+  it('answers 401 authorize_failed when authorize throws, without calling the gateway', async () => {
+    const fetch = vi.fn();
+    const { GET } = createBeautyProxy({ ...base, fetch, authorize: () => { throw new Error('session store down'); } });
+    const res = await GET(new Request('https://brand.test/api/beauty/colour/catalog'), ctx('colour', 'catalog'));
+    expect(res.status).toBe(401);
+    expect(await res.json()).toEqual({ detail: { code: 'authorize_failed' } });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('answers 400 invalid_params when a path value is unsafe, without calling the gateway', async () => {
+    const fetch = vi.fn();
+    const { POST } = createBeautyProxy({ ...base, brandId: '..', fetch });
+    const res = await POST(new Request('https://brand.test/api/beauty/face/head', { method: 'POST', body: new FormData() }), ctx('face', 'head'));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ detail: { code: 'invalid_params' } });
+    expect(fetch).not.toHaveBeenCalled();
   });
 });

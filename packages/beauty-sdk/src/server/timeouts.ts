@@ -10,7 +10,7 @@ const CORE_COLOUR_WORKER_MS = 60_000; // DefaultColourWorkerTimeout
 const CORE_VISION_DAG_MS = 30_000; // DefaultVisionDAGTimeout
 
 /** For operations with no core-engine timeout to derive from (reference
- *  reads, survey evaluate, assessment history). A proxy-side choice,
+ *  reads). A proxy-side choice,
  *  overridable per operation. */
 export const DEFAULT_PROXY_TIMEOUT_MS = 15_000;
 
@@ -23,6 +23,4 @@ export const OPERATION_TIMEOUT_MS: Record<OperationId, number> = {
   'skin.analyze': CORE_VISION_DAG_MS + MARGIN_MS,
   'reference.brands': DEFAULT_PROXY_TIMEOUT_MS,
   'reference.products': DEFAULT_PROXY_TIMEOUT_MS,
-  'forms.evaluate': DEFAULT_PROXY_TIMEOUT_MS,
-  'assessments.history': DEFAULT_PROXY_TIMEOUT_MS,
 };
