@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { ShieldAlert, Loader2 } from 'lucide-react';
 import { Modal } from '@gateway-experience/shared';
 import type { ConflictMatrixRule } from '../../types';
+import { listReferenceIngredients } from '../../api';
 
 interface ConflictRuleModalProps {
   isOpen: boolean;
@@ -27,11 +28,9 @@ export const ConflictRuleModal: React.FC<ConflictRuleModalProps> = ({
   const [ingredients, setIngredients] = useState<Array<{ code: string; name: string }>>([]);
 
   useEffect(() => {
-    fetch('/api/reference/ingredients')
-      .then((res) => res.json())
-      .then((data) => {
-        const raw = Array.isArray(data.ingredients) ? data.ingredients : (Array.isArray(data) ? data : []);
-        if (raw.length > 0) setIngredients(raw.map((i: any) => ({ code: i.code || i.name, name: i.name })));
+    listReferenceIngredients()
+      .then((list) => {
+        if (list.length > 0) setIngredients(list);
       })
       .catch(() => {});
   }, [isOpen]);

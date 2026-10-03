@@ -13,8 +13,7 @@ import { MatchSimulatorTab } from './tabs/MatchSimulatorTab';
 import { ConflictRuleModal } from './modals/ConflictRuleModal';
 import { ProductGroupModal } from './modals/ProductGroupModal';
 import { ShadeModal } from './modals/ShadeModal';
-import { resolveDynamicEndpoint } from '../../core/collection-resolver';
-import { withTenantScope } from '../../core/scope';
+import { conflictsApi, productGroupsApi, productsApi, runMatch, shadesApi } from '../api';
 
 export const MatchManager: React.FC = () => {
   const [activeTab, setActiveTab] = usePersistentState<'conflicts' | 'groups' | 'shades' | 'simulator'>('xg.matchEngine.activeTab', 'conflicts');
@@ -71,26 +70,26 @@ export const MatchManager: React.FC = () => {
   // brand/application dropdowns in the tabs. The scope is sent explicitly so
   // the gateway's collection params can never pick the tenant instead.
   const loadData = () => {
-    fetch(resolveDynamicEndpoint('match', withTenantScope('/api/matching/conflicts')))
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data.conflicts)) setConflicts(data.conflicts);
+    conflictsApi
+      .list()
+      .then((list) => {
+        if (list) setConflicts(list);
       })
       .catch(() => {});
 
-    fetch(resolveDynamicEndpoint('match', withTenantScope('/api/matching/product-groups')))
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data.groups)) setProductGroups(data.groups);
+    productGroupsApi
+      .list()
+      .then((list) => {
+        if (list) setProductGroups(list);
       })
       .catch(() => {});
 
-    fetch(resolveDynamicEndpoint('match', withTenantScope('/api/matching/products')))
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data.products)) {
-          setProducts(data.products);
-          setShadeProductId((prev) => prev || data.products[0]?.id || '');
+    productsApi
+      .list()
+      .then((list) => {
+        if (list) {
+          setProducts(list);
+          setShadeProductId((prev) => prev || list[0]?.id || '');
         }
       })
       .catch(() => {});
@@ -101,10 +100,10 @@ export const MatchManager: React.FC = () => {
       setShades([]);
       return;
     }
-    fetch(resolveDynamicEndpoint('match', `/api/matching/shades?product_id=${encodeURIComponent(productId)}`))
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data.shades)) setShades(data.shades);
+    shadesApi
+      .list(productId)
+      .then((list) => {
+        if (list) setShades(list);
       })
       .catch(() => {});
   };
@@ -125,16 +124,11 @@ export const MatchManager: React.FC = () => {
   ];
 
   const handleSaveConflict = async (data: any) => {
-    const endpoint = resolveDynamicEndpoint('match', '/api/matching/conflicts');
     if (editingConflict) {
       const updated = { ...editingConflict, ...data };
       setConflicts((prev) => prev.map((x) => (x.id === editingConflict.id ? updated : x)));
       try {
-        await fetch(endpoint, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(updated),
-        });
+        await conflictsApi.update(updated);
       } catch {}
     } else {
       const newConf: ConflictMatrixRule = {
@@ -145,11 +139,7 @@ export const MatchManager: React.FC = () => {
       };
       setConflicts((prev) => [newConf, ...prev]);
       try {
-        await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newConf),
-        });
+        await conflictsApi.create(newConf);
       } catch {}
     }
   };
@@ -163,8 +153,7 @@ export const MatchManager: React.FC = () => {
       onConfirm: async () => {
         setConflicts((prev) => prev.filter((x) => x.id !== id));
         try {
-          const endpoint = resolveDynamicEndpoint('match', `/api/matching/conflicts?id=${id}`);
-          await fetch(endpoint, { method: 'DELETE' });
+          await conflictsApi.remove(id);
         } catch {}
         setDeleteConfirm((prev) => ({ ...prev, isOpen: false }));
       },
@@ -172,16 +161,11 @@ export const MatchManager: React.FC = () => {
   };
 
   const handleSaveGroup = async (data: any) => {
-    const endpoint = resolveDynamicEndpoint('match', '/api/matching/product-groups');
     if (editingGroup) {
       const updated = { ...editingGroup, ...data };
       setProductGroups((prev) => prev.map((x) => (x.id === editingGroup.id ? updated : x)));
       try {
-        await fetch(endpoint, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(updated),
-        });
+        await productGroupsApi.update(updated);
       } catch {}
     } else {
       const newGroup: ProductGroup = {
@@ -190,11 +174,7 @@ export const MatchManager: React.FC = () => {
       };
       setProductGroups((prev) => [newGroup, ...prev]);
       try {
-        await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newGroup),
-        });
+        await productGroupsApi.create(newGroup);
       } catch {}
     }
   };
@@ -208,8 +188,7 @@ export const MatchManager: React.FC = () => {
       onConfirm: async () => {
         setProductGroups((prev) => prev.filter((x) => x.id !== id));
         try {
-          const endpoint = resolveDynamicEndpoint('match', `/api/matching/product-groups?id=${id}`);
-          await fetch(endpoint, { method: 'DELETE' });
+          await productGroupsApi.remove(id);
         } catch {}
         setDeleteConfirm((prev) => ({ ...prev, isOpen: false }));
       },
@@ -217,16 +196,11 @@ export const MatchManager: React.FC = () => {
   };
 
   const handleSaveShade = async (data: any) => {
-    const endpoint = resolveDynamicEndpoint('match', '/api/matching/shades');
     if (editingShade) {
       const updated = { ...editingShade, ...data };
       setShades((prev) => prev.map((x) => (x.id === editingShade.id ? updated : x)));
       try {
-        await fetch(endpoint, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(updated),
-        });
+        await shadesApi.update(updated);
       } catch {}
     } else {
       const newShade: Shade = {
@@ -236,11 +210,7 @@ export const MatchManager: React.FC = () => {
       };
       setShades((prev) => [newShade, ...prev]);
       try {
-        await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newShade),
-        });
+        await shadesApi.create(newShade);
         // Re-fetch shortly after so the real ExtractionStatus (set by the
         // backend once tryon-engine is triggered) replaces the optimistic
         // "pending" placeholder above.
@@ -258,8 +228,7 @@ export const MatchManager: React.FC = () => {
       onConfirm: async () => {
         setShades((prev) => prev.filter((x) => x.id !== id));
         try {
-          const endpoint = resolveDynamicEndpoint('match', `/api/matching/shades?id=${id}`);
-          await fetch(endpoint, { method: 'DELETE' });
+          await shadesApi.remove(id);
         } catch {}
         setDeleteConfirm((prev) => ({ ...prev, isOpen: false }));
       },
@@ -286,17 +255,8 @@ export const MatchManager: React.FC = () => {
         },
       };
 
-      const endpoint = resolveDynamicEndpoint('match', '/api/matching/match');
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        setSimResult(data);
-      }
+      const data = await runMatch(payload);
+      if (data) setSimResult(data);
     } catch {} finally {
       setIsSimulating(false);
     }

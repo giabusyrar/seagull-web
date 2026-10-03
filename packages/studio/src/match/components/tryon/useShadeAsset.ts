@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { resolveDynamicEndpoint } from '../../../core/collection-resolver';
+import { shadesApi } from '../../api';
 import type { Shade } from './ShadeAssetTypes';
 
 export function useShadesForProduct(productId: string) {
@@ -16,11 +16,10 @@ export function useShadesForProduct(productId: string) {
     }
     let cancelled = false;
     setIsLoading(true);
-    const endpoint = resolveDynamicEndpoint('match', `/api/matching/shades?product_id=${encodeURIComponent(productId)}`);
-    fetch(endpoint)
-      .then((res) => res.json())
-      .then((data) => {
-        if (!cancelled && Array.isArray(data.shades)) setShades(data.shades);
+    shadesApi
+      .list(productId)
+      .then((list) => {
+        if (!cancelled && list) setShades(list);
       })
       .catch(() => {})
       .finally(() => {

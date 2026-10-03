@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import type { Shade, ShadeAsset } from './ShadeAssetTypes';
-import { resolveDynamicEndpoint } from '../../../core/collection-resolver';
+import { fetchShadeAsset } from '../../api';
 import { buildRegionPaths, REGION_TINT_ALPHA, type FaceLandmark } from './faceRegions';
 
 interface LiveTryOnCanvasProps {
@@ -27,17 +27,15 @@ export const LiveTryOnCanvas: React.FC<LiveTryOnCanvasProps> = ({ selectedShade 
       return;
     }
     let cancelled = false;
-    const endpoint = resolveDynamicEndpoint('match', `/api/matching/shade-assets/${selectedShade.assetId}`);
-    fetch(endpoint)
-      .then((res) => res.json())
-      .then((data: { asset?: ShadeAsset }) => {
-        if (cancelled || !data.asset) return;
+    fetchShadeAsset(selectedShade.assetId)
+      .then((asset) => {
+        if (cancelled || !asset) return;
         const img = new Image();
         img.crossOrigin = 'anonymous';
         img.onload = () => {
           if (!cancelled) colorMapRef.current = img;
         };
-        img.src = data.asset.colorMapUrl;
+        img.src = asset.colorMapUrl;
       })
       .catch(() => {});
     return () => {

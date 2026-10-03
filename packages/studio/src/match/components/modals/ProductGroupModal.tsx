@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Boxes, Loader2, X } from 'lucide-react';
 import { Modal, SearchableSelect, InfoTooltip } from '@gateway-experience/shared';
 import type { ProductGroup, ProductCatalogItem } from '../../types';
-import { resolveDynamicEndpoint } from '../../../core/collection-resolver';
+import { productsApi } from '../../api';
 
 interface ProductGroupModalProps {
   isOpen: boolean;
@@ -43,11 +43,10 @@ export const ProductGroupModal: React.FC<ProductGroupModalProps> = ({
 
   useEffect(() => {
     if (!isOpen) return;
-    const endpoint = resolveDynamicEndpoint('match', `/api/matching/products?brand_id=${encodeURIComponent(brandId || '*')}`);
-    fetch(endpoint)
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data.products)) setProducts(data.products);
+    productsApi
+      .listForBrand(brandId)
+      .then((list) => {
+        if (list) setProducts(list);
       })
       .catch(() => {});
   }, [isOpen, brandId]);

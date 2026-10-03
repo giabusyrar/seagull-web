@@ -743,6 +743,86 @@ var MatchSimulatorTab = ({
 import { useState, useEffect } from "react";
 import { ShieldAlert as ShieldAlert2, Loader2 as Loader22 } from "lucide-react";
 import { Modal } from "@gateway-experience/shared";
+
+// src/core/collection-resolver.ts
+function getCollectionPrefix(key) {
+  const map = {
+    form: "/core/form-engine",
+    "form-engine": "/core/form-engine",
+    score: "/core/score-engine",
+    "score-engine": "/core/score-engine",
+    match: "/core/match-engine",
+    "match-engine": "/core/match-engine",
+    vision: "/core/vision-engine",
+    "vision-engine": "/core/vision-engine",
+    reference: "/core/reference-service",
+    "reference-service": "/core/reference-service",
+    colour: "/core/colour-engine",
+    "colour-engine": "/core/colour-engine"
+  };
+  return map[key] || `/core/${key}`;
+}
+function resolveDynamicEndpoint(key, routePattern, collections) {
+  const prefix = getCollectionPrefix(key);
+  const cleanPattern = routePattern.startsWith("/") ? routePattern : `/${routePattern}`;
+  if (collections && collections.length > 0) {
+    const matched = collections.find(
+      (c) => c.originalPrefix === prefix || c.name.toLowerCase().includes(key.toLowerCase()) || c.id === key
+    );
+    if (matched && matched.originalPrefix) {
+      return `${matched.originalPrefix}${cleanPattern}`;
+    }
+  }
+  return `${prefix}${cleanPattern}`;
+}
+
+// src/core/scope.ts
+var ALL_TENANTS = "*";
+function tenantScopeQuery(brandId = ALL_TENANTS, applicationId = ALL_TENANTS) {
+  return `brand_id=${encodeURIComponent(brandId || ALL_TENANTS)}&application_id=${encodeURIComponent(applicationId || ALL_TENANTS)}`;
+}
+function withTenantScope(path, brandId, applicationId) {
+  return `${path}${path.includes("?") ? "&" : "?"}${tenantScopeQuery(brandId, applicationId)}`;
+}
+
+// src/match/api.ts
+var ep = (path) => resolveDynamicEndpoint("match", path);
+async function list(path, field, doFetch) {
+  const data = await (await doFetch(path)).json();
+  return Array.isArray(data[field]) ? data[field] : null;
+}
+var sendJson = (doFetch, url, method, body) => doFetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+function resource(path, field) {
+  return {
+    list: (doFetch = fetch) => list(ep(withTenantScope(path)), field, doFetch),
+    create: (item, doFetch = fetch) => sendJson(doFetch, ep(path), "POST", item),
+    update: (item, doFetch = fetch) => sendJson(doFetch, ep(path), "PUT", item),
+    remove: (id, doFetch = fetch) => doFetch(ep(`${path}?id=${id}`), { method: "DELETE" })
+  };
+}
+var conflictsApi = resource("/api/matching/conflicts", "conflicts");
+var productGroupsApi = resource("/api/matching/product-groups", "groups");
+var productsApi = {
+  list: (doFetch = fetch) => list(ep(withTenantScope("/api/matching/products")), "products", doFetch),
+  /** One brand's products ('' means every brand). */
+  listForBrand: (brandId, doFetch = fetch) => list(ep(`/api/matching/products?brand_id=${encodeURIComponent(brandId || "*")}`), "products", doFetch)
+};
+var shadesApi = {
+  ...resource("/api/matching/shades", "shades"),
+  /** Shades of one product; unscoped, as the engine keys them by product. */
+  list: (productId, doFetch = fetch) => list(ep(`/api/matching/shades?product_id=${encodeURIComponent(productId)}`), "shades", doFetch)
+};
+async function runMatch(payload, doFetch = fetch) {
+  const res = await sendJson(doFetch, ep("/api/matching/match"), "POST", payload);
+  return res.ok ? await res.json() : null;
+}
+async function listReferenceIngredients(doFetch = fetch) {
+  const data = await (await doFetch("/api/reference/ingredients")).json();
+  const raw = Array.isArray(data.ingredients) ? data.ingredients : Array.isArray(data) ? data : [];
+  return raw.map((i) => ({ code: i.code || i.name, name: i.name }));
+}
+
+// src/match/components/modals/ConflictRuleModal.tsx
 import { jsx as jsx5, jsxs as jsxs5 } from "react/jsx-runtime";
 var ConflictRuleModal = ({
   isOpen,
@@ -758,9 +838,8 @@ var ConflictRuleModal = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [ingredients, setIngredients] = useState([]);
   useEffect(() => {
-    fetch("/api/reference/ingredients").then((res) => res.json()).then((data) => {
-      const raw = Array.isArray(data.ingredients) ? data.ingredients : Array.isArray(data) ? data : [];
-      if (raw.length > 0) setIngredients(raw.map((i) => ({ code: i.code || i.name, name: i.name })));
+    listReferenceIngredients().then((list2) => {
+      if (list2.length > 0) setIngredients(list2);
     }).catch(() => {
     });
   }, [isOpen]);
@@ -911,40 +990,6 @@ var ConflictRuleModal = ({
 import { useState as useState2, useEffect as useEffect2, useMemo } from "react";
 import { Boxes as Boxes2, Loader2 as Loader23, X } from "lucide-react";
 import { Modal as Modal2, SearchableSelect, InfoTooltip } from "@gateway-experience/shared";
-
-// src/core/collection-resolver.ts
-function getCollectionPrefix(key) {
-  const map = {
-    form: "/core/form-engine",
-    "form-engine": "/core/form-engine",
-    score: "/core/score-engine",
-    "score-engine": "/core/score-engine",
-    match: "/core/match-engine",
-    "match-engine": "/core/match-engine",
-    vision: "/core/vision-engine",
-    "vision-engine": "/core/vision-engine",
-    reference: "/core/reference-service",
-    "reference-service": "/core/reference-service",
-    colour: "/core/colour-engine",
-    "colour-engine": "/core/colour-engine"
-  };
-  return map[key] || `/core/${key}`;
-}
-function resolveDynamicEndpoint(key, routePattern, collections) {
-  const prefix = getCollectionPrefix(key);
-  const cleanPattern = routePattern.startsWith("/") ? routePattern : `/${routePattern}`;
-  if (collections && collections.length > 0) {
-    const matched = collections.find(
-      (c) => c.originalPrefix === prefix || c.name.toLowerCase().includes(key.toLowerCase()) || c.id === key
-    );
-    if (matched && matched.originalPrefix) {
-      return `${matched.originalPrefix}${cleanPattern}`;
-    }
-  }
-  return `${prefix}${cleanPattern}`;
-}
-
-// src/match/components/modals/ProductGroupModal.tsx
 import { jsx as jsx6, jsxs as jsxs6 } from "react/jsx-runtime";
 var BRAND_OPTIONS = [
   { value: "wardah", label: "Wardah Beauty" },
@@ -972,9 +1017,8 @@ var ProductGroupModal = ({
   const [products, setProducts] = useState2([]);
   useEffect2(() => {
     if (!isOpen) return;
-    const endpoint = resolveDynamicEndpoint("match", `/api/matching/products?brand_id=${encodeURIComponent(brandId || "*")}`);
-    fetch(endpoint).then((res) => res.json()).then((data) => {
-      if (Array.isArray(data.products)) setProducts(data.products);
+    productsApi.listForBrand(brandId).then((list2) => {
+      if (list2) setProducts(list2);
     }).catch(() => {
     });
   }, [isOpen, brandId]);
@@ -1337,15 +1381,6 @@ var ShadeModal = ({ isOpen, onClose, onSave, editingShade, productId }) => {
   );
 };
 
-// src/core/scope.ts
-var ALL_TENANTS = "*";
-function tenantScopeQuery(brandId = ALL_TENANTS, applicationId = ALL_TENANTS) {
-  return `brand_id=${encodeURIComponent(brandId || ALL_TENANTS)}&application_id=${encodeURIComponent(applicationId || ALL_TENANTS)}`;
-}
-function withTenantScope(path, brandId, applicationId) {
-  return `${path}${path.includes("?") ? "&" : "?"}${tenantScopeQuery(brandId, applicationId)}`;
-}
-
 // src/match/components/MatchManager.tsx
 import { jsx as jsx8, jsxs as jsxs8 } from "react/jsx-runtime";
 var MatchManager = () => {
@@ -1383,18 +1418,18 @@ var MatchManager = () => {
   const [isSimulating, setIsSimulating] = useState4(false);
   const [simResult, setSimResult] = usePersistentState("xg.matchEngine.simulator.result", null);
   const loadData = () => {
-    fetch(resolveDynamicEndpoint("match", withTenantScope("/api/matching/conflicts"))).then((res) => res.json()).then((data) => {
-      if (Array.isArray(data.conflicts)) setConflicts(data.conflicts);
+    conflictsApi.list().then((list2) => {
+      if (list2) setConflicts(list2);
     }).catch(() => {
     });
-    fetch(resolveDynamicEndpoint("match", withTenantScope("/api/matching/product-groups"))).then((res) => res.json()).then((data) => {
-      if (Array.isArray(data.groups)) setProductGroups(data.groups);
+    productGroupsApi.list().then((list2) => {
+      if (list2) setProductGroups(list2);
     }).catch(() => {
     });
-    fetch(resolveDynamicEndpoint("match", withTenantScope("/api/matching/products"))).then((res) => res.json()).then((data) => {
-      if (Array.isArray(data.products)) {
-        setProducts(data.products);
-        setShadeProductId((prev) => prev || data.products[0]?.id || "");
+    productsApi.list().then((list2) => {
+      if (list2) {
+        setProducts(list2);
+        setShadeProductId((prev) => prev || list2[0]?.id || "");
       }
     }).catch(() => {
     });
@@ -1404,8 +1439,8 @@ var MatchManager = () => {
       setShades([]);
       return;
     }
-    fetch(resolveDynamicEndpoint("match", `/api/matching/shades?product_id=${encodeURIComponent(productId)}`)).then((res) => res.json()).then((data) => {
-      if (Array.isArray(data.shades)) setShades(data.shades);
+    shadesApi.list(productId).then((list2) => {
+      if (list2) setShades(list2);
     }).catch(() => {
     });
   };
@@ -1422,16 +1457,11 @@ var MatchManager = () => {
     { id: "simulator", label: "Match Simulator", icon: /* @__PURE__ */ jsx8(Play2, { className: "h-4 w-4 text-emerald-400" }) }
   ];
   const handleSaveConflict = async (data) => {
-    const endpoint = resolveDynamicEndpoint("match", "/api/matching/conflicts");
     if (editingConflict) {
       const updated = { ...editingConflict, ...data };
       setConflicts((prev) => prev.map((x) => x.id === editingConflict.id ? updated : x));
       try {
-        await fetch(endpoint, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(updated)
-        });
+        await conflictsApi.update(updated);
       } catch {
       }
     } else {
@@ -1443,11 +1473,7 @@ var MatchManager = () => {
       };
       setConflicts((prev) => [newConf, ...prev]);
       try {
-        await fetch(endpoint, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(newConf)
-        });
+        await conflictsApi.create(newConf);
       } catch {
       }
     }
@@ -1461,8 +1487,7 @@ var MatchManager = () => {
       onConfirm: async () => {
         setConflicts((prev) => prev.filter((x) => x.id !== id));
         try {
-          const endpoint = resolveDynamicEndpoint("match", `/api/matching/conflicts?id=${id}`);
-          await fetch(endpoint, { method: "DELETE" });
+          await conflictsApi.remove(id);
         } catch {
         }
         setDeleteConfirm((prev) => ({ ...prev, isOpen: false }));
@@ -1470,16 +1495,11 @@ var MatchManager = () => {
     });
   };
   const handleSaveGroup = async (data) => {
-    const endpoint = resolveDynamicEndpoint("match", "/api/matching/product-groups");
     if (editingGroup) {
       const updated = { ...editingGroup, ...data };
       setProductGroups((prev) => prev.map((x) => x.id === editingGroup.id ? updated : x));
       try {
-        await fetch(endpoint, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(updated)
-        });
+        await productGroupsApi.update(updated);
       } catch {
       }
     } else {
@@ -1489,11 +1509,7 @@ var MatchManager = () => {
       };
       setProductGroups((prev) => [newGroup, ...prev]);
       try {
-        await fetch(endpoint, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(newGroup)
-        });
+        await productGroupsApi.create(newGroup);
       } catch {
       }
     }
@@ -1507,8 +1523,7 @@ var MatchManager = () => {
       onConfirm: async () => {
         setProductGroups((prev) => prev.filter((x) => x.id !== id));
         try {
-          const endpoint = resolveDynamicEndpoint("match", `/api/matching/product-groups?id=${id}`);
-          await fetch(endpoint, { method: "DELETE" });
+          await productGroupsApi.remove(id);
         } catch {
         }
         setDeleteConfirm((prev) => ({ ...prev, isOpen: false }));
@@ -1516,16 +1531,11 @@ var MatchManager = () => {
     });
   };
   const handleSaveShade = async (data) => {
-    const endpoint = resolveDynamicEndpoint("match", "/api/matching/shades");
     if (editingShade) {
       const updated = { ...editingShade, ...data };
       setShades((prev) => prev.map((x) => x.id === editingShade.id ? updated : x));
       try {
-        await fetch(endpoint, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(updated)
-        });
+        await shadesApi.update(updated);
       } catch {
       }
     } else {
@@ -1536,11 +1546,7 @@ var MatchManager = () => {
       };
       setShades((prev) => [newShade, ...prev]);
       try {
-        await fetch(endpoint, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(newShade)
-        });
+        await shadesApi.create(newShade);
         setTimeout(() => loadShades(shadeProductId), 1e3);
       } catch {
       }
@@ -1555,8 +1561,7 @@ var MatchManager = () => {
       onConfirm: async () => {
         setShades((prev) => prev.filter((x) => x.id !== id));
         try {
-          const endpoint = resolveDynamicEndpoint("match", `/api/matching/shades?id=${id}`);
-          await fetch(endpoint, { method: "DELETE" });
+          await shadesApi.remove(id);
         } catch {
         }
         setDeleteConfirm((prev) => ({ ...prev, isOpen: false }));
@@ -1581,16 +1586,8 @@ var MatchManager = () => {
           uses_retinol: simRetinol
         }
       };
-      const endpoint = resolveDynamicEndpoint("match", "/api/matching/match");
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setSimResult(data);
-      }
+      const data = await runMatch(payload);
+      if (data) setSimResult(data);
     } catch {
     } finally {
       setIsSimulating(false);
