@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Download, Palette, RotateCcw, ScanFace, Sparkles, Undo2 } from 'lucide-react';
 import { ApplicationSelect, BrandSelect, Button, cn, loadBlob, saveBlob, usePersistentState } from '@gateway-experience/shared';
 import { useCoreCollection } from '@/lib/hooks/use-core-collection';
+import { analyzeColour, fetchColourCatalog } from './api';
 import { AnalysisCard } from './AnalysisCard';
 import { CameraCapture } from './CameraCapture';
 import { ProductPicker } from './ProductPicker';
@@ -19,7 +20,7 @@ import { physicalScale } from './face/physicalScale';
 import { useFaceArchitecture } from './face/useFaceArchitecture';
 import { useFaceHead } from './face/useFaceHead';
 import type { DrawnMeasurement } from './face/MeasurementOverlay';
-import { catalogOf, errorText, readApiError, type AnalyzeResult, type ApiError, type CatalogResult } from './types';
+import { catalogOf, errorText, type AnalyzeResult, type ApiError, type CatalogResult } from './types';
 
 type Step = 'capture' | 'questions' | 'result';
 
@@ -174,13 +175,7 @@ export function ColourStudioView() {
     setAnalyzing(true);
     setError(null);
     try {
-      const fd = new FormData();
-      fd.append('image', file);
-      fd.append('hijab', String(hijab === 'yes'));
-      fd.append('hairVisible', String(hairVisible === 'yes'));
-      const res = await fetch(getEndpoint('colour', '/analyze'), { method: 'POST', body: fd });
-      if (!res.ok) throw await readApiError(res);
-      setResult((await res.json()) as AnalyzeResult);
+      setResult(await analyzeColour(getEndpoint, { image: file, hijab: hijab === 'yes', hairVisible: hairVisible === 'yes' }));
     } catch (e: unknown) {
       const err = e as Partial<ApiError>;
       setError({ status: err.status ?? 0, code: err.code ?? '', message: err.message ?? String(e) });
@@ -193,9 +188,7 @@ export function ColourStudioView() {
     setLoadingCatalog(true);
     setError(null);
     try {
-      const res = await fetch(getEndpoint('colour', '/catalog'));
-      if (!res.ok) throw await readApiError(res);
-      setPlain((await res.json()) as CatalogResult);
+      setPlain(await fetchColourCatalog(getEndpoint));
     } catch (e: unknown) {
       const err = e as Partial<ApiError>;
       setError({ status: err.status ?? 0, code: err.code ?? '', message: err.message ?? String(e) });
