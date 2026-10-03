@@ -1,11 +1,64 @@
-'use strict';
+'use client';
+"use strict";
+"use client";
+var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
+var __copyProps = (to, from, except, desc) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+  }
+  return to;
+};
+var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-var react = require('react');
-var lucideReact = require('lucide-react');
-var shared = require('@gateway-experience/shared');
-var jsxRuntime = require('react/jsx-runtime');
-var surveyCore = require('survey-core');
-var surveyReactUi = require('survey-react-ui');
+// src/form/index.ts
+var form_exports = {};
+__export(form_exports, {
+  BUILTIN_TEMPLATES: () => BUILTIN_TEMPLATES,
+  CALCULATION_METHODS: () => CALCULATION_METHODS,
+  FALLBACK_DIMENSIONS: () => FALLBACK_DIMENSIONS,
+  FormManager: () => FormManager,
+  PFORM_EXAMPLE: () => PFORM_EXAMPLE,
+  PFORM_SUGGESTED_DIMENSIONS: () => PFORM_SUGGESTED_DIMENSIONS,
+  PIXIE_OMG_SKIN_ANALYZER: () => PIXIE_OMG_SKIN_ANALYZER,
+  QuestionnaireRunner: () => QuestionnaireRunner,
+  applyCalculationMethod: () => applyCalculationMethod,
+  applyDimensionMapping: () => applyDimensionMapping,
+  buildScoreRequest: () => buildScoreRequest,
+  createSafetyFlag: () => createSafetyFlag,
+  deleteQuestionnaire: () => deleteQuestionnaire,
+  flattenElements: () => flattenElements,
+  fromPFormSchema: () => fromPFormSchema,
+  fromSurveyModel: () => fromSurveyModel,
+  getDimensionMeta: () => getDimensionMeta,
+  getDimensions: () => getDimensions,
+  getQuestionnaire: () => getQuestionnaire,
+  getQuestionnaireModel: () => getQuestionnaireModel,
+  getSafetyFlags: () => getSafetyFlags,
+  listQuestionnaires: () => listQuestionnaires,
+  saveQuestionnaire: () => saveQuestionnaire,
+  scoreSurveyAnswers: () => scoreSurveyAnswers,
+  toSurveyModel: () => toSurveyModel
+});
+module.exports = __toCommonJS(form_exports);
+
+// src/form/components/FormManager.tsx
+var import_react4 = require("react");
+var import_lucide_react4 = require("lucide-react");
+var import_shared4 = require("@gateway-experience/shared");
+
+// src/form/components/tabs/QuestionnairesTab.tsx
+var import_react = require("react");
+var import_lucide_react = require("lucide-react");
+var import_shared = require("@gateway-experience/shared");
 
 // src/form/catalog.ts
 var FALLBACK_DIMENSIONS = [
@@ -324,6 +377,9 @@ var BUILTIN_TEMPLATES = [
     build: () => cloneQuestionnaire(PFORM_EXAMPLE)
   }
 ];
+
+// src/form/components/tabs/QuestionnairesTab.tsx
+var import_jsx_runtime = require("react/jsx-runtime");
 var methodLabel = (q, dimension) => {
   const m = q.calculationMethods?.[dimension] || "sum";
   return CALCULATION_METHODS.find((x) => x.value === m)?.label || m;
@@ -336,15 +392,15 @@ var QuestionnairesTab = ({
   onOpenEditModal,
   onDeleteQuestionnaire
 }) => {
-  const [expandedCode, setExpandedCode] = react.useState(null);
+  const [expandedCode, setExpandedCode] = (0, import_react.useState)(null);
   const filtered = questionnaires.filter((q) => {
     if (!searchQuery.trim()) return true;
     const query = searchQuery.toLowerCase();
     return q.name.toLowerCase().includes(query) || q.code.toLowerCase().includes(query) || q.description?.toLowerCase().includes(query);
   });
-  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "space-y-4", children: [
-    /* @__PURE__ */ jsxRuntime.jsx(
-      shared.SearchFilterBar,
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "space-y-4", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+      import_shared.SearchFilterBar,
       {
         searchQuery,
         onSearchChange,
@@ -353,31 +409,31 @@ var QuestionnairesTab = ({
         onAction: onOpenAddModal
       }
     ),
-    /* @__PURE__ */ jsxRuntime.jsx("div", { className: "space-y-3", children: filtered.length === 0 ? /* @__PURE__ */ jsxRuntime.jsx(
-      shared.EmptyState,
+    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "space-y-3", children: filtered.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+      import_shared.EmptyState,
       {
-        icon: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.FileText, { className: "h-6 w-6 text-muted-foreground" }),
+        icon: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_lucide_react.FileText, { className: "h-6 w-6 text-muted-foreground" }),
         title: "No questionnaires yet",
         description: "Build a questionnaire that turns answers into one score per dimension.",
         actionLabel: "New questionnaire",
         onAction: onOpenAddModal,
-        actionIcon: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Plus, { className: "h-4 w-4" }),
+        actionIcon: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_lucide_react.Plus, { className: "h-4 w-4" }),
         className: "py-14"
       }
     ) : filtered.map((q) => {
       const isExpanded = expandedCode === q.code;
       const questions = q.questions || [];
       const dimensions = Array.from(new Set(questions.map((qu) => qu.dimension)));
-      return /* @__PURE__ */ jsxRuntime.jsxs(
+      return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
         "div",
         {
           className: "rounded-lg border border-border bg-card overflow-hidden transition hover:border-beak/50",
           children: [
-            /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "p-4 flex flex-col md:flex-row md:items-center justify-between gap-4", children: [
-              /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "space-y-1.5 flex-1 min-w-0", children: [
-                /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-2", children: [
-                  /* @__PURE__ */ jsxRuntime.jsx("code", { className: "text-[11px] font-mono text-beak bg-beak/10 border border-beak/30 px-1.5 py-0.5 rounded", children: q.code }),
-                  /* @__PURE__ */ jsxRuntime.jsx(
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "p-4 flex flex-col md:flex-row md:items-center justify-between gap-4", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "space-y-1.5 flex-1 min-w-0", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center gap-2", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("code", { className: "text-[11px] font-mono text-beak bg-beak/10 border border-beak/30 px-1.5 py-0.5 rounded", children: q.code }),
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
                     "span",
                     {
                       className: `px-1.5 py-0.5 rounded text-[10px] uppercase font-semibold ${q.status === "published" ? "bg-beak/15 text-beak" : "bg-muted text-muted-foreground"}`,
@@ -385,14 +441,14 @@ var QuestionnairesTab = ({
                     }
                   )
                 ] }),
-                /* @__PURE__ */ jsxRuntime.jsx("h4", { className: "font-bold text-foreground text-sm", children: q.name }),
-                q.description && /* @__PURE__ */ jsxRuntime.jsx("p", { className: "text-xs text-muted-foreground leading-relaxed", children: q.description }),
-                dimensions.length > 0 && /* @__PURE__ */ jsxRuntime.jsx("div", { className: "flex flex-wrap gap-1.5 pt-1", children: dimensions.map((dim) => /* @__PURE__ */ jsxRuntime.jsxs(
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h4", { className: "font-bold text-foreground text-sm", children: q.name }),
+                q.description && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "text-xs text-muted-foreground leading-relaxed", children: q.description }),
+                dimensions.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "flex flex-wrap gap-1.5 pt-1", children: dimensions.map((dim) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
                   "span",
                   {
                     className: "rounded border border-border px-2 py-0.5 text-[11px] text-muted-foreground",
                     children: [
-                      /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-foreground font-medium", children: getDimensionMeta(dim).label }),
+                      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "text-foreground font-medium", children: getDimensionMeta(dim).label }),
                       " ",
                       "\xB7 ",
                       methodLabel(q, dim)
@@ -401,60 +457,60 @@ var QuestionnairesTab = ({
                   dim
                 )) })
               ] }),
-              /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-2 self-end md:self-center shrink-0", children: [
-                /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "text-[11px] text-muted-foreground hidden sm:block", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center gap-2 self-end md:self-center shrink-0", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "text-[11px] text-muted-foreground hidden sm:block", children: [
                   questions.length || q.questionsCount || 0,
                   " questions"
                 ] }),
-                /* @__PURE__ */ jsxRuntime.jsxs(
+                /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
                   "button",
                   {
                     onClick: () => setExpandedCode(isExpanded ? null : q.code),
                     className: "h-8 px-2.5 rounded-md border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:border-ring transition flex items-center gap-1.5",
                     children: [
-                      isExpanded ? /* @__PURE__ */ jsxRuntime.jsx(lucideReact.ChevronUp, { className: "h-3.5 w-3.5" }) : /* @__PURE__ */ jsxRuntime.jsx(lucideReact.ChevronDown, { className: "h-3.5 w-3.5" }),
+                      isExpanded ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_lucide_react.ChevronUp, { className: "h-3.5 w-3.5" }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_lucide_react.ChevronDown, { className: "h-3.5 w-3.5" }),
                       isExpanded ? "Hide" : "Preview"
                     ]
                   }
                 ),
-                /* @__PURE__ */ jsxRuntime.jsx(
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
                   "button",
                   {
                     onClick: () => onOpenEditModal(q),
                     className: "h-8 w-8 rounded-md border border-border text-muted-foreground hover:text-foreground hover:border-ring transition flex items-center justify-center",
                     title: "Edit",
-                    children: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Pencil, { className: "h-3.5 w-3.5" })
+                    children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_lucide_react.Pencil, { className: "h-3.5 w-3.5" })
                   }
                 ),
-                /* @__PURE__ */ jsxRuntime.jsx(
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
                   "button",
                   {
                     onClick: () => onDeleteQuestionnaire(q.code),
                     className: "h-8 w-8 rounded-md border border-border text-muted-foreground hover:text-destructive hover:border-destructive/50 transition flex items-center justify-center",
                     title: "Delete",
-                    children: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Trash2, { className: "h-3.5 w-3.5" })
+                    children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_lucide_react.Trash2, { className: "h-3.5 w-3.5" })
                   }
                 )
               ] })
             ] }),
-            isExpanded && /* @__PURE__ */ jsxRuntime.jsx("div", { className: "border-t border-border bg-muted/20 p-4 space-y-2", children: questions.length === 0 ? /* @__PURE__ */ jsxRuntime.jsx("p", { className: "text-xs text-muted-foreground", children: "No questions configured." }) : questions.map((qu, qIdx) => /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "rounded-md border border-border bg-card p-3 space-y-2", children: [
-              /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center justify-between gap-2 text-xs", children: [
-                /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "text-foreground", children: [
-                  /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "text-muted-foreground mr-1", children: [
+            isExpanded && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "border-t border-border bg-muted/20 p-4 space-y-2", children: questions.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "text-xs text-muted-foreground", children: "No questions configured." }) : questions.map((qu, qIdx) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "rounded-md border border-border bg-card p-3 space-y-2", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center justify-between gap-2 text-xs", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "text-foreground", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "text-muted-foreground mr-1", children: [
                     qIdx + 1,
                     "."
                   ] }),
                   qu.label
                 ] }),
-                /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-[10px] uppercase tracking-wide text-beak shrink-0", children: getDimensionMeta(qu.dimension).label })
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "text-[10px] uppercase tracking-wide text-beak shrink-0", children: getDimensionMeta(qu.dimension).label })
               ] }),
-              /* @__PURE__ */ jsxRuntime.jsx("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-1.5", children: qu.options.map((opt2, oi) => /* @__PURE__ */ jsxRuntime.jsxs(
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-1.5", children: qu.options.map((opt2, oi) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
                 "div",
                 {
                   className: "rounded border border-border px-2 py-1 flex items-center justify-between text-xs",
                   children: [
-                    /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-muted-foreground truncate pr-2", children: opt2.label }),
-                    /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "text-foreground font-mono shrink-0", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "text-muted-foreground truncate pr-2", children: opt2.label }),
+                    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "text-foreground font-mono shrink-0", children: [
                       (opt2.score ?? 0) > 0 ? "+" : "",
                       opt2.score ?? 0
                     ] })
@@ -470,6 +526,13 @@ var QuestionnairesTab = ({
     }) })
   ] });
 };
+
+// src/form/components/tabs/FormSimulatorTab.tsx
+var import_react2 = require("react");
+var import_lucide_react2 = require("lucide-react");
+var import_shared2 = require("@gateway-experience/shared");
+var import_survey_core = require("survey-core");
+var import_survey_react_ui = require("survey-react-ui");
 
 // src/form/surveyjs.ts
 var TYPE_TO_SURVEYJS = {
@@ -706,7 +769,7 @@ function scoreSurveyAnswers(model, data) {
     if (CHOICE_SURVEYJS_TYPES.has(el.type) && el.choices?.length) {
       const picked = (Array.isArray(answer) ? answer : [answer]).map(String);
       for (const c of el.choices) {
-        const choice = typeof c === "string" ? { value: c} : c;
+        const choice = typeof c === "string" ? { value: c, text: c } : c;
         if (picked.includes(String(choice.value))) {
           push(
             choice.dimension || el.dimension,
@@ -775,6 +838,9 @@ var XG_SURVEY_THEME = {
     "--sjs-shadow-inner": "none"
   }
 };
+
+// src/form/components/tabs/FormSimulatorTab.tsx
+var import_jsx_runtime2 = require("react/jsx-runtime");
 var ANSWERS_KEY_PREFIX = "xg.formEngine.simulator.answers.";
 var CUSTOMER_ID_KEY = "xg.formEngine.simulator.customerId";
 var FormSimulatorTab = ({
@@ -786,15 +852,15 @@ var FormSimulatorTab = ({
 }) => {
   const currentQ = questionnaires.find((q) => q.code === selectedQCode) || questionnaires[0];
   const hasQuestions = (currentQ?.questions?.length ?? 0) > 0;
-  const schema = react.useMemo(
+  const schema = (0, import_react2.useMemo)(
     () => currentQ ? toSurveyModel(currentQ) : null,
     [currentQ]
   );
   const answersKey = currentQ?.code ? ANSWERS_KEY_PREFIX + currentQ.code : null;
-  const [data, setData] = shared.usePersistentState(answersKey, {});
-  const [showPayload, setShowPayload] = react.useState(false);
-  const [customerId, setCustomerId] = shared.usePersistentState(CUSTOMER_ID_KEY, "demo-customer-001");
-  const [copied, setCopied] = react.useState("");
+  const [data, setData] = (0, import_shared2.usePersistentState)(answersKey, {});
+  const [showPayload, setShowPayload] = (0, import_react2.useState)(false);
+  const [customerId, setCustomerId] = (0, import_shared2.usePersistentState)(CUSTOMER_ID_KEY, "demo-customer-001");
+  const [copied, setCopied] = (0, import_react2.useState)("");
   const copy = (text, tag) => {
     navigator.clipboard?.writeText(text).then(
       () => {
@@ -805,9 +871,9 @@ var FormSimulatorTab = ({
       }
     );
   };
-  const survey = react.useMemo(() => {
+  const survey = (0, import_react2.useMemo)(() => {
     if (!schema || !hasQuestions) return null;
-    const m = new surveyCore.Model(schema);
+    const m = new import_survey_core.Model(schema);
     m.showNavigationButtons = false;
     m.showCompleteButton = false;
     m.showProgressBar = "off";
@@ -816,18 +882,18 @@ var FormSimulatorTab = ({
     m.getAllQuestions().forEach((q) => {
       if (q.getType() === "boolean") q.renderAs = "radio";
     });
-    const saved = answersKey ? shared.readPersisted(answersKey) : void 0;
+    const saved = answersKey ? (0, import_shared2.readPersisted)(answersKey) : void 0;
     if (saved) m.data = saved;
     return m;
   }, [schema, hasQuestions, answersKey]);
-  react.useEffect(() => {
+  (0, import_react2.useEffect)(() => {
     setData({ ...survey?.data ?? {} });
     if (!survey) return;
     const onValue = (sender) => setData({ ...sender.data });
     survey.onValueChanged.add(onValue);
     return () => survey.onValueChanged.remove(onValue);
   }, [survey, setData]);
-  const core = react.useMemo(
+  const core = (0, import_react2.useMemo)(
     () => schema ? buildScoreRequest(schema, data) : { answer_list: [], customer_condition: {}, dimensions: [] },
     [schema, data]
   );
@@ -853,18 +919,18 @@ var FormSimulatorTab = ({
     dimensions: core.dimensions,
     vision_signals: {}
   };
-  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "grid grid-cols-1 lg:grid-cols-12 gap-5", children: [
-    /* @__PURE__ */ jsxRuntime.jsx("div", { className: "lg:col-span-7 space-y-3", children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "rounded-lg border border-border bg-card p-4 space-y-3", children: [
-      /* @__PURE__ */ jsxRuntime.jsxs("label", { className: "block space-y-1", children: [
-        /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-muted-foreground text-xs font-semibold", children: "Questionnaire" }),
-        /* @__PURE__ */ jsxRuntime.jsx(
+  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "grid grid-cols-1 lg:grid-cols-12 gap-5", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "lg:col-span-7 space-y-3", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "rounded-lg border border-border bg-card p-4 space-y-3", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("label", { className: "block space-y-1", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "text-muted-foreground text-xs font-semibold", children: "Questionnaire" }),
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
           "select",
           {
             value: selectedQCode,
             onChange: (e) => setSelectedQCode(e.target.value),
             className: "w-full h-9 rounded-md bg-muted/40 border border-border px-3 text-foreground text-xs outline-none focus:border-ring",
             style: { colorScheme: "dark" },
-            children: questionnaires.map((q) => /* @__PURE__ */ jsxRuntime.jsx(
+            children: questionnaires.map((q) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
               "option",
               {
                 value: q.code,
@@ -876,32 +942,32 @@ var FormSimulatorTab = ({
           }
         )
       ] }),
-      !survey ? /* @__PURE__ */ jsxRuntime.jsx("p", { className: "text-muted-foreground text-xs py-6 text-center", children: "This questionnaire has no questions configured." }) : /* @__PURE__ */ jsxRuntime.jsx(surveyReactUi.Survey, { model: survey })
+      !survey ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("p", { className: "text-muted-foreground text-xs py-6 text-center", children: "This questionnaire has no questions configured." }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_survey_react_ui.Survey, { model: survey })
     ] }) }),
-    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "lg:col-span-5 space-y-3", children: [
-      /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "rounded-lg border border-border bg-card p-4 space-y-3", children: [
-        /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center justify-between", children: [
-          /* @__PURE__ */ jsxRuntime.jsx("h3", { className: "text-foreground text-sm font-bold", children: "Score per dimension" }),
-          /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-[11px] text-muted-foreground", children: "Form Engine output" })
+    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "lg:col-span-5 space-y-3", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "rounded-lg border border-border bg-card p-4 space-y-3", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "flex items-center justify-between", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("h3", { className: "text-foreground text-sm font-bold", children: "Score per dimension" }),
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "text-[11px] text-muted-foreground", children: "Form Engine output" })
         ] }),
-        results.length === 0 ? /* @__PURE__ */ jsxRuntime.jsx(
-          shared.EmptyState,
+        results.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+          import_shared2.EmptyState,
           {
-            icon: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Play, { className: "h-5 w-5 text-muted-foreground" }),
+            icon: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_lucide_react2.Play, { className: "h-5 w-5 text-muted-foreground" }),
             title: "Nothing to calculate yet",
             description: "Answer a question to see its dimension score.",
             className: "py-10"
           }
-        ) : /* @__PURE__ */ jsxRuntime.jsx("div", { className: "space-y-2", children: results.map((r) => {
+        ) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "space-y-2", children: results.map((r) => {
           const methodLabel2 = CALCULATION_METHODS.find((m) => m.value === r.method)?.label || r.method;
-          return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "rounded-md border border-border bg-muted/20 p-3", children: [
-            /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center justify-between", children: [
-              /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-xs font-semibold text-foreground", children: getDimensionMeta(r.dc).label }),
-              /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-[10px] uppercase tracking-wide text-muted-foreground", children: methodLabel2 })
+          return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "rounded-md border border-border bg-muted/20 p-3", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "flex items-center justify-between", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "text-xs font-semibold text-foreground", children: getDimensionMeta(r.dc).label }),
+              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "text-[10px] uppercase tracking-wide text-muted-foreground", children: methodLabel2 })
             ] }),
-            /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "mt-1 flex items-baseline justify-between", children: [
-              /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-lg font-black text-beak font-mono", children: r.value }),
-              /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "text-[11px] text-muted-foreground font-mono", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "mt-1 flex items-baseline justify-between", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "text-lg font-black text-beak font-mono", children: r.value }),
+              /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { className: "text-[11px] text-muted-foreground font-mono", children: [
                 "[",
                 r.scores.join(", "),
                 "] \u2192 ",
@@ -911,20 +977,20 @@ var FormSimulatorTab = ({
           ] }, r.dc);
         }) })
       ] }),
-      /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "rounded-lg border border-border bg-card p-4 space-y-2", children: [
-        /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center justify-between gap-2", children: [
-          /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "min-w-0", children: [
-            /* @__PURE__ */ jsxRuntime.jsx("h3", { className: "text-foreground text-sm font-bold", children: "Submit Answers body" }),
-            /* @__PURE__ */ jsxRuntime.jsxs("p", { className: "text-[11px] text-muted-foreground truncate", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "rounded-lg border border-border bg-card p-4 space-y-2", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "flex items-center justify-between gap-2", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "min-w-0", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("h3", { className: "text-foreground text-sm font-bold", children: "Submit Answers body" }),
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("p", { className: "text-[11px] text-muted-foreground truncate", children: [
               "POST ",
-              /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "font-mono", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { className: "font-mono", children: [
                 "/v1/survey/",
                 currentQ?.code,
                 "/evaluate"
               ] })
             ] })
           ] }),
-          /* @__PURE__ */ jsxRuntime.jsx(
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
             "button",
             {
               type: "button",
@@ -934,9 +1000,9 @@ var FormSimulatorTab = ({
             }
           )
         ] }),
-        /* @__PURE__ */ jsxRuntime.jsxs("label", { className: "flex items-center gap-2 text-[11px] text-muted-foreground", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("label", { className: "flex items-center gap-2 text-[11px] text-muted-foreground", children: [
           "customer_id",
-          /* @__PURE__ */ jsxRuntime.jsx(
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
             "input",
             {
               value: customerId,
@@ -945,26 +1011,31 @@ var FormSimulatorTab = ({
             }
           )
         ] }),
-        /* @__PURE__ */ jsxRuntime.jsx("pre", { className: "max-h-56 overflow-auto rounded-md bg-muted/40 border border-border p-2.5 text-[11px] text-foreground font-mono leading-relaxed whitespace-pre", children: submitBodyJson })
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("pre", { className: "max-h-56 overflow-auto rounded-md bg-muted/40 border border-border p-2.5 text-[11px] text-foreground font-mono leading-relaxed whitespace-pre", children: submitBodyJson })
       ] }),
-      /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "rounded-lg border border-border bg-card", children: [
-        /* @__PURE__ */ jsxRuntime.jsxs(
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "rounded-lg border border-border bg-card", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
           "button",
           {
             type: "button",
             onClick: () => setShowPayload((v) => !v),
             className: "flex w-full items-center justify-between gap-2 px-4 py-3 text-xs font-bold text-foreground",
             children: [
-              /* @__PURE__ */ jsxRuntime.jsx("span", { children: "Internal: forwarded to Score Engine" }),
-              showPayload ? /* @__PURE__ */ jsxRuntime.jsx(lucideReact.ChevronDown, { className: "h-4 w-4 text-muted-foreground" }) : /* @__PURE__ */ jsxRuntime.jsx(lucideReact.ChevronRight, { className: "h-4 w-4 text-muted-foreground" })
+              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { children: "Internal: forwarded to Score Engine" }),
+              showPayload ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_lucide_react2.ChevronDown, { className: "h-4 w-4 text-muted-foreground" }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_lucide_react2.ChevronRight, { className: "h-4 w-4 text-muted-foreground" })
             ]
           }
         ),
-        showPayload && /* @__PURE__ */ jsxRuntime.jsx("pre", { className: "border-t border-border px-4 py-3 text-[11px] text-muted-foreground whitespace-pre-wrap break-all font-mono leading-relaxed", children: JSON.stringify(payload, null, 2) })
+        showPayload && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("pre", { className: "border-t border-border px-4 py-3 text-[11px] text-muted-foreground whitespace-pre-wrap break-all font-mono leading-relaxed", children: JSON.stringify(payload, null, 2) })
       ] })
     ] })
   ] });
 };
+
+// src/form/components/modals/QuestionnaireModal.tsx
+var import_react3 = require("react");
+var import_lucide_react3 = require("lucide-react");
+var import_shared3 = require("@gateway-experience/shared");
 
 // src/form/api.ts
 var FORM = "/core/form-engine";
@@ -1102,6 +1173,9 @@ async function createSafetyFlag(code, name) {
     return null;
   }
 }
+
+// src/form/components/modals/QuestionnaireModal.tsx
+var import_jsx_runtime3 = require("react/jsx-runtime");
 var QUESTION_TYPES = [
   { value: "single_choice", label: "Choose one", hasOptions: true },
   { value: "multi_choice", label: "Select many", hasOptions: true },
@@ -1146,13 +1220,13 @@ var newQuestion = (dimension) => ({
   options: [newOption(), newOption()]
 });
 var SafetyFlagPicker = ({ flags, flagOptions, onAdd, onRemove, onAddCustom }) => {
-  const [open, setOpen] = react.useState(false);
-  const [addingCustom, setAddingCustom] = react.useState(false);
-  const [customDraft, setCustomDraft] = react.useState("");
-  const [savingCustom, setSavingCustom] = react.useState(false);
-  const ref = react.useRef(null);
+  const [open, setOpen] = (0, import_react3.useState)(false);
+  const [addingCustom, setAddingCustom] = (0, import_react3.useState)(false);
+  const [customDraft, setCustomDraft] = (0, import_react3.useState)("");
+  const [savingCustom, setSavingCustom] = (0, import_react3.useState)(false);
+  const ref = (0, import_react3.useRef)(null);
   const hasFlags = flags.length > 0;
-  react.useEffect(() => {
+  (0, import_react3.useEffect)(() => {
     if (!open) return;
     const onDocDown = (e) => {
       if (ref.current && !ref.current.contains(e.target)) {
@@ -1164,8 +1238,8 @@ var SafetyFlagPicker = ({ flags, flagOptions, onAdd, onRemove, onAddCustom }) =>
     return () => document.removeEventListener("mousedown", onDocDown);
   }, [open]);
   const choices = flagOptions.filter((f) => !flags.includes(f.code));
-  return /* @__PURE__ */ jsxRuntime.jsxs("div", { ref, className: "relative shrink-0", children: [
-    /* @__PURE__ */ jsxRuntime.jsxs(
+  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { ref, className: "relative shrink-0", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
       "button",
       {
         type: "button",
@@ -1173,24 +1247,24 @@ var SafetyFlagPicker = ({ flags, flagOptions, onAdd, onRemove, onAddCustom }) =>
         onClick: () => setOpen((o) => !o),
         className: `h-9 w-9 flex items-center justify-center rounded-md border-2 transition ${hasFlags ? "border-amber-500 bg-amber-500/10 text-amber-600" : "border-border text-muted-foreground hover:text-foreground hover:border-muted-foreground/50"}`,
         children: [
-          /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Flag, { className: "h-5 w-5", fill: hasFlags ? "currentColor" : "none" }),
-          flags.length > 1 && /* @__PURE__ */ jsxRuntime.jsx("span", { className: "absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center leading-none", children: flags.length })
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_lucide_react3.Flag, { className: "h-5 w-5", fill: hasFlags ? "currentColor" : "none" }),
+          flags.length > 1 && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center leading-none", children: flags.length })
         ]
       }
     ),
-    open && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "absolute right-0 top-full mt-1 z-20 w-56 rounded-md border border-border bg-popover shadow-lg p-2 space-y-1.5", children: [
-      hasFlags && /* @__PURE__ */ jsxRuntime.jsx("div", { className: "flex flex-wrap gap-1", children: flags.map((k) => /* @__PURE__ */ jsxRuntime.jsxs(
+    open && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "absolute right-0 top-full mt-1 z-20 w-56 rounded-md border border-border bg-popover shadow-lg p-2 space-y-1.5", children: [
+      hasFlags && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "flex flex-wrap gap-1", children: flags.map((k) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
         "span",
         {
           className: "inline-flex items-center gap-1 bg-amber-500/10 border border-amber-500/30 text-amber-600 text-[10px] px-1.5 py-0.5 rounded font-mono",
           children: [
             k,
-            /* @__PURE__ */ jsxRuntime.jsx("button", { type: "button", onClick: () => onRemove(k), children: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.X, { className: "h-2.5 w-2.5" }) })
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", onClick: () => onRemove(k), children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_lucide_react3.X, { className: "h-2.5 w-2.5" }) })
           ]
         },
         k
       )) }),
-      addingCustom ? /* @__PURE__ */ jsxRuntime.jsx(
+      addingCustom ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
         "input",
         {
           autoFocus: true,
@@ -1215,7 +1289,7 @@ var SafetyFlagPicker = ({ flags, flagOptions, onAdd, onRemove, onAddCustom }) =>
           placeholder: "Flag name (e.g. Baru sunburn)",
           className: `${fieldSm} w-full`
         }
-      ) : /* @__PURE__ */ jsxRuntime.jsxs(
+      ) : /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
         "select",
         {
           value: "",
@@ -1227,9 +1301,9 @@ var SafetyFlagPicker = ({ flags, flagOptions, onAdd, onRemove, onAddCustom }) =>
           className: `${fieldSm} w-full`,
           style: selectStyle,
           children: [
-            /* @__PURE__ */ jsxRuntime.jsx("option", { style: optionStyle, value: "", children: "+ add flag" }),
-            choices.map((f) => /* @__PURE__ */ jsxRuntime.jsx("option", { style: optionStyle, value: f.code, children: f.code }, f.code)),
-            /* @__PURE__ */ jsxRuntime.jsx("option", { style: optionStyle, value: "__custom__", children: "+ Custom\u2026" })
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("option", { style: optionStyle, value: "", children: "+ add flag" }),
+            choices.map((f) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("option", { style: optionStyle, value: f.code, children: f.code }, f.code)),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("option", { style: optionStyle, value: "__custom__", children: "+ Custom\u2026" })
           ]
         }
       )
@@ -1244,24 +1318,24 @@ var QuestionnaireModal = ({
   brandId = "wardah",
   applicationId = "skinverse"
 }) => {
-  const [step, setStep] = react.useState("setup");
-  const [qCode, setQCode] = react.useState("");
-  const [qBrand, setQBrand] = react.useState(brandId);
-  const [qApp, setQApp] = react.useState(applicationId);
-  const [codeEdited, setCodeEdited] = react.useState(false);
-  const [showCodeField, setShowCodeField] = react.useState(false);
-  const [qName, setQName] = react.useState("");
-  const [qDesc, setQDesc] = react.useState("");
-  const [qStatus, setQStatus] = react.useState("draft");
-  const [questions, setQuestions] = react.useState([]);
-  const [calcMethods, setCalcMethods] = react.useState({});
-  const [apiDimensions, setApiDimensions] = react.useState([]);
-  const [safetyFlagCatalog, setSafetyFlagCatalog] = react.useState([]);
-  const [filterDim, setFilterDim] = react.useState("all");
-  const [collapsed, setCollapsed] = react.useState({});
-  const [scoreDrafts, setScoreDrafts] = react.useState({});
-  const [submitting, setSubmitting] = react.useState(false);
-  const [copied, setCopied] = react.useState("");
+  const [step, setStep] = (0, import_react3.useState)("setup");
+  const [qCode, setQCode] = (0, import_react3.useState)("");
+  const [qBrand, setQBrand] = (0, import_react3.useState)(brandId);
+  const [qApp, setQApp] = (0, import_react3.useState)(applicationId);
+  const [codeEdited, setCodeEdited] = (0, import_react3.useState)(false);
+  const [showCodeField, setShowCodeField] = (0, import_react3.useState)(false);
+  const [qName, setQName] = (0, import_react3.useState)("");
+  const [qDesc, setQDesc] = (0, import_react3.useState)("");
+  const [qStatus, setQStatus] = (0, import_react3.useState)("draft");
+  const [questions, setQuestions] = (0, import_react3.useState)([]);
+  const [calcMethods, setCalcMethods] = (0, import_react3.useState)({});
+  const [apiDimensions, setApiDimensions] = (0, import_react3.useState)([]);
+  const [safetyFlagCatalog, setSafetyFlagCatalog] = (0, import_react3.useState)([]);
+  const [filterDim, setFilterDim] = (0, import_react3.useState)("all");
+  const [collapsed, setCollapsed] = (0, import_react3.useState)({});
+  const [scoreDrafts, setScoreDrafts] = (0, import_react3.useState)({});
+  const [submitting, setSubmitting] = (0, import_react3.useState)(false);
+  const [copied, setCopied] = (0, import_react3.useState)("");
   const copy = (text, tag) => {
     navigator.clipboard?.writeText(text).then(
       () => {
@@ -1272,7 +1346,7 @@ var QuestionnaireModal = ({
       }
     );
   };
-  react.useEffect(() => {
+  (0, import_react3.useEffect)(() => {
     if (!isOpen) return;
     setStep("setup");
     setFilterDim("all");
@@ -1302,7 +1376,7 @@ var QuestionnaireModal = ({
       setCollapsed({});
     }
   }, [editingQ, isOpen]);
-  react.useEffect(() => {
+  (0, import_react3.useEffect)(() => {
     if (!isOpen) return;
     getDimensions().then((raw) => {
       setApiDimensions(
@@ -1314,13 +1388,13 @@ var QuestionnaireModal = ({
       );
     }).catch(() => setApiDimensions([]));
   }, [isOpen]);
-  react.useEffect(() => {
+  (0, import_react3.useEffect)(() => {
     if (!isOpen) return;
     getSafetyFlags().then(setSafetyFlagCatalog).catch(() => setSafetyFlagCatalog([]));
   }, [isOpen]);
   const effectiveCode = codeEdited ? qCode : slugify(qName);
   const usedDimensions = Array.from(new Set(questions.map((q) => q.dimension).filter(Boolean)));
-  const flagOptions = react.useMemo(() => {
+  const flagOptions = (0, import_react3.useMemo)(() => {
     const byCode = /* @__PURE__ */ new Map();
     for (const f of safetyFlagCatalog) byCode.set(f.code, f);
     for (const q of questions) {
@@ -1343,7 +1417,7 @@ var QuestionnaireModal = ({
     if (created) setSafetyFlagCatalog((prev) => [...prev, created]);
     return code;
   };
-  const draftItem = react.useMemo(
+  const draftItem = (0, import_react3.useMemo)(
     () => ({
       code: effectiveCode.trim(),
       name: qName.trim(),
@@ -1410,24 +1484,24 @@ var QuestionnaireModal = ({
     }
   };
   const visibleQuestions = questions.map((q, index) => ({ q, index })).filter(({ q }) => filterDim === "all" || q.dimension === filterDim);
-  return /* @__PURE__ */ jsxRuntime.jsxs(
-    shared.Modal,
+  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+    import_shared3.Modal,
     {
       isOpen,
       onClose,
       size: "3xl",
-      icon: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.FileText, { className: "h-4 w-4" }),
+      icon: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_lucide_react3.FileText, { className: "h-4 w-4" }),
       title: editingQ ? "Edit questionnaire" : "New questionnaire",
       subtitle: "Form Engine only calculates scores. Labelling and normalisation happen in the Score Engine.",
       isLoading: submitting,
       loadingText: submitting ? editingQ ? "Saving questionnaire..." : "Creating questionnaire..." : void 0,
       children: [
-        /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-1 rounded-md border border-border bg-muted/30 p-1 text-xs", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "flex items-center gap-1 rounded-md border border-border bg-muted/30 p-1 text-xs", children: [
           [
             ["setup", "1  Setup"],
             ["questions", `2  Questions (${questions.length})`],
             ["calculation", "3  Calculation"]
-          ].map(([v, label]) => /* @__PURE__ */ jsxRuntime.jsx(
+          ].map(([v, label]) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
             "button",
             {
               type: "button",
@@ -1437,7 +1511,7 @@ var QuestionnaireModal = ({
             },
             v
           )),
-          /* @__PURE__ */ jsxRuntime.jsx(
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
             "button",
             {
               type: "button",
@@ -1448,12 +1522,12 @@ var QuestionnaireModal = ({
             }
           )
         ] }),
-        /* @__PURE__ */ jsxRuntime.jsxs("form", { onSubmit: submit, className: "mt-3 space-y-3", children: [
-          step === "setup" && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "space-y-3", children: [
-            /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "rounded-lg border border-border bg-card p-3 space-y-3", children: [
-              /* @__PURE__ */ jsxRuntime.jsxs("label", { className: "block space-y-1", children: [
-                /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-muted-foreground text-xs font-semibold", children: "Name" }),
-                /* @__PURE__ */ jsxRuntime.jsx(
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("form", { onSubmit: submit, className: "mt-3 space-y-3", children: [
+          step === "setup" && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "space-y-3", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "rounded-lg border border-border bg-card p-3 space-y-3", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("label", { className: "block space-y-1", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "text-muted-foreground text-xs font-semibold", children: "Name" }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
                   "input",
                   {
                     required: true,
@@ -1463,10 +1537,10 @@ var QuestionnaireModal = ({
                     className: `${field} w-full`
                   }
                 ),
-                /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "block text-[11px] text-muted-foreground", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "block text-[11px] text-muted-foreground", children: [
                   "Saved as ",
-                  /* @__PURE__ */ jsxRuntime.jsx("code", { className: "text-foreground", children: effectiveCode || "\u2014" }),
-                  /* @__PURE__ */ jsxRuntime.jsx(
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("code", { className: "text-foreground", children: effectiveCode || "\u2014" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
                     "button",
                     {
                       type: "button",
@@ -1479,7 +1553,7 @@ var QuestionnaireModal = ({
                     }
                   )
                 ] }),
-                showCodeField && /* @__PURE__ */ jsxRuntime.jsx(
+                showCodeField && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
                   "input",
                   {
                     value: qCode,
@@ -1492,9 +1566,9 @@ var QuestionnaireModal = ({
                   }
                 )
               ] }),
-              /* @__PURE__ */ jsxRuntime.jsxs("label", { className: "block space-y-1", children: [
-                /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-muted-foreground text-xs font-semibold", children: "Description" }),
-                /* @__PURE__ */ jsxRuntime.jsx(
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("label", { className: "block space-y-1", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "text-muted-foreground text-xs font-semibold", children: "Description" }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
                   "textarea",
                   {
                     value: qDesc,
@@ -1506,9 +1580,9 @@ var QuestionnaireModal = ({
                   }
                 )
               ] }),
-              /* @__PURE__ */ jsxRuntime.jsxs("label", { className: "block space-y-1", children: [
-                /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-muted-foreground text-xs font-semibold", children: "Status" }),
-                /* @__PURE__ */ jsxRuntime.jsxs(
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("label", { className: "block space-y-1", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "text-muted-foreground text-xs font-semibold", children: "Status" }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
                   "select",
                   {
                     value: qStatus,
@@ -1516,27 +1590,27 @@ var QuestionnaireModal = ({
                     className: `${field} w-full`,
                     style: selectStyle,
                     children: [
-                      /* @__PURE__ */ jsxRuntime.jsx("option", { style: optionStyle, value: "draft", children: "Draft" }),
-                      /* @__PURE__ */ jsxRuntime.jsx("option", { style: optionStyle, value: "published", children: "Published" }),
-                      /* @__PURE__ */ jsxRuntime.jsx("option", { style: optionStyle, value: "archived", children: "Archived" })
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("option", { style: optionStyle, value: "draft", children: "Draft" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("option", { style: optionStyle, value: "published", children: "Published" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("option", { style: optionStyle, value: "archived", children: "Archived" })
                     ]
                   }
                 )
               ] }),
-              /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-3", children: [
-                /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "space-y-1", children: [
-                  /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-1.5", children: [
-                    /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-muted-foreground text-xs font-semibold", children: "Brand" }),
-                    /* @__PURE__ */ jsxRuntime.jsx(
-                      shared.InfoTooltip,
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-3", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "space-y-1", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "flex items-center gap-1.5", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "text-muted-foreground text-xs font-semibold", children: "Brand" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                      import_shared3.InfoTooltip,
                       {
                         content: `Saved under ${qBrand || "\u2014"} / ${qApp || "\u2014"}. Defaults to the Form Engine selector; change it to build for a different tenant.`,
                         label: "About brand / application"
                       }
                     )
                   ] }),
-                  /* @__PURE__ */ jsxRuntime.jsx(
-                    shared.BrandSelect,
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                    import_shared3.BrandSelect,
                     {
                       value: qBrand,
                       includeUniversal: false,
@@ -1545,10 +1619,10 @@ var QuestionnaireModal = ({
                     }
                   )
                 ] }),
-                /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "space-y-1", children: [
-                  /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-muted-foreground text-xs font-semibold", children: "Application" }),
-                  /* @__PURE__ */ jsxRuntime.jsx(
-                    shared.ApplicationSelect,
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "space-y-1", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "text-muted-foreground text-xs font-semibold", children: "Application" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                    import_shared3.ApplicationSelect,
                     {
                       value: qApp,
                       includeUniversal: false,
@@ -1559,26 +1633,26 @@ var QuestionnaireModal = ({
                 ] })
               ] })
             ] }),
-            /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "rounded-lg border border-border bg-card p-3 space-y-2", children: [
-              /* @__PURE__ */ jsxRuntime.jsx("p", { className: "text-foreground text-xs font-semibold", children: "Start from a template" }),
-              /* @__PURE__ */ jsxRuntime.jsx("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-2", children: BUILTIN_TEMPLATES.map((t) => /* @__PURE__ */ jsxRuntime.jsxs(
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "rounded-lg border border-border bg-card p-3 space-y-2", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { className: "text-foreground text-xs font-semibold", children: "Start from a template" }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-2", children: BUILTIN_TEMPLATES.map((t) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
                 "button",
                 {
                   type: "button",
                   onClick: () => loadTemplate(t.id),
                   className: "text-left rounded-md border border-border bg-muted/30 hover:border-ring p-2.5 transition",
                   children: [
-                    /* @__PURE__ */ jsxRuntime.jsx("p", { className: "text-foreground text-xs font-semibold", children: t.name }),
-                    /* @__PURE__ */ jsxRuntime.jsx("p", { className: "text-muted-foreground text-[11px] mt-0.5 leading-relaxed", children: t.description })
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { className: "text-foreground text-xs font-semibold", children: t.name }),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { className: "text-muted-foreground text-[11px] mt-0.5 leading-relaxed", children: t.description })
                   ]
                 },
                 t.id
               )) })
             ] }),
-            /* @__PURE__ */ jsxRuntime.jsx("div", { className: "flex justify-end", children: /* @__PURE__ */ jsxRuntime.jsx(shared.Button, { type: "button", size: "sm", onClick: () => setStep("questions"), children: "Continue" }) })
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "flex justify-end", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_shared3.Button, { type: "button", size: "sm", onClick: () => setStep("questions"), children: "Continue" }) })
           ] }),
-          step === "questions" && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "space-y-3", children: [
-            usedDimensions.length > 0 && /* @__PURE__ */ jsxRuntime.jsx("div", { className: "flex flex-wrap items-center gap-1.5", children: ["all", ...usedDimensions].map((d) => /* @__PURE__ */ jsxRuntime.jsx(
+          step === "questions" && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "space-y-3", children: [
+            usedDimensions.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "flex flex-wrap items-center gap-1.5", children: ["all", ...usedDimensions].map((d) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
               "button",
               {
                 type: "button",
@@ -1588,20 +1662,20 @@ var QuestionnaireModal = ({
               },
               d
             )) }),
-            questions.length === 0 ? /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "rounded-lg border border-dashed border-border p-8 text-center", children: [
-              /* @__PURE__ */ jsxRuntime.jsx("p", { className: "text-foreground text-xs font-semibold", children: "No questions yet" }),
-              /* @__PURE__ */ jsxRuntime.jsx("p", { className: "text-muted-foreground text-[11px] mt-1 mb-3", children: "Add questions or load a template from Setup." }),
-              /* @__PURE__ */ jsxRuntime.jsxs(shared.Button, { type: "button", size: "sm", onClick: addQuestion, children: [
-                /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Plus, { className: "h-3.5 w-3.5" }),
+            questions.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "rounded-lg border border-dashed border-border p-8 text-center", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { className: "text-foreground text-xs font-semibold", children: "No questions yet" }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { className: "text-muted-foreground text-[11px] mt-1 mb-3", children: "Add questions or load a template from Setup." }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_shared3.Button, { type: "button", size: "sm", onClick: addQuestion, children: [
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_lucide_react3.Plus, { className: "h-3.5 w-3.5" }),
                 " Add question"
               ] })
-            ] }) : /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "space-y-2", children: [
+            ] }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "space-y-2", children: [
               visibleQuestions.map(({ q, index }) => {
                 const isCollapsed = collapsed[q.id];
-                return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "rounded-md border border-border bg-card", children: [
-                  /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-2 p-2", children: [
-                    /* @__PURE__ */ jsxRuntime.jsx("span", { className: "shrink-0 w-6 text-center text-[11px] font-bold text-muted-foreground", children: index + 1 }),
-                    /* @__PURE__ */ jsxRuntime.jsx(
+                return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "rounded-md border border-border bg-card", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "flex items-center gap-2 p-2", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "shrink-0 w-6 text-center text-[11px] font-bold text-muted-foreground", children: index + 1 }),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
                       "input",
                       {
                         value: q.label,
@@ -1610,37 +1684,37 @@ var QuestionnaireModal = ({
                         className: `${fieldSm} flex-1 min-w-0`
                       }
                     ),
-                    /* @__PURE__ */ jsxRuntime.jsx(
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
                       "button",
                       {
                         type: "button",
                         onClick: () => setCollapsed((c) => ({ ...c, [q.id]: !c[q.id] })),
                         className: "shrink-0 text-muted-foreground hover:text-foreground",
-                        children: isCollapsed ? /* @__PURE__ */ jsxRuntime.jsx(lucideReact.ChevronRight, { className: "h-4 w-4" }) : /* @__PURE__ */ jsxRuntime.jsx(lucideReact.ChevronDown, { className: "h-4 w-4" })
+                        children: isCollapsed ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_lucide_react3.ChevronRight, { className: "h-4 w-4" }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_lucide_react3.ChevronDown, { className: "h-4 w-4" })
                       }
                     ),
-                    /* @__PURE__ */ jsxRuntime.jsx(
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
                       "button",
                       {
                         type: "button",
                         onClick: () => removeQuestion(q.id),
                         className: "shrink-0 text-muted-foreground hover:text-destructive",
-                        children: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Trash2, { className: "h-3.5 w-3.5" })
+                        children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_lucide_react3.Trash2, { className: "h-3.5 w-3.5" })
                       }
                     )
                   ] }),
-                  !isCollapsed && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "border-t border-border p-2.5 space-y-2", children: [
-                    /* @__PURE__ */ jsxRuntime.jsxs(
+                  !isCollapsed && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "border-t border-border p-2.5 space-y-2", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
                       "div",
                       {
                         className: "flex flex-wrap items-center",
                         style: { columnGap: "2rem", rowGap: "0.5rem" },
                         children: [
-                          /* @__PURE__ */ jsxRuntime.jsxs("label", { className: "flex items-center gap-2", children: [
-                            /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "flex items-center gap-1 shrink-0 text-[11px] font-semibold text-muted-foreground", children: [
+                          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("label", { className: "flex items-center gap-2", children: [
+                            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "flex items-center gap-1 shrink-0 text-[11px] font-semibold text-muted-foreground", children: [
                               "Question type",
-                              /* @__PURE__ */ jsxRuntime.jsx(
-                                shared.InfoTooltip,
+                              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                                import_shared3.InfoTooltip,
                                 {
                                   content: TYPE_HINTS[q.type],
                                   label: "About this question type",
@@ -1648,7 +1722,7 @@ var QuestionnaireModal = ({
                                 }
                               )
                             ] }),
-                            /* @__PURE__ */ jsxRuntime.jsx(
+                            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
                               "select",
                               {
                                 value: q.type,
@@ -1671,20 +1745,20 @@ var QuestionnaireModal = ({
                                 },
                                 className: `${fieldSm} w-36`,
                                 style: selectStyle,
-                                children: QUESTION_TYPES.map((t) => /* @__PURE__ */ jsxRuntime.jsx("option", { style: optionStyle, value: t.value, children: t.label }, t.value))
+                                children: QUESTION_TYPES.map((t) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("option", { style: optionStyle, value: t.value, children: t.label }, t.value))
                               }
                             ),
-                            typeHasOptions(q.type) && /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "text-[11px] text-muted-foreground", children: [
+                            typeHasOptions(q.type) && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "text-[11px] text-muted-foreground", children: [
                               q.options.length,
                               " ",
                               q.type === "matrix" ? "columns" : "answers"
                             ] })
                           ] }),
-                          /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-2", children: [
-                            /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "flex items-center gap-1 shrink-0 text-[11px] font-semibold text-muted-foreground", children: [
+                          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "flex items-center gap-2", children: [
+                            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "flex items-center gap-1 shrink-0 text-[11px] font-semibold text-muted-foreground", children: [
                               "Dimension",
-                              /* @__PURE__ */ jsxRuntime.jsx(
-                                shared.InfoTooltip,
+                              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                                import_shared3.InfoTooltip,
                                 {
                                   content: "On: this question's answer counts toward a dimension's score. Off: it's collected as a plain label only (e.g. a free-text main concern), with no effect on scoring.",
                                   label: "About scoring vs. labeling",
@@ -1692,7 +1766,7 @@ var QuestionnaireModal = ({
                                 }
                               )
                             ] }),
-                            /* @__PURE__ */ jsxRuntime.jsx(
+                            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
                               "button",
                               {
                                 type: "button",
@@ -1703,7 +1777,7 @@ var QuestionnaireModal = ({
                                 }),
                                 title: q.dimension ? "Counts toward scoring" : "Label only \u2014 click to score it",
                                 className: `relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${q.dimension ? "bg-emerald-500" : "bg-secondary border border-border"}`,
-                                children: /* @__PURE__ */ jsxRuntime.jsx(
+                                children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
                                   "span",
                                   {
                                     className: `pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${q.dimension ? "translate-x-4" : "translate-x-0"}`
@@ -1711,27 +1785,27 @@ var QuestionnaireModal = ({
                                 )
                               }
                             ),
-                            q.dimension && /* @__PURE__ */ jsxRuntime.jsx(
+                            q.dimension && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
                               "select",
                               {
                                 value: q.dimension,
                                 onChange: (e) => updateQuestion(q.id, { dimension: e.target.value }),
                                 className: `${fieldSm} w-56`,
                                 style: selectStyle,
-                                children: dimensionList.map((d) => /* @__PURE__ */ jsxRuntime.jsx("option", { style: optionStyle, value: d.code, children: d.label }, d.code))
+                                children: dimensionList.map((d) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("option", { style: optionStyle, value: d.code, children: d.label }, d.code))
                               }
                             )
                           ] })
                         ]
                       }
                     ),
-                    q.type === "boolean" && /* @__PURE__ */ jsxRuntime.jsx("div", { className: "flex items-center gap-3", children: ["scoreTrue", "scoreFalse"].map((k) => /* @__PURE__ */ jsxRuntime.jsxs(
+                    q.type === "boolean" && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "flex items-center gap-3", children: ["scoreTrue", "scoreFalse"].map((k) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
                       "label",
                       {
                         className: "flex items-center gap-1 text-[11px] text-muted-foreground",
                         children: [
                           k === "scoreTrue" ? "Score if Yes" : "Score if No",
-                          /* @__PURE__ */ jsxRuntime.jsx(
+                          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
                             "input",
                             {
                               type: "text",
@@ -1757,13 +1831,13 @@ var QuestionnaireModal = ({
                       },
                       k
                     )) }),
-                    (q.type === "rating" || q.type === "numeric_input") && /* @__PURE__ */ jsxRuntime.jsx("div", { className: "flex items-center gap-3", children: ["min", "max"].map((k) => /* @__PURE__ */ jsxRuntime.jsxs(
+                    (q.type === "rating" || q.type === "numeric_input") && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "flex items-center gap-3", children: ["min", "max"].map((k) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
                       "label",
                       {
                         className: "flex items-center gap-1 text-[11px] text-muted-foreground",
                         children: [
                           k,
-                          /* @__PURE__ */ jsxRuntime.jsx(
+                          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
                             "input",
                             {
                               type: "number",
@@ -1791,11 +1865,11 @@ var QuestionnaireModal = ({
                       },
                       k
                     )) }),
-                    q.type === "matrix" && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "rounded-md border border-border bg-muted/20 p-2 space-y-1.5", children: [
-                      /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-1.5", children: [
-                        /* @__PURE__ */ jsxRuntime.jsx("p", { className: "text-[11px] font-semibold text-foreground", children: "Rows" }),
-                        /* @__PURE__ */ jsxRuntime.jsx(
-                          shared.InfoTooltip,
+                    q.type === "matrix" && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "rounded-md border border-border bg-muted/20 p-2 space-y-1.5", children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "flex items-center gap-1.5", children: [
+                        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { className: "text-[11px] font-semibold text-foreground", children: "Rows" }),
+                        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                          import_shared3.InfoTooltip,
                           {
                             content: "One score line per row.",
                             label: "About matrix rows",
@@ -1803,9 +1877,9 @@ var QuestionnaireModal = ({
                           }
                         )
                       ] }),
-                      (q.rows ?? []).map((r, ri) => /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-2", children: [
-                        /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-[10px] text-muted-foreground w-4 text-right", children: ri + 1 }),
-                        /* @__PURE__ */ jsxRuntime.jsx(
+                      (q.rows ?? []).map((r, ri) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "flex items-center gap-2", children: [
+                        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "text-[10px] text-muted-foreground w-4 text-right", children: ri + 1 }),
+                        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
                           "input",
                           {
                             value: r.label,
@@ -1818,7 +1892,7 @@ var QuestionnaireModal = ({
                             className: `${fieldSm} flex-1 min-w-0`
                           }
                         ),
-                        /* @__PURE__ */ jsxRuntime.jsx(
+                        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
                           "button",
                           {
                             type: "button",
@@ -1826,11 +1900,11 @@ var QuestionnaireModal = ({
                               rows: (q.rows ?? []).filter((_, i) => i !== ri)
                             }),
                             className: "shrink-0 text-muted-foreground hover:text-destructive",
-                            children: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.X, { className: "h-3.5 w-3.5" })
+                            children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_lucide_react3.X, { className: "h-3.5 w-3.5" })
                           }
                         )
                       ] }, r.value)),
-                      /* @__PURE__ */ jsxRuntime.jsxs(
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
                         "button",
                         {
                           type: "button",
@@ -1842,17 +1916,17 @@ var QuestionnaireModal = ({
                           }),
                           className: "text-beak text-[11px] font-semibold inline-flex items-center gap-1",
                           children: [
-                            /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Plus, { className: "h-3 w-3" }),
+                            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_lucide_react3.Plus, { className: "h-3 w-3" }),
                             " Add row"
                           ]
                         }
                       )
                     ] }),
-                    typeHasOptions(q.type) && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: q.type === "matrix" ? "rounded-md border border-border bg-muted/20 p-2 space-y-1.5" : "space-y-1", children: [
-                      q.type === "matrix" && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-1.5", children: [
-                        /* @__PURE__ */ jsxRuntime.jsx("p", { className: "text-[11px] font-semibold text-foreground", children: "Answer columns" }),
-                        /* @__PURE__ */ jsxRuntime.jsx(
-                          shared.InfoTooltip,
+                    typeHasOptions(q.type) && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: q.type === "matrix" ? "rounded-md border border-border bg-muted/20 p-2 space-y-1.5" : "space-y-1", children: [
+                      q.type === "matrix" && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "flex items-center gap-1.5", children: [
+                        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { className: "text-[11px] font-semibold text-foreground", children: "Answer columns" }),
+                        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                          import_shared3.InfoTooltip,
                           {
                             content: "Shared by every row; each column carries a score.",
                             label: "About matrix answer columns",
@@ -1862,8 +1936,8 @@ var QuestionnaireModal = ({
                       ] }),
                       q.options.map((o, idx) => {
                         const currentFlags = Object.keys(o.conditionMap || {});
-                        return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-2", children: [
-                          /* @__PURE__ */ jsxRuntime.jsx(
+                        return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "flex items-center gap-2", children: [
+                          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
                             "input",
                             {
                               value: o.label,
@@ -1872,9 +1946,9 @@ var QuestionnaireModal = ({
                               className: `${fieldSm} flex-1 min-w-0`
                             }
                           ),
-                          /* @__PURE__ */ jsxRuntime.jsxs("label", { className: "flex items-center gap-1 text-[11px] text-muted-foreground shrink-0", children: [
+                          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("label", { className: "flex items-center gap-1 text-[11px] text-muted-foreground shrink-0", children: [
                             "score",
-                            /* @__PURE__ */ jsxRuntime.jsx(
+                            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
                               "input",
                               {
                                 type: "text",
@@ -1897,7 +1971,7 @@ var QuestionnaireModal = ({
                               }
                             )
                           ] }),
-                          q.type !== "matrix" && /* @__PURE__ */ jsxRuntime.jsx(
+                          q.type !== "matrix" && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
                             SafetyFlagPicker,
                             {
                               flags: currentFlags,
@@ -1915,7 +1989,7 @@ var QuestionnaireModal = ({
                               }
                             }
                           ),
-                          /* @__PURE__ */ jsxRuntime.jsx(
+                          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
                             "button",
                             {
                               type: "button",
@@ -1923,19 +1997,19 @@ var QuestionnaireModal = ({
                                 options: q.options.filter((_, i) => i !== idx)
                               }),
                               className: "shrink-0 text-muted-foreground hover:text-destructive",
-                              children: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.X, { className: "h-3.5 w-3.5" })
+                              children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_lucide_react3.X, { className: "h-3.5 w-3.5" })
                             }
                           )
                         ] }, idx);
                       }),
-                      /* @__PURE__ */ jsxRuntime.jsxs(
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
                         "button",
                         {
                           type: "button",
                           onClick: () => updateQuestion(q.id, { options: [...q.options, newOption()] }),
                           className: "text-beak text-[11px] font-semibold inline-flex items-center gap-1",
                           children: [
-                            /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Plus, { className: "h-3 w-3" }),
+                            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_lucide_react3.Plus, { className: "h-3 w-3" }),
                             " ",
                             q.type === "matrix" ? "Add column" : "Add answer"
                           ]
@@ -1945,70 +2019,70 @@ var QuestionnaireModal = ({
                   ] })
                 ] }, q.id);
               }),
-              /* @__PURE__ */ jsxRuntime.jsxs(
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
                 "button",
                 {
                   type: "button",
                   onClick: addQuestion,
                   className: "text-beak text-xs font-semibold inline-flex items-center gap-1",
                   children: [
-                    /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Plus, { className: "h-3.5 w-3.5" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_lucide_react3.Plus, { className: "h-3.5 w-3.5" }),
                     " Add question"
                   ]
                 }
               )
             ] })
           ] }),
-          step === "calculation" && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "rounded-lg border border-border bg-card p-3 space-y-2", children: [
-            /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-1.5", children: [
-              /* @__PURE__ */ jsxRuntime.jsx("p", { className: "text-foreground text-xs font-semibold", children: "Calculation method per dimension" }),
-              /* @__PURE__ */ jsxRuntime.jsx(
-                shared.InfoTooltip,
+          step === "calculation" && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "rounded-lg border border-border bg-card p-3 space-y-2", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "flex items-center gap-1.5", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { className: "text-foreground text-xs font-semibold", children: "Calculation method per dimension" }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                import_shared3.InfoTooltip,
                 {
                   content: "How every answer score for a dimension is combined into one number before it is sent to the Score Engine.",
                   label: "About calculation methods"
                 }
               )
             ] }),
-            usedDimensions.length === 0 ? /* @__PURE__ */ jsxRuntime.jsx("p", { className: "text-muted-foreground text-xs py-4 text-center", children: "Add questions first." }) : /* @__PURE__ */ jsxRuntime.jsx("div", { className: "space-y-2 pt-1", children: usedDimensions.map((d) => {
+            usedDimensions.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { className: "text-muted-foreground text-xs py-4 text-center", children: "Add questions first." }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "space-y-2 pt-1", children: usedDimensions.map((d) => {
               const method = calcMethods[d] || "sum";
               const hint = CALCULATION_METHODS.find((m) => m.value === method)?.hint;
-              return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-3", children: [
-                /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "w-40 shrink-0 text-xs font-semibold text-foreground", children: [
+              return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "flex items-center gap-3", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "w-40 shrink-0 text-xs font-semibold text-foreground", children: [
                   metaOf(d).label,
-                  /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "block text-[10px] font-normal text-muted-foreground", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "block text-[10px] font-normal text-muted-foreground", children: [
                     questions.filter((q) => q.dimension === d).length,
                     " question(s)"
                   ] })
                 ] }),
-                /* @__PURE__ */ jsxRuntime.jsx(
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
                   "select",
                   {
                     value: method,
                     onChange: (e) => setCalcMethods((cur) => ({ ...cur, [d]: e.target.value })),
                     className: `${field} w-40 shrink-0`,
                     style: selectStyle,
-                    children: CALCULATION_METHODS.map((m) => /* @__PURE__ */ jsxRuntime.jsx("option", { style: optionStyle, value: m.value, children: m.label }, m.value))
+                    children: CALCULATION_METHODS.map((m) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("option", { style: optionStyle, value: m.value, children: m.label }, m.value))
                   }
                 ),
-                /* @__PURE__ */ jsxRuntime.jsx(shared.InfoTooltip, { content: hint, label: "About this calculation method" })
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_shared3.InfoTooltip, { content: hint, label: "About this calculation method" })
               ] }, d);
             }) })
           ] }),
-          step === "json" && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "rounded-lg border border-border bg-card p-3 space-y-2", children: [
-            /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center justify-between gap-2", children: [
-              /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-1.5", children: [
-                /* @__PURE__ */ jsxRuntime.jsx("p", { className: "text-foreground text-xs font-semibold", children: "Stored SurveyJS schema" }),
-                /* @__PURE__ */ jsxRuntime.jsx(
-                  shared.InfoTooltip,
+          step === "json" && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "rounded-lg border border-border bg-card p-3 space-y-2", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "flex items-center justify-between gap-2", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "flex items-center gap-1.5", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { className: "text-foreground text-xs font-semibold", children: "Stored SurveyJS schema" }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                  import_shared3.InfoTooltip,
                   {
                     content: "The exact JSON persisted to the Form Engine and rendered to respondents. Custom keys (dimension, score, condition_map, calculation_methods) drive scoring. Copy Create body gives the ready-to-paste payload for POST /v1/survey (Create Questionnaire).",
                     label: "About the stored schema"
                   }
                 )
               ] }),
-              /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-1.5", children: [
-                /* @__PURE__ */ jsxRuntime.jsx(
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "flex items-center gap-1.5", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
                   "button",
                   {
                     type: "button",
@@ -2017,7 +2091,7 @@ var QuestionnaireModal = ({
                     children: copied === "schema" ? "Copied" : "Copy schema"
                   }
                 ),
-                /* @__PURE__ */ jsxRuntime.jsx(
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
                   "button",
                   {
                     type: "button",
@@ -2028,14 +2102,17 @@ var QuestionnaireModal = ({
                 )
               ] })
             ] }),
-            /* @__PURE__ */ jsxRuntime.jsx("pre", { className: "w-full max-h-96 overflow-auto rounded-md bg-muted/40 border border-border p-2.5 text-foreground text-[11px] font-mono leading-relaxed whitespace-pre", children: schemaJson })
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("pre", { className: "w-full max-h-96 overflow-auto rounded-md bg-muted/40 border border-border p-2.5 text-foreground text-[11px] font-mono leading-relaxed whitespace-pre", children: schemaJson })
           ] }),
-          /* @__PURE__ */ jsxRuntime.jsx("div", { className: "flex items-center justify-end pt-3 border-t border-border", children: /* @__PURE__ */ jsxRuntime.jsx(shared.Button, { type: "submit", size: "sm", isLoading: submitting, disabled: !qName.trim(), children: editingQ ? "Save changes" : "Create questionnaire" }) })
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "flex items-center justify-end pt-3 border-t border-border", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_shared3.Button, { type: "submit", size: "sm", isLoading: submitting, disabled: !qName.trim(), children: editingQ ? "Save changes" : "Create questionnaire" }) })
         ] })
       ]
     }
   );
 };
+
+// src/form/components/FormManager.tsx
+var import_jsx_runtime4 = require("react/jsx-runtime");
 var TENANT_KEY = "xg.formEngine.tenant";
 var readTenant = () => {
   try {
@@ -2049,39 +2126,39 @@ var readTenant = () => {
   return { brandId: "wardah", applicationId: "skinverse" };
 };
 var FormManager = () => {
-  const [activeTab, setActiveTab] = shared.usePersistentState("xg.formEngine.activeTab", "questionnaires");
-  const [searchQuery, setSearchQuery] = react.useState("");
-  const [deleteConfirm, setDeleteConfirm] = react.useState({
+  const [activeTab, setActiveTab] = (0, import_shared4.usePersistentState)("xg.formEngine.activeTab", "questionnaires");
+  const [searchQuery, setSearchQuery] = (0, import_react4.useState)("");
+  const [deleteConfirm, setDeleteConfirm] = (0, import_react4.useState)({
     isOpen: false,
     title: "",
     message: "",
     onConfirm: () => {
     }
   });
-  const [{ brandId, applicationId }, setTenant] = react.useState(readTenant);
-  const [questionnaires, setQuestionnaires] = react.useState([]);
-  const [isQuestionnaireModalOpen, setIsQuestionnaireModalOpen] = react.useState(false);
-  const [editingQ, setEditingQ] = react.useState(null);
-  const [selectedQCode, setSelectedQCode] = shared.usePersistentState("xg.formEngine.simulator.questionnaire", "");
+  const [{ brandId, applicationId }, setTenant] = (0, import_react4.useState)(readTenant);
+  const [questionnaires, setQuestionnaires] = (0, import_react4.useState)([]);
+  const [isQuestionnaireModalOpen, setIsQuestionnaireModalOpen] = (0, import_react4.useState)(false);
+  const [editingQ, setEditingQ] = (0, import_react4.useState)(null);
+  const [selectedQCode, setSelectedQCode] = (0, import_shared4.usePersistentState)("xg.formEngine.simulator.questionnaire", "");
   const loadData = () => {
     listQuestionnaires(brandId, applicationId).then(setQuestionnaires).catch(() => setQuestionnaires([]));
   };
-  react.useEffect(() => {
+  (0, import_react4.useEffect)(() => {
     loadData();
     try {
       localStorage.setItem(TENANT_KEY, JSON.stringify({ brandId, applicationId }));
     } catch {
     }
   }, [brandId, applicationId]);
-  react.useEffect(() => {
+  (0, import_react4.useEffect)(() => {
     if (questionnaires.length === 0) return;
     if (!questionnaires.some((q) => q.code === selectedQCode)) {
       setSelectedQCode(questionnaires[0].code);
     }
   }, [questionnaires, selectedQCode]);
   const formTabs = [
-    { id: "questionnaires", label: "Questionnaires", icon: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.FileText, { className: "h-4 w-4" }), badge: questionnaires.length },
-    { id: "simulator", label: "Simulator", icon: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Play, { className: "h-4 w-4" }) }
+    { id: "questionnaires", label: "Questionnaires", icon: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_lucide_react4.FileText, { className: "h-4 w-4" }), badge: questionnaires.length },
+    { id: "simulator", label: "Simulator", icon: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_lucide_react4.Play, { className: "h-4 w-4" }) }
   ];
   const handleSaveQuestionnaire = async (data) => {
     if (editingQ) {
@@ -2122,19 +2199,19 @@ var FormManager = () => {
       }
     });
   };
-  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex-1 min-w-0 h-full overflow-y-auto bg-background text-foreground font-sans flex flex-col select-none", children: [
-    /* @__PURE__ */ jsxRuntime.jsx(
-      shared.PageHeader,
+  return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex-1 min-w-0 h-full overflow-y-auto bg-background text-foreground font-sans flex flex-col select-none", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+      import_shared4.PageHeader,
       {
-        icon: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.FileText, { className: "h-5 w-5" }),
+        icon: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_lucide_react4.FileText, { className: "h-5 w-5" }),
         breadcrumbs: [
           { label: "Workbench", href: "/" },
           { label: "Core Engines" },
           { label: "Form Engine" }
         ],
         title: "Form Engine",
-        children: /* @__PURE__ */ jsxRuntime.jsx(
-          shared.TabNav,
+        children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+          import_shared4.TabNav,
           {
             tabs: formTabs,
             activeTab,
@@ -2143,10 +2220,10 @@ var FormManager = () => {
         )
       }
     ),
-    /* @__PURE__ */ jsxRuntime.jsxs("main", { className: "flex-1 p-6 space-y-6 max-w-7xl w-full mx-auto", children: [
-      /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-wrap items-end gap-3 rounded-lg border border-border bg-card p-3", children: [
-        /* @__PURE__ */ jsxRuntime.jsx(
-          shared.BrandSelect,
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("main", { className: "flex-1 p-6 space-y-6 max-w-7xl w-full mx-auto", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex flex-wrap items-end gap-3 rounded-lg border border-border bg-card p-3", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+          import_shared4.BrandSelect,
           {
             value: brandId,
             includeUniversal: false,
@@ -2155,8 +2232,8 @@ var FormManager = () => {
             onChange: (v) => setTenant((t) => ({ ...t, brandId: v }))
           }
         ),
-        /* @__PURE__ */ jsxRuntime.jsx(
-          shared.ApplicationSelect,
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+          import_shared4.ApplicationSelect,
           {
             value: applicationId,
             includeUniversal: false,
@@ -2165,15 +2242,15 @@ var FormManager = () => {
             onChange: (v) => setTenant((t) => ({ ...t, applicationId: v }))
           }
         ),
-        /* @__PURE__ */ jsxRuntime.jsx("div", { className: "flex pb-2", children: /* @__PURE__ */ jsxRuntime.jsx(
-          shared.InfoTooltip,
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "flex pb-2", children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+          import_shared4.InfoTooltip,
           {
             content: "Questionnaires below are scoped to this brand / application.",
             label: "About brand / application scope"
           }
         ) })
       ] }),
-      activeTab === "questionnaires" && /* @__PURE__ */ jsxRuntime.jsx(
+      activeTab === "questionnaires" && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
         QuestionnairesTab,
         {
           questionnaires,
@@ -2190,7 +2267,7 @@ var FormManager = () => {
           onDeleteQuestionnaire: handleDeleteQuestionnaire
         }
       ),
-      activeTab === "simulator" && /* @__PURE__ */ jsxRuntime.jsx(
+      activeTab === "simulator" && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
         FormSimulatorTab,
         {
           brandId,
@@ -2201,7 +2278,7 @@ var FormManager = () => {
         }
       )
     ] }),
-    /* @__PURE__ */ jsxRuntime.jsx(
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
       QuestionnaireModal,
       {
         isOpen: isQuestionnaireModalOpen,
@@ -2212,8 +2289,8 @@ var FormManager = () => {
         applicationId
       }
     ),
-    /* @__PURE__ */ jsxRuntime.jsx(
-      shared.ConfirmDialog,
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+      import_shared4.ConfirmDialog,
       {
         isOpen: deleteConfirm.isOpen,
         title: deleteConfirm.title,
@@ -2224,6 +2301,12 @@ var FormManager = () => {
     )
   ] });
 };
+
+// src/form/QuestionnaireRunner.tsx
+var import_react5 = require("react");
+var import_survey_core2 = require("survey-core");
+var import_survey_react_ui2 = require("survey-react-ui");
+var import_jsx_runtime5 = require("react/jsx-runtime");
 function computeDimensions(schema, data) {
   const byDimension = scoreSurveyAnswers(schema, data);
   const methods = schema.calculation_methods || {};
@@ -2250,11 +2333,11 @@ var QuestionnaireRunner = ({
   className = ""
 }) => {
   const initialSchema = modelProp ? modelProp : questionnaire ? toSurveyModel(questionnaire) : null;
-  const [schema, setSchema] = react.useState(initialSchema);
-  const [loading, setLoading] = react.useState(!initialSchema);
-  const [error, setError] = react.useState(null);
-  const [payload, setPayload] = react.useState(null);
-  react.useEffect(() => {
+  const [schema, setSchema] = (0, import_react5.useState)(initialSchema);
+  const [loading, setLoading] = (0, import_react5.useState)(!initialSchema);
+  const [error, setError] = (0, import_react5.useState)(null);
+  const [payload, setPayload] = (0, import_react5.useState)(null);
+  (0, import_react5.useEffect)(() => {
     if (initialSchema) {
       setSchema(initialSchema);
       setLoading(false);
@@ -2272,9 +2355,9 @@ var QuestionnaireRunner = ({
       alive = false;
     };
   }, [questionnaireCode, modelProp, questionnaire, brandId, applicationId]);
-  const survey = react.useMemo(() => {
+  const survey = (0, import_react5.useMemo)(() => {
     if (!schema) return null;
-    const m = new surveyCore.Model(schema);
+    const m = new import_survey_core2.Model(schema);
     m.showCompletedPage = false;
     m.applyTheme(XG_SURVEY_THEME);
     m.getAllQuestions().forEach((q) => {
@@ -2282,7 +2365,7 @@ var QuestionnaireRunner = ({
     });
     return m;
   }, [schema]);
-  react.useEffect(() => {
+  (0, import_react5.useEffect)(() => {
     if (!survey || !schema) return;
     const onValue = (_, opt2) => onAnswer?.(opt2.name, opt2.value);
     const onComplete_ = async (sender) => {
@@ -2319,45 +2402,46 @@ var QuestionnaireRunner = ({
   }, [survey, schema, customerId, brandId, applicationId]);
   const shell = `w-full max-w-2xl mx-auto text-foreground ${className}`;
   if (loading) {
-    return /* @__PURE__ */ jsxRuntime.jsx("div", { className: shell, children: /* @__PURE__ */ jsxRuntime.jsx("div", { className: "rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground", children: "Loading\u2026" }) });
+    return /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: shell, children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground", children: "Loading\u2026" }) });
   }
   if (error || !survey) {
-    return /* @__PURE__ */ jsxRuntime.jsx("div", { className: shell, children: /* @__PURE__ */ jsxRuntime.jsx("div", { className: "rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground", children: error || "This questionnaire is not available." }) });
+    return /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: shell, children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground", children: error || "This questionnaire is not available." }) });
   }
   if (payload) {
-    return /* @__PURE__ */ jsxRuntime.jsx("div", { className: shell, children: renderComplete ? /* @__PURE__ */ jsxRuntime.jsx(jsxRuntime.Fragment, { children: renderComplete(payload) }) : /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "rounded-xl border border-border bg-card p-8 text-center space-y-2", children: [
-      /* @__PURE__ */ jsxRuntime.jsx("div", { className: "mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-beak/15 text-beak text-xl", children: "\u2713" }),
-      /* @__PURE__ */ jsxRuntime.jsx("p", { className: "text-sm font-semibold", children: "Thanks \u2014 your answers are in." }),
-      /* @__PURE__ */ jsxRuntime.jsx("p", { className: "text-xs text-muted-foreground", children: "You can close this window now." })
+    return /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: shell, children: renderComplete ? /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_jsx_runtime5.Fragment, { children: renderComplete(payload) }) : /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "rounded-xl border border-border bg-card p-8 text-center space-y-2", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-beak/15 text-beak text-xl", children: "\u2713" }),
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("p", { className: "text-sm font-semibold", children: "Thanks \u2014 your answers are in." }),
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("p", { className: "text-xs text-muted-foreground", children: "You can close this window now." })
     ] }) });
   }
-  return /* @__PURE__ */ jsxRuntime.jsx("div", { className: shell, children: /* @__PURE__ */ jsxRuntime.jsx(surveyReactUi.Survey, { model: survey }) });
+  return /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: shell, children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_survey_react_ui2.Survey, { model: survey }) });
 };
-
-exports.BUILTIN_TEMPLATES = BUILTIN_TEMPLATES;
-exports.CALCULATION_METHODS = CALCULATION_METHODS;
-exports.FALLBACK_DIMENSIONS = FALLBACK_DIMENSIONS;
-exports.FormManager = FormManager;
-exports.PFORM_EXAMPLE = PFORM_EXAMPLE;
-exports.PFORM_SUGGESTED_DIMENSIONS = PFORM_SUGGESTED_DIMENSIONS;
-exports.PIXIE_OMG_SKIN_ANALYZER = PIXIE_OMG_SKIN_ANALYZER;
-exports.QuestionnaireRunner = QuestionnaireRunner;
-exports.applyCalculationMethod = applyCalculationMethod;
-exports.applyDimensionMapping = applyDimensionMapping;
-exports.buildScoreRequest = buildScoreRequest;
-exports.createSafetyFlag = createSafetyFlag;
-exports.deleteQuestionnaire = deleteQuestionnaire;
-exports.flattenElements = flattenElements;
-exports.fromPFormSchema = fromPFormSchema;
-exports.fromSurveyModel = fromSurveyModel;
-exports.getDimensionMeta = getDimensionMeta;
-exports.getDimensions = getDimensions;
-exports.getQuestionnaire = getQuestionnaire;
-exports.getQuestionnaireModel = getQuestionnaireModel;
-exports.getSafetyFlags = getSafetyFlags;
-exports.listQuestionnaires = listQuestionnaires;
-exports.saveQuestionnaire = saveQuestionnaire;
-exports.scoreSurveyAnswers = scoreSurveyAnswers;
-exports.toSurveyModel = toSurveyModel;
-//# sourceMappingURL=index.js.map
+// Annotate the CommonJS export names for ESM import in node:
+0 && (module.exports = {
+  BUILTIN_TEMPLATES,
+  CALCULATION_METHODS,
+  FALLBACK_DIMENSIONS,
+  FormManager,
+  PFORM_EXAMPLE,
+  PFORM_SUGGESTED_DIMENSIONS,
+  PIXIE_OMG_SKIN_ANALYZER,
+  QuestionnaireRunner,
+  applyCalculationMethod,
+  applyDimensionMapping,
+  buildScoreRequest,
+  createSafetyFlag,
+  deleteQuestionnaire,
+  flattenElements,
+  fromPFormSchema,
+  fromSurveyModel,
+  getDimensionMeta,
+  getDimensions,
+  getQuestionnaire,
+  getQuestionnaireModel,
+  getSafetyFlags,
+  listQuestionnaires,
+  saveQuestionnaire,
+  scoreSurveyAnswers,
+  toSurveyModel
+});
 //# sourceMappingURL=index.js.map

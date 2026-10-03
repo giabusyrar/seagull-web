@@ -1,15 +1,58 @@
-'use strict';
+'use client';
+"use strict";
+var __create = Object.create;
+var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __getProtoOf = Object.getPrototypeOf;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
+var __copyProps = (to, from, except, desc) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+  }
+  return to;
+};
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+  // If the importer is in node compatibility mode or this is not an ESM
+  // file that has been converted to a CommonJS file using a Babel-
+  // compatible transform (i.e. "__esModule" has not been set), then set
+  // "default" to the CommonJS "module.exports" for node compatibility.
+  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+  mod
+));
+var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-var React = require('react');
-var lucideReact = require('lucide-react');
-var shared = require('@gateway-experience/shared');
-var jsxRuntime = require('react/jsx-runtime');
-
-function _interopDefault (e) { return e && e.__esModule ? e : { default: e }; }
-
-var React__default = /*#__PURE__*/_interopDefault(React);
+// src/score/index.ts
+var score_exports = {};
+__export(score_exports, {
+  BandTable: () => BandTable,
+  BlendingTab: () => BlendingTab,
+  ClinicalAxisCard: () => ClinicalAxisCard,
+  ClinicalDimensionCard: () => ClinicalDimensionCard,
+  DEFAULT_SCORE_RANGE_BANDS: () => DEFAULT_SCORE_RANGE_BANDS,
+  DEFAULT_SEVERITY_BANDS: () => DEFAULT_SEVERITY_BANDS,
+  DEFAULT_STARTER_AXES: () => DEFAULT_STARTER_AXES,
+  DEFAULT_STARTER_PROFILES: () => DEFAULT_STARTER_PROFILES,
+  ProfileMappingTable: () => ProfileMappingTable,
+  ScoreManager: () => ScoreManager,
+  SeverityTierTable: () => SeverityTierTable,
+  compileVisualToJDM: () => compileVisualToJDM,
+  decompileJDMToVisual: () => decompileJDMToVisual,
+  decompileJDMToVisualComponents: () => decompileJDMToVisualComponents,
+  defaultConcernLabel: () => defaultConcernLabel
+});
+module.exports = __toCommonJS(score_exports);
 
 // src/score/components/ScoreManager.tsx
+var import_react7 = require("react");
+var import_lucide_react7 = require("lucide-react");
+var import_shared7 = require("@gateway-experience/shared");
 
 // src/core/scope.ts
 var ALL_TENANTS = "*";
@@ -19,6 +62,12 @@ function tenantScopeQuery(brandId = ALL_TENANTS, applicationId = ALL_TENANTS) {
 function withTenantScope(path, brandId, applicationId) {
   return `${path}${path.includes("?") ? "&" : "?"}${tenantScopeQuery(brandId, applicationId)}`;
 }
+
+// src/score/components/tabs/RulesetsTab.tsx
+var import_react = __toESM(require("react"));
+var import_lucide_react = require("lucide-react");
+var import_shared = require("@gateway-experience/shared");
+var import_jsx_runtime = require("react/jsx-runtime");
 var filterSelect = "h-8 rounded-md bg-muted/40 border border-border px-2.5 text-foreground text-xs outline-none focus:border-ring";
 var RulesetsTab = ({
   rulesets,
@@ -29,9 +78,9 @@ var RulesetsTab = ({
   onSelectSimulatorRuleset,
   onDeleteRuleset
 }) => {
-  const [filterBrand, setFilterBrand] = React__default.default.useState("ALL");
-  const [filterStatus, setFilterStatus] = React__default.default.useState("ALL");
-  const [copiedId, setCopiedId] = React__default.default.useState(null);
+  const [filterBrand, setFilterBrand] = import_react.default.useState("ALL");
+  const [filterStatus, setFilterStatus] = import_react.default.useState("ALL");
+  const [copiedId, setCopiedId] = import_react.default.useState(null);
   const copyId = (id) => {
     navigator.clipboard?.writeText(id);
     setCopiedId(id);
@@ -45,18 +94,18 @@ var RulesetsTab = ({
     return matchesSearch && matchesBrand && matchesStatus;
   });
   const uniqueBrands = Array.from(new Set(rulesets.map((r) => r.brandId).filter(Boolean)));
-  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "space-y-4", children: [
-    /* @__PURE__ */ jsxRuntime.jsx(
-      shared.SearchFilterBar,
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "space-y-4", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+      import_shared.SearchFilterBar,
       {
         searchQuery,
         onSearchChange,
         searchPlaceholder: "Search grading models by title, code, or brand\u2026",
         actionLabel: "New grading model",
         onAction: onOpenCreateModal,
-        actionIcon: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Plus, { className: "h-4 w-4" }),
-        customFilterContent: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-2", children: [
-          /* @__PURE__ */ jsxRuntime.jsxs(
+        actionIcon: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_lucide_react.Plus, { className: "h-4 w-4" }),
+        customFilterContent: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center gap-2", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
             "select",
             {
               value: filterBrand,
@@ -64,13 +113,13 @@ var RulesetsTab = ({
               className: filterSelect,
               style: { colorScheme: "dark" },
               children: [
-                /* @__PURE__ */ jsxRuntime.jsx("option", { value: "ALL", children: "All brands" }),
-                /* @__PURE__ */ jsxRuntime.jsx("option", { value: "*", children: "* (universal)" }),
-                uniqueBrands.filter((b) => b !== "*").map((b) => /* @__PURE__ */ jsxRuntime.jsx("option", { value: b, children: b }, b))
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: "ALL", children: "All brands" }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: "*", children: "* (universal)" }),
+                uniqueBrands.filter((b) => b !== "*").map((b) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: b, children: b }, b))
               ]
             }
           ),
-          /* @__PURE__ */ jsxRuntime.jsxs(
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
             "select",
             {
               value: filterStatus,
@@ -78,29 +127,29 @@ var RulesetsTab = ({
               className: filterSelect,
               style: { colorScheme: "dark" },
               children: [
-                /* @__PURE__ */ jsxRuntime.jsx("option", { value: "ALL", children: "All statuses" }),
-                /* @__PURE__ */ jsxRuntime.jsx("option", { value: "ACTIVE", children: "Active" }),
-                /* @__PURE__ */ jsxRuntime.jsx("option", { value: "DRAFT", children: "Draft" }),
-                /* @__PURE__ */ jsxRuntime.jsx("option", { value: "INACTIVE", children: "Inactive" }),
-                /* @__PURE__ */ jsxRuntime.jsx("option", { value: "ARCHIVED", children: "Archived" })
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: "ALL", children: "All statuses" }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: "ACTIVE", children: "Active" }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: "DRAFT", children: "Draft" }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: "INACTIVE", children: "Inactive" }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: "ARCHIVED", children: "Archived" })
               ]
             }
           )
         ] })
       }
     ),
-    filteredRulesets.length === 0 ? /* @__PURE__ */ jsxRuntime.jsx(
-      shared.EmptyState,
+    filteredRulesets.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+      import_shared.EmptyState,
       {
-        icon: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Sliders, { className: "h-6 w-6 text-muted-foreground" }),
+        icon: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_lucide_react.Sliders, { className: "h-6 w-6 text-muted-foreground" }),
         title: "No grading models yet",
         description: "A grading model turns 0\u2013100 dimension scores into Level 1\u20135 severity and a skin profile.",
         actionLabel: "New grading model",
         onAction: onOpenCreateModal,
-        actionIcon: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Plus, { className: "h-4 w-4" }),
+        actionIcon: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_lucide_react.Plus, { className: "h-4 w-4" }),
         className: "py-12 rounded-lg border border-border bg-card"
       }
-    ) : /* @__PURE__ */ jsxRuntime.jsx("div", { className: "grid grid-cols-1 lg:grid-cols-2 gap-4", children: filteredRulesets.map((ruleset) => {
+    ) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "grid grid-cols-1 lg:grid-cols-2 gap-4", children: filteredRulesets.map((ruleset) => {
       let dimCount = 0;
       try {
         const parsed = JSON.parse(ruleset.schema);
@@ -108,37 +157,37 @@ var RulesetsTab = ({
         dimCount = Object.keys(dimKeys).length;
       } catch {
       }
-      return /* @__PURE__ */ jsxRuntime.jsxs(
+      return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
         "div",
         {
           className: "rounded-lg border border-border bg-card p-4 flex flex-col justify-between transition-colors hover:border-beak/50",
           children: [
-            /* @__PURE__ */ jsxRuntime.jsxs("div", { children: [
-              /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-2", children: [
-                /* @__PURE__ */ jsxRuntime.jsx("span", { className: "font-mono text-[10px] text-beak bg-beak/10 px-2 py-0.5 rounded border border-beak/30", children: ruleset.code }),
-                /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "text-[11px] text-muted-foreground", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center gap-2", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "font-mono text-[10px] text-beak bg-beak/10 px-2 py-0.5 rounded border border-beak/30", children: ruleset.code }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "text-[11px] text-muted-foreground", children: [
                   "v",
                   ruleset.version
                 ] }),
-                /* @__PURE__ */ jsxRuntime.jsx(shared.StatusBadge, { status: ruleset.status })
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_shared.StatusBadge, { status: ruleset.status })
               ] }),
-              /* @__PURE__ */ jsxRuntime.jsx("h3", { className: "text-sm font-bold text-foreground mt-1.5", children: ruleset.title }),
-              /* @__PURE__ */ jsxRuntime.jsx("p", { className: "text-xs text-muted-foreground line-clamp-2 mt-1 leading-relaxed", children: ruleset.description || "Severity bands and skin-profile mapping for this brand." }),
-              /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-4 text-[11px] text-muted-foreground mt-3", children: [
-                /* @__PURE__ */ jsxRuntime.jsxs("span", { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { className: "text-sm font-bold text-foreground mt-1.5", children: ruleset.title }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "text-xs text-muted-foreground line-clamp-2 mt-1 leading-relaxed", children: ruleset.description || "Severity bands and skin-profile mapping for this brand." }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center gap-4 text-[11px] text-muted-foreground mt-3", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
                   "Brand ",
-                  /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-foreground", children: ruleset.brandId })
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "text-foreground", children: ruleset.brandId })
                 ] }),
-                /* @__PURE__ */ jsxRuntime.jsxs("span", { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
                   "App ",
-                  /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-foreground", children: ruleset.applicationId })
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "text-foreground", children: ruleset.applicationId })
                 ] }),
-                /* @__PURE__ */ jsxRuntime.jsxs("span", { children: [
-                  /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-foreground", children: dimCount }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "text-foreground", children: dimCount }),
                   " dimensions"
                 ] })
               ] }),
-              /* @__PURE__ */ jsxRuntime.jsxs(
+              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
                 "button",
                 {
                   type: "button",
@@ -146,42 +195,42 @@ var RulesetsTab = ({
                   title: "Copy ID \u2014 needed for PUT /core/score-engine/rulesets/:id",
                   className: "mt-2 flex items-center gap-1 text-[10px] font-mono text-muted-foreground hover:text-foreground",
                   children: [
-                    copiedId === ruleset.id ? /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Check, { className: "h-3 w-3 text-beak" }) : /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Copy, { className: "h-3 w-3" }),
-                    /* @__PURE__ */ jsxRuntime.jsx("span", { className: "truncate max-w-[16rem]", children: copiedId === ruleset.id ? "ID copied" : `ID ${ruleset.id}` })
+                    copiedId === ruleset.id ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_lucide_react.Check, { className: "h-3 w-3 text-beak" }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_lucide_react.Copy, { className: "h-3 w-3" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "truncate max-w-[16rem]", children: copiedId === ruleset.id ? "ID copied" : `ID ${ruleset.id}` })
                   ]
                 }
               )
             ] }),
-            /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center justify-between pt-3 mt-3 border-t border-border", children: [
-              /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-2", children: [
-                /* @__PURE__ */ jsxRuntime.jsx(
-                  shared.Button,
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center justify-between pt-3 mt-3 border-t border-border", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center gap-2", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                  import_shared.Button,
                   {
                     variant: "outline",
                     size: "sm",
                     onClick: () => onOpenEditModal(ruleset),
-                    leftIcon: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Pencil, { className: "h-3.5 w-3.5" }),
+                    leftIcon: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_lucide_react.Pencil, { className: "h-3.5 w-3.5" }),
                     children: "Edit"
                   }
                 ),
-                /* @__PURE__ */ jsxRuntime.jsx(
-                  shared.Button,
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                  import_shared.Button,
                   {
                     variant: "outline",
                     size: "sm",
                     onClick: () => onSelectSimulatorRuleset(ruleset),
-                    leftIcon: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Play, { className: "h-3.5 w-3.5" }),
+                    leftIcon: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_lucide_react.Play, { className: "h-3.5 w-3.5" }),
                     children: "Simulate"
                   }
                 )
               ] }),
-              /* @__PURE__ */ jsxRuntime.jsx(
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
                 "button",
                 {
                   onClick: () => onDeleteRuleset(ruleset.id, ruleset.code),
                   className: "p-1.5 text-muted-foreground hover:text-destructive hover:bg-muted/40 rounded transition-colors",
                   title: "Delete grading model",
-                  children: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Trash2, { className: "h-4 w-4" })
+                  children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_lucide_react.Trash2, { className: "h-4 w-4" })
                 }
               )
             ] })
@@ -192,6 +241,11 @@ var RulesetsTab = ({
     }) })
   ] });
 };
+
+// src/score/components/tabs/BlendingTab.tsx
+var import_react3 = require("react");
+var import_lucide_react3 = require("lucide-react");
+var import_shared3 = require("@gateway-experience/shared");
 
 // src/score/types.ts
 var DEFAULT_SCORE_RANGE_BANDS = [
@@ -618,16 +672,22 @@ function safeParse(s) {
 function decompileJDMToVisual(schemaStr) {
   return decompileJDMToVisualComponents(schemaStr).axes;
 }
+
+// src/score/components/reusable/ClinicalAxisCard.tsx
+var import_react2 = require("react");
+var import_lucide_react2 = require("lucide-react");
+var import_shared2 = require("@gateway-experience/shared");
+var import_jsx_runtime2 = require("react/jsx-runtime");
 function useVisionFields() {
-  const [conditions, setConditions] = React.useState([]);
-  React.useEffect(() => {
+  const [conditions, setConditions] = (0, import_react2.useState)([]);
+  (0, import_react2.useEffect)(() => {
     fetch("/api/skin-conditions").then((res) => res.json()).then((data) => {
       const list = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
       setConditions(list);
     }).catch(() => {
     });
   }, []);
-  return React.useMemo(
+  return (0, import_react2.useMemo)(
     () => conditions.flatMap(
       (c) => (c.visionCapabilities || []).map((cap) => ({ code: cap, label: `${c.name} (${cap})` }))
     ),
@@ -637,10 +697,10 @@ function useVisionFields() {
 var fieldCls = "w-full h-8 rounded-md bg-muted/40 border border-border px-2.5 text-foreground text-xs outline-none focus:border-ring disabled:opacity-50";
 var SourcePicker = ({ label, origin, onOriginChange, value, onChange, disabled }) => {
   const visionFields = useVisionFields();
-  return /* @__PURE__ */ jsxRuntime.jsxs("div", { children: [
-    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center justify-between mb-1", children: [
-      /* @__PURE__ */ jsxRuntime.jsx("label", { className: "block text-[10px] font-semibold text-muted-foreground", children: label }),
-      onOriginChange && /* @__PURE__ */ jsxRuntime.jsx("div", { className: "flex gap-1", children: ["form", "vision"].map((o) => /* @__PURE__ */ jsxRuntime.jsx(
+  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { children: [
+    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "flex items-center justify-between mb-1", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("label", { className: "block text-[10px] font-semibold text-muted-foreground", children: label }),
+      onOriginChange && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "flex gap-1", children: ["form", "vision"].map((o) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
         "button",
         {
           type: "button",
@@ -652,15 +712,15 @@ var SourcePicker = ({ label, origin, onOriginChange, value, onChange, disabled }
         o
       )) })
     ] }),
-    origin === "form" ? /* @__PURE__ */ jsxRuntime.jsx(
-      shared.DimensionSelect,
+    origin === "form" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+      import_shared2.DimensionSelect,
       {
         value: value?.fieldCode || "",
         disabled,
         onChange: (code, meta) => onChange(code ? { origin: "form", fieldCode: code, label: meta?.name || code } : void 0),
         label: ""
       }
-    ) : /* @__PURE__ */ jsxRuntime.jsxs(
+    ) : /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
       "select",
       {
         disabled,
@@ -672,8 +732,8 @@ var SourcePicker = ({ label, origin, onOriginChange, value, onChange, disabled }
         },
         className: fieldCls,
         children: [
-          /* @__PURE__ */ jsxRuntime.jsx("option", { value: "", children: "\u2014 pilih field CV (dari ref_skin_conditions) \u2014" }),
-          visionFields.map((f) => /* @__PURE__ */ jsxRuntime.jsx("option", { value: f.code, children: f.label }, f.code))
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("option", { value: "", children: "\u2014 pilih field CV (dari ref_skin_conditions) \u2014" }),
+          visionFields.map((f) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("option", { value: f.code, children: f.label }, f.code))
         ]
       }
     )
@@ -689,7 +749,7 @@ var ClinicalDimensionCard = ({
   defaultOpen = false,
   siblingWeightTotal
 }) => {
-  const [open, setOpen] = React.useState(defaultOpen);
+  const [open, setOpen] = (0, import_react2.useState)(defaultOpen);
   const share = typeof siblingWeightTotal === "number" && siblingWeightTotal > 0 ? Math.round(axis.weight / siblingWeightTotal * 100) : null;
   const concern = axis.concernLabel || defaultConcernLabel(axis.dimensionKey);
   const handleDimensionChange = (dimKey, dimMeta) => {
@@ -702,26 +762,26 @@ var ClinicalDimensionCard = ({
       concernLabel: wasDefault ? defaultConcernLabel(dimKey) : axis.concernLabel
     });
   };
-  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "rounded-lg border border-border bg-card", children: [
-    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-2 px-3 py-2", children: [
-      /* @__PURE__ */ jsxRuntime.jsxs(
+  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "rounded-lg border border-border bg-card", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "flex items-center gap-2 px-3 py-2", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
         "button",
         {
           type: "button",
           onClick: () => setOpen((v) => !v),
           className: "flex flex-1 items-center gap-2 text-left",
           children: [
-            open ? /* @__PURE__ */ jsxRuntime.jsx(lucideReact.ChevronDown, { className: "h-4 w-4 text-muted-foreground shrink-0" }) : /* @__PURE__ */ jsxRuntime.jsx(lucideReact.ChevronRight, { className: "h-4 w-4 text-muted-foreground shrink-0" }),
-            /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-sm font-semibold text-foreground", children: axis.name || axis.dimensionKey.toUpperCase() }),
-            /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-[11px] text-muted-foreground", children: share !== null ? `\u2248${share}% of overall` : `weight ${axis.weight}` }),
-            /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "text-[11px] text-muted-foreground", children: [
+            open ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_lucide_react2.ChevronDown, { className: "h-4 w-4 text-muted-foreground shrink-0" }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_lucide_react2.ChevronRight, { className: "h-4 w-4 text-muted-foreground shrink-0" }),
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "text-sm font-semibold text-foreground", children: axis.name || axis.dimensionKey.toUpperCase() }),
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "text-[11px] text-muted-foreground", children: share !== null ? `\u2248${share}% of overall` : `weight ${axis.weight}` }),
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { className: "text-[11px] text-muted-foreground", children: [
               "\xB7 ",
               concern
             ] })
           ]
         }
       ),
-      canDelete && /* @__PURE__ */ jsxRuntime.jsx(
+      canDelete && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
         "button",
         {
           type: "button",
@@ -729,14 +789,14 @@ var ClinicalDimensionCard = ({
           onClick: onDelete,
           className: "p-1.5 text-muted-foreground hover:text-destructive hover:bg-muted/40 rounded transition-colors disabled:opacity-30",
           title: "Remove dimension",
-          children: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Trash2, { className: "h-4 w-4" })
+          children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_lucide_react2.Trash2, { className: "h-4 w-4" })
         }
       )
     ] }),
-    open && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "border-t border-border p-3 space-y-3", children: [
-      /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-3", children: [
-        /* @__PURE__ */ jsxRuntime.jsx(
-          shared.DimensionSelect,
+    open && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "border-t border-border p-3 space-y-3", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-3", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+          import_shared2.DimensionSelect,
           {
             value: axis.dimensionKey,
             disabled,
@@ -744,11 +804,11 @@ var ClinicalDimensionCard = ({
             label: "Dimension"
           }
         ),
-        /* @__PURE__ */ jsxRuntime.jsxs("div", { children: [
-          /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-1.5 mb-1", children: [
-            /* @__PURE__ */ jsxRuntime.jsx("label", { className: "block text-[11px] font-semibold text-muted-foreground", children: "Weight" }),
-            /* @__PURE__ */ jsxRuntime.jsx(
-              shared.InfoTooltip,
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "flex items-center gap-1.5 mb-1", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("label", { className: "block text-[11px] font-semibold text-muted-foreground", children: "Weight" }),
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+              import_shared2.InfoTooltip,
               {
                 content: share !== null ? `Relative to the other dimensions \u2014 counts as \u2248${share}% of the overall score.` : "Relative to the other dimensions.",
                 label: "About weight",
@@ -756,7 +816,7 @@ var ClinicalDimensionCard = ({
               }
             )
           ] }),
-          /* @__PURE__ */ jsxRuntime.jsx(
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
             "input",
             {
               type: "number",
@@ -770,11 +830,11 @@ var ClinicalDimensionCard = ({
           )
         ] })
       ] }),
-      /* @__PURE__ */ jsxRuntime.jsxs("div", { children: [
-        /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-1.5 mb-1", children: [
-          /* @__PURE__ */ jsxRuntime.jsx("label", { className: "block text-[11px] font-semibold text-muted-foreground", children: "Concern label" }),
-          /* @__PURE__ */ jsxRuntime.jsx(
-            shared.InfoTooltip,
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { children: [
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "flex items-center gap-1.5 mb-1", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("label", { className: "block text-[11px] font-semibold text-muted-foreground", children: "Concern label" }),
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+            import_shared2.InfoTooltip,
             {
               content: "Shown when this dimension is the customer\u2019s dominant concern.",
               label: "About concern label",
@@ -782,7 +842,7 @@ var ClinicalDimensionCard = ({
             }
           )
         ] }),
-        /* @__PURE__ */ jsxRuntime.jsx(
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
           "input",
           {
             type: "text",
@@ -794,11 +854,14 @@ var ClinicalDimensionCard = ({
           }
         )
       ] }),
-      /* @__PURE__ */ jsxRuntime.jsx("p", { className: "text-[10px] text-muted-foreground italic", children: "How this axis's number is computed (form/vision source, blend %) and turned into a letter (bands) is set in the Blending tab, not here." })
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("p", { className: "text-[10px] text-muted-foreground italic", children: "How this axis's number is computed (form/vision source, blend %) and turned into a letter (bands) is set in the Blending tab, not here." })
     ] })
   ] });
 };
 var ClinicalAxisCard = ClinicalDimensionCard;
+
+// src/score/components/tabs/BlendingTab.tsx
+var import_jsx_runtime3 = require("react/jsx-runtime");
 var fieldCls2 = "h-8 rounded-md bg-muted/40 border border-border px-2.5 text-foreground text-xs outline-none focus:border-ring disabled:opacity-50";
 var BlendingTab = ({
   rulesets,
@@ -807,14 +870,14 @@ var BlendingTab = ({
   onSaveRuleset
 }) => {
   const activeRuleset = selectedRuleset || rulesets[0] || null;
-  const [axes, setAxes] = React.useState([]);
-  const [profileConfig, setProfileConfig] = React.useState(null);
-  const [scoreRangeBands, setScoreRangeBands] = React.useState(null);
-  const [severityBands, setSeverityBands] = React.useState(null);
-  const [isSaving, setIsSaving] = React.useState(false);
-  const [saveSuccess, setSaveSuccess] = React.useState(false);
-  const [saveError, setSaveError] = React.useState(null);
-  React.useEffect(() => {
+  const [axes, setAxes] = (0, import_react3.useState)([]);
+  const [profileConfig, setProfileConfig] = (0, import_react3.useState)(null);
+  const [scoreRangeBands, setScoreRangeBands] = (0, import_react3.useState)(null);
+  const [severityBands, setSeverityBands] = (0, import_react3.useState)(null);
+  const [isSaving, setIsSaving] = (0, import_react3.useState)(false);
+  const [saveSuccess, setSaveSuccess] = (0, import_react3.useState)(false);
+  const [saveError, setSaveError] = (0, import_react3.useState)(null);
+  (0, import_react3.useEffect)(() => {
     if (activeRuleset && activeRuleset.schema) {
       try {
         const decompiled = decompileJDMToVisualComponents(activeRuleset.schema);
@@ -855,21 +918,21 @@ var BlendingTab = ({
     }
   };
   if (!activeRuleset) {
-    return /* @__PURE__ */ jsxRuntime.jsx(
-      shared.EmptyState,
+    return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+      import_shared3.EmptyState,
       {
-        icon: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Sliders, { className: "h-6 w-6 text-muted-foreground" }),
+        icon: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_lucide_react3.Sliders, { className: "h-6 w-6 text-muted-foreground" }),
         title: "No grading model selected",
         description: "Create or pick a grading model to set its blending weights.",
         className: "py-16 rounded-lg border border-border bg-card"
       }
     );
   }
-  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "space-y-4", children: [
-    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "rounded-lg border border-border bg-card p-4 flex flex-col md:flex-row md:items-center justify-between gap-3", children: [
-      /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-col sm:flex-row sm:items-center gap-3 flex-1 min-w-0", children: [
-        /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-xs font-semibold text-muted-foreground whitespace-nowrap", children: "Grading model" }),
-        /* @__PURE__ */ jsxRuntime.jsx(
+  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "space-y-4", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "rounded-lg border border-border bg-card p-4 flex flex-col md:flex-row md:items-center justify-between gap-3", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "flex flex-col sm:flex-row sm:items-center gap-3 flex-1 min-w-0", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "text-xs font-semibold text-muted-foreground whitespace-nowrap", children: "Grading model" }),
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
           "select",
           {
             value: activeRuleset.id,
@@ -879,7 +942,7 @@ var BlendingTab = ({
             },
             className: "h-8 max-w-md w-full truncate rounded-md bg-muted/40 border border-border px-2.5 text-foreground text-xs outline-none focus:border-ring",
             style: { colorScheme: "dark" },
-            children: rulesets.map((r) => /* @__PURE__ */ jsxRuntime.jsxs("option", { value: r.id, children: [
+            children: rulesets.map((r) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("option", { value: r.id, children: [
               r.title,
               " (",
               r.code,
@@ -890,33 +953,33 @@ var BlendingTab = ({
           }
         )
       ] }),
-      /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-3 shrink-0", children: [
-        saveSuccess && /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "text-xs text-beak flex items-center gap-1", children: [
-          /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Check, { className: "h-3.5 w-3.5" }),
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "flex items-center gap-3 shrink-0", children: [
+        saveSuccess && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "text-xs text-beak flex items-center gap-1", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_lucide_react3.Check, { className: "h-3.5 w-3.5" }),
           "Saved"
         ] }),
-        /* @__PURE__ */ jsxRuntime.jsx(shared.Button, { variant: "primary", size: "sm", onClick: handleSave, isLoading: isSaving, children: isSaving ? "Saving\u2026" : "Save blending" })
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_shared3.Button, { variant: "primary", size: "sm", onClick: handleSave, isLoading: isSaving, children: isSaving ? "Saving\u2026" : "Save blending" })
       ] })
     ] }),
-    saveError && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "p-3 rounded-md border border-destructive/40 bg-destructive/10 text-xs text-destructive flex items-center gap-2", children: [
-      /* @__PURE__ */ jsxRuntime.jsx(lucideReact.AlertTriangle, { className: "h-4 w-4 shrink-0" }),
-      /* @__PURE__ */ jsxRuntime.jsx("span", { children: saveError })
+    saveError && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "p-3 rounded-md border border-destructive/40 bg-destructive/10 text-xs text-destructive flex items-center gap-2", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_lucide_react3.AlertTriangle, { className: "h-4 w-4 shrink-0" }),
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: saveError })
     ] }),
-    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "rounded-lg border border-border bg-card p-4 space-y-1", children: [
-      /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-1.5", children: [
-        /* @__PURE__ */ jsxRuntime.jsx("h3", { className: "text-sm font-bold text-foreground", children: "Per-dimension blend" }),
-        /* @__PURE__ */ jsxRuntime.jsx(
-          shared.InfoTooltip,
+    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "rounded-lg border border-border bg-card p-4 space-y-1", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "flex items-center gap-1.5", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h3", { className: "text-sm font-bold text-foreground", children: "Per-dimension blend" }),
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+          import_shared3.InfoTooltip,
           {
             content: "For each dimension, how much of its score comes from the questionnaire (form) vs. vision (camera analysis). Only applies once vision_signals is sent for that dimension \u2014 a form-only dimension with no matching vision_signals key ignores this and stays 100% form regardless of the slider.",
             label: "About blending"
           }
         )
       ] }),
-      /* @__PURE__ */ jsxRuntime.jsx("p", { className: "text-[11px] text-muted-foreground", children: "e.g. set Sebum to 0% form / 100% vision to trust vision fully for that dimension." })
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { className: "text-[11px] text-muted-foreground", children: "e.g. set Sebum to 0% form / 100% vision to trust vision fully for that dimension." })
     ] }),
-    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "rounded-lg border border-border bg-card divide-y divide-border", children: [
-      axes.length === 0 && /* @__PURE__ */ jsxRuntime.jsx("div", { className: "p-6 text-center text-xs text-muted-foreground italic", children: "This ruleset has no dimensions yet \u2014 add some in Skin Grading first." }),
+    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "rounded-lg border border-border bg-card divide-y divide-border", children: [
+      axes.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "p-6 text-center text-xs text-muted-foreground italic", children: "This ruleset has no dimensions yet \u2014 add some in Skin Grading first." }),
       axes.map((axis) => {
         const formW = axis.formWeight ?? 50;
         const composition = axis.inputComposition || (axis.source ? "single_source" : axis.formSource || axis.visionSource ? "weighted_blend" : "single_source");
@@ -925,9 +988,9 @@ var BlendingTab = ({
         const updateBand = (id, patch) => updateAxis(axis.id, { bands: bands.map((b) => b.id === id ? { ...b, ...patch } : b) });
         const addBand = () => updateAxis(axis.id, { bands: [...bands, { id: `b_${Date.now()}`, min: 0, max: 100, letter: "" }] });
         const removeBand = (id) => updateAxis(axis.id, { bands: bands.filter((b) => b.id !== id) });
-        return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "p-3.5 space-y-3", children: [
-          /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-sm font-semibold text-foreground block", children: axis.name || axis.dimensionKey.toUpperCase() }),
-          /* @__PURE__ */ jsxRuntime.jsx("div", { className: "flex items-center gap-1.5 bg-muted/40 p-1 rounded-md border border-border w-fit", children: ["single_source", "weighted_blend"].map((c) => /* @__PURE__ */ jsxRuntime.jsx(
+        return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "p-3.5 space-y-3", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "text-sm font-semibold text-foreground block", children: axis.name || axis.dimensionKey.toUpperCase() }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "flex items-center gap-1.5 bg-muted/40 p-1 rounded-md border border-border w-fit", children: ["single_source", "weighted_blend"].map((c) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
             "button",
             {
               type: "button",
@@ -937,7 +1000,7 @@ var BlendingTab = ({
             },
             c
           )) }),
-          composition === "single_source" ? /* @__PURE__ */ jsxRuntime.jsx(
+          composition === "single_source" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
             SourcePicker,
             {
               label: "Sumber",
@@ -946,20 +1009,20 @@ var BlendingTab = ({
               value: axis.source,
               onChange: (source) => updateAxis(axis.id, { source })
             }
-          ) : /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "space-y-2", children: [
-            /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center justify-between text-[11px]", children: [
-              /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "text-foreground", children: [
+          ) : /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "space-y-2", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "flex items-center justify-between text-[11px]", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "text-foreground", children: [
                 "Form ",
                 formW,
                 "%"
               ] }),
-              /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "text-muted-foreground", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "text-muted-foreground", children: [
                 "Vision ",
                 100 - formW,
                 "%"
               ] })
             ] }),
-            /* @__PURE__ */ jsxRuntime.jsx(
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
               "input",
               {
                 type: "range",
@@ -971,32 +1034,32 @@ var BlendingTab = ({
                 className: "w-full h-1.5 rounded appearance-none cursor-pointer bg-muted accent-[#d97706]"
               }
             ),
-            /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "grid grid-cols-2 gap-2", children: [
-              /* @__PURE__ */ jsxRuntime.jsx(SourcePicker, { label: "Form source", origin: "form", value: axis.formSource, onChange: (source) => updateAxis(axis.id, { formSource: source }) }),
-              /* @__PURE__ */ jsxRuntime.jsx(SourcePicker, { label: "Vision source", origin: "vision", value: axis.visionSource, onChange: (source) => updateAxis(axis.id, { visionSource: source }) })
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "grid grid-cols-2 gap-2", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(SourcePicker, { label: "Form source", origin: "form", value: axis.formSource, onChange: (source) => updateAxis(axis.id, { formSource: source }) }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(SourcePicker, { label: "Vision source", origin: "vision", value: axis.visionSource, onChange: (source) => updateAxis(axis.id, { visionSource: source }) })
             ] })
           ] }),
-          /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "pt-2 border-t border-border space-y-1.5", children: [
-            /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-1.5", children: [
-              /* @__PURE__ */ jsxRuntime.jsx("label", { className: "block text-[10px] font-semibold text-muted-foreground", children: "Bands (axis & threshold)" }),
-              /* @__PURE__ */ jsxRuntime.jsx(
-                shared.InfoTooltip,
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "pt-2 border-t border-border space-y-1.5", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "flex items-center gap-1.5", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("label", { className: "block text-[10px] font-semibold text-muted-foreground", children: "Bands (axis & threshold)" }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                import_shared3.InfoTooltip,
                 {
                   content: "Health-oriented (100 = optimal). Exactly 2 bands compiles to a simple threshold; 3+ compiles to a small rule table (e.g. Pore Severity's Smooth/Visible/Enlarged). Bands should be ordered and cover 0-100 with no gaps.",
                   label: "About bands"
                 }
               )
             ] }),
-            bands.map((b) => /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-1.5", children: [
-              /* @__PURE__ */ jsxRuntime.jsx("input", { type: "number", min: 0, max: 100, value: b.min, onChange: (e) => updateBand(b.id, { min: Number(e.target.value) }), className: fieldCls2 + " w-16 text-center" }),
-              /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-muted-foreground text-[10px]", children: "\u2013" }),
-              /* @__PURE__ */ jsxRuntime.jsx("input", { type: "number", min: 0, max: 100, value: b.max, onChange: (e) => updateBand(b.id, { max: Number(e.target.value) }), className: fieldCls2 + " w-16 text-center" }),
-              /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-muted-foreground text-[10px]", children: "\u2192" }),
-              /* @__PURE__ */ jsxRuntime.jsx("input", { type: "text", maxLength: 12, value: b.letter, onChange: (e) => updateBand(b.id, { letter: e.target.value.toUpperCase() }), placeholder: "D", className: fieldCls2 + " flex-1 min-w-0 text-center font-bold text-beak" }),
-              /* @__PURE__ */ jsxRuntime.jsx("button", { type: "button", onClick: () => removeBand(b.id), className: "p-1 text-muted-foreground hover:text-destructive", children: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Trash2, { className: "h-3.5 w-3.5" }) })
+            bands.map((b) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "flex items-center gap-1.5", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("input", { type: "number", min: 0, max: 100, value: b.min, onChange: (e) => updateBand(b.id, { min: Number(e.target.value) }), className: fieldCls2 + " w-16 text-center" }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "text-muted-foreground text-[10px]", children: "\u2013" }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("input", { type: "number", min: 0, max: 100, value: b.max, onChange: (e) => updateBand(b.id, { max: Number(e.target.value) }), className: fieldCls2 + " w-16 text-center" }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "text-muted-foreground text-[10px]", children: "\u2192" }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("input", { type: "text", maxLength: 12, value: b.letter, onChange: (e) => updateBand(b.id, { letter: e.target.value.toUpperCase() }), placeholder: "D", className: fieldCls2 + " flex-1 min-w-0 text-center font-bold text-beak" }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", onClick: () => removeBand(b.id), className: "p-1 text-muted-foreground hover:text-destructive", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_lucide_react3.Trash2, { className: "h-3.5 w-3.5" }) })
             ] }, b.id)),
-            /* @__PURE__ */ jsxRuntime.jsxs("button", { type: "button", onClick: addBand, className: "flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground border border-border rounded", children: [
-              /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Plus, { className: "h-3 w-3" }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { type: "button", onClick: addBand, className: "flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground border border-border rounded", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_lucide_react3.Plus, { className: "h-3 w-3" }),
               "Add band"
             ] })
           ] })
@@ -1005,6 +1068,11 @@ var BlendingTab = ({
     ] })
   ] });
 };
+
+// src/score/components/tabs/ScoreSimulatorTab.tsx
+var import_react4 = require("react");
+var import_lucide_react4 = require("lucide-react");
+var import_shared4 = require("@gateway-experience/shared");
 
 // src/form/api.ts
 async function getSafetyFlags() {
@@ -1018,6 +1086,9 @@ async function getSafetyFlags() {
     return [];
   }
 }
+
+// src/score/components/tabs/ScoreSimulatorTab.tsx
+var import_jsx_runtime4 = require("react/jsx-runtime");
 var card = "rounded-lg border border-border bg-card p-4";
 var sliderCls = "w-full h-1.5 rounded appearance-none cursor-pointer bg-muted accent-[#d97706]";
 var sourceLabel = {
@@ -1032,7 +1103,7 @@ var ScoreSimulatorTab = ({
   onSelectRuleset
 }) => {
   const activeRuleset = selectedRuleset || rulesets[0] || null;
-  const rulesetDims = React.useMemo(() => {
+  const rulesetDims = (0, import_react4.useMemo)(() => {
     if (!activeRuleset?.schema) return [];
     try {
       const s = JSON.parse(activeRuleset.schema);
@@ -1057,29 +1128,29 @@ var ScoreSimulatorTab = ({
       return [];
     }
   }, [activeRuleset]);
-  const fieldMapping = React.useMemo(() => {
+  const fieldMapping = (0, import_react4.useMemo)(() => {
     try {
       return JSON.parse(activeRuleset?.schema || "{}").field_mapping || {};
     } catch {
       return {};
     }
   }, [activeRuleset]);
-  const ageAxisKeys = React.useMemo(() => rulesetDims.filter((d) => fieldMapping[d]?.form === "age_over_30"), [rulesetDims, fieldMapping]);
-  const formDims = React.useMemo(
+  const ageAxisKeys = (0, import_react4.useMemo)(() => rulesetDims.filter((d) => fieldMapping[d]?.form === "age_over_30"), [rulesetDims, fieldMapping]);
+  const formDims = (0, import_react4.useMemo)(
     () => rulesetDims.filter((d) => !ageAxisKeys.includes(d) && (fieldMapping[d]?.form || !fieldMapping[d]?.vision)),
     [rulesetDims, fieldMapping, ageAxisKeys]
   );
-  const visionDims = React.useMemo(() => rulesetDims.filter((d) => fieldMapping[d]?.vision), [rulesetDims, fieldMapping]);
-  const [questionnaireValues, setQuestionnaireValues] = shared.usePersistentState(
+  const visionDims = (0, import_react4.useMemo)(() => rulesetDims.filter((d) => fieldMapping[d]?.vision), [rulesetDims, fieldMapping]);
+  const [questionnaireValues, setQuestionnaireValues] = (0, import_shared4.usePersistentState)(
     "xg.scoreEngine.simulator.questionnaireValues",
     {}
   );
-  const [visionValues, setVisionValues] = shared.usePersistentState(
+  const [visionValues, setVisionValues] = (0, import_shared4.usePersistentState)(
     "xg.scoreEngine.simulator.visionValues",
     {}
   );
-  const [respondentAge, setRespondentAge] = shared.usePersistentState("xg.scoreEngine.simulator.respondentAge", 25);
-  const rulesetSafetyFlags = React.useMemo(() => {
+  const [respondentAge, setRespondentAge] = (0, import_shared4.usePersistentState)("xg.scoreEngine.simulator.respondentAge", 25);
+  const rulesetSafetyFlags = (0, import_react4.useMemo)(() => {
     if (!activeRuleset?.schema) return [];
     try {
       const s = JSON.parse(activeRuleset.schema);
@@ -1093,15 +1164,15 @@ var ScoreSimulatorTab = ({
       return [];
     }
   }, [activeRuleset]);
-  const formSurveyCode = React.useMemo(() => {
+  const formSurveyCode = (0, import_react4.useMemo)(() => {
     try {
       return JSON.parse(activeRuleset?.schema || "{}").form_survey_code || "";
     } catch {
       return "";
     }
   }, [activeRuleset]);
-  const [surveySafetyFlags, setSurveySafetyFlags] = React.useState([]);
-  React.useEffect(() => {
+  const [surveySafetyFlags, setSurveySafetyFlags] = (0, import_react4.useState)([]);
+  (0, import_react4.useEffect)(() => {
     if (!activeRuleset?.brandId || !activeRuleset?.applicationId) {
       setSurveySafetyFlags([]);
       return;
@@ -1140,39 +1211,39 @@ var ScoreSimulatorTab = ({
       cancelled = true;
     };
   }, [activeRuleset?.brandId, activeRuleset?.applicationId, formSurveyCode]);
-  const [catalogSafetyFlags, setCatalogSafetyFlags] = React.useState([]);
-  React.useEffect(() => {
+  const [catalogSafetyFlags, setCatalogSafetyFlags] = (0, import_react4.useState)([]);
+  (0, import_react4.useEffect)(() => {
     getSafetyFlags().then((rows) => setCatalogSafetyFlags(rows.map((r) => r.code))).catch(() => setCatalogSafetyFlags([]));
   }, []);
-  const allSafetyFlags = React.useMemo(
+  const allSafetyFlags = (0, import_react4.useMemo)(
     () => Array.from(/* @__PURE__ */ new Set([...rulesetSafetyFlags, ...surveySafetyFlags])),
     [rulesetSafetyFlags, surveySafetyFlags]
   );
-  const [conditionChoices, setConditionChoices] = shared.usePersistentState(
+  const [conditionChoices, setConditionChoices] = (0, import_shared4.usePersistentState)(
     "xg.scoreEngine.simulator.conditions",
     {}
   );
-  const selectedConditions = React.useMemo(() => {
+  const selectedConditions = (0, import_react4.useMemo)(() => {
     const keys = allSafetyFlags.length > 0 ? allSafetyFlags : catalogSafetyFlags;
     const out = {};
     for (const k of keys) out[k] = conditionChoices[k] ?? false;
     return out;
   }, [allSafetyFlags, catalogSafetyFlags, conditionChoices]);
-  const [simResponse, setSimResponse] = React.useState(null);
-  const [copiedReq, setCopiedReq] = React.useState(false);
+  const [simResponse, setSimResponse] = (0, import_react4.useState)(null);
+  const [copiedReq, setCopiedReq] = (0, import_react4.useState)(false);
   const SIMULATE_PATH = "/core/score-engine/simulate";
-  const formScores = React.useMemo(() => {
+  const formScores = (0, import_react4.useMemo)(() => {
     const out = {};
     for (const d of formDims) out[d] = questionnaireValues[d] ?? 50;
     return out;
   }, [formDims, questionnaireValues]);
-  const visionScores = React.useMemo(() => {
+  const visionScores = (0, import_react4.useMemo)(() => {
     const out = {};
     for (const d of visionDims) out[d] = visionValues[d] ?? 50;
     return out;
   }, [visionDims, visionValues]);
   const ageYears = ageAxisKeys.length > 0 ? respondentAge : void 0;
-  const requestBody = React.useMemo(
+  const requestBody = (0, import_react4.useMemo)(
     () => JSON.stringify(
       {
         schema: activeRuleset?.schema ?? "",
@@ -1191,7 +1262,7 @@ var ScoreSimulatorTab = ({
     setCopiedReq(true);
     setTimeout(() => setCopiedReq(false), 1500);
   };
-  const runSimulation = React.useCallback(async () => {
+  const runSimulation = (0, import_react4.useCallback)(async () => {
     if (!activeRuleset?.schema) return;
     try {
       const res = await fetch(SIMULATE_PATH, {
@@ -1210,7 +1281,7 @@ var ScoreSimulatorTab = ({
       console.error("Simulation request failed", err);
     }
   }, [activeRuleset, formScores, visionScores, ageYears, selectedConditions]);
-  React.useEffect(() => {
+  (0, import_react4.useEffect)(() => {
     const timer = setTimeout(runSimulation, 250);
     return () => clearTimeout(timer);
   }, [runSimulation]);
@@ -1222,11 +1293,11 @@ var ScoreSimulatorTab = ({
   const totalScore = Math.round(result?.total_score || 0);
   const profileCode = skinProfile?.code || "CUSTOM";
   const profileName = skinProfile?.name || "Answer to see a profile";
-  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-col lg:flex-row gap-5 items-start", children: [
-    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "w-full lg:w-80 lg:shrink-0 space-y-3 min-w-0", children: [
-      /* @__PURE__ */ jsxRuntime.jsxs("div", { className: card + " space-y-2", children: [
-        /* @__PURE__ */ jsxRuntime.jsx("span", { className: "block text-xs font-semibold text-muted-foreground", children: "Grading model" }),
-        /* @__PURE__ */ jsxRuntime.jsx(
+  return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex flex-col lg:flex-row gap-5 items-start", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "w-full lg:w-80 lg:shrink-0 space-y-3 min-w-0", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: card + " space-y-2", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "block text-xs font-semibold text-muted-foreground", children: "Grading model" }),
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
           "select",
           {
             value: activeRuleset?.id || "",
@@ -1236,7 +1307,7 @@ var ScoreSimulatorTab = ({
             },
             className: "w-full h-9 rounded-md bg-muted/40 border border-border px-3 text-foreground text-xs outline-none focus:border-ring",
             style: { colorScheme: "dark" },
-            children: rulesets.map((r) => /* @__PURE__ */ jsxRuntime.jsxs("option", { value: r.id, children: [
+            children: rulesets.map((r) => /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("option", { value: r.id, children: [
               r.title,
               " (",
               r.code,
@@ -1247,27 +1318,27 @@ var ScoreSimulatorTab = ({
           }
         )
       ] }),
-      ageAxisKeys.length > 0 && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: card + " space-y-2", children: [
-        /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-1.5", children: [
-          /* @__PURE__ */ jsxRuntime.jsx("h3", { className: "text-sm font-bold text-foreground", children: "Usia" }),
-          /* @__PURE__ */ jsxRuntime.jsx(
-            shared.InfoTooltip,
+      ageAxisKeys.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: card + " space-y-2", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex items-center gap-1.5", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("h3", { className: "text-sm font-bold text-foreground", children: "Usia" }),
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+            import_shared4.InfoTooltip,
             {
               content: "Bukan slider form biasa \u2014 dihitung dari date_of_birth di kuisioner data pribadi, bukan Q1-Q6. Dikirim sebagai age_years, dipakai axis: aging.",
               label: "About Usia"
             }
           )
         ] }),
-        /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center justify-between text-xs mb-1", children: [
-          /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-foreground", children: "Umur (tahun)" }),
-          /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "text-beak font-semibold font-mono", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex items-center justify-between text-xs mb-1", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "text-foreground", children: "Umur (tahun)" }),
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("span", { className: "text-beak font-semibold font-mono", children: [
             respondentAge,
             " (",
             respondentAge <= 30 ? "sehat" : "faktor W",
             ")"
           ] })
         ] }),
-        /* @__PURE__ */ jsxRuntime.jsx(
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
           "input",
           {
             type: "range",
@@ -1278,22 +1349,22 @@ var ScoreSimulatorTab = ({
             className: sliderCls
           }
         ),
-        /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center justify-between text-[10px] text-muted-foreground mt-0.5", children: [
-          /* @__PURE__ */ jsxRuntime.jsx("span", { children: "\u226430 = sehat" }),
-          /* @__PURE__ */ jsxRuntime.jsx("span", { children: ">30 = faktor W" })
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex items-center justify-between text-[10px] text-muted-foreground mt-0.5", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { children: "\u226430 = sehat" }),
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { children: ">30 = faktor W" })
         ] })
       ] }),
-      formDims.length > 0 && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: card + " space-y-3", children: [
-        /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-1.5", children: [
-          /* @__PURE__ */ jsxRuntime.jsx("h3", { className: "text-sm font-bold text-foreground", children: "Questionnaire result" }),
-          /* @__PURE__ */ jsxRuntime.jsx(shared.InfoTooltip, { content: "Per-dimensi, hanya yang dihitung dari kuisioner (form_source). 0 = parah, 100 = sehat.", label: "About questionnaire result" })
+      formDims.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: card + " space-y-3", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex items-center gap-1.5", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("h3", { className: "text-sm font-bold text-foreground", children: "Questionnaire result" }),
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_shared4.InfoTooltip, { content: "Per-dimensi, hanya yang dihitung dari kuisioner (form_source). 0 = parah, 100 = sehat.", label: "About questionnaire result" })
         ] }),
-        /* @__PURE__ */ jsxRuntime.jsx("div", { className: "space-y-3", children: formDims.map((dimKey) => /* @__PURE__ */ jsxRuntime.jsxs("div", { children: [
-          /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center justify-between text-xs mb-1", children: [
-            /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-foreground", children: dimKey }),
-            /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-beak font-semibold font-mono", children: questionnaireValues[dimKey] ?? 50 })
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "space-y-3", children: formDims.map((dimKey) => /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex items-center justify-between text-xs mb-1", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "text-foreground", children: dimKey }),
+            /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "text-beak font-semibold font-mono", children: questionnaireValues[dimKey] ?? 50 })
           ] }),
-          /* @__PURE__ */ jsxRuntime.jsx(
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
             "input",
             {
               type: "range",
@@ -1304,23 +1375,23 @@ var ScoreSimulatorTab = ({
               className: sliderCls
             }
           ),
-          /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center justify-between text-[10px] text-muted-foreground mt-0.5", children: [
-            /* @__PURE__ */ jsxRuntime.jsx("span", { children: "0 = parah" }),
-            /* @__PURE__ */ jsxRuntime.jsx("span", { children: "100 = sehat" })
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex items-center justify-between text-[10px] text-muted-foreground mt-0.5", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { children: "0 = parah" }),
+            /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { children: "100 = sehat" })
           ] })
         ] }, dimKey)) })
       ] }),
-      visionDims.length > 0 && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: card + " space-y-3", children: [
-        /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-1.5", children: [
-          /* @__PURE__ */ jsxRuntime.jsx("h3", { className: "text-sm font-bold text-foreground", children: "Vision result" }),
-          /* @__PURE__ */ jsxRuntime.jsx(shared.InfoTooltip, { content: "Per-dimensi, hanya yang dihitung dari foto vendor (vision_source). 0 = parah, 100 = sehat.", label: "About vision result" })
+      visionDims.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: card + " space-y-3", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex items-center gap-1.5", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("h3", { className: "text-sm font-bold text-foreground", children: "Vision result" }),
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_shared4.InfoTooltip, { content: "Per-dimensi, hanya yang dihitung dari foto vendor (vision_source). 0 = parah, 100 = sehat.", label: "About vision result" })
         ] }),
-        /* @__PURE__ */ jsxRuntime.jsx("div", { className: "space-y-3", children: visionDims.map((dimKey) => /* @__PURE__ */ jsxRuntime.jsxs("div", { children: [
-          /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center justify-between text-xs mb-1", children: [
-            /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-foreground", children: dimKey }),
-            /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-beak font-semibold font-mono", children: visionValues[dimKey] ?? 50 })
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "space-y-3", children: visionDims.map((dimKey) => /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex items-center justify-between text-xs mb-1", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "text-foreground", children: dimKey }),
+            /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "text-beak font-semibold font-mono", children: visionValues[dimKey] ?? 50 })
           ] }),
-          /* @__PURE__ */ jsxRuntime.jsx(
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
             "input",
             {
               type: "range",
@@ -1331,23 +1402,23 @@ var ScoreSimulatorTab = ({
               className: sliderCls
             }
           ),
-          /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center justify-between text-[10px] text-muted-foreground mt-0.5", children: [
-            /* @__PURE__ */ jsxRuntime.jsx("span", { children: "0 = parah" }),
-            /* @__PURE__ */ jsxRuntime.jsx("span", { children: "100 = sehat" })
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex items-center justify-between text-[10px] text-muted-foreground mt-0.5", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { children: "0 = parah" }),
+            /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { children: "100 = sehat" })
           ] })
         ] }, dimKey)) })
       ] }),
-      /* @__PURE__ */ jsxRuntime.jsxs("div", { className: card + " space-y-2", children: [
-        /* @__PURE__ */ jsxRuntime.jsx("h3", { className: "text-sm font-bold text-foreground", children: "Safety flags" }),
-        /* @__PURE__ */ jsxRuntime.jsx("div", { className: "grid grid-cols-2 gap-2 text-xs", children: Object.entries(selectedConditions).map(([key, isChecked]) => /* @__PURE__ */ jsxRuntime.jsxs(
+      /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: card + " space-y-2", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("h3", { className: "text-sm font-bold text-foreground", children: "Safety flags" }),
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "grid grid-cols-2 gap-2 text-xs", children: Object.entries(selectedConditions).map(([key, isChecked]) => /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(
           "button",
           {
             type: "button",
             onClick: () => setConditionChoices((p) => ({ ...p, [key]: !isChecked })),
             className: `p-2.5 rounded-md border text-left transition-colors flex items-center justify-between ${isChecked ? "border-beak/50 bg-beak/10 text-beak" : "border-border bg-muted/40 text-muted-foreground hover:text-foreground"}`,
             children: [
-              /* @__PURE__ */ jsxRuntime.jsx("span", { children: key }),
-              /* @__PURE__ */ jsxRuntime.jsx(
+              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { children: key }),
+              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
                 "span",
                 {
                   className: `w-2 h-2 rounded-full ${isChecked ? "bg-beak" : "bg-border"}`
@@ -1359,13 +1430,13 @@ var ScoreSimulatorTab = ({
         )) })
       ] })
     ] }),
-    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "w-full lg:flex-1 space-y-3 min-w-0", children: [
-      /* @__PURE__ */ jsxRuntime.jsxs("div", { className: card, children: [
-        /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center justify-between gap-2", children: [
-          /* @__PURE__ */ jsxRuntime.jsx("h3", { className: "text-sm font-bold text-foreground", children: "Result" }),
-          /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-2", children: [
-            simResponse?.performance && /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-[11px] text-muted-foreground font-mono", children: simResponse.performance }),
-            /* @__PURE__ */ jsxRuntime.jsxs(
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "w-full lg:flex-1 space-y-3 min-w-0", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: card, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex items-center justify-between gap-2", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("h3", { className: "text-sm font-bold text-foreground", children: "Result" }),
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex items-center gap-2", children: [
+            simResponse?.performance && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "text-[11px] text-muted-foreground font-mono", children: simResponse.performance }),
+            /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(
               "button",
               {
                 type: "button",
@@ -1373,82 +1444,82 @@ var ScoreSimulatorTab = ({
                 title: `POST ${SIMULATE_PATH}`,
                 className: "flex items-center gap-1 rounded border border-border bg-muted/40 px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:border-beak/50",
                 children: [
-                  copiedReq ? /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Check, { className: "h-3 w-3 text-beak" }) : /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Copy, { className: "h-3 w-3" }),
+                  copiedReq ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_lucide_react4.Check, { className: "h-3 w-3 text-beak" }) : /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_lucide_react4.Copy, { className: "h-3 w-3" }),
                   copiedReq ? "Copied" : "Copy request"
                 ]
               }
             )
           ] })
         ] }),
-        /* @__PURE__ */ jsxRuntime.jsxs("p", { className: "mt-1 text-[10px] text-muted-foreground font-mono", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("p", { className: "mt-1 text-[10px] text-muted-foreground font-mono", children: [
           "POST ",
           SIMULATE_PATH
         ] }),
-        /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "mt-3 rounded-md border border-border bg-muted/20 p-4 text-center", children: [
-          /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center justify-center gap-1.5", children: [
-            skinProfile?.category && /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-[10px] font-semibold text-muted-foreground", children: skinProfile.category }),
-            skinProfile && !skinProfile.complete && /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-[10px] font-semibold text-amber-500 bg-amber-500/10 rounded px-1.5 py-0.5", children: "Incomplete" })
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "mt-3 rounded-md border border-border bg-muted/20 p-4 text-center", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex items-center justify-center gap-1.5", children: [
+            skinProfile?.category && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "text-[10px] font-semibold text-muted-foreground", children: skinProfile.category }),
+            skinProfile && !skinProfile.complete && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "text-[10px] font-semibold text-amber-500 bg-amber-500/10 rounded px-1.5 py-0.5", children: "Incomplete" })
           ] }),
-          /* @__PURE__ */ jsxRuntime.jsx("div", { className: "text-2xl font-black tracking-tight text-foreground font-mono my-1", children: profileCode }),
-          /* @__PURE__ */ jsxRuntime.jsx("div", { className: "text-xs font-semibold text-foreground", children: profileName }),
-          skinProfile?.description && /* @__PURE__ */ jsxRuntime.jsx("p", { className: "text-[11px] text-muted-foreground mt-2 line-clamp-2 leading-relaxed", children: skinProfile.description })
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "text-2xl font-black tracking-tight text-foreground font-mono my-1", children: profileCode }),
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "text-xs font-semibold text-foreground", children: profileName }),
+          skinProfile?.description && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("p", { className: "text-[11px] text-muted-foreground mt-2 line-clamp-2 leading-relaxed", children: skinProfile.description })
         ] }),
-        skinProfile?.axis_values && Object.keys(skinProfile.axis_values).length > 0 && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "mt-4", children: [
-          /* @__PURE__ */ jsxRuntime.jsx("h4", { className: "text-[11px] font-semibold text-muted-foreground mb-2", children: "Axis codes" }),
-          /* @__PURE__ */ jsxRuntime.jsx("div", { className: "flex flex-wrap gap-2 text-xs", children: Object.entries(skinProfile.axis_values).map(([axis, val]) => /* @__PURE__ */ jsxRuntime.jsxs(
+        skinProfile?.axis_values && Object.keys(skinProfile.axis_values).length > 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "mt-4", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("h4", { className: "text-[11px] font-semibold text-muted-foreground mb-2", children: "Axis codes" }),
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "flex flex-wrap gap-2 text-xs", children: Object.entries(skinProfile.axis_values).map(([axis, val]) => /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(
             "div",
             {
               className: "min-w-[4.5rem] flex-1 rounded-md border border-border bg-muted/20 p-2.5 text-center",
               children: [
-                /* @__PURE__ */ jsxRuntime.jsx("div", { className: "text-muted-foreground text-[10px] truncate", children: axis }),
-                /* @__PURE__ */ jsxRuntime.jsx("div", { className: "text-sm font-bold text-beak font-mono mt-0.5", children: String(val) })
+                /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "text-muted-foreground text-[10px] truncate", children: axis }),
+                /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "text-sm font-bold text-beak font-mono mt-0.5", children: String(val) })
               ]
             },
             axis
           )) })
         ] }),
-        /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "mt-4 rounded-md border border-border bg-muted/20 p-2.5", children: [
-          /* @__PURE__ */ jsxRuntime.jsx("div", { className: "text-[10px] text-muted-foreground", children: "Overall score" }),
-          /* @__PURE__ */ jsxRuntime.jsx("div", { className: "text-sm font-bold text-foreground font-mono mt-0.5", children: totalScore }),
-          /* @__PURE__ */ jsxRuntime.jsx("div", { className: "text-[10px] text-muted-foreground", children: "100 = sehat" })
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "mt-4 rounded-md border border-border bg-muted/20 p-2.5", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "text-[10px] text-muted-foreground", children: "Overall score" }),
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "text-sm font-bold text-foreground font-mono mt-0.5", children: totalScore }),
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "text-[10px] text-muted-foreground", children: "100 = sehat" })
         ] }),
-        warnings.length > 0 && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "mt-3 rounded-md border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs space-y-1", children: [
-          /* @__PURE__ */ jsxRuntime.jsx("div", { className: "text-[10px] font-semibold text-amber-500", children: "Warnings" }),
-          warnings.map((w) => /* @__PURE__ */ jsxRuntime.jsx("div", { className: "text-amber-500/90 font-mono text-[11px]", children: w }, w))
+        warnings.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "mt-3 rounded-md border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs space-y-1", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "text-[10px] font-semibold text-amber-500", children: "Warnings" }),
+          warnings.map((w) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "text-amber-500/90 font-mono text-[11px]", children: w }, w))
         ] }),
-        Object.keys(subClassification).length > 0 && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "mt-3 rounded-md border border-border bg-muted/20 p-2.5 text-xs space-y-1", children: [
-          /* @__PURE__ */ jsxRuntime.jsx("div", { className: "text-[10px] text-muted-foreground mb-0.5", children: "Sub-classification" }),
-          Object.entries(subClassification).map(([k, v]) => /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center justify-between", children: [
-            /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-foreground", children: k }),
-            /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-muted-foreground font-mono", children: v === null ? "\u2014" : String(v) })
+        Object.keys(subClassification).length > 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "mt-3 rounded-md border border-border bg-muted/20 p-2.5 text-xs space-y-1", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "text-[10px] text-muted-foreground mb-0.5", children: "Sub-classification" }),
+          Object.entries(subClassification).map(([k, v]) => /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex items-center justify-between", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "text-foreground", children: k }),
+            /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "text-muted-foreground font-mono", children: v === null ? "\u2014" : String(v) })
           ] }, k))
         ] })
       ] }),
-      Object.keys(dimensions).length > 0 && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: card, children: [
-        /* @__PURE__ */ jsxRuntime.jsx("h3", { className: "text-sm font-bold text-foreground mb-3", children: "Dimension breakdown" }),
-        /* @__PURE__ */ jsxRuntime.jsx("div", { className: "space-y-2", children: Object.entries(dimensions).map(([dimKey, d]) => /* @__PURE__ */ jsxRuntime.jsxs(
+      Object.keys(dimensions).length > 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: card, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("h3", { className: "text-sm font-bold text-foreground mb-3", children: "Dimension breakdown" }),
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "space-y-2", children: Object.entries(dimensions).map(([dimKey, d]) => /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(
           "div",
           {
             className: "rounded-md border border-border bg-muted/20 p-2.5 flex items-center justify-between text-xs gap-2",
             children: [
-              /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "min-w-0", children: [
-                /* @__PURE__ */ jsxRuntime.jsx("div", { className: "text-foreground font-semibold truncate", children: dimKey }),
-                /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "text-muted-foreground text-[10px]", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "min-w-0", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "text-foreground font-semibold truncate", children: dimKey }),
+                /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "text-muted-foreground text-[10px]", children: [
                   sourceLabel[d.source] || d.source,
                   d.source === "blend" && d.weight ? ` (form ${Math.round(d.weight.form * 100)}% / vision ${Math.round(d.weight.vision * 100)}%)` : ""
                 ] })
               ] }),
-              /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-3 shrink-0 font-mono", children: [
-                /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "text-muted-foreground text-[10px]", title: "form_score", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex items-center gap-3 shrink-0 font-mono", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("span", { className: "text-muted-foreground text-[10px]", title: "form_score", children: [
                   "F ",
                   d.form_score ?? "\u2014"
                 ] }),
-                /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "text-muted-foreground text-[10px]", title: "vision_score", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("span", { className: "text-muted-foreground text-[10px]", title: "vision_score", children: [
                   "V ",
                   d.vision_score ?? "\u2014"
                 ] }),
-                /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-beak font-semibold", title: "final_score", children: d.final_score ?? "\u2014" }),
-                d.axis && /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-foreground font-semibold bg-card border border-border rounded px-1.5 py-0.5", children: d.axis })
+                /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "text-beak font-semibold", title: "final_score", children: d.final_score ?? "\u2014" }),
+                d.axis && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "text-foreground font-semibold bg-card border border-border rounded px-1.5 py-0.5", children: d.axis })
               ] })
             ]
           },
@@ -1458,6 +1529,14 @@ var ScoreSimulatorTab = ({
     ] })
   ] });
 };
+
+// src/score/components/modals/RulesetModal.tsx
+var import_react6 = require("react");
+var import_lucide_react6 = require("lucide-react");
+var import_shared6 = require("@gateway-experience/shared");
+
+// src/score/components/reusable/BandTable.tsx
+var import_jsx_runtime5 = require("react/jsx-runtime");
 var BandTable = ({
   bands,
   onChange,
@@ -1488,19 +1567,19 @@ var BandTable = ({
     if (bands.length <= 2) return;
     onChange(bands.filter((_, i) => i !== idx));
   };
-  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "rounded-md border border-border bg-card divide-y divide-border", children: [
-    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-2 px-3 py-1.5 bg-muted/20 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground", children: [
-      /* @__PURE__ */ jsxRuntime.jsx("span", { className: "w-24 shrink-0", children: "Score" }),
-      /* @__PURE__ */ jsxRuntime.jsx("span", { className: "flex-1", children: "Label" }),
-      !fixed && /* @__PURE__ */ jsxRuntime.jsx("span", { className: "w-6 shrink-0", "aria-hidden": "true" })
+  return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "rounded-md border border-border bg-card divide-y divide-border", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "flex items-center gap-2 px-3 py-1.5 bg-muted/20 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { className: "w-24 shrink-0", children: "Score" }),
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { className: "flex-1", children: "Label" }),
+      !fixed && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { className: "w-6 shrink-0", "aria-hidden": "true" })
     ] }),
     bands.map((b, idx) => {
       const lower = idx === 0 ? 0 : bands[idx - 1].max + 1;
-      return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-2 px-3 py-2", children: [
-        /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex w-24 shrink-0 items-center gap-1 text-xs tabular-nums text-muted-foreground", children: [
-          /* @__PURE__ */ jsxRuntime.jsx("span", { className: "w-6 text-right", children: lower }),
-          /* @__PURE__ */ jsxRuntime.jsx("span", { children: "\u2013" }),
-          /* @__PURE__ */ jsxRuntime.jsx(
+      return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "flex items-center gap-2 px-3 py-2", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "flex w-24 shrink-0 items-center gap-1 text-xs tabular-nums text-muted-foreground", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { className: "w-6 text-right", children: lower }),
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { children: "\u2013" }),
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
             "input",
             {
               type: "number",
@@ -1513,7 +1592,7 @@ var BandTable = ({
             }
           )
         ] }),
-        /* @__PURE__ */ jsxRuntime.jsx(
+        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
           "input",
           {
             type: "text",
@@ -1524,7 +1603,7 @@ var BandTable = ({
             className: "flex-1 min-w-0 h-7 rounded-md bg-muted/40 border border-border px-2.5 text-foreground text-xs outline-none focus:border-ring disabled:opacity-50"
           }
         ),
-        !fixed && /* @__PURE__ */ jsxRuntime.jsx(
+        !fixed && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
           "button",
           {
             type: "button",
@@ -1537,7 +1616,7 @@ var BandTable = ({
         )
       ] }, b.id);
     }),
-    !fixed && /* @__PURE__ */ jsxRuntime.jsx("div", { className: "px-3 py-1.5", children: /* @__PURE__ */ jsxRuntime.jsx(
+    !fixed && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "px-3 py-1.5", children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
       "button",
       {
         type: "button",
@@ -1549,6 +1628,12 @@ var BandTable = ({
     ) })
   ] });
 };
+
+// src/score/components/reusable/ProfileMappingTable.tsx
+var import_react5 = __toESM(require("react"));
+var import_lucide_react5 = require("lucide-react");
+var import_shared5 = require("@gateway-experience/shared");
+var import_jsx_runtime6 = require("react/jsx-runtime");
 var ProfileMappingTable = ({
   axes,
   config,
@@ -1556,8 +1641,8 @@ var ProfileMappingTable = ({
   disabled = false
 }) => {
   const { strategy, profiles } = config;
-  const [expandedRows, setExpandedRows] = React.useState({});
-  const [cache, setCache] = React.useState({});
+  const [expandedRows, setExpandedRows] = (0, import_react5.useState)({});
+  const [cache, setCache] = (0, import_react5.useState)({});
   const wide = strategy === "combination_matrix";
   const toggleRow = (id) => {
     setExpandedRows((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -1670,20 +1755,20 @@ var ProfileMappingTable = ({
       profiles: generated
     });
   };
-  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "space-y-4", children: [
-    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "bg-card p-3.5 rounded-lg border border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3", children: [
-      /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-1.5", children: [
-        /* @__PURE__ */ jsxRuntime.jsx("label", { className: "text-sm font-bold text-foreground block", children: "How the profile is chosen" }),
-        /* @__PURE__ */ jsxRuntime.jsx(
-          shared.InfoTooltip,
+  return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "space-y-4", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "bg-card p-3.5 rounded-lg border border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "flex items-center gap-1.5", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("label", { className: "text-sm font-bold text-foreground block", children: "How the profile is chosen" }),
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+          import_shared5.InfoTooltip,
           {
             content: "Sets skin_profile.code and skin_profile.name \u2014 a different result than Score Range and Severity Level above, which only set score_range and severity_level. 'Total Score' reads the same overall score as those two, just to pick a different output.",
             label: "About profile strategy"
           }
         )
       ] }),
-      /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-1.5 bg-muted/40 p-1 rounded-md border border-border shrink-0", children: [
-        /* @__PURE__ */ jsxRuntime.jsx(
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "flex items-center gap-1.5 bg-muted/40 p-1 rounded-md border border-border shrink-0", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
           "button",
           {
             type: "button",
@@ -1693,7 +1778,7 @@ var ProfileMappingTable = ({
             children: "Total Score"
           }
         ),
-        /* @__PURE__ */ jsxRuntime.jsx(
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
           "button",
           {
             type: "button",
@@ -1703,7 +1788,7 @@ var ProfileMappingTable = ({
             children: "Combination Matrix"
           }
         ),
-        /* @__PURE__ */ jsxRuntime.jsx(
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
           "button",
           {
             type: "button",
@@ -1715,31 +1800,31 @@ var ProfileMappingTable = ({
         )
       ] })
     ] }),
-    /* @__PURE__ */ jsxRuntime.jsx("p", { className: "text-[11px] text-muted-foreground -mt-2", children: "Only the highlighted method above is saved to this ruleset \u2014 the other two are kept in this browser tab so you can switch back without losing what you typed, but they're discarded on reload." }),
-    strategy === "total_score" && /* @__PURE__ */ jsxRuntime.jsxs("p", { className: "text-[11px] text-muted-foreground bg-muted/40 border border-border rounded-lg px-3 py-2", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("p", { className: "text-[11px] text-muted-foreground -mt-2", children: "Only the highlighted method above is saved to this ruleset \u2014 the other two are kept in this browser tab so you can switch back without losing what you typed, but they're discarded on reload." }),
+    strategy === "total_score" && /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("p", { className: "text-[11px] text-muted-foreground bg-muted/40 border border-border rounded-lg px-3 py-2", children: [
       `"Trigger range" reads the same overall score as the Score Range / Severity Level labels above, but this table picks the profile's own`,
       " ",
-      /* @__PURE__ */ jsxRuntime.jsx("span", { className: "font-mono", children: "skin_profile.code" }),
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "font-mono", children: "skin_profile.code" }),
       " /",
       " ",
-      /* @__PURE__ */ jsxRuntime.jsx("span", { className: "font-mono", children: "skin_profile.name" }),
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "font-mono", children: "skin_profile.name" }),
       " \u2014 a different result than",
       " ",
-      /* @__PURE__ */ jsxRuntime.jsx("span", { className: "font-mono", children: "score_range" }),
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "font-mono", children: "score_range" }),
       " /",
       " ",
-      /* @__PURE__ */ jsxRuntime.jsx("span", { className: "font-mono", children: "severity_level" }),
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "font-mono", children: "severity_level" }),
       ". Editing one does not change the others."
     ] }),
-    strategy === "combination_matrix" && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center justify-between bg-muted/40 border border-border p-2.5 rounded-lg", children: [
-      /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "text-xs text-muted-foreground", children: [
+    strategy === "combination_matrix" && /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "flex items-center justify-between bg-muted/40 border border-border p-2.5 rounded-lg", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("span", { className: "text-xs text-muted-foreground", children: [
         "One row per combination of ",
         axes.length,
         " dimensions (",
         profiles.length,
         " rows)."
       ] }),
-      /* @__PURE__ */ jsxRuntime.jsx(
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
         "button",
         {
           type: "button",
@@ -1750,47 +1835,47 @@ var ProfileMappingTable = ({
         }
       )
     ] }),
-    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "border border-border rounded-lg overflow-hidden bg-card", children: [
-      /* @__PURE__ */ jsxRuntime.jsx("div", { className: "overflow-x-auto", children: /* @__PURE__ */ jsxRuntime.jsxs(
+    /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "border border-border rounded-lg overflow-hidden bg-card", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "overflow-x-auto", children: /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(
         "table",
         {
           className: `${wide ? "min-w-full" : "w-full"} text-left text-xs border-collapse`,
           style: wide ? { width: "max-content" } : void 0,
           children: [
-            /* @__PURE__ */ jsxRuntime.jsx("thead", { children: /* @__PURE__ */ jsxRuntime.jsxs("tr", { className: "bg-muted/40 border-b border-border text-[11px] text-muted-foreground", children: [
-              /* @__PURE__ */ jsxRuntime.jsx("th", { className: "py-2.5 px-3 text-center", style: { width: 40 }, children: "#" }),
-              strategy === "total_score" && /* @__PURE__ */ jsxRuntime.jsx("th", { className: "py-2.5 px-3", style: { minWidth: 160 }, children: "Trigger range" }),
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("tr", { className: "bg-muted/40 border-b border-border text-[11px] text-muted-foreground", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("th", { className: "py-2.5 px-3 text-center", style: { width: 40 }, children: "#" }),
+              strategy === "total_score" && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("th", { className: "py-2.5 px-3", style: { minWidth: 160 }, children: "Trigger range" }),
               strategy === "combination_matrix" && axes.map((a) => {
                 const letters = axisLetters(a);
                 const bipolar = !!(a.axisCodeLow?.trim() && a.axisCodeHigh?.trim());
-                return /* @__PURE__ */ jsxRuntime.jsxs(
+                return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(
                   "th",
                   {
                     className: "py-2.5 px-3 text-center whitespace-nowrap",
                     style: { minWidth: 120 },
                     children: [
                       a.name || a.dimensionKey,
-                      /* @__PURE__ */ jsxRuntime.jsx("span", { className: "block text-[10px] font-normal text-muted-foreground", children: bipolar ? letters.join(" / ") : "O / S / P" })
+                      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "block text-[10px] font-normal text-muted-foreground", children: bipolar ? letters.join(" / ") : "O / S / P" })
                     ]
                   },
                   a.id
                 );
               }),
-              strategy === "primary_concern" && /* @__PURE__ */ jsxRuntime.jsxs(jsxRuntime.Fragment, { children: [
-                /* @__PURE__ */ jsxRuntime.jsx("th", { className: "py-2.5 px-3", style: { minWidth: 224 }, children: "Dimension" }),
-                /* @__PURE__ */ jsxRuntime.jsx("th", { className: "py-2.5 px-3", style: { minWidth: 150 }, children: "Level" })
+              strategy === "primary_concern" && /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_jsx_runtime6.Fragment, { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("th", { className: "py-2.5 px-3", style: { minWidth: 224 }, children: "Dimension" }),
+                /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("th", { className: "py-2.5 px-3", style: { minWidth: 150 }, children: "Level" })
               ] }),
-              /* @__PURE__ */ jsxRuntime.jsx("th", { className: "py-2.5 px-3", style: { minWidth: 150 }, children: "Code" }),
-              /* @__PURE__ */ jsxRuntime.jsx("th", { className: "py-2.5 px-3", style: { minWidth: 240 }, children: "Name" }),
-              /* @__PURE__ */ jsxRuntime.jsx("th", { className: "py-2.5 px-3 text-center", style: { width: 80 } })
+              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("th", { className: "py-2.5 px-3", style: { minWidth: 150 }, children: "Code" }),
+              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("th", { className: "py-2.5 px-3", style: { minWidth: 240 }, children: "Name" }),
+              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("th", { className: "py-2.5 px-3 text-center", style: { width: 80 } })
             ] }) }),
-            /* @__PURE__ */ jsxRuntime.jsx("tbody", { className: "divide-y divide-border", children: profiles.map((p, pIdx) => {
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("tbody", { className: "divide-y divide-border", children: profiles.map((p, pIdx) => {
               const isExpanded = !!expandedRows[p.id];
-              return /* @__PURE__ */ jsxRuntime.jsxs(React__default.default.Fragment, { children: [
-                /* @__PURE__ */ jsxRuntime.jsxs("tr", { className: "hover:bg-muted/40 transition-colors", children: [
-                  /* @__PURE__ */ jsxRuntime.jsx("td", { className: "py-2.5 px-3 text-center text-muted-foreground font-semibold", children: pIdx + 1 }),
-                  strategy === "total_score" && /* @__PURE__ */ jsxRuntime.jsx("td", { className: "py-2.5 px-3", children: /* @__PURE__ */ jsxRuntime.jsx(
-                    shared.ScoreRangeInput,
+              return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_react5.default.Fragment, { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("tr", { className: "hover:bg-muted/40 transition-colors", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("td", { className: "py-2.5 px-3 text-center text-muted-foreground font-semibold", children: pIdx + 1 }),
+                  strategy === "total_score" && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("td", { className: "py-2.5 px-3", children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+                    import_shared5.ScoreRangeInput,
                     {
                       minScore: p.minScore ?? 0,
                       maxScore: p.maxScore ?? 100,
@@ -1805,7 +1890,7 @@ var ProfileMappingTable = ({
                   ) }),
                   strategy === "combination_matrix" && axes.map((a) => {
                     const codeVal = p.dimensionCodes?.[a.dimensionKey] || p.dimensionCodes?.[a.axisCode] || axisLetters(a)[0];
-                    return /* @__PURE__ */ jsxRuntime.jsx("td", { className: "py-2.5 px-3 text-center", children: /* @__PURE__ */ jsxRuntime.jsx(
+                    return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("td", { className: "py-2.5 px-3 text-center", children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
                       "input",
                       {
                         type: "text",
@@ -1817,9 +1902,9 @@ var ProfileMappingTable = ({
                       }
                     ) }, a.id);
                   }),
-                  strategy === "primary_concern" && /* @__PURE__ */ jsxRuntime.jsxs(jsxRuntime.Fragment, { children: [
-                    /* @__PURE__ */ jsxRuntime.jsx("td", { className: "py-2 px-3 align-middle", children: /* @__PURE__ */ jsxRuntime.jsx(
-                      shared.DimensionSelect,
+                  strategy === "primary_concern" && /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_jsx_runtime6.Fragment, { children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("td", { className: "py-2 px-3 align-middle", children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+                      import_shared5.DimensionSelect,
                       {
                         label: "",
                         value: p.primaryDimension || axes[0]?.dimensionKey || "sebum",
@@ -1827,8 +1912,8 @@ var ProfileMappingTable = ({
                         onChange: (dimKey) => handleUpdateProfile(p.id, "primaryDimension", dimKey)
                       }
                     ) }),
-                    /* @__PURE__ */ jsxRuntime.jsx("td", { className: "py-2 px-3 align-middle", children: /* @__PURE__ */ jsxRuntime.jsx(
-                      shared.SeveritySelect,
+                    /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("td", { className: "py-2 px-3 align-middle", children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+                      import_shared5.SeveritySelect,
                       {
                         value: p.severityLevel || "Parah",
                         disabled,
@@ -1836,7 +1921,7 @@ var ProfileMappingTable = ({
                       }
                     ) })
                   ] }),
-                  /* @__PURE__ */ jsxRuntime.jsx("td", { className: "py-2.5 px-3", style: { minWidth: 150 }, children: /* @__PURE__ */ jsxRuntime.jsx(
+                  /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("td", { className: "py-2.5 px-3", style: { minWidth: 150 }, children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
                     "input",
                     {
                       type: "text",
@@ -1847,7 +1932,7 @@ var ProfileMappingTable = ({
                       className: "w-full px-2.5 py-1.5 bg-muted/40 border border-border rounded text-beak font-bold focus:outline-none focus:border-ring disabled:opacity-50 text-xs"
                     }
                   ) }),
-                  /* @__PURE__ */ jsxRuntime.jsx("td", { className: "py-2.5 px-3", style: { minWidth: 240 }, children: /* @__PURE__ */ jsxRuntime.jsx(
+                  /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("td", { className: "py-2.5 px-3", style: { minWidth: 240 }, children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
                     "input",
                     {
                       type: "text",
@@ -1858,18 +1943,18 @@ var ProfileMappingTable = ({
                       className: "w-full px-2.5 py-1.5 bg-muted/40 border border-border rounded text-foreground focus:outline-none focus:border-ring disabled:opacity-50 text-xs font-medium"
                     }
                   ) }),
-                  /* @__PURE__ */ jsxRuntime.jsx("td", { className: "py-2.5 px-3 text-center", children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center justify-center gap-1", children: [
-                    /* @__PURE__ */ jsxRuntime.jsx(
+                  /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("td", { className: "py-2.5 px-3 text-center", children: /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "flex items-center justify-center gap-1", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
                       "button",
                       {
                         type: "button",
                         onClick: () => toggleRow(p.id),
                         className: `p-1.5 rounded transition-colors ${isExpanded ? "text-beak bg-beak/10 border border-beak/40" : "text-muted-foreground hover:text-foreground hover:bg-muted/40"}`,
                         title: "Show category & description",
-                        children: isExpanded ? /* @__PURE__ */ jsxRuntime.jsx(lucideReact.ChevronDown, { className: "h-3.5 w-3.5" }) : /* @__PURE__ */ jsxRuntime.jsx(lucideReact.ChevronRight, { className: "h-3.5 w-3.5" })
+                        children: isExpanded ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_lucide_react5.ChevronDown, { className: "h-3.5 w-3.5" }) : /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_lucide_react5.ChevronRight, { className: "h-3.5 w-3.5" })
                       }
                     ),
-                    /* @__PURE__ */ jsxRuntime.jsx(
+                    /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
                       "button",
                       {
                         type: "button",
@@ -1877,20 +1962,20 @@ var ProfileMappingTable = ({
                         onClick: () => handleDeleteProfile(p.id),
                         className: "p-1.5 text-muted-foreground hover:text-destructive disabled:opacity-30 rounded transition-colors",
                         title: "Delete Profile Row",
-                        children: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Trash2, { className: "h-3.5 w-3.5" })
+                        children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_lucide_react5.Trash2, { className: "h-3.5 w-3.5" })
                       }
                     )
                   ] }) })
                 ] }),
-                isExpanded && /* @__PURE__ */ jsxRuntime.jsx("tr", { className: "bg-muted/40 border-b border-border", children: /* @__PURE__ */ jsxRuntime.jsx(
+                isExpanded && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("tr", { className: "bg-muted/40 border-b border-border", children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
                   "td",
                   {
                     colSpan: strategy === "combination_matrix" ? axes.length + 4 : strategy === "primary_concern" ? 6 : 5,
                     className: "px-4 py-3",
-                    children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "grid grid-cols-1 md:grid-cols-3 gap-3 text-xs", children: [
-                      /* @__PURE__ */ jsxRuntime.jsxs("div", { children: [
-                        /* @__PURE__ */ jsxRuntime.jsx("label", { className: "text-muted-foreground text-[11px] font-semibold block mb-1", children: "Category" }),
-                        /* @__PURE__ */ jsxRuntime.jsx(
+                    children: /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "grid grid-cols-1 md:grid-cols-3 gap-3 text-xs", children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { children: [
+                        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("label", { className: "text-muted-foreground text-[11px] font-semibold block mb-1", children: "Category" }),
+                        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
                           "input",
                           {
                             type: "text",
@@ -1902,9 +1987,9 @@ var ProfileMappingTable = ({
                           }
                         )
                       ] }),
-                      /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "md:col-span-2", children: [
-                        /* @__PURE__ */ jsxRuntime.jsx("label", { className: "text-muted-foreground text-[11px] font-semibold block mb-1", children: "Description" }),
-                        /* @__PURE__ */ jsxRuntime.jsx(
+                      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "md:col-span-2", children: [
+                        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("label", { className: "text-muted-foreground text-[11px] font-semibold block mb-1", children: "Description" }),
+                        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
                           "input",
                           {
                             type: "text",
@@ -1924,8 +2009,8 @@ var ProfileMappingTable = ({
           ]
         }
       ) }),
-      /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "p-2.5 bg-muted/40 border-t border-border flex items-center justify-between", children: [
-        /* @__PURE__ */ jsxRuntime.jsxs(
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "p-2.5 bg-muted/40 border-t border-border flex items-center justify-between", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(
           "button",
           {
             type: "button",
@@ -1933,12 +2018,12 @@ var ProfileMappingTable = ({
             onClick: handleAddProfile,
             className: "px-2.5 py-1 bg-card hover:bg-muted text-foreground rounded text-xs font-medium flex items-center gap-1 transition-colors border border-border disabled:opacity-50",
             children: [
-              /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Plus, { className: "h-3 w-3" }),
+              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_lucide_react5.Plus, { className: "h-3 w-3" }),
               "Add profile"
             ]
           }
         ),
-        /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "text-[11px] text-muted-foreground", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("span", { className: "text-[11px] text-muted-foreground", children: [
           profiles.length,
           " profiles"
         ] })
@@ -1993,6 +2078,9 @@ function generateCartesianCombinations(axes) {
     };
   });
 }
+
+// src/score/components/modals/RulesetModal.tsx
+var import_jsx_runtime7 = require("react/jsx-runtime");
 var inputCls = "w-full h-9 rounded-md bg-muted/40 border border-border px-3 text-foreground text-sm placeholder:text-muted-foreground outline-none focus:border-ring disabled:opacity-50";
 var labelCls = "block text-xs font-semibold text-foreground mb-1.5";
 var slugify = (v) => v.toLowerCase().trim().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
@@ -2002,34 +2090,34 @@ var RulesetModal = ({
   onSave,
   editingRuleset
 }) => {
-  const [name, setName] = React.useState("");
-  const [code, setCode] = React.useState("");
-  const [codeEdited, setCodeEdited] = React.useState(false);
-  const [showCodeField, setShowCodeField] = React.useState(false);
-  const [description, setDescription] = React.useState("");
-  const [brandId, setBrandId] = React.useState("*");
-  const [applicationId, setApplicationId] = React.useState("*");
-  const [status, setStatus] = React.useState("ACTIVE");
-  const [formSurveyCode, setFormSurveyCode] = React.useState("");
-  const [visionSourceCode, setVisionSourceCode] = React.useState("");
-  const [surveys, setSurveys] = React.useState([]);
-  const [axes, setAxes] = React.useState(DEFAULT_STARTER_AXES);
-  const [profileConfig, setProfileConfig] = React.useState(DEFAULT_STARTER_PROFILES);
-  const [scoreRangeBands, setScoreRangeBands] = React.useState(DEFAULT_SCORE_RANGE_BANDS);
-  const [severityBands, setSeverityBands] = React.useState(DEFAULT_SEVERITY_BANDS);
-  const [tab, setTab] = React.useState("setup");
-  const [schemaOpen, setSchemaOpen] = React.useState(true);
-  const notesRef = React.useRef(null);
+  const [name, setName] = (0, import_react6.useState)("");
+  const [code, setCode] = (0, import_react6.useState)("");
+  const [codeEdited, setCodeEdited] = (0, import_react6.useState)(false);
+  const [showCodeField, setShowCodeField] = (0, import_react6.useState)(false);
+  const [description, setDescription] = (0, import_react6.useState)("");
+  const [brandId, setBrandId] = (0, import_react6.useState)("*");
+  const [applicationId, setApplicationId] = (0, import_react6.useState)("*");
+  const [status, setStatus] = (0, import_react6.useState)("ACTIVE");
+  const [formSurveyCode, setFormSurveyCode] = (0, import_react6.useState)("");
+  const [visionSourceCode, setVisionSourceCode] = (0, import_react6.useState)("");
+  const [surveys, setSurveys] = (0, import_react6.useState)([]);
+  const [axes, setAxes] = (0, import_react6.useState)(DEFAULT_STARTER_AXES);
+  const [profileConfig, setProfileConfig] = (0, import_react6.useState)(DEFAULT_STARTER_PROFILES);
+  const [scoreRangeBands, setScoreRangeBands] = (0, import_react6.useState)(DEFAULT_SCORE_RANGE_BANDS);
+  const [severityBands, setSeverityBands] = (0, import_react6.useState)(DEFAULT_SEVERITY_BANDS);
+  const [tab, setTab] = (0, import_react6.useState)("setup");
+  const [schemaOpen, setSchemaOpen] = (0, import_react6.useState)(true);
+  const notesRef = (0, import_react6.useRef)(null);
   const fitNotes = (el) => {
     if (!el) return;
     el.style.height = "auto";
     el.style.height = `${el.scrollHeight}px`;
   };
-  const [copied, setCopied] = React.useState(null);
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const [formError, setFormError] = React.useState(null);
-  const [isLegacy, setIsLegacy] = React.useState(false);
-  React.useEffect(() => {
+  const [copied, setCopied] = (0, import_react6.useState)(null);
+  const [isSubmitting, setIsSubmitting] = (0, import_react6.useState)(false);
+  const [formError, setFormError] = (0, import_react6.useState)(null);
+  const [isLegacy, setIsLegacy] = (0, import_react6.useState)(false);
+  (0, import_react6.useEffect)(() => {
     if (editingRuleset) {
       setName(editingRuleset.title);
       setCode(editingRuleset.code);
@@ -2073,10 +2161,10 @@ var RulesetModal = ({
     setTab("setup");
     setFormError(null);
   }, [editingRuleset, isOpen]);
-  React.useEffect(() => {
+  (0, import_react6.useEffect)(() => {
     fitNotes(notesRef.current);
   }, [description, tab, isOpen]);
-  React.useEffect(() => {
+  (0, import_react6.useEffect)(() => {
     if (!isOpen) return;
     fetch(`/core/form-engine/survey?brand_id=${encodeURIComponent(brandId)}&application_id=${encodeURIComponent(applicationId)}`).then((res) => res.json()).then((data) => {
       const list = Array.isArray(data) ? data : Array.isArray(data?.surveys) ? data.surveys : data?.code ? [data] : [];
@@ -2170,29 +2258,29 @@ var RulesetModal = ({
     setCopied(label);
     setTimeout(() => setCopied(null), 1500);
   };
-  return /* @__PURE__ */ jsxRuntime.jsx(
-    shared.Modal,
+  return /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+    import_shared6.Modal,
     {
       isOpen,
       onClose,
       title: editingRuleset ? `Edit: ${editingRuleset.title}` : "New grading model",
       maxWidth: "max-w-5xl",
-      children: /* @__PURE__ */ jsxRuntime.jsxs("form", { onSubmit: handleSubmit, className: "space-y-4", children: [
-        isLegacy && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "p-3 rounded-md border border-beak/40 bg-beak/10 text-xs text-foreground flex items-start gap-2", children: [
-          /* @__PURE__ */ jsxRuntime.jsx(lucideReact.AlertTriangle, { className: "h-4 w-4 shrink-0 text-beak" }),
-          /* @__PURE__ */ jsxRuntime.jsxs("span", { children: [
+      children: /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("form", { onSubmit: handleSubmit, className: "space-y-4", children: [
+        isLegacy && /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "p-3 rounded-md border border-beak/40 bg-beak/10 text-xs text-foreground flex items-start gap-2", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_lucide_react6.AlertTriangle, { className: "h-4 w-4 shrink-0 text-beak" }),
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("span", { children: [
             "Ruleset ini dibuat dengan format lama. Dimensi, band, dan profil di bawah adalah hasil konversi terbaik \u2014 periksa dulu sebelum ",
-            /* @__PURE__ */ jsxRuntime.jsx("strong", { children: "Save changes" }),
+            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("strong", { children: "Save changes" }),
             ", karena menyimpan akan menulis ulang ruleset ke format baru."
           ] })
         ] }),
-        /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-col lg:flex-row gap-4 items-start", children: [
-          /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "w-full lg:flex-1 min-w-0 space-y-3", children: [
-            /* @__PURE__ */ jsxRuntime.jsx("div", { className: "flex items-center gap-1 rounded-md border border-border bg-muted/40 p-1", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "flex flex-col lg:flex-row gap-4 items-start", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "w-full lg:flex-1 min-w-0 space-y-3", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "flex items-center gap-1 rounded-md border border-border bg-muted/40 p-1", children: [
               ["setup", "Setup"],
               ["dimensions", `Dimensions${axes.length ? ` (${axes.length})` : ""}`],
               ["bands", "Skin Profile"]
-            ].map(([id, label]) => /* @__PURE__ */ jsxRuntime.jsx(
+            ].map(([id, label]) => /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
               "button",
               {
                 type: "button",
@@ -2202,13 +2290,13 @@ var RulesetModal = ({
               },
               id
             )) }),
-            tab === "setup" && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "space-y-3", children: [
-              /* @__PURE__ */ jsxRuntime.jsxs("div", { children: [
-                /* @__PURE__ */ jsxRuntime.jsxs("label", { className: labelCls, children: [
+            tab === "setup" && /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "space-y-3", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("label", { className: labelCls, children: [
                   "Name ",
-                  /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-destructive", children: "*" })
+                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { className: "text-destructive", children: "*" })
                 ] }),
-                /* @__PURE__ */ jsxRuntime.jsx(
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
                   "input",
                   {
                     type: "text",
@@ -2219,10 +2307,10 @@ var RulesetModal = ({
                     className: inputCls
                   }
                 ),
-                /* @__PURE__ */ jsxRuntime.jsxs("p", { className: "mt-1 text-[11px] text-muted-foreground", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("p", { className: "mt-1 text-[11px] text-muted-foreground", children: [
                   "saved as ",
-                  /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-foreground font-mono", children: effectiveCode || "\u2026" }),
-                  !editingRuleset && /* @__PURE__ */ jsxRuntime.jsx(
+                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { className: "text-foreground font-mono", children: effectiveCode || "\u2026" }),
+                  !editingRuleset && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
                     "button",
                     {
                       type: "button",
@@ -2235,7 +2323,7 @@ var RulesetModal = ({
                     }
                   )
                 ] }),
-                showCodeField && !editingRuleset && /* @__PURE__ */ jsxRuntime.jsx(
+                showCodeField && !editingRuleset && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
                   "input",
                   {
                     type: "text",
@@ -2247,7 +2335,7 @@ var RulesetModal = ({
                     className: inputCls + " mt-1.5 font-mono"
                   }
                 ),
-                editingRuleset?.id && /* @__PURE__ */ jsxRuntime.jsxs(
+                editingRuleset?.id && /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
                   "button",
                   {
                     type: "button",
@@ -2255,23 +2343,23 @@ var RulesetModal = ({
                     title: "Copy ID \u2014 needed for PUT /core/score-engine/rulesets/:id",
                     className: "mt-1 flex items-center gap-1 text-[10px] font-mono text-muted-foreground hover:text-foreground",
                     children: [
-                      copied === "ID" ? /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Check, { className: "h-3 w-3 text-beak" }) : /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Copy, { className: "h-3 w-3" }),
+                      copied === "ID" ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_lucide_react6.Check, { className: "h-3 w-3 text-beak" }) : /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_lucide_react6.Copy, { className: "h-3 w-3" }),
                       copied === "ID" ? "ID copied" : `ID ${editingRuleset.id}`
                     ]
                   }
                 )
               ] }),
-              /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "max-w-xs", children: [
-                /* @__PURE__ */ jsxRuntime.jsx("label", { className: labelCls, children: "Status" }),
-                /* @__PURE__ */ jsxRuntime.jsx(shared.StatusSelect, { value: status, onChange: setStatus, label: "" })
+              /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "max-w-xs", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("label", { className: labelCls, children: "Status" }),
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_shared6.StatusSelect, { value: status, onChange: setStatus, label: "" })
               ] }),
-              /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "rounded-md border border-border bg-muted/20", children: [
-                /* @__PURE__ */ jsxRuntime.jsx("div", { className: "px-3 py-2 text-xs font-semibold text-muted-foreground", children: "Scope & notes" }),
-                /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "border-t border-border p-3 space-y-3", children: [
-                  /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-3", children: [
-                    /* @__PURE__ */ jsxRuntime.jsx(shared.BrandSelect, { value: brandId, onChange: setBrandId, includeUniversal: true, label: "Brand" }),
-                    /* @__PURE__ */ jsxRuntime.jsx(
-                      shared.ApplicationSelect,
+              /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "rounded-md border border-border bg-muted/20", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "px-3 py-2 text-xs font-semibold text-muted-foreground", children: "Scope & notes" }),
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "border-t border-border p-3 space-y-3", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-3", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_shared6.BrandSelect, { value: brandId, onChange: setBrandId, includeUniversal: true, label: "Brand" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+                      import_shared6.ApplicationSelect,
                       {
                         value: applicationId,
                         onChange: setApplicationId,
@@ -2280,19 +2368,19 @@ var RulesetModal = ({
                       }
                     )
                   ] }),
-                  /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-3", children: [
-                    /* @__PURE__ */ jsxRuntime.jsxs("div", { children: [
-                      /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-1.5 mb-1.5", children: [
-                        /* @__PURE__ */ jsxRuntime.jsx("label", { className: labelCls + " mb-0", children: "Form input" }),
-                        /* @__PURE__ */ jsxRuntime.jsx(
-                          shared.InfoTooltip,
+                  /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-3", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "flex items-center gap-1.5 mb-1.5", children: [
+                        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("label", { className: labelCls + " mb-0", children: "Form input" }),
+                        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+                          import_shared6.InfoTooltip,
                           {
                             content: "Which Form Engine survey this ruleset pairs with. Scopes what shows up when adding/wiring a dimension's Form source in Blending.",
                             label: "About Form input"
                           }
                         )
                       ] }),
-                      /* @__PURE__ */ jsxRuntime.jsxs(
+                      /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
                         "select",
                         {
                           value: formSurveyCode,
@@ -2300,8 +2388,8 @@ var RulesetModal = ({
                           className: inputCls,
                           style: { colorScheme: "dark" },
                           children: [
-                            /* @__PURE__ */ jsxRuntime.jsx("option", { value: "", children: "\u2014 none selected \u2014" }),
-                            surveys.map((s) => /* @__PURE__ */ jsxRuntime.jsxs("option", { value: s.code, children: [
+                            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("option", { value: "", children: "\u2014 none selected \u2014" }),
+                            surveys.map((s) => /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("option", { value: s.code, children: [
                               s.title || s.name || s.code,
                               " (",
                               s.code,
@@ -2311,18 +2399,18 @@ var RulesetModal = ({
                         }
                       )
                     ] }),
-                    /* @__PURE__ */ jsxRuntime.jsxs("div", { children: [
-                      /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-1.5 mb-1.5", children: [
-                        /* @__PURE__ */ jsxRuntime.jsx("label", { className: labelCls + " mb-0", children: "Vision input" }),
-                        /* @__PURE__ */ jsxRuntime.jsx(
-                          shared.InfoTooltip,
+                    /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "flex items-center gap-1.5 mb-1.5", children: [
+                        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("label", { className: labelCls + " mb-0", children: "Vision input" }),
+                        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+                          import_shared6.InfoTooltip,
                           {
                             content: "Which CV/vendor source this ruleset pairs with. Only one is registered today (Paradev Skin Analyzer) \u2014 more get added as new vendors are wired up.",
                             label: "About Vision input"
                           }
                         )
                       ] }),
-                      /* @__PURE__ */ jsxRuntime.jsxs(
+                      /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
                         "select",
                         {
                           value: visionSourceCode,
@@ -2330,16 +2418,16 @@ var RulesetModal = ({
                           className: inputCls,
                           style: { colorScheme: "dark" },
                           children: [
-                            /* @__PURE__ */ jsxRuntime.jsx("option", { value: "", children: "\u2014 none selected \u2014" }),
-                            /* @__PURE__ */ jsxRuntime.jsx("option", { value: "paradev_skin_analyzer", children: "Paradev Skin Analyzer" })
+                            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("option", { value: "", children: "\u2014 none selected \u2014" }),
+                            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("option", { value: "paradev_skin_analyzer", children: "Paradev Skin Analyzer" })
                           ]
                         }
                       )
                     ] })
                   ] }),
-                  /* @__PURE__ */ jsxRuntime.jsxs("div", { children: [
-                    /* @__PURE__ */ jsxRuntime.jsx("label", { className: labelCls, children: "Notes" }),
-                    /* @__PURE__ */ jsxRuntime.jsx(
+                  /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("label", { className: labelCls, children: "Notes" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
                       "textarea",
                       {
                         ref: (el) => {
@@ -2360,31 +2448,31 @@ var RulesetModal = ({
                 ] })
               ] })
             ] }),
-            tab === "dimensions" && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "space-y-2", children: [
-              /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center justify-between", children: [
-                /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-1.5", children: [
-                  /* @__PURE__ */ jsxRuntime.jsx("h3", { className: "text-sm font-bold text-foreground", children: "Dimensions" }),
-                  /* @__PURE__ */ jsxRuntime.jsx(
-                    shared.InfoTooltip,
+            tab === "dimensions" && /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "space-y-2", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "flex items-center justify-between", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "flex items-center gap-1.5", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("h3", { className: "text-sm font-bold text-foreground", children: "Dimensions" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+                    import_shared6.InfoTooltip,
                     {
                       content: "Weights are relative \u2014 a dimension\u2019s share of the overall score is its weight \xF7 the total of all weights. The concern label is what the customer sees when that dimension is their dominant concern. Form/Vision blend per dimension moved to the Blending tab.",
                       label: "About dimensions"
                     }
                   )
                 ] }),
-                /* @__PURE__ */ jsxRuntime.jsx(
-                  shared.Button,
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+                  import_shared6.Button,
                   {
                     type: "button",
                     variant: "outline",
                     size: "sm",
                     onClick: addAxis,
-                    leftIcon: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Plus, { className: "h-3.5 w-3.5" }),
+                    leftIcon: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_lucide_react6.Plus, { className: "h-3.5 w-3.5" }),
                     children: "Add dimension"
                   }
                 )
               ] }),
-              axes.map((axis, i) => /* @__PURE__ */ jsxRuntime.jsx(
+              axes.map((axis, i) => /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
                 ClinicalAxisCard,
                 {
                   axis,
@@ -2405,64 +2493,64 @@ var RulesetModal = ({
                 axis.id
               ))
             ] }),
-            tab === "bands" && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "space-y-4", children: [
-              /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "space-y-1", children: [
-                /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-1.5", children: [
-                  /* @__PURE__ */ jsxRuntime.jsx("h3", { className: "text-base font-bold text-foreground", children: "Skin Profile" }),
-                  /* @__PURE__ */ jsxRuntime.jsx(
-                    shared.InfoTooltip,
+            tab === "bands" && /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "space-y-4", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "space-y-1", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "flex items-center gap-1.5", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("h3", { className: "text-base font-bold text-foreground", children: "Skin Profile" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+                    import_shared6.InfoTooltip,
                     {
                       content: "Everything here is derived from the same overall score (0-100). The two label tables below just name a bracket of that score; the method further down decides skin_profile.code/name, the actual profile result.",
                       label: "About Skin Profile"
                     }
                   )
                 ] }),
-                /* @__PURE__ */ jsxRuntime.jsx("p", { className: "text-[11px] text-muted-foreground", children: "Score Range and Severity Level are two labels for the same overall score \u2014 handy for a quick badge, not required by the profile method below." })
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("p", { className: "text-[11px] text-muted-foreground", children: "Score Range and Severity Level are two labels for the same overall score \u2014 handy for a quick badge, not required by the profile method below." })
               ] }),
-              /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-3", children: [
-                /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "space-y-1.5", children: [
-                  /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-1.5", children: [
-                    /* @__PURE__ */ jsxRuntime.jsx("h4", { className: "text-xs font-semibold text-foreground", children: "Score Range label" }),
-                    /* @__PURE__ */ jsxRuntime.jsx(
-                      shared.InfoTooltip,
+              /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-3", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "space-y-1.5", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "flex items-center gap-1.5", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("h4", { className: "text-xs font-semibold text-foreground", children: "Score Range label" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+                      import_shared6.InfoTooltip,
                       {
                         content: "Sets score_range only \u2014 a coarse 3-tier badge for the overall score.",
                         label: "About Score Range"
                       }
                     )
                   ] }),
-                  /* @__PURE__ */ jsxRuntime.jsx(BandTable, { bands: scoreRangeBands, onChange: setScoreRangeBands, idPrefix: "sr" })
+                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(BandTable, { bands: scoreRangeBands, onChange: setScoreRangeBands, idPrefix: "sr" })
                 ] }),
-                /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "space-y-1.5", children: [
-                  /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-1.5", children: [
-                    /* @__PURE__ */ jsxRuntime.jsx("h4", { className: "text-xs font-semibold text-foreground", children: "Severity Level label" }),
-                    /* @__PURE__ */ jsxRuntime.jsx(
-                      shared.InfoTooltip,
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "space-y-1.5", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "flex items-center gap-1.5", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("h4", { className: "text-xs font-semibold text-foreground", children: "Severity Level label" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+                      import_shared6.InfoTooltip,
                       {
                         content: "Sets severity_level only \u2014 a finer 5-tier badge for the same overall score.",
                         label: "About Severity Level"
                       }
                     )
                   ] }),
-                  /* @__PURE__ */ jsxRuntime.jsx(BandTable, { bands: severityBands, onChange: setSeverityBands, idPrefix: "sv" })
+                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(BandTable, { bands: severityBands, onChange: setSeverityBands, idPrefix: "sv" })
                 ] })
               ] }),
-              /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "space-y-1.5 border-t border-border pt-4", children: [
-                /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-1.5", children: [
-                  /* @__PURE__ */ jsxRuntime.jsx("h4", { className: "text-xs font-semibold text-foreground", children: "Profile method" }),
-                  /* @__PURE__ */ jsxRuntime.jsx(
-                    shared.InfoTooltip,
+              /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "space-y-1.5 border-t border-border pt-4", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "flex items-center gap-1.5", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("h4", { className: "text-xs font-semibold text-foreground", children: "Profile method" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+                    import_shared6.InfoTooltip,
                     {
                       content: "Decides skin_profile.code and skin_profile.name \u2014 the actual profile result, separate from the two labels above. Only one method runs at a time: they'd otherwise write conflicting values to the same code/name.",
                       label: "About profile method"
                     }
                   )
                 ] }),
-                /* @__PURE__ */ jsxRuntime.jsx(ProfileMappingTable, { axes, config: profileConfig, onChange: setProfileConfig })
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(ProfileMappingTable, { axes, config: profileConfig, onChange: setProfileConfig })
               ] })
             ] })
           ] }),
-          !schemaOpen ? /* @__PURE__ */ jsxRuntime.jsxs(
+          !schemaOpen ? /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
             "button",
             {
               type: "button",
@@ -2479,42 +2567,42 @@ var RulesetModal = ({
                 padding: "12px 0"
               },
               children: [
-                /* @__PURE__ */ jsxRuntime.jsx(lucideReact.PanelRightOpen, { className: "h-3.5 w-3.5", style: { flexShrink: 0 } }),
-                /* @__PURE__ */ jsxRuntime.jsx("span", { style: { writingMode: "vertical-rl", transform: "rotate(180deg)", whiteSpace: "nowrap" }, children: "Schema & API" })
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_lucide_react6.PanelRightOpen, { className: "h-3.5 w-3.5", style: { flexShrink: 0 } }),
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { style: { writingMode: "vertical-rl", transform: "rotate(180deg)", whiteSpace: "nowrap" }, children: "Schema & API" })
               ]
             }
-          ) : /* @__PURE__ */ jsxRuntime.jsx("div", { className: "w-full lg:w-64 lg:shrink-0", children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "rounded-md border border-border bg-muted/20 lg:sticky lg:top-0", children: [
-            /* @__PURE__ */ jsxRuntime.jsxs(
+          ) : /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "w-full lg:w-64 lg:shrink-0", children: /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "rounded-md border border-border bg-muted/20 lg:sticky lg:top-0", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
               "button",
               {
                 type: "button",
                 onClick: () => setSchemaOpen(false),
                 className: "flex w-full items-center justify-between gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground",
                 children: [
-                  /* @__PURE__ */ jsxRuntime.jsx("span", { children: "Schema & API" }),
-                  /* @__PURE__ */ jsxRuntime.jsx(lucideReact.PanelRightClose, { className: "h-3.5 w-3.5 shrink-0" })
+                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { children: "Schema & API" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_lucide_react6.PanelRightClose, { className: "h-3.5 w-3.5 shrink-0" })
                 ]
               }
             ),
-            /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "border-t border-border", children: [
-              /* @__PURE__ */ jsxRuntime.jsx("div", { className: "flex flex-wrap items-center gap-1.5 px-3 py-2", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "border-t border-border", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "flex flex-wrap items-center gap-1.5 px-3 py-2", children: [
                 { label: "Schema", text: jsonText },
                 { label: "Copy request body", text: createRequestBody },
                 { label: "Simulate request", text: simulateRequestBody }
-              ].map(({ label, text }) => /* @__PURE__ */ jsxRuntime.jsxs(
+              ].map(({ label, text }) => /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
                 "button",
                 {
                   type: "button",
                   onClick: () => copyAs(label, text),
                   className: "flex items-center gap-1 rounded border border-border bg-card px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:border-beak/50",
                   children: [
-                    copied === label ? /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Check, { className: "h-3 w-3 text-beak" }) : /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Copy, { className: "h-3 w-3" }),
+                    copied === label ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_lucide_react6.Check, { className: "h-3 w-3 text-beak" }) : /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_lucide_react6.Copy, { className: "h-3 w-3" }),
                     copied === label ? "Copied" : label
                   ]
                 },
                 label
               )) }),
-              /* @__PURE__ */ jsxRuntime.jsx(
+              /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
                 "textarea",
                 {
                   rows: 10,
@@ -2526,29 +2614,32 @@ var RulesetModal = ({
             ] })
           ] }) })
         ] }),
-        formError && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "p-3 rounded-md border border-destructive/40 bg-destructive/10 text-xs text-destructive flex items-center gap-2", children: [
-          /* @__PURE__ */ jsxRuntime.jsx(lucideReact.AlertTriangle, { className: "h-4 w-4 shrink-0" }),
-          /* @__PURE__ */ jsxRuntime.jsx("span", { children: formError })
+        formError && /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "p-3 rounded-md border border-destructive/40 bg-destructive/10 text-xs text-destructive flex items-center gap-2", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_lucide_react6.AlertTriangle, { className: "h-4 w-4 shrink-0" }),
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { children: formError })
         ] }),
-        /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center justify-end gap-2 pt-3 border-t border-border", children: [
-          /* @__PURE__ */ jsxRuntime.jsx(shared.Button, { type: "button", variant: "outline", size: "sm", onClick: onClose, children: "Cancel" }),
-          /* @__PURE__ */ jsxRuntime.jsx(shared.Button, { type: "submit", variant: "primary", size: "sm", isLoading: isSubmitting, disabled: !name.trim(), children: editingRuleset ? "Save changes" : "Create" })
+        /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "flex items-center justify-end gap-2 pt-3 border-t border-border", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_shared6.Button, { type: "button", variant: "outline", size: "sm", onClick: onClose, children: "Cancel" }),
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_shared6.Button, { type: "submit", variant: "primary", size: "sm", isLoading: isSubmitting, disabled: !name.trim(), children: editingRuleset ? "Save changes" : "Create" })
         ] })
       ] })
     }
   );
 };
+
+// src/score/components/ScoreManager.tsx
+var import_jsx_runtime8 = require("react/jsx-runtime");
 var SCORE = "/core/score-engine";
 var ScoreManager = () => {
-  const [activeTab, setActiveTab] = shared.usePersistentState("xg.scoreEngine.activeTab", "rulesets");
-  const [searchQuery, setSearchQuery] = React.useState("");
-  const [rulesets, setRulesets] = React.useState([]);
-  const [selectedRulesetId, setSelectedRulesetId] = shared.usePersistentState("xg.scoreEngine.selectedRulesetId", null);
+  const [activeTab, setActiveTab] = (0, import_shared7.usePersistentState)("xg.scoreEngine.activeTab", "rulesets");
+  const [searchQuery, setSearchQuery] = (0, import_react7.useState)("");
+  const [rulesets, setRulesets] = (0, import_react7.useState)([]);
+  const [selectedRulesetId, setSelectedRulesetId] = (0, import_shared7.usePersistentState)("xg.scoreEngine.selectedRulesetId", null);
   const selectedRuleset = rulesets.find((r) => r.id === selectedRulesetId) ?? null;
   const setSelectedRuleset = (r) => setSelectedRulesetId(r?.id ?? null);
-  const [isRulesetModalOpen, setIsRulesetModalOpen] = React.useState(false);
-  const [editingRuleset, setEditingRuleset] = React.useState(null);
-  const [deleteConfirm, setDeleteConfirm] = React.useState({
+  const [isRulesetModalOpen, setIsRulesetModalOpen] = (0, import_react7.useState)(false);
+  const [editingRuleset, setEditingRuleset] = (0, import_react7.useState)(null);
+  const [deleteConfirm, setDeleteConfirm] = (0, import_react7.useState)({
     isOpen: false,
     title: "",
     message: "",
@@ -2556,7 +2647,7 @@ var ScoreManager = () => {
     onConfirm: () => {
     }
   });
-  const loadRulesets = React.useCallback(() => {
+  const loadRulesets = (0, import_react7.useCallback)(() => {
     fetch(withTenantScope(`${SCORE}/rulesets`)).then((res) => res.json()).then((data) => {
       if (Array.isArray(data.rulesets)) {
         setRulesets(data.rulesets);
@@ -2564,25 +2655,25 @@ var ScoreManager = () => {
     }).catch(() => {
     });
   }, []);
-  React.useEffect(() => {
+  (0, import_react7.useEffect)(() => {
     loadRulesets();
   }, [loadRulesets]);
   const scoreTabs = [
     {
       id: "rulesets",
       label: "Skin Grading",
-      icon: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Sliders, { className: "h-4 w-4" }),
+      icon: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_lucide_react7.Sliders, { className: "h-4 w-4" }),
       badge: rulesets.length
     },
     {
       id: "blending",
       label: "Blending",
-      icon: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.SlidersHorizontal, { className: "h-4 w-4" })
+      icon: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_lucide_react7.SlidersHorizontal, { className: "h-4 w-4" })
     },
     {
       id: "simulator",
       label: "Simulator",
-      icon: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Play, { className: "h-4 w-4" })
+      icon: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_lucide_react7.Play, { className: "h-4 w-4" })
     }
   ];
   const handleSaveRuleset = async (rulesetData) => {
@@ -2622,19 +2713,19 @@ var ScoreManager = () => {
       }
     });
   };
-  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex-1 min-w-0 h-full overflow-y-auto bg-background text-foreground font-sans flex flex-col select-none", children: [
-    /* @__PURE__ */ jsxRuntime.jsx(
-      shared.PageHeader,
+  return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "flex-1 min-w-0 h-full overflow-y-auto bg-background text-foreground font-sans flex flex-col select-none", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+      import_shared7.PageHeader,
       {
-        icon: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.FileText, { className: "h-5 w-5" }),
+        icon: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_lucide_react7.FileText, { className: "h-5 w-5" }),
         breadcrumbs: [
           { label: "Workbench", href: "/api-client" },
           { label: "Core Engines" },
           { label: "Score Engine" }
         ],
         title: "Score Engine",
-        children: /* @__PURE__ */ jsxRuntime.jsx(
-          shared.TabNav,
+        children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+          import_shared7.TabNav,
           {
             tabs: scoreTabs,
             activeTab,
@@ -2646,8 +2737,8 @@ var ScoreManager = () => {
         )
       }
     ),
-    /* @__PURE__ */ jsxRuntime.jsxs("main", { className: "flex-1 p-4 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl w-full mx-auto", children: [
-      activeTab === "rulesets" && /* @__PURE__ */ jsxRuntime.jsx(
+    /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("main", { className: "flex-1 p-4 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl w-full mx-auto", children: [
+      activeTab === "rulesets" && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
         RulesetsTab,
         {
           rulesets,
@@ -2668,7 +2759,7 @@ var ScoreManager = () => {
           onDeleteRuleset: handleDeleteRuleset
         }
       ),
-      activeTab === "blending" && /* @__PURE__ */ jsxRuntime.jsx(
+      activeTab === "blending" && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
         BlendingTab,
         {
           rulesets,
@@ -2677,7 +2768,7 @@ var ScoreManager = () => {
           onSaveRuleset: handleSaveRuleset
         }
       ),
-      activeTab === "simulator" && /* @__PURE__ */ jsxRuntime.jsx(
+      activeTab === "simulator" && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
         ScoreSimulatorTab,
         {
           rulesets,
@@ -2686,7 +2777,7 @@ var ScoreManager = () => {
         }
       )
     ] }),
-    /* @__PURE__ */ jsxRuntime.jsx(
+    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
       RulesetModal,
       {
         isOpen: isRulesetModalOpen,
@@ -2695,8 +2786,8 @@ var ScoreManager = () => {
         editingRuleset
       }
     ),
-    /* @__PURE__ */ jsxRuntime.jsx(
-      shared.ConfirmDialog,
+    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+      import_shared7.ConfirmDialog,
       {
         isOpen: deleteConfirm.isOpen,
         title: deleteConfirm.title,
@@ -2707,6 +2798,12 @@ var ScoreManager = () => {
     )
   ] });
 };
+
+// src/score/components/reusable/SeverityTierTable.tsx
+var import_react8 = require("react");
+var import_lucide_react8 = require("lucide-react");
+var import_shared8 = require("@gateway-experience/shared");
+var import_jsx_runtime9 = require("react/jsx-runtime");
 var SEV_LABEL = {
   optimal: "Level 5 \xB7 Healthy",
   mild: "Level 4 \xB7 Mild",
@@ -2726,7 +2823,7 @@ var SeverityTierTable = ({
   disabled = false,
   showValueCode = false
 }) => {
-  const [customize, setCustomize] = React.useState(false);
+  const [customize, setCustomize] = (0, import_react8.useState)(false);
   const update = (id, patch) => onChange(tiers.map((t) => t.id === id ? { ...t, ...patch } : t));
   const addLevel = () => {
     const last = tiers[tiers.length - 1];
@@ -2744,10 +2841,10 @@ var SeverityTierTable = ({
     ]);
   };
   const rowMinWidth = W_RANGE + 140 + W_SEVERITY + (showValueCode ? W_CODE + 8 : 0) + W_TAG + W_DELETE + 4 * 8;
-  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "rounded-md border border-border bg-card", children: [
-    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center justify-between px-3 py-2 border-b border-border", children: [
-      /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-[11px] font-semibold text-muted-foreground", children: "Score \u2192 level" }),
-      /* @__PURE__ */ jsxRuntime.jsx(
+  return /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "rounded-md border border-border bg-card", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "flex items-center justify-between px-3 py-2 border-b border-border", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { className: "text-[11px] font-semibold text-muted-foreground", children: "Score \u2192 level" }),
+      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
         "button",
         {
           type: "button",
@@ -2757,13 +2854,13 @@ var SeverityTierTable = ({
         }
       )
     ] }),
-    !customize && /* @__PURE__ */ jsxRuntime.jsx("div", { className: "divide-y divide-border", children: tiers.map((tier) => /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-3 px-3 py-2", children: [
-      /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "w-16 shrink-0 text-xs tabular-nums text-muted-foreground", children: [
+    !customize && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "divide-y divide-border", children: tiers.map((tier) => /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "flex items-center gap-3 px-3 py-2", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("span", { className: "w-16 shrink-0 text-xs tabular-nums text-muted-foreground", children: [
         tier.minScore,
         "\u2013",
         tier.maxScore
       ] }),
-      /* @__PURE__ */ jsxRuntime.jsx(
+      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
         "input",
         {
           type: "text",
@@ -2774,21 +2871,21 @@ var SeverityTierTable = ({
           className: `flex-1 min-w-0 ${fieldCls3}`
         }
       ),
-      showValueCode && /* @__PURE__ */ jsxRuntime.jsx("span", { className: "w-7 shrink-0 text-center text-xs font-semibold text-beak", children: tier.valueCode }),
-      /* @__PURE__ */ jsxRuntime.jsx("span", { className: "w-36 shrink-0 text-right text-[11px] text-muted-foreground", children: SEV_LABEL[tier.severity] ?? tier.severity })
+      showValueCode && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { className: "w-7 shrink-0 text-center text-xs font-semibold text-beak", children: tier.valueCode }),
+      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { className: "w-36 shrink-0 text-right text-[11px] text-muted-foreground", children: SEV_LABEL[tier.severity] ?? tier.severity })
     ] }, tier.id)) }),
-    customize && /* @__PURE__ */ jsxRuntime.jsx("div", { className: "overflow-x-auto", children: /* @__PURE__ */ jsxRuntime.jsxs("div", { style: { minWidth: rowMinWidth }, children: [
-      /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-2 px-3 py-1.5 border-b border-border bg-muted/20 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground", children: [
-        /* @__PURE__ */ jsxRuntime.jsx("span", { className: "shrink-0", style: { width: W_RANGE }, children: "Range" }),
-        /* @__PURE__ */ jsxRuntime.jsx("span", { className: "flex-1 min-w-0", children: "Label" }),
-        /* @__PURE__ */ jsxRuntime.jsx("span", { className: "shrink-0", style: { width: W_SEVERITY }, children: "Severity" }),
-        showValueCode && /* @__PURE__ */ jsxRuntime.jsx("span", { className: "shrink-0 text-center", style: { width: W_CODE }, children: "Code" }),
-        /* @__PURE__ */ jsxRuntime.jsx("span", { className: "shrink-0", style: { width: W_TAG }, children: "Tag" }),
-        /* @__PURE__ */ jsxRuntime.jsx("span", { className: "shrink-0", style: { width: W_DELETE }, "aria-hidden": "true" })
+    customize && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "overflow-x-auto", children: /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { style: { minWidth: rowMinWidth }, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "flex items-center gap-2 px-3 py-1.5 border-b border-border bg-muted/20 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { className: "shrink-0", style: { width: W_RANGE }, children: "Range" }),
+        /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { className: "flex-1 min-w-0", children: "Label" }),
+        /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { className: "shrink-0", style: { width: W_SEVERITY }, children: "Severity" }),
+        showValueCode && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { className: "shrink-0 text-center", style: { width: W_CODE }, children: "Code" }),
+        /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { className: "shrink-0", style: { width: W_TAG }, children: "Tag" }),
+        /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { className: "shrink-0", style: { width: W_DELETE }, "aria-hidden": "true" })
       ] }),
-      /* @__PURE__ */ jsxRuntime.jsx("div", { className: "divide-y divide-border", children: tiers.map((tier) => /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-2 px-3 py-2", children: [
-        /* @__PURE__ */ jsxRuntime.jsx("div", { className: "shrink-0", style: { width: W_RANGE }, children: /* @__PURE__ */ jsxRuntime.jsx(
-          shared.ScoreRangeInput,
+      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "divide-y divide-border", children: tiers.map((tier) => /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "flex items-center gap-2 px-3 py-2", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "shrink-0", style: { width: W_RANGE }, children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+          import_shared8.ScoreRangeInput,
           {
             minScore: tier.minScore,
             maxScore: tier.maxScore,
@@ -2796,7 +2893,7 @@ var SeverityTierTable = ({
             onChange: (min, max) => update(tier.id, { minScore: min, maxScore: max })
           }
         ) }),
-        /* @__PURE__ */ jsxRuntime.jsx(
+        /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
           "input",
           {
             type: "text",
@@ -2807,15 +2904,15 @@ var SeverityTierTable = ({
             className: `flex-1 min-w-0 ${fieldCls3}`
           }
         ),
-        /* @__PURE__ */ jsxRuntime.jsx("div", { className: "shrink-0", style: { width: W_SEVERITY }, children: /* @__PURE__ */ jsxRuntime.jsx(
-          shared.SeveritySelect,
+        /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "shrink-0", style: { width: W_SEVERITY }, children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+          import_shared8.SeveritySelect,
           {
             value: tier.severity,
             disabled,
             onChange: (sev) => update(tier.id, { severity: sev })
           }
         ) }),
-        showValueCode && /* @__PURE__ */ jsxRuntime.jsx(
+        showValueCode && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
           "input",
           {
             type: "text",
@@ -2828,7 +2925,7 @@ var SeverityTierTable = ({
             style: { width: W_CODE }
           }
         ),
-        /* @__PURE__ */ jsxRuntime.jsx(
+        /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
           "input",
           {
             type: "text",
@@ -2841,7 +2938,7 @@ var SeverityTierTable = ({
             style: { width: W_TAG }
           }
         ),
-        /* @__PURE__ */ jsxRuntime.jsx(
+        /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
           "button",
           {
             type: "button",
@@ -2850,12 +2947,12 @@ var SeverityTierTable = ({
             className: "shrink-0 flex h-7 items-center justify-center rounded text-muted-foreground hover:text-destructive disabled:opacity-30",
             style: { width: W_DELETE },
             title: "Remove level",
-            children: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Trash2, { className: "h-3.5 w-3.5" })
+            children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_lucide_react8.Trash2, { className: "h-3.5 w-3.5" })
           }
         )
       ] }, tier.id)) })
     ] }) }),
-    customize && /* @__PURE__ */ jsxRuntime.jsx("div", { className: "px-3 py-2 border-t border-border", children: /* @__PURE__ */ jsxRuntime.jsxs(
+    customize && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "px-3 py-2 border-t border-border", children: /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(
       "button",
       {
         type: "button",
@@ -2863,28 +2960,29 @@ var SeverityTierTable = ({
         onClick: addLevel,
         className: "text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1 disabled:opacity-50",
         children: [
-          /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Plus, { className: "h-3 w-3" }),
+          /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_lucide_react8.Plus, { className: "h-3 w-3" }),
           "Add level"
         ]
       }
     ) })
   ] });
 };
-
-exports.BandTable = BandTable;
-exports.BlendingTab = BlendingTab;
-exports.ClinicalAxisCard = ClinicalAxisCard;
-exports.ClinicalDimensionCard = ClinicalDimensionCard;
-exports.DEFAULT_SCORE_RANGE_BANDS = DEFAULT_SCORE_RANGE_BANDS;
-exports.DEFAULT_SEVERITY_BANDS = DEFAULT_SEVERITY_BANDS;
-exports.DEFAULT_STARTER_AXES = DEFAULT_STARTER_AXES;
-exports.DEFAULT_STARTER_PROFILES = DEFAULT_STARTER_PROFILES;
-exports.ProfileMappingTable = ProfileMappingTable;
-exports.ScoreManager = ScoreManager;
-exports.SeverityTierTable = SeverityTierTable;
-exports.compileVisualToJDM = compileVisualToJDM;
-exports.decompileJDMToVisual = decompileJDMToVisual;
-exports.decompileJDMToVisualComponents = decompileJDMToVisualComponents;
-exports.defaultConcernLabel = defaultConcernLabel;
-//# sourceMappingURL=index.js.map
+// Annotate the CommonJS export names for ESM import in node:
+0 && (module.exports = {
+  BandTable,
+  BlendingTab,
+  ClinicalAxisCard,
+  ClinicalDimensionCard,
+  DEFAULT_SCORE_RANGE_BANDS,
+  DEFAULT_SEVERITY_BANDS,
+  DEFAULT_STARTER_AXES,
+  DEFAULT_STARTER_PROFILES,
+  ProfileMappingTable,
+  ScoreManager,
+  SeverityTierTable,
+  compileVisualToJDM,
+  decompileJDMToVisual,
+  decompileJDMToVisualComponents,
+  defaultConcernLabel
+});
 //# sourceMappingURL=index.js.map

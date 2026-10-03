@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
-import { ReferenceEntityDashboard, REFERENCE_ENTITY_CONFIGS } from '@gateway-experience/studio/reference';
+import { ReferenceEntityDashboard } from '@gateway-experience/studio/reference';
+import { REFERENCE_ENTITY_CONFIGS } from '@gateway-experience/studio/reference/config';
 
 
 export default async function ReferenceEntityPage({

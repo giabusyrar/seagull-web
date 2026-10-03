@@ -1,9 +1,39 @@
-'use strict';
+'use client';
+"use strict";
+"use client";
+var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
+var __copyProps = (to, from, except, desc) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+  }
+  return to;
+};
+var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-var react = require('react');
-var lucideReact = require('lucide-react');
-var shared = require('@gateway-experience/shared');
-var jsxRuntime = require('react/jsx-runtime');
+// src/reference/index.ts
+var reference_exports = {};
+__export(reference_exports, {
+  REFERENCE_ENTITY_CONFIGS: () => REFERENCE_ENTITY_CONFIGS,
+  ReferenceEntityDashboard: () => ReferenceEntityDashboard,
+  ReferenceFormModal: () => ReferenceFormModal,
+  ReferenceManager: () => ReferenceManager,
+  ReferenceTable: () => ReferenceTable,
+  SearchFilterBar: () => import_shared5.SearchFilterBar
+});
+module.exports = __toCommonJS(reference_exports);
+
+// src/reference/components/ReferenceEntityDashboard.tsx
+var import_react3 = require("react");
+var import_lucide_react4 = require("lucide-react");
 
 // src/reference/config/reference-entity-configs.ts
 var REFERENCE_ENTITY_CONFIGS = {
@@ -183,6 +213,11 @@ REFERENCE_ENTITY_CONFIGS["product"] = REFERENCE_ENTITY_CONFIGS["products"];
 REFERENCE_ENTITY_CONFIGS["ingredient"] = REFERENCE_ENTITY_CONFIGS["ingredients"];
 REFERENCE_ENTITY_CONFIGS["active-ingredients"] = REFERENCE_ENTITY_CONFIGS["ingredients"];
 REFERENCE_ENTITY_CONFIGS["application"] = REFERENCE_ENTITY_CONFIGS["applications"];
+
+// src/reference/components/ReferenceTable.tsx
+var import_lucide_react = require("lucide-react");
+var import_shared = require("@gateway-experience/shared");
+var import_jsx_runtime = require("react/jsx-runtime");
 var ReferenceTable = ({
   config,
   items,
@@ -191,8 +226,8 @@ var ReferenceTable = ({
   searchQuery = ""
 }) => {
   if (items.length === 0) {
-    return /* @__PURE__ */ jsxRuntime.jsx(
-      shared.EmptyState,
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+      import_shared.EmptyState,
       {
         title: `No ${config.title.toLowerCase()} found`,
         description: `Click "+ New ${config.singularTitle}" above to create one.`
@@ -205,25 +240,25 @@ var ReferenceTable = ({
       header: "Actions",
       align: "left",
       className: "w-16",
-      render: (item) => /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-1.5 whitespace-nowrap", children: [
-        /* @__PURE__ */ jsxRuntime.jsx(
+      render: (item) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center gap-1.5 whitespace-nowrap", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
           "button",
           {
             type: "button",
             onClick: () => onEdit(item),
             className: "p-1.5 hover:bg-muted hover:text-amber-600 rounded text-muted-foreground transition cursor-pointer",
             title: `Edit ${config.singularTitle}`,
-            children: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Edit2, { className: "h-3.5 w-3.5" })
+            children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_lucide_react.Edit2, { className: "h-3.5 w-3.5" })
           }
         ),
-        /* @__PURE__ */ jsxRuntime.jsx(
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
           "button",
           {
             type: "button",
             onClick: () => onDelete(item),
             className: "p-1.5 hover:bg-rose-500/10 hover:text-rose-600 rounded text-muted-foreground transition cursor-pointer",
             title: `Delete ${config.singularTitle}`,
-            children: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Trash2, { className: "h-3.5 w-3.5" })
+            children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_lucide_react.Trash2, { className: "h-3.5 w-3.5" })
           }
         )
       ] })
@@ -233,8 +268,8 @@ var ReferenceTable = ({
       header: "Name",
       render: (item) => {
         if (["brands", "brand"].includes(config.slug)) {
-          return /* @__PURE__ */ jsxRuntime.jsx(
-            shared.BrandTag,
+          return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            import_shared.BrandTag,
             {
               name: item.name,
               website: item.website,
@@ -243,7 +278,7 @@ var ReferenceTable = ({
             }
           );
         }
-        return /* @__PURE__ */ jsxRuntime.jsx("div", { className: "font-bold text-foreground text-xs truncate max-w-[200px] sm:max-w-none", title: item.name, children: item.name });
+        return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "font-bold text-foreground text-xs truncate max-w-[200px] sm:max-w-none", title: item.name, children: item.name });
       }
     },
     {
@@ -261,7 +296,7 @@ var ReferenceTable = ({
         };
         const prefix = fallbackPrefixMap[config.slug] || "REF";
         const formattedCode = item.code || item.axisCode || `${prefix}-${(item.name || "ITEM").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12)}`;
-        return /* @__PURE__ */ jsxRuntime.jsx("span", { className: "font-mono text-[10px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded tracking-wider whitespace-nowrap", children: formattedCode });
+        return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "font-mono text-[10px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded tracking-wider whitespace-nowrap", children: formattedCode });
       }
     },
     // Entity Specific: Brands
@@ -271,10 +306,10 @@ var ReferenceTable = ({
         header: "Website",
         render: (item) => {
           const site = item.website;
-          const domain = shared.getDomainFromUrl(site);
-          if (!site && !domain) return /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-muted-foreground italic text-[11px]", children: "\u2014" });
+          const domain = (0, import_shared.getDomainFromUrl)(site);
+          if (!site && !domain) return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "text-muted-foreground italic text-[11px]", children: "\u2014" });
           const href = site ? site.startsWith("http") ? site : `https://${site}` : `https://${domain}`;
-          return /* @__PURE__ */ jsxRuntime.jsxs(
+          return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
             "a",
             {
               href,
@@ -282,9 +317,9 @@ var ReferenceTable = ({
               rel: "noopener noreferrer",
               className: "text-amber-600 hover:text-amber-500 hover:underline flex items-center gap-1 font-mono text-[11px] w-fit whitespace-nowrap",
               children: [
-                /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Globe, { className: "h-3 w-3 text-amber-600/80 shrink-0" }),
-                /* @__PURE__ */ jsxRuntime.jsx("span", { children: domain || site }),
-                /* @__PURE__ */ jsxRuntime.jsx(lucideReact.ExternalLink, { className: "h-2.5 w-2.5 opacity-70 shrink-0" })
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_lucide_react.Globe, { className: "h-3 w-3 text-amber-600/80 shrink-0" }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: domain || site }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_lucide_react.ExternalLink, { className: "h-2.5 w-2.5 opacity-70 shrink-0" })
               ]
             }
           );
@@ -297,9 +332,9 @@ var ReferenceTable = ({
           const lower = (item.name || "").toLowerCase();
           const defaultHex = lower.includes("wardah") ? "#10b981" : lower.includes("makeover") || lower.includes("make over") ? "#f43f5e" : lower.includes("emina") ? "#ec4899" : lower.includes("kahf") ? "#f59e0b" : lower.includes("biodef") ? "#06b6d4" : lower.includes("somethinc") ? "#8b5cf6" : lower.includes("wonderly") ? "#a855f7" : lower.includes("omg") ? "#f97316" : "#eab308";
           const hex = item.colorCode || defaultHex;
-          return /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "flex items-center gap-1.5 font-mono text-[11px] font-bold text-foreground bg-secondary/60 border border-border px-2 py-0.5 rounded w-fit whitespace-nowrap", children: [
-            /* @__PURE__ */ jsxRuntime.jsx("span", { className: "h-3.5 w-3.5 rounded-full shrink-0 border border-border shadow-xs", style: { backgroundColor: hex } }),
-            /* @__PURE__ */ jsxRuntime.jsx("span", { children: hex })
+          return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "flex items-center gap-1.5 font-mono text-[11px] font-bold text-foreground bg-secondary/60 border border-border px-2 py-0.5 rounded w-fit whitespace-nowrap", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "h-3.5 w-3.5 rounded-full shrink-0 border border-border shadow-xs", style: { backgroundColor: hex } }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: hex })
           ] });
         }
       }
@@ -309,8 +344,8 @@ var ReferenceTable = ({
       {
         key: "brand",
         header: "Brand",
-        render: (item) => /* @__PURE__ */ jsxRuntime.jsx(
-          shared.BrandTag,
+        render: (item) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+          import_shared.BrandTag,
           {
             name: item.brandName || item.brandId || "Unassigned",
             website: item.brandWebsite || item.website,
@@ -324,9 +359,9 @@ var ReferenceTable = ({
       {
         key: "category",
         header: "Category / Function",
-        render: (item) => /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "px-2 py-0.5 bg-purple-500/15 border border-purple-500/40 text-purple-300 text-[10px] font-bold rounded flex items-center gap-1 w-fit whitespace-nowrap", children: [
-          /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Sparkles, { className: "h-3 w-3 text-purple-400" }),
-          /* @__PURE__ */ jsxRuntime.jsx("span", { children: item.category || "Active Active" })
+        render: (item) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "px-2 py-0.5 bg-purple-500/15 border border-purple-500/40 text-purple-300 text-[10px] font-bold rounded flex items-center gap-1 w-fit whitespace-nowrap", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_lucide_react.Sparkles, { className: "h-3 w-3 text-purple-400" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: item.category || "Active Active" })
         ] })
       }
     ] : [],
@@ -338,11 +373,11 @@ var ReferenceTable = ({
         render: (item) => {
           const tierItems = Array.isArray(item.items) ? item.items : [];
           if (tierItems.length === 0) {
-            return /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-zinc-600 text-xs italic", children: "No tiers defined" });
+            return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "text-zinc-600 text-xs italic", children: "No tiers defined" });
           }
-          return /* @__PURE__ */ jsxRuntime.jsx("div", { className: "flex flex-wrap items-center gap-1.5 max-w-md", children: tierItems.map((t, idx) => {
+          return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "flex flex-wrap items-center gap-1.5 max-w-md", children: tierItems.map((t, idx) => {
             const hex = t.colorCode || "#10b981";
-            return /* @__PURE__ */ jsxRuntime.jsxs(
+            return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
               "span",
               {
                 style: {
@@ -353,14 +388,14 @@ var ReferenceTable = ({
                 className: "px-2 py-0.5 border text-[10px] font-bold rounded-md flex items-center gap-1 whitespace-nowrap",
                 title: t.description || t.code,
                 children: [
-                  /* @__PURE__ */ jsxRuntime.jsx(
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
                     "span",
                     {
                       className: "w-2 h-2 rounded-full shrink-0",
                       style: { backgroundColor: hex }
                     }
                   ),
-                  /* @__PURE__ */ jsxRuntime.jsx("span", { children: t.name || t.code })
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: t.name || t.code })
                 ]
               },
               t.id || t.code || idx
@@ -373,7 +408,7 @@ var ReferenceTable = ({
         header: "Tiers",
         render: (item) => {
           const count = Array.isArray(item.items) ? item.items.length : 0;
-          return /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "font-mono text-[10px] font-bold px-2 py-0.5 bg-secondary/60 border border-border text-amber-600 rounded whitespace-nowrap", children: [
+          return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "font-mono text-[10px] font-bold px-2 py-0.5 bg-secondary/60 border border-border text-amber-600 rounded whitespace-nowrap", children: [
             count,
             " ",
             count === 1 ? "tier" : "tiers"
@@ -386,26 +421,32 @@ var ReferenceTable = ({
       {
         key: "dimensionCode",
         header: "Target Dimension",
-        render: (item) => /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "px-2 py-0.5 bg-blue-500/15 border border-blue-500/40 text-blue-600 text-[10px] font-bold rounded flex items-center gap-1 w-fit whitespace-nowrap", children: [
-          /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Target, { className: "h-3 w-3" }),
-          /* @__PURE__ */ jsxRuntime.jsx("span", { children: item.dimensionCode || item.dimension_code || "sebum" })
+        render: (item) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "px-2 py-0.5 bg-blue-500/15 border border-blue-500/40 text-blue-600 text-[10px] font-bold rounded flex items-center gap-1 w-fit whitespace-nowrap", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_lucide_react.Target, { className: "h-3 w-3" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: item.dimensionCode || item.dimension_code || "sebum" })
         ] })
       }
     ] : [],
     {
       key: "description",
       header: "Description",
-      render: (item) => /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-muted-foreground text-xs leading-relaxed max-w-sm sm:max-w-md line-clamp-2 block", title: item.description, children: item.description || /* @__PURE__ */ jsxRuntime.jsx("span", { className: "italic", children: "No description" }) })
+      render: (item) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "text-muted-foreground text-xs leading-relaxed max-w-sm sm:max-w-md line-clamp-2 block", title: item.description, children: item.description || /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "italic", children: "No description" }) })
     },
     {
       key: "createdAt",
       header: "Created At",
       className: "hidden md:table-cell w-28",
-      render: (item) => /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-muted-foreground font-mono text-[11px] whitespace-nowrap", children: item.createdAt && !item.createdAt.startsWith("0001") ? new Date(item.createdAt).toLocaleDateString() : "\u2014" })
+      render: (item) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "text-muted-foreground font-mono text-[11px] whitespace-nowrap", children: item.createdAt && !item.createdAt.startsWith("0001") ? new Date(item.createdAt).toLocaleDateString() : "\u2014" })
     }
   ];
-  return /* @__PURE__ */ jsxRuntime.jsx(shared.DataTable, { columns, data: items, keyField: "id" });
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_shared.DataTable, { columns, data: items, keyField: "id" });
 };
+
+// src/reference/components/ReferenceFormModal.tsx
+var import_react = require("react");
+var import_lucide_react2 = require("lucide-react");
+var import_shared2 = require("@gateway-experience/shared");
+var import_jsx_runtime2 = require("react/jsx-runtime");
 var ReferenceFormModal = ({
   isOpen,
   config,
@@ -413,11 +454,11 @@ var ReferenceFormModal = ({
   onClose,
   onSave
 }) => {
-  const [formData, setFormData] = react.useState({});
-  const [relationOptions, setRelationOptions] = react.useState({});
-  const [isSubmitting, setIsSubmitting] = react.useState(false);
-  const [error, setError] = react.useState(null);
-  react.useEffect(() => {
+  const [formData, setFormData] = (0, import_react.useState)({});
+  const [relationOptions, setRelationOptions] = (0, import_react.useState)({});
+  const [isSubmitting, setIsSubmitting] = (0, import_react.useState)(false);
+  const [error, setError] = (0, import_react.useState)(null);
+  (0, import_react.useEffect)(() => {
     if (isOpen) {
       const initial = { ...initialData || {} };
       config.fields.forEach((f) => {
@@ -473,8 +514,8 @@ var ReferenceFormModal = ({
       setIsSubmitting(false);
     }
   };
-  return /* @__PURE__ */ jsxRuntime.jsx(
-    shared.Modal,
+  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+    import_shared2.Modal,
     {
       isOpen,
       onClose,
@@ -482,17 +523,17 @@ var ReferenceFormModal = ({
       title: initialData ? `Edit ${config.singularTitle}` : `New ${config.singularTitle}`,
       isLoading: isSubmitting,
       loadingText: isSubmitting ? initialData ? `Updating ${config.singularTitle}...` : `Saving ${config.singularTitle}...` : void 0,
-      children: /* @__PURE__ */ jsxRuntime.jsxs("form", { onSubmit: handleSubmit, className: "space-y-4 pb-12 relative", children: [
-        error && /* @__PURE__ */ jsxRuntime.jsx("div", { className: "p-2.5 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded text-xs", children: error }),
+      children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("form", { onSubmit: handleSubmit, className: "space-y-4 pb-12 relative", children: [
+        error && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "p-2.5 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded text-xs", children: error }),
         config.fields.map((field, idx) => {
           const zIndexVal = (config.fields.length - idx) * 10;
-          return /* @__PURE__ */ jsxRuntime.jsxs("div", { style: { zIndex: zIndexVal }, className: "space-y-1.5 relative", children: [
-            /* @__PURE__ */ jsxRuntime.jsxs("label", { className: "block text-muted-foreground font-medium", children: [
+          return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { zIndex: zIndexVal }, className: "space-y-1.5 relative", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("label", { className: "block text-muted-foreground font-medium", children: [
               field.label,
               " ",
-              field.required && /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-amber-500", children: "*" })
+              field.required && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "text-amber-500", children: "*" })
             ] }),
-            field.type === "number" && /* @__PURE__ */ jsxRuntime.jsx(
+            field.type === "number" && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
               "input",
               {
                 type: "number",
@@ -505,7 +546,7 @@ var ReferenceFormModal = ({
                 className: "w-full h-9 bg-background border border-border rounded-lg px-3 text-foreground outline-none focus:border-ring transition font-mono"
               }
             ),
-            field.type === "text" && /* @__PURE__ */ jsxRuntime.jsx(
+            field.type === "text" && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
               "input",
               {
                 type: "text",
@@ -515,7 +556,7 @@ var ReferenceFormModal = ({
                 className: "w-full h-9 bg-background border border-border rounded-lg px-3 text-foreground outline-none focus:border-ring transition"
               }
             ),
-            field.type === "textarea" && /* @__PURE__ */ jsxRuntime.jsx(
+            field.type === "textarea" && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
               "textarea",
               {
                 rows: 3,
@@ -524,19 +565,19 @@ var ReferenceFormModal = ({
                 className: "w-full bg-background border border-border rounded-lg p-2.5 text-foreground outline-none focus:border-ring transition"
               }
             ),
-            field.type === "select" && /* @__PURE__ */ jsxRuntime.jsx(
+            field.type === "select" && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
               "select",
               {
                 value: formData[field.key] || field.options?.[0]?.value || "",
                 onChange: (e) => setFormData({ ...formData, [field.key]: e.target.value }),
                 className: "w-full h-9 bg-background border border-border rounded-lg px-3 text-foreground outline-none focus:border-ring transition cursor-pointer",
-                children: field.options?.map((opt) => /* @__PURE__ */ jsxRuntime.jsx("option", { value: opt.value, children: opt.label }, opt.value))
+                children: field.options?.map((opt) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("option", { value: opt.value, children: opt.label }, opt.value))
               }
             ),
             field.type === "relation" && field.relationEntity && (() => {
               const opts = relationOptions[field.relationEntity] || [];
               const isCodeBased = field.relationEntity === "dimensions";
-              field.relationEntity === "dimensions";
+              const isDimensionRelation = field.relationEntity === "dimensions";
               const currentVal = (() => {
                 const direct = formData[field.key];
                 if (direct) {
@@ -549,8 +590,8 @@ var ReferenceFormModal = ({
                 }
                 return direct || "";
               })();
-              return /* @__PURE__ */ jsxRuntime.jsx(
-                shared.SearchableSelect,
+              return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+                import_shared2.SearchableSelect,
                 {
                   options: opts.map((opt) => ({
                     value: isCodeBased && opt.code ? opt.code : opt.id,
@@ -574,8 +615,8 @@ var ReferenceFormModal = ({
                 }
                 return isCodeBased && v?.code ? v.code : v?.id || v?.ingredientId;
               }).filter(Boolean) : typeof rawVal === "string" && rawVal ? [rawVal] : [];
-              return /* @__PURE__ */ jsxRuntime.jsx(
-                shared.SearchableSelect,
+              return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+                import_shared2.SearchableSelect,
                 {
                   multiple: true,
                   options: opts.map((opt) => ({
@@ -595,15 +636,15 @@ var ReferenceFormModal = ({
             })()
           ] }, field.key);
         }),
-        /* @__PURE__ */ jsxRuntime.jsx("div", { className: "pt-3 flex items-center justify-end border-t border-border shrink-0", children: /* @__PURE__ */ jsxRuntime.jsxs(
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "pt-3 flex items-center justify-end border-t border-border shrink-0", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
           "button",
           {
             type: "submit",
             disabled: isSubmitting,
             className: "px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-lg flex items-center gap-1.5 transition disabled:opacity-50 cursor-pointer shadow-sm",
             children: [
-              isSubmitting ? /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Loader2, { className: "h-3.5 w-3.5 animate-spin" }) : /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Save, { className: "h-3.5 w-3.5" }),
-              /* @__PURE__ */ jsxRuntime.jsx("span", { children: isSubmitting ? initialData ? "Updating..." : "Saving..." : initialData ? "Update Item" : "Save Item" })
+              isSubmitting ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_lucide_react2.Loader2, { className: "h-3.5 w-3.5 animate-spin" }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_lucide_react2.Save, { className: "h-3.5 w-3.5" }),
+              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { children: isSubmitting ? initialData ? "Updating..." : "Saving..." : initialData ? "Update Item" : "Save Item" })
             ]
           }
         ) })
@@ -611,6 +652,12 @@ var ReferenceFormModal = ({
     }
   );
 };
+
+// src/reference/components/SeverityTierGroupModal.tsx
+var import_react2 = require("react");
+var import_lucide_react3 = require("lucide-react");
+var import_shared3 = require("@gateway-experience/shared");
+var import_jsx_runtime3 = require("react/jsx-runtime");
 var PRESET_COLORS = [
   "#10b981",
   // Emerald
@@ -639,13 +686,13 @@ var SeverityTierGroupModal = ({
   onClose,
   onSave
 }) => {
-  const [code, setCode] = react.useState("");
-  const [name, setName] = react.useState("");
-  const [description, setDescription] = react.useState("");
-  const [items, setItems] = react.useState([]);
-  const [isSubmitting, setIsSubmitting] = react.useState(false);
-  const [error, setError] = react.useState(null);
-  react.useEffect(() => {
+  const [code, setCode] = (0, import_react2.useState)("");
+  const [name, setName] = (0, import_react2.useState)("");
+  const [description, setDescription] = (0, import_react2.useState)("");
+  const [items, setItems] = (0, import_react2.useState)([]);
+  const [isSubmitting, setIsSubmitting] = (0, import_react2.useState)(false);
+  const [error, setError] = (0, import_react2.useState)(null);
+  (0, import_react2.useEffect)(() => {
     if (isOpen) {
       if (initialData) {
         setCode(initialData.code || "");
@@ -739,26 +786,26 @@ var SeverityTierGroupModal = ({
       setIsSubmitting(false);
     }
   };
-  return /* @__PURE__ */ jsxRuntime.jsx(
-    shared.Modal,
+  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+    import_shared3.Modal,
     {
       isOpen,
       onClose,
       size: "3xl",
-      icon: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.ShieldAlert, { className: "h-5 w-5 text-amber-400" }),
+      icon: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_lucide_react3.ShieldAlert, { className: "h-5 w-5 text-amber-400" }),
       title: initialData ? `Edit Classification Group (${code})` : "New Severity Classification Group",
       subtitle: "Define a diagnostic group (e.g. Severity Level, Acne Prone Level) and configure its classification tier items.",
       isLoading: isSubmitting,
       loadingText: isSubmitting ? initialData ? "Updating Classification Group..." : "Creating Classification Group..." : void 0,
-      children: /* @__PURE__ */ jsxRuntime.jsxs("form", { onSubmit: handleSubmit, className: "space-y-4 text-xs", children: [
-        error && /* @__PURE__ */ jsxRuntime.jsx("div", { className: "p-2.5 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded text-xs font-semibold", children: error }),
-        /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-3 bg-secondary/40 p-3.5 rounded-xl border border-border", children: [
-          /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "space-y-1", children: [
-            /* @__PURE__ */ jsxRuntime.jsxs("label", { className: "text-muted-foreground font-bold", children: [
+      children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("form", { onSubmit: handleSubmit, className: "space-y-4 text-xs", children: [
+        error && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "p-2.5 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded text-xs font-semibold", children: error }),
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-3 bg-secondary/40 p-3.5 rounded-xl border border-border", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "space-y-1", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("label", { className: "text-muted-foreground font-bold", children: [
               "Group Display Name ",
-              /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-amber-500", children: "*" })
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "text-amber-500", children: "*" })
             ] }),
-            /* @__PURE__ */ jsxRuntime.jsx(
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
               "input",
               {
                 type: "text",
@@ -770,12 +817,12 @@ var SeverityTierGroupModal = ({
               }
             )
           ] }),
-          /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "space-y-1", children: [
-            /* @__PURE__ */ jsxRuntime.jsxs("label", { className: "text-muted-foreground font-bold", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "space-y-1", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("label", { className: "text-muted-foreground font-bold", children: [
               "Group Code ",
-              /* @__PURE__ */ jsxRuntime.jsx("span", { className: "text-amber-500", children: "*" })
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "text-amber-500", children: "*" })
             ] }),
-            /* @__PURE__ */ jsxRuntime.jsx(
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
               "input",
               {
                 type: "text",
@@ -787,9 +834,9 @@ var SeverityTierGroupModal = ({
               }
             )
           ] }),
-          /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "col-span-1 sm:col-span-2 space-y-1", children: [
-            /* @__PURE__ */ jsxRuntime.jsx("label", { className: "text-muted-foreground font-bold", children: "Clinical / Operational Description" }),
-            /* @__PURE__ */ jsxRuntime.jsx(
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "col-span-1 sm:col-span-2 space-y-1", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("label", { className: "text-muted-foreground font-bold", children: "Clinical / Operational Description" }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
               "textarea",
               {
                 rows: 2,
@@ -801,30 +848,30 @@ var SeverityTierGroupModal = ({
             )
           ] })
         ] }),
-        /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "space-y-2.5 pt-1", children: [
-          /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center justify-between", children: [
-            /* @__PURE__ */ jsxRuntime.jsxs("span", { className: "text-foreground font-bold flex items-center gap-1.5 text-xs", children: [
-              /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Layers, { className: "h-4 w-4 text-amber-500" }),
-              /* @__PURE__ */ jsxRuntime.jsxs("span", { children: [
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "space-y-2.5 pt-1", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "flex items-center justify-between", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "text-foreground font-bold flex items-center gap-1.5 text-xs", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_lucide_react3.Layers, { className: "h-4 w-4 text-amber-500" }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { children: [
                 "Classification Tier Items (",
                 items.length,
                 ")"
               ] })
             ] }),
-            /* @__PURE__ */ jsxRuntime.jsxs(
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
               "button",
               {
                 type: "button",
                 onClick: handleAddItem,
                 className: "px-2.5 py-1 bg-secondary hover:bg-accent border border-border text-amber-600 hover:text-foreground rounded-lg flex items-center gap-1.5 font-semibold text-xs transition cursor-pointer",
                 children: [
-                  /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Plus, { className: "h-3.5 w-3.5" }),
-                  /* @__PURE__ */ jsxRuntime.jsx("span", { children: "Add Tier Item" })
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_lucide_react3.Plus, { className: "h-3.5 w-3.5" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "Add Tier Item" })
                 ]
               }
             )
           ] }),
-          /* @__PURE__ */ jsxRuntime.jsxs(
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
             "div",
             {
               style: {
@@ -835,15 +882,15 @@ var SeverityTierGroupModal = ({
               },
               className: "px-3 py-1.5 bg-secondary/40 border border-border rounded-lg text-[10px] font-bold text-muted-foreground uppercase tracking-wider select-none",
               children: [
-                /* @__PURE__ */ jsxRuntime.jsx("div", { className: "text-center", children: "#" }),
-                /* @__PURE__ */ jsxRuntime.jsx("div", { children: "Display Name" }),
-                /* @__PURE__ */ jsxRuntime.jsx("div", { children: "Code" }),
-                /* @__PURE__ */ jsxRuntime.jsx("div", { className: "text-center", children: "Badge Color" }),
-                /* @__PURE__ */ jsxRuntime.jsx("div", { className: "text-center", children: "Act" })
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "text-center", children: "#" }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { children: "Display Name" }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { children: "Code" }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "text-center", children: "Badge Color" }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "text-center", children: "Act" })
               ]
             }
           ),
-          /* @__PURE__ */ jsxRuntime.jsx("div", { className: "space-y-2 max-h-64 overflow-y-auto pr-1", children: items.map((item, idx) => /* @__PURE__ */ jsxRuntime.jsxs(
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "space-y-2 max-h-64 overflow-y-auto pr-1", children: items.map((item, idx) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
             "div",
             {
               style: {
@@ -854,11 +901,11 @@ var SeverityTierGroupModal = ({
               },
               className: "bg-card hover:bg-accent/50 border border-border hover:border-ring/40 p-2 rounded-lg transition",
               children: [
-                /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "text-center font-mono font-bold text-amber-600 bg-secondary/60 border border-border rounded py-1", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "text-center font-mono font-bold text-amber-600 bg-secondary/60 border border-border rounded py-1", children: [
                   "#",
                   idx + 1
                 ] }),
-                /* @__PURE__ */ jsxRuntime.jsx("div", { children: /* @__PURE__ */ jsxRuntime.jsx(
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
                   "input",
                   {
                     type: "text",
@@ -869,7 +916,7 @@ var SeverityTierGroupModal = ({
                     className: "w-full bg-background border border-border focus:border-ring rounded px-2.5 py-1 text-foreground text-xs outline-none"
                   }
                 ) }),
-                /* @__PURE__ */ jsxRuntime.jsx("div", { children: /* @__PURE__ */ jsxRuntime.jsx(
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
                   "input",
                   {
                     type: "text",
@@ -880,8 +927,8 @@ var SeverityTierGroupModal = ({
                     className: "w-full bg-background border border-border focus:border-ring rounded px-2 py-1 text-purple-600 font-mono uppercase font-bold text-xs outline-none"
                   }
                 ) }),
-                /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-1.5 justify-center", children: [
-                  /* @__PURE__ */ jsxRuntime.jsx(
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "flex items-center gap-1.5 justify-center", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
                     "input",
                     {
                       type: "color",
@@ -891,7 +938,7 @@ var SeverityTierGroupModal = ({
                       title: "Choose Badge Color"
                     }
                   ),
-                  /* @__PURE__ */ jsxRuntime.jsx(
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
                     "input",
                     {
                       type: "text",
@@ -901,7 +948,7 @@ var SeverityTierGroupModal = ({
                     }
                   )
                 ] }),
-                /* @__PURE__ */ jsxRuntime.jsx("div", { className: "text-center", children: /* @__PURE__ */ jsxRuntime.jsx(
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "text-center", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
                   "button",
                   {
                     type: "button",
@@ -909,7 +956,7 @@ var SeverityTierGroupModal = ({
                     onClick: () => handleRemoveItem(idx),
                     className: "p-1 text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10 disabled:opacity-30 rounded transition cursor-pointer",
                     title: items.length <= 1 ? "Minimum 1 tier required" : "Remove Tier",
-                    children: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Trash2, { className: "h-3.5 w-3.5" })
+                    children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_lucide_react3.Trash2, { className: "h-3.5 w-3.5" })
                   }
                 ) })
               ]
@@ -917,15 +964,15 @@ var SeverityTierGroupModal = ({
             idx
           )) })
         ] }),
-        /* @__PURE__ */ jsxRuntime.jsx("div", { className: "pt-3 flex items-center justify-end border-t border-border", children: /* @__PURE__ */ jsxRuntime.jsxs(
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "pt-3 flex items-center justify-end border-t border-border", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
           "button",
           {
             type: "submit",
             disabled: isSubmitting,
             className: "px-5 py-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-lg flex items-center gap-1.5 transition disabled:opacity-50 cursor-pointer shadow-md",
             children: [
-              isSubmitting ? /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Loader2, { className: "h-4 w-4 animate-spin" }) : /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Save, { className: "h-4 w-4" }),
-              /* @__PURE__ */ jsxRuntime.jsx("span", { children: isSubmitting ? initialData ? "Updating..." : "Creating..." : initialData ? "Update Group" : "Create Group" })
+              isSubmitting ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_lucide_react3.Loader2, { className: "h-4 w-4 animate-spin" }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_lucide_react3.Save, { className: "h-4 w-4" }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: isSubmitting ? initialData ? "Updating..." : "Creating..." : initialData ? "Update Group" : "Create Group" })
             ]
           }
         ) })
@@ -933,38 +980,42 @@ var SeverityTierGroupModal = ({
     }
   );
 };
+
+// src/reference/components/ReferenceEntityDashboard.tsx
+var import_shared4 = require("@gateway-experience/shared");
+var import_jsx_runtime4 = require("react/jsx-runtime");
 var ReferenceEntityDashboard = ({ slug }) => {
-  const [activeSlug, setActiveSlug] = react.useState(slug);
-  const [isFilterPanelOpen, setIsFilterPanelOpen] = react.useState(false);
-  const [activeFilters, setActiveFilters] = react.useState({});
-  react.useEffect(() => {
+  const [activeSlug, setActiveSlug] = (0, import_react3.useState)(slug);
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = (0, import_react3.useState)(false);
+  const [activeFilters, setActiveFilters] = (0, import_react3.useState)({});
+  (0, import_react3.useEffect)(() => {
     setActiveSlug(slug);
   }, [slug]);
   const config = REFERENCE_ENTITY_CONFIGS[activeSlug] || REFERENCE_ENTITY_CONFIGS["brands"];
-  const [items, setItems] = react.useState([]);
-  const [loading, setLoading] = react.useState(true);
-  const [searchQuery, setSearchQuery] = react.useState("");
-  const [searchColumn, setSearchColumn] = react.useState("all");
-  const [filterOption, setFilterOption] = react.useState("all");
-  const [currentPage, setCurrentPage] = react.useState(1);
-  const [pageSize, setPageSize] = react.useState(10);
-  const [isModalOpen, setIsModalOpen] = react.useState(false);
-  const [editingItem, setEditingItem] = react.useState(null);
-  const [deleteConfig, setDeleteConfig] = react.useState({
+  const [items, setItems] = (0, import_react3.useState)([]);
+  const [loading, setLoading] = (0, import_react3.useState)(true);
+  const [searchQuery, setSearchQuery] = (0, import_react3.useState)("");
+  const [searchColumn, setSearchColumn] = (0, import_react3.useState)("all");
+  const [filterOption, setFilterOption] = (0, import_react3.useState)("all");
+  const [currentPage, setCurrentPage] = (0, import_react3.useState)(1);
+  const [pageSize, setPageSize] = (0, import_react3.useState)(10);
+  const [isModalOpen, setIsModalOpen] = (0, import_react3.useState)(false);
+  const [editingItem, setEditingItem] = (0, import_react3.useState)(null);
+  const [deleteConfig, setDeleteConfig] = (0, import_react3.useState)({
     isOpen: false,
     item: null,
     isDeleting: false
   });
-  react.useEffect(() => {
+  (0, import_react3.useEffect)(() => {
     setSearchColumn("all");
     setFilterOption("all");
     setActiveFilters({});
     setCurrentPage(1);
   }, [activeSlug]);
-  react.useEffect(() => {
+  (0, import_react3.useEffect)(() => {
     setCurrentPage(1);
   }, [searchQuery, searchColumn, filterOption]);
-  const columnOptions = react.useMemo(() => {
+  const columnOptions = (0, import_react3.useMemo)(() => {
     const opts = [
       { value: "all", label: "All Columns" },
       { value: "name", label: "Name" },
@@ -988,7 +1039,7 @@ var ReferenceEntityDashboard = ({ slug }) => {
     opts.push({ value: "description", label: "Description" });
     return opts;
   }, [config.slug]);
-  const brandOptions = react.useMemo(() => {
+  const brandOptions = (0, import_react3.useMemo)(() => {
     const brands = Array.from(
       new Set(
         (items || []).map((i) => i.brandName || i.brandId).filter((b) => typeof b === "string" && b.trim().length > 0)
@@ -996,7 +1047,7 @@ var ReferenceEntityDashboard = ({ slug }) => {
     );
     return brands.map((b) => ({ value: b, label: b }));
   }, [items]);
-  const fetchItems = react.useCallback(async () => {
+  const fetchItems = (0, import_react3.useCallback)(async () => {
     setLoading(true);
     try {
       const res = await fetch(config.apiEndpoint, { cache: "no-store" });
@@ -1012,7 +1063,7 @@ var ReferenceEntityDashboard = ({ slug }) => {
       setLoading(false);
     }
   }, [config.apiEndpoint, config.slug]);
-  react.useEffect(() => {
+  (0, import_react3.useEffect)(() => {
     fetchItems();
   }, [fetchItems]);
   const handleSave = async (formData) => {
@@ -1064,7 +1115,7 @@ var ReferenceEntityDashboard = ({ slug }) => {
       setDeleteConfig((prev) => ({ ...prev, isDeleting: false }));
     }
   };
-  const filterItemList = react.useCallback(
+  const filterItemList = (0, import_react3.useCallback)(
     (sourceItems, q, targetCol, filterObj) => {
       const normalizedQ = q.toLowerCase().trim();
       return sourceItems.filter((item) => {
@@ -1109,7 +1160,7 @@ var ReferenceEntityDashboard = ({ slug }) => {
     []
   );
   const safeItems = Array.isArray(items) ? items : [];
-  const filteredItems = react.useMemo(
+  const filteredItems = (0, import_react3.useMemo)(
     () => filterItemList(safeItems, searchQuery, searchColumn, activeFilters),
     [filterItemList, safeItems, searchQuery, searchColumn, activeFilters]
   );
@@ -1119,11 +1170,11 @@ var ReferenceEntityDashboard = ({ slug }) => {
     (currentPage - 1) * pageSize,
     currentPage * pageSize
   );
-  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex-1 min-w-0 h-full overflow-y-auto bg-background text-foreground font-sans flex flex-col select-none", children: [
-    /* @__PURE__ */ jsxRuntime.jsx(
-      shared.PageHeader,
+  return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex-1 min-w-0 h-full overflow-y-auto bg-background text-foreground font-sans flex flex-col select-none", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+      import_shared4.PageHeader,
       {
-        icon: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Database, { className: "h-5 w-5 text-beak" }),
+        icon: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_lucide_react4.Database, { className: "h-5 w-5 text-beak" }),
         breadcrumbs: [
           { label: "Workbench", href: "/" },
           { label: "Reference Data" },
@@ -1133,9 +1184,9 @@ var ReferenceEntityDashboard = ({ slug }) => {
         description: config.description
       }
     ),
-    /* @__PURE__ */ jsxRuntime.jsxs("main", { className: "flex-1 p-4 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl w-full mx-auto flex flex-col", children: [
-      /* @__PURE__ */ jsxRuntime.jsx(
-        shared.SearchFilterBar,
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("main", { className: "flex-1 p-4 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl w-full mx-auto flex flex-col", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+        import_shared4.SearchFilterBar,
         {
           searchQuery,
           onSearchChange: setSearchQuery,
@@ -1154,7 +1205,7 @@ var ReferenceEntityDashboard = ({ slug }) => {
           }
         }
       ),
-      /* @__PURE__ */ jsxRuntime.jsx("div", { className: "w-full", children: /* @__PURE__ */ jsxRuntime.jsx(
+      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "w-full", children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
         ReferenceTable,
         {
           config,
@@ -1167,8 +1218,8 @@ var ReferenceEntityDashboard = ({ slug }) => {
           onDelete: handleRequestDelete
         }
       ) }),
-      !loading && totalItems > 0 && /* @__PURE__ */ jsxRuntime.jsx("div", { className: "pt-2", children: /* @__PURE__ */ jsxRuntime.jsx(
-        shared.Pagination,
+      !loading && totalItems > 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "pt-2", children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+        import_shared4.Pagination,
         {
           currentPage,
           totalPages,
@@ -1182,7 +1233,7 @@ var ReferenceEntityDashboard = ({ slug }) => {
         }
       ) })
     ] }),
-    ["severity-tier-groups", "severity-tier-group", "severity-tiers", "severity-tier", "severity-groups", "severity-group"].includes(config.slug) ? /* @__PURE__ */ jsxRuntime.jsx(
+    ["severity-tier-groups", "severity-tier-group", "severity-tiers", "severity-tier", "severity-groups", "severity-group"].includes(config.slug) ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
       SeverityTierGroupModal,
       {
         isOpen: isModalOpen,
@@ -1193,7 +1244,7 @@ var ReferenceEntityDashboard = ({ slug }) => {
         },
         onSave: handleSave
       }
-    ) : /* @__PURE__ */ jsxRuntime.jsx(
+    ) : /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
       ReferenceFormModal,
       {
         isOpen: isModalOpen,
@@ -1206,8 +1257,8 @@ var ReferenceEntityDashboard = ({ slug }) => {
         onSave: handleSave
       }
     ),
-    /* @__PURE__ */ jsxRuntime.jsx(
-      shared.ConfirmDialog,
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+      import_shared4.ConfirmDialog,
       {
         isOpen: deleteConfig.isOpen,
         onClose: () => setDeleteConfig({ isOpen: false, item: null, isDeleting: false }),
@@ -1219,8 +1270,8 @@ var ReferenceEntityDashboard = ({ slug }) => {
         isLoading: deleteConfig.isDeleting
       }
     ),
-    config.slug !== "brands" && /* @__PURE__ */ jsxRuntime.jsx(
-      shared.FilterPanel,
+    config.slug !== "brands" && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+      import_shared4.FilterPanel,
       {
         isOpen: isFilterPanelOpen,
         onClose: () => setIsFilterPanelOpen(false),
@@ -1265,6 +1316,9 @@ var ReferenceEntityDashboard = ({ slug }) => {
     )
   ] });
 };
+
+// src/reference/components/ReferenceManager.tsx
+var import_jsx_runtime5 = require("react/jsx-runtime");
 var ReferenceManager = ({ initialEntity = "brands" }) => {
   const slugMap = {
     brand: "brands",
@@ -1291,17 +1345,18 @@ var ReferenceManager = ({ initialEntity = "brands" }) => {
     concerns: "skin-conditions"
   };
   const slug = slugMap[initialEntity] || initialEntity || "brands";
-  return /* @__PURE__ */ jsxRuntime.jsx(ReferenceEntityDashboard, { slug });
+  return /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(ReferenceEntityDashboard, { slug });
 };
 
-Object.defineProperty(exports, "SearchFilterBar", {
-  enumerable: true,
-  get: function () { return shared.SearchFilterBar; }
+// src/reference/index.ts
+var import_shared5 = require("@gateway-experience/shared");
+// Annotate the CommonJS export names for ESM import in node:
+0 && (module.exports = {
+  REFERENCE_ENTITY_CONFIGS,
+  ReferenceEntityDashboard,
+  ReferenceFormModal,
+  ReferenceManager,
+  ReferenceTable,
+  SearchFilterBar
 });
-exports.REFERENCE_ENTITY_CONFIGS = REFERENCE_ENTITY_CONFIGS;
-exports.ReferenceEntityDashboard = ReferenceEntityDashboard;
-exports.ReferenceFormModal = ReferenceFormModal;
-exports.ReferenceManager = ReferenceManager;
-exports.ReferenceTable = ReferenceTable;
-//# sourceMappingURL=index.js.map
 //# sourceMappingURL=index.js.map

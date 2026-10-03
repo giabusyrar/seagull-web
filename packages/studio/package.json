@@ -12,10 +12,11 @@
     "./score": { "types": "./dist/score/index.d.ts", "import": "./dist/score/index.mjs", "require": "./dist/score/index.js" },
     "./match": { "types": "./dist/match/index.d.ts", "import": "./dist/match/index.mjs", "require": "./dist/match/index.js" },
     "./reference": { "types": "./dist/reference/index.d.ts", "import": "./dist/reference/index.mjs", "require": "./dist/reference/index.js" },
+    "./reference/config": { "types": "./dist/reference/config.d.ts", "import": "./dist/reference/config.mjs", "require": "./dist/reference/config.js" },
     "./orchestrator": { "types": "./dist/orchestrator/index.d.ts", "import": "./dist/orchestrator/index.mjs", "require": "./dist/orchestrator/index.js" },
     "./core": { "types": "./dist/core/index.d.ts", "import": "./dist/core/index.mjs", "require": "./dist/core/index.js" }
   },
-  "scripts": { "build": "tsup", "typecheck": "tsc --noEmit", "test": "vitest run" },
+  "scripts": { "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && tsup", "typecheck": "tsc --noEmit", "test": "vitest run" },
   "dependencies": {
     "@gateway-experience/shared": "*",
     "lucide-react": "^1.27.0",

@@ -1,9 +1,23 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
-import { FileText, Play, Plus, ChevronUp, ChevronDown, Pencil, Trash2, ChevronRight, X, Flag } from 'lucide-react';
-import { usePersistentState, PageHeader, TabNav, BrandSelect, ApplicationSelect, InfoTooltip, ConfirmDialog, SearchFilterBar, EmptyState, readPersisted, Modal, Button } from '@gateway-experience/shared';
-import { jsx, jsxs, Fragment } from 'react/jsx-runtime';
-import { Model } from 'survey-core';
-import { Survey } from 'survey-react-ui';
+'use client';
+"use client";
+
+// src/form/components/FormManager.tsx
+import { useState as useState4, useEffect as useEffect3 } from "react";
+import { FileText as FileText3, Play as Play2 } from "lucide-react";
+import {
+  PageHeader,
+  TabNav,
+  usePersistentState as usePersistentState2,
+  ConfirmDialog,
+  BrandSelect as BrandSelect2,
+  ApplicationSelect as ApplicationSelect2,
+  InfoTooltip as InfoTooltip2
+} from "@gateway-experience/shared";
+
+// src/form/components/tabs/QuestionnairesTab.tsx
+import { useState } from "react";
+import { FileText, Pencil, Trash2, ChevronDown, ChevronUp, Plus } from "lucide-react";
+import { SearchFilterBar, EmptyState } from "@gateway-experience/shared";
 
 // src/form/catalog.ts
 var FALLBACK_DIMENSIONS = [
@@ -322,6 +336,9 @@ var BUILTIN_TEMPLATES = [
     build: () => cloneQuestionnaire(PFORM_EXAMPLE)
   }
 ];
+
+// src/form/components/tabs/QuestionnairesTab.tsx
+import { jsx, jsxs } from "react/jsx-runtime";
 var methodLabel = (q, dimension) => {
   const m = q.calculationMethods?.[dimension] || "sum";
   return CALCULATION_METHODS.find((x) => x.value === m)?.label || m;
@@ -468,6 +485,13 @@ var QuestionnairesTab = ({
     }) })
   ] });
 };
+
+// src/form/components/tabs/FormSimulatorTab.tsx
+import { useEffect, useMemo, useState as useState2 } from "react";
+import { Play, ChevronRight, ChevronDown as ChevronDown2 } from "lucide-react";
+import { EmptyState as EmptyState2, readPersisted, usePersistentState } from "@gateway-experience/shared";
+import { Model } from "survey-core";
+import { Survey } from "survey-react-ui";
 
 // src/form/surveyjs.ts
 var TYPE_TO_SURVEYJS = {
@@ -704,7 +728,7 @@ function scoreSurveyAnswers(model, data) {
     if (CHOICE_SURVEYJS_TYPES.has(el.type) && el.choices?.length) {
       const picked = (Array.isArray(answer) ? answer : [answer]).map(String);
       for (const c of el.choices) {
-        const choice = typeof c === "string" ? { value: c} : c;
+        const choice = typeof c === "string" ? { value: c, text: c } : c;
         if (picked.includes(String(choice.value))) {
           push(
             choice.dimension || el.dimension,
@@ -773,6 +797,9 @@ var XG_SURVEY_THEME = {
     "--sjs-shadow-inner": "none"
   }
 };
+
+// src/form/components/tabs/FormSimulatorTab.tsx
+import { jsx as jsx2, jsxs as jsxs2 } from "react/jsx-runtime";
 var ANSWERS_KEY_PREFIX = "xg.formEngine.simulator.answers.";
 var CUSTOMER_ID_KEY = "xg.formEngine.simulator.customerId";
 var FormSimulatorTab = ({
@@ -790,9 +817,9 @@ var FormSimulatorTab = ({
   );
   const answersKey = currentQ?.code ? ANSWERS_KEY_PREFIX + currentQ.code : null;
   const [data, setData] = usePersistentState(answersKey, {});
-  const [showPayload, setShowPayload] = useState(false);
+  const [showPayload, setShowPayload] = useState2(false);
   const [customerId, setCustomerId] = usePersistentState(CUSTOMER_ID_KEY, "demo-customer-001");
-  const [copied, setCopied] = useState("");
+  const [copied, setCopied] = useState2("");
   const copy = (text, tag) => {
     navigator.clipboard?.writeText(text).then(
       () => {
@@ -851,18 +878,18 @@ var FormSimulatorTab = ({
     dimensions: core.dimensions,
     vision_signals: {}
   };
-  return /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-1 lg:grid-cols-12 gap-5", children: [
-    /* @__PURE__ */ jsx("div", { className: "lg:col-span-7 space-y-3", children: /* @__PURE__ */ jsxs("div", { className: "rounded-lg border border-border bg-card p-4 space-y-3", children: [
-      /* @__PURE__ */ jsxs("label", { className: "block space-y-1", children: [
-        /* @__PURE__ */ jsx("span", { className: "text-muted-foreground text-xs font-semibold", children: "Questionnaire" }),
-        /* @__PURE__ */ jsx(
+  return /* @__PURE__ */ jsxs2("div", { className: "grid grid-cols-1 lg:grid-cols-12 gap-5", children: [
+    /* @__PURE__ */ jsx2("div", { className: "lg:col-span-7 space-y-3", children: /* @__PURE__ */ jsxs2("div", { className: "rounded-lg border border-border bg-card p-4 space-y-3", children: [
+      /* @__PURE__ */ jsxs2("label", { className: "block space-y-1", children: [
+        /* @__PURE__ */ jsx2("span", { className: "text-muted-foreground text-xs font-semibold", children: "Questionnaire" }),
+        /* @__PURE__ */ jsx2(
           "select",
           {
             value: selectedQCode,
             onChange: (e) => setSelectedQCode(e.target.value),
             className: "w-full h-9 rounded-md bg-muted/40 border border-border px-3 text-foreground text-xs outline-none focus:border-ring",
             style: { colorScheme: "dark" },
-            children: questionnaires.map((q) => /* @__PURE__ */ jsx(
+            children: questionnaires.map((q) => /* @__PURE__ */ jsx2(
               "option",
               {
                 value: q.code,
@@ -874,32 +901,32 @@ var FormSimulatorTab = ({
           }
         )
       ] }),
-      !survey ? /* @__PURE__ */ jsx("p", { className: "text-muted-foreground text-xs py-6 text-center", children: "This questionnaire has no questions configured." }) : /* @__PURE__ */ jsx(Survey, { model: survey })
+      !survey ? /* @__PURE__ */ jsx2("p", { className: "text-muted-foreground text-xs py-6 text-center", children: "This questionnaire has no questions configured." }) : /* @__PURE__ */ jsx2(Survey, { model: survey })
     ] }) }),
-    /* @__PURE__ */ jsxs("div", { className: "lg:col-span-5 space-y-3", children: [
-      /* @__PURE__ */ jsxs("div", { className: "rounded-lg border border-border bg-card p-4 space-y-3", children: [
-        /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between", children: [
-          /* @__PURE__ */ jsx("h3", { className: "text-foreground text-sm font-bold", children: "Score per dimension" }),
-          /* @__PURE__ */ jsx("span", { className: "text-[11px] text-muted-foreground", children: "Form Engine output" })
+    /* @__PURE__ */ jsxs2("div", { className: "lg:col-span-5 space-y-3", children: [
+      /* @__PURE__ */ jsxs2("div", { className: "rounded-lg border border-border bg-card p-4 space-y-3", children: [
+        /* @__PURE__ */ jsxs2("div", { className: "flex items-center justify-between", children: [
+          /* @__PURE__ */ jsx2("h3", { className: "text-foreground text-sm font-bold", children: "Score per dimension" }),
+          /* @__PURE__ */ jsx2("span", { className: "text-[11px] text-muted-foreground", children: "Form Engine output" })
         ] }),
-        results.length === 0 ? /* @__PURE__ */ jsx(
-          EmptyState,
+        results.length === 0 ? /* @__PURE__ */ jsx2(
+          EmptyState2,
           {
-            icon: /* @__PURE__ */ jsx(Play, { className: "h-5 w-5 text-muted-foreground" }),
+            icon: /* @__PURE__ */ jsx2(Play, { className: "h-5 w-5 text-muted-foreground" }),
             title: "Nothing to calculate yet",
             description: "Answer a question to see its dimension score.",
             className: "py-10"
           }
-        ) : /* @__PURE__ */ jsx("div", { className: "space-y-2", children: results.map((r) => {
+        ) : /* @__PURE__ */ jsx2("div", { className: "space-y-2", children: results.map((r) => {
           const methodLabel2 = CALCULATION_METHODS.find((m) => m.value === r.method)?.label || r.method;
-          return /* @__PURE__ */ jsxs("div", { className: "rounded-md border border-border bg-muted/20 p-3", children: [
-            /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between", children: [
-              /* @__PURE__ */ jsx("span", { className: "text-xs font-semibold text-foreground", children: getDimensionMeta(r.dc).label }),
-              /* @__PURE__ */ jsx("span", { className: "text-[10px] uppercase tracking-wide text-muted-foreground", children: methodLabel2 })
+          return /* @__PURE__ */ jsxs2("div", { className: "rounded-md border border-border bg-muted/20 p-3", children: [
+            /* @__PURE__ */ jsxs2("div", { className: "flex items-center justify-between", children: [
+              /* @__PURE__ */ jsx2("span", { className: "text-xs font-semibold text-foreground", children: getDimensionMeta(r.dc).label }),
+              /* @__PURE__ */ jsx2("span", { className: "text-[10px] uppercase tracking-wide text-muted-foreground", children: methodLabel2 })
             ] }),
-            /* @__PURE__ */ jsxs("div", { className: "mt-1 flex items-baseline justify-between", children: [
-              /* @__PURE__ */ jsx("span", { className: "text-lg font-black text-beak font-mono", children: r.value }),
-              /* @__PURE__ */ jsxs("span", { className: "text-[11px] text-muted-foreground font-mono", children: [
+            /* @__PURE__ */ jsxs2("div", { className: "mt-1 flex items-baseline justify-between", children: [
+              /* @__PURE__ */ jsx2("span", { className: "text-lg font-black text-beak font-mono", children: r.value }),
+              /* @__PURE__ */ jsxs2("span", { className: "text-[11px] text-muted-foreground font-mono", children: [
                 "[",
                 r.scores.join(", "),
                 "] \u2192 ",
@@ -909,20 +936,20 @@ var FormSimulatorTab = ({
           ] }, r.dc);
         }) })
       ] }),
-      /* @__PURE__ */ jsxs("div", { className: "rounded-lg border border-border bg-card p-4 space-y-2", children: [
-        /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between gap-2", children: [
-          /* @__PURE__ */ jsxs("div", { className: "min-w-0", children: [
-            /* @__PURE__ */ jsx("h3", { className: "text-foreground text-sm font-bold", children: "Submit Answers body" }),
-            /* @__PURE__ */ jsxs("p", { className: "text-[11px] text-muted-foreground truncate", children: [
+      /* @__PURE__ */ jsxs2("div", { className: "rounded-lg border border-border bg-card p-4 space-y-2", children: [
+        /* @__PURE__ */ jsxs2("div", { className: "flex items-center justify-between gap-2", children: [
+          /* @__PURE__ */ jsxs2("div", { className: "min-w-0", children: [
+            /* @__PURE__ */ jsx2("h3", { className: "text-foreground text-sm font-bold", children: "Submit Answers body" }),
+            /* @__PURE__ */ jsxs2("p", { className: "text-[11px] text-muted-foreground truncate", children: [
               "POST ",
-              /* @__PURE__ */ jsxs("span", { className: "font-mono", children: [
+              /* @__PURE__ */ jsxs2("span", { className: "font-mono", children: [
                 "/v1/survey/",
                 currentQ?.code,
                 "/evaluate"
               ] })
             ] })
           ] }),
-          /* @__PURE__ */ jsx(
+          /* @__PURE__ */ jsx2(
             "button",
             {
               type: "button",
@@ -932,9 +959,9 @@ var FormSimulatorTab = ({
             }
           )
         ] }),
-        /* @__PURE__ */ jsxs("label", { className: "flex items-center gap-2 text-[11px] text-muted-foreground", children: [
+        /* @__PURE__ */ jsxs2("label", { className: "flex items-center gap-2 text-[11px] text-muted-foreground", children: [
           "customer_id",
-          /* @__PURE__ */ jsx(
+          /* @__PURE__ */ jsx2(
             "input",
             {
               value: customerId,
@@ -943,26 +970,31 @@ var FormSimulatorTab = ({
             }
           )
         ] }),
-        /* @__PURE__ */ jsx("pre", { className: "max-h-56 overflow-auto rounded-md bg-muted/40 border border-border p-2.5 text-[11px] text-foreground font-mono leading-relaxed whitespace-pre", children: submitBodyJson })
+        /* @__PURE__ */ jsx2("pre", { className: "max-h-56 overflow-auto rounded-md bg-muted/40 border border-border p-2.5 text-[11px] text-foreground font-mono leading-relaxed whitespace-pre", children: submitBodyJson })
       ] }),
-      /* @__PURE__ */ jsxs("div", { className: "rounded-lg border border-border bg-card", children: [
-        /* @__PURE__ */ jsxs(
+      /* @__PURE__ */ jsxs2("div", { className: "rounded-lg border border-border bg-card", children: [
+        /* @__PURE__ */ jsxs2(
           "button",
           {
             type: "button",
             onClick: () => setShowPayload((v) => !v),
             className: "flex w-full items-center justify-between gap-2 px-4 py-3 text-xs font-bold text-foreground",
             children: [
-              /* @__PURE__ */ jsx("span", { children: "Internal: forwarded to Score Engine" }),
-              showPayload ? /* @__PURE__ */ jsx(ChevronDown, { className: "h-4 w-4 text-muted-foreground" }) : /* @__PURE__ */ jsx(ChevronRight, { className: "h-4 w-4 text-muted-foreground" })
+              /* @__PURE__ */ jsx2("span", { children: "Internal: forwarded to Score Engine" }),
+              showPayload ? /* @__PURE__ */ jsx2(ChevronDown2, { className: "h-4 w-4 text-muted-foreground" }) : /* @__PURE__ */ jsx2(ChevronRight, { className: "h-4 w-4 text-muted-foreground" })
             ]
           }
         ),
-        showPayload && /* @__PURE__ */ jsx("pre", { className: "border-t border-border px-4 py-3 text-[11px] text-muted-foreground whitespace-pre-wrap break-all font-mono leading-relaxed", children: JSON.stringify(payload, null, 2) })
+        showPayload && /* @__PURE__ */ jsx2("pre", { className: "border-t border-border px-4 py-3 text-[11px] text-muted-foreground whitespace-pre-wrap break-all font-mono leading-relaxed", children: JSON.stringify(payload, null, 2) })
       ] })
     ] })
   ] });
 };
+
+// src/form/components/modals/QuestionnaireModal.tsx
+import { useEffect as useEffect2, useMemo as useMemo2, useRef, useState as useState3 } from "react";
+import { FileText as FileText2, Plus as Plus2, Trash2 as Trash22, X, ChevronDown as ChevronDown3, ChevronRight as ChevronRight2, Flag } from "lucide-react";
+import { Modal, Button, BrandSelect, ApplicationSelect, InfoTooltip } from "@gateway-experience/shared";
 
 // src/form/api.ts
 var FORM = "/core/form-engine";
@@ -1100,6 +1132,9 @@ async function createSafetyFlag(code, name) {
     return null;
   }
 }
+
+// src/form/components/modals/QuestionnaireModal.tsx
+import { jsx as jsx3, jsxs as jsxs3 } from "react/jsx-runtime";
 var QUESTION_TYPES = [
   { value: "single_choice", label: "Choose one", hasOptions: true },
   { value: "multi_choice", label: "Select many", hasOptions: true },
@@ -1144,13 +1179,13 @@ var newQuestion = (dimension) => ({
   options: [newOption(), newOption()]
 });
 var SafetyFlagPicker = ({ flags, flagOptions, onAdd, onRemove, onAddCustom }) => {
-  const [open, setOpen] = useState(false);
-  const [addingCustom, setAddingCustom] = useState(false);
-  const [customDraft, setCustomDraft] = useState("");
-  const [savingCustom, setSavingCustom] = useState(false);
+  const [open, setOpen] = useState3(false);
+  const [addingCustom, setAddingCustom] = useState3(false);
+  const [customDraft, setCustomDraft] = useState3("");
+  const [savingCustom, setSavingCustom] = useState3(false);
   const ref = useRef(null);
   const hasFlags = flags.length > 0;
-  useEffect(() => {
+  useEffect2(() => {
     if (!open) return;
     const onDocDown = (e) => {
       if (ref.current && !ref.current.contains(e.target)) {
@@ -1162,8 +1197,8 @@ var SafetyFlagPicker = ({ flags, flagOptions, onAdd, onRemove, onAddCustom }) =>
     return () => document.removeEventListener("mousedown", onDocDown);
   }, [open]);
   const choices = flagOptions.filter((f) => !flags.includes(f.code));
-  return /* @__PURE__ */ jsxs("div", { ref, className: "relative shrink-0", children: [
-    /* @__PURE__ */ jsxs(
+  return /* @__PURE__ */ jsxs3("div", { ref, className: "relative shrink-0", children: [
+    /* @__PURE__ */ jsxs3(
       "button",
       {
         type: "button",
@@ -1171,24 +1206,24 @@ var SafetyFlagPicker = ({ flags, flagOptions, onAdd, onRemove, onAddCustom }) =>
         onClick: () => setOpen((o) => !o),
         className: `h-9 w-9 flex items-center justify-center rounded-md border-2 transition ${hasFlags ? "border-amber-500 bg-amber-500/10 text-amber-600" : "border-border text-muted-foreground hover:text-foreground hover:border-muted-foreground/50"}`,
         children: [
-          /* @__PURE__ */ jsx(Flag, { className: "h-5 w-5", fill: hasFlags ? "currentColor" : "none" }),
-          flags.length > 1 && /* @__PURE__ */ jsx("span", { className: "absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center leading-none", children: flags.length })
+          /* @__PURE__ */ jsx3(Flag, { className: "h-5 w-5", fill: hasFlags ? "currentColor" : "none" }),
+          flags.length > 1 && /* @__PURE__ */ jsx3("span", { className: "absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center leading-none", children: flags.length })
         ]
       }
     ),
-    open && /* @__PURE__ */ jsxs("div", { className: "absolute right-0 top-full mt-1 z-20 w-56 rounded-md border border-border bg-popover shadow-lg p-2 space-y-1.5", children: [
-      hasFlags && /* @__PURE__ */ jsx("div", { className: "flex flex-wrap gap-1", children: flags.map((k) => /* @__PURE__ */ jsxs(
+    open && /* @__PURE__ */ jsxs3("div", { className: "absolute right-0 top-full mt-1 z-20 w-56 rounded-md border border-border bg-popover shadow-lg p-2 space-y-1.5", children: [
+      hasFlags && /* @__PURE__ */ jsx3("div", { className: "flex flex-wrap gap-1", children: flags.map((k) => /* @__PURE__ */ jsxs3(
         "span",
         {
           className: "inline-flex items-center gap-1 bg-amber-500/10 border border-amber-500/30 text-amber-600 text-[10px] px-1.5 py-0.5 rounded font-mono",
           children: [
             k,
-            /* @__PURE__ */ jsx("button", { type: "button", onClick: () => onRemove(k), children: /* @__PURE__ */ jsx(X, { className: "h-2.5 w-2.5" }) })
+            /* @__PURE__ */ jsx3("button", { type: "button", onClick: () => onRemove(k), children: /* @__PURE__ */ jsx3(X, { className: "h-2.5 w-2.5" }) })
           ]
         },
         k
       )) }),
-      addingCustom ? /* @__PURE__ */ jsx(
+      addingCustom ? /* @__PURE__ */ jsx3(
         "input",
         {
           autoFocus: true,
@@ -1213,7 +1248,7 @@ var SafetyFlagPicker = ({ flags, flagOptions, onAdd, onRemove, onAddCustom }) =>
           placeholder: "Flag name (e.g. Baru sunburn)",
           className: `${fieldSm} w-full`
         }
-      ) : /* @__PURE__ */ jsxs(
+      ) : /* @__PURE__ */ jsxs3(
         "select",
         {
           value: "",
@@ -1225,9 +1260,9 @@ var SafetyFlagPicker = ({ flags, flagOptions, onAdd, onRemove, onAddCustom }) =>
           className: `${fieldSm} w-full`,
           style: selectStyle,
           children: [
-            /* @__PURE__ */ jsx("option", { style: optionStyle, value: "", children: "+ add flag" }),
-            choices.map((f) => /* @__PURE__ */ jsx("option", { style: optionStyle, value: f.code, children: f.code }, f.code)),
-            /* @__PURE__ */ jsx("option", { style: optionStyle, value: "__custom__", children: "+ Custom\u2026" })
+            /* @__PURE__ */ jsx3("option", { style: optionStyle, value: "", children: "+ add flag" }),
+            choices.map((f) => /* @__PURE__ */ jsx3("option", { style: optionStyle, value: f.code, children: f.code }, f.code)),
+            /* @__PURE__ */ jsx3("option", { style: optionStyle, value: "__custom__", children: "+ Custom\u2026" })
           ]
         }
       )
@@ -1242,24 +1277,24 @@ var QuestionnaireModal = ({
   brandId = "wardah",
   applicationId = "skinverse"
 }) => {
-  const [step, setStep] = useState("setup");
-  const [qCode, setQCode] = useState("");
-  const [qBrand, setQBrand] = useState(brandId);
-  const [qApp, setQApp] = useState(applicationId);
-  const [codeEdited, setCodeEdited] = useState(false);
-  const [showCodeField, setShowCodeField] = useState(false);
-  const [qName, setQName] = useState("");
-  const [qDesc, setQDesc] = useState("");
-  const [qStatus, setQStatus] = useState("draft");
-  const [questions, setQuestions] = useState([]);
-  const [calcMethods, setCalcMethods] = useState({});
-  const [apiDimensions, setApiDimensions] = useState([]);
-  const [safetyFlagCatalog, setSafetyFlagCatalog] = useState([]);
-  const [filterDim, setFilterDim] = useState("all");
-  const [collapsed, setCollapsed] = useState({});
-  const [scoreDrafts, setScoreDrafts] = useState({});
-  const [submitting, setSubmitting] = useState(false);
-  const [copied, setCopied] = useState("");
+  const [step, setStep] = useState3("setup");
+  const [qCode, setQCode] = useState3("");
+  const [qBrand, setQBrand] = useState3(brandId);
+  const [qApp, setQApp] = useState3(applicationId);
+  const [codeEdited, setCodeEdited] = useState3(false);
+  const [showCodeField, setShowCodeField] = useState3(false);
+  const [qName, setQName] = useState3("");
+  const [qDesc, setQDesc] = useState3("");
+  const [qStatus, setQStatus] = useState3("draft");
+  const [questions, setQuestions] = useState3([]);
+  const [calcMethods, setCalcMethods] = useState3({});
+  const [apiDimensions, setApiDimensions] = useState3([]);
+  const [safetyFlagCatalog, setSafetyFlagCatalog] = useState3([]);
+  const [filterDim, setFilterDim] = useState3("all");
+  const [collapsed, setCollapsed] = useState3({});
+  const [scoreDrafts, setScoreDrafts] = useState3({});
+  const [submitting, setSubmitting] = useState3(false);
+  const [copied, setCopied] = useState3("");
   const copy = (text, tag) => {
     navigator.clipboard?.writeText(text).then(
       () => {
@@ -1270,7 +1305,7 @@ var QuestionnaireModal = ({
       }
     );
   };
-  useEffect(() => {
+  useEffect2(() => {
     if (!isOpen) return;
     setStep("setup");
     setFilterDim("all");
@@ -1300,7 +1335,7 @@ var QuestionnaireModal = ({
       setCollapsed({});
     }
   }, [editingQ, isOpen]);
-  useEffect(() => {
+  useEffect2(() => {
     if (!isOpen) return;
     getDimensions().then((raw) => {
       setApiDimensions(
@@ -1312,13 +1347,13 @@ var QuestionnaireModal = ({
       );
     }).catch(() => setApiDimensions([]));
   }, [isOpen]);
-  useEffect(() => {
+  useEffect2(() => {
     if (!isOpen) return;
     getSafetyFlags().then(setSafetyFlagCatalog).catch(() => setSafetyFlagCatalog([]));
   }, [isOpen]);
   const effectiveCode = codeEdited ? qCode : slugify(qName);
   const usedDimensions = Array.from(new Set(questions.map((q) => q.dimension).filter(Boolean)));
-  const flagOptions = useMemo(() => {
+  const flagOptions = useMemo2(() => {
     const byCode = /* @__PURE__ */ new Map();
     for (const f of safetyFlagCatalog) byCode.set(f.code, f);
     for (const q of questions) {
@@ -1341,7 +1376,7 @@ var QuestionnaireModal = ({
     if (created) setSafetyFlagCatalog((prev) => [...prev, created]);
     return code;
   };
-  const draftItem = useMemo(
+  const draftItem = useMemo2(
     () => ({
       code: effectiveCode.trim(),
       name: qName.trim(),
@@ -1408,24 +1443,24 @@ var QuestionnaireModal = ({
     }
   };
   const visibleQuestions = questions.map((q, index) => ({ q, index })).filter(({ q }) => filterDim === "all" || q.dimension === filterDim);
-  return /* @__PURE__ */ jsxs(
+  return /* @__PURE__ */ jsxs3(
     Modal,
     {
       isOpen,
       onClose,
       size: "3xl",
-      icon: /* @__PURE__ */ jsx(FileText, { className: "h-4 w-4" }),
+      icon: /* @__PURE__ */ jsx3(FileText2, { className: "h-4 w-4" }),
       title: editingQ ? "Edit questionnaire" : "New questionnaire",
       subtitle: "Form Engine only calculates scores. Labelling and normalisation happen in the Score Engine.",
       isLoading: submitting,
       loadingText: submitting ? editingQ ? "Saving questionnaire..." : "Creating questionnaire..." : void 0,
       children: [
-        /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1 rounded-md border border-border bg-muted/30 p-1 text-xs", children: [
+        /* @__PURE__ */ jsxs3("div", { className: "flex items-center gap-1 rounded-md border border-border bg-muted/30 p-1 text-xs", children: [
           [
             ["setup", "1  Setup"],
             ["questions", `2  Questions (${questions.length})`],
             ["calculation", "3  Calculation"]
-          ].map(([v, label]) => /* @__PURE__ */ jsx(
+          ].map(([v, label]) => /* @__PURE__ */ jsx3(
             "button",
             {
               type: "button",
@@ -1435,7 +1470,7 @@ var QuestionnaireModal = ({
             },
             v
           )),
-          /* @__PURE__ */ jsx(
+          /* @__PURE__ */ jsx3(
             "button",
             {
               type: "button",
@@ -1446,12 +1481,12 @@ var QuestionnaireModal = ({
             }
           )
         ] }),
-        /* @__PURE__ */ jsxs("form", { onSubmit: submit, className: "mt-3 space-y-3", children: [
-          step === "setup" && /* @__PURE__ */ jsxs("div", { className: "space-y-3", children: [
-            /* @__PURE__ */ jsxs("div", { className: "rounded-lg border border-border bg-card p-3 space-y-3", children: [
-              /* @__PURE__ */ jsxs("label", { className: "block space-y-1", children: [
-                /* @__PURE__ */ jsx("span", { className: "text-muted-foreground text-xs font-semibold", children: "Name" }),
-                /* @__PURE__ */ jsx(
+        /* @__PURE__ */ jsxs3("form", { onSubmit: submit, className: "mt-3 space-y-3", children: [
+          step === "setup" && /* @__PURE__ */ jsxs3("div", { className: "space-y-3", children: [
+            /* @__PURE__ */ jsxs3("div", { className: "rounded-lg border border-border bg-card p-3 space-y-3", children: [
+              /* @__PURE__ */ jsxs3("label", { className: "block space-y-1", children: [
+                /* @__PURE__ */ jsx3("span", { className: "text-muted-foreground text-xs font-semibold", children: "Name" }),
+                /* @__PURE__ */ jsx3(
                   "input",
                   {
                     required: true,
@@ -1461,10 +1496,10 @@ var QuestionnaireModal = ({
                     className: `${field} w-full`
                   }
                 ),
-                /* @__PURE__ */ jsxs("span", { className: "block text-[11px] text-muted-foreground", children: [
+                /* @__PURE__ */ jsxs3("span", { className: "block text-[11px] text-muted-foreground", children: [
                   "Saved as ",
-                  /* @__PURE__ */ jsx("code", { className: "text-foreground", children: effectiveCode || "\u2014" }),
-                  /* @__PURE__ */ jsx(
+                  /* @__PURE__ */ jsx3("code", { className: "text-foreground", children: effectiveCode || "\u2014" }),
+                  /* @__PURE__ */ jsx3(
                     "button",
                     {
                       type: "button",
@@ -1477,7 +1512,7 @@ var QuestionnaireModal = ({
                     }
                   )
                 ] }),
-                showCodeField && /* @__PURE__ */ jsx(
+                showCodeField && /* @__PURE__ */ jsx3(
                   "input",
                   {
                     value: qCode,
@@ -1490,9 +1525,9 @@ var QuestionnaireModal = ({
                   }
                 )
               ] }),
-              /* @__PURE__ */ jsxs("label", { className: "block space-y-1", children: [
-                /* @__PURE__ */ jsx("span", { className: "text-muted-foreground text-xs font-semibold", children: "Description" }),
-                /* @__PURE__ */ jsx(
+              /* @__PURE__ */ jsxs3("label", { className: "block space-y-1", children: [
+                /* @__PURE__ */ jsx3("span", { className: "text-muted-foreground text-xs font-semibold", children: "Description" }),
+                /* @__PURE__ */ jsx3(
                   "textarea",
                   {
                     value: qDesc,
@@ -1504,9 +1539,9 @@ var QuestionnaireModal = ({
                   }
                 )
               ] }),
-              /* @__PURE__ */ jsxs("label", { className: "block space-y-1", children: [
-                /* @__PURE__ */ jsx("span", { className: "text-muted-foreground text-xs font-semibold", children: "Status" }),
-                /* @__PURE__ */ jsxs(
+              /* @__PURE__ */ jsxs3("label", { className: "block space-y-1", children: [
+                /* @__PURE__ */ jsx3("span", { className: "text-muted-foreground text-xs font-semibold", children: "Status" }),
+                /* @__PURE__ */ jsxs3(
                   "select",
                   {
                     value: qStatus,
@@ -1514,18 +1549,18 @@ var QuestionnaireModal = ({
                     className: `${field} w-full`,
                     style: selectStyle,
                     children: [
-                      /* @__PURE__ */ jsx("option", { style: optionStyle, value: "draft", children: "Draft" }),
-                      /* @__PURE__ */ jsx("option", { style: optionStyle, value: "published", children: "Published" }),
-                      /* @__PURE__ */ jsx("option", { style: optionStyle, value: "archived", children: "Archived" })
+                      /* @__PURE__ */ jsx3("option", { style: optionStyle, value: "draft", children: "Draft" }),
+                      /* @__PURE__ */ jsx3("option", { style: optionStyle, value: "published", children: "Published" }),
+                      /* @__PURE__ */ jsx3("option", { style: optionStyle, value: "archived", children: "Archived" })
                     ]
                   }
                 )
               ] }),
-              /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-3", children: [
-                /* @__PURE__ */ jsxs("div", { className: "space-y-1", children: [
-                  /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1.5", children: [
-                    /* @__PURE__ */ jsx("span", { className: "text-muted-foreground text-xs font-semibold", children: "Brand" }),
-                    /* @__PURE__ */ jsx(
+              /* @__PURE__ */ jsxs3("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-3", children: [
+                /* @__PURE__ */ jsxs3("div", { className: "space-y-1", children: [
+                  /* @__PURE__ */ jsxs3("div", { className: "flex items-center gap-1.5", children: [
+                    /* @__PURE__ */ jsx3("span", { className: "text-muted-foreground text-xs font-semibold", children: "Brand" }),
+                    /* @__PURE__ */ jsx3(
                       InfoTooltip,
                       {
                         content: `Saved under ${qBrand || "\u2014"} / ${qApp || "\u2014"}. Defaults to the Form Engine selector; change it to build for a different tenant.`,
@@ -1533,7 +1568,7 @@ var QuestionnaireModal = ({
                       }
                     )
                   ] }),
-                  /* @__PURE__ */ jsx(
+                  /* @__PURE__ */ jsx3(
                     BrandSelect,
                     {
                       value: qBrand,
@@ -1543,9 +1578,9 @@ var QuestionnaireModal = ({
                     }
                   )
                 ] }),
-                /* @__PURE__ */ jsxs("div", { className: "space-y-1", children: [
-                  /* @__PURE__ */ jsx("span", { className: "text-muted-foreground text-xs font-semibold", children: "Application" }),
-                  /* @__PURE__ */ jsx(
+                /* @__PURE__ */ jsxs3("div", { className: "space-y-1", children: [
+                  /* @__PURE__ */ jsx3("span", { className: "text-muted-foreground text-xs font-semibold", children: "Application" }),
+                  /* @__PURE__ */ jsx3(
                     ApplicationSelect,
                     {
                       value: qApp,
@@ -1557,26 +1592,26 @@ var QuestionnaireModal = ({
                 ] })
               ] })
             ] }),
-            /* @__PURE__ */ jsxs("div", { className: "rounded-lg border border-border bg-card p-3 space-y-2", children: [
-              /* @__PURE__ */ jsx("p", { className: "text-foreground text-xs font-semibold", children: "Start from a template" }),
-              /* @__PURE__ */ jsx("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-2", children: BUILTIN_TEMPLATES.map((t) => /* @__PURE__ */ jsxs(
+            /* @__PURE__ */ jsxs3("div", { className: "rounded-lg border border-border bg-card p-3 space-y-2", children: [
+              /* @__PURE__ */ jsx3("p", { className: "text-foreground text-xs font-semibold", children: "Start from a template" }),
+              /* @__PURE__ */ jsx3("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-2", children: BUILTIN_TEMPLATES.map((t) => /* @__PURE__ */ jsxs3(
                 "button",
                 {
                   type: "button",
                   onClick: () => loadTemplate(t.id),
                   className: "text-left rounded-md border border-border bg-muted/30 hover:border-ring p-2.5 transition",
                   children: [
-                    /* @__PURE__ */ jsx("p", { className: "text-foreground text-xs font-semibold", children: t.name }),
-                    /* @__PURE__ */ jsx("p", { className: "text-muted-foreground text-[11px] mt-0.5 leading-relaxed", children: t.description })
+                    /* @__PURE__ */ jsx3("p", { className: "text-foreground text-xs font-semibold", children: t.name }),
+                    /* @__PURE__ */ jsx3("p", { className: "text-muted-foreground text-[11px] mt-0.5 leading-relaxed", children: t.description })
                   ]
                 },
                 t.id
               )) })
             ] }),
-            /* @__PURE__ */ jsx("div", { className: "flex justify-end", children: /* @__PURE__ */ jsx(Button, { type: "button", size: "sm", onClick: () => setStep("questions"), children: "Continue" }) })
+            /* @__PURE__ */ jsx3("div", { className: "flex justify-end", children: /* @__PURE__ */ jsx3(Button, { type: "button", size: "sm", onClick: () => setStep("questions"), children: "Continue" }) })
           ] }),
-          step === "questions" && /* @__PURE__ */ jsxs("div", { className: "space-y-3", children: [
-            usedDimensions.length > 0 && /* @__PURE__ */ jsx("div", { className: "flex flex-wrap items-center gap-1.5", children: ["all", ...usedDimensions].map((d) => /* @__PURE__ */ jsx(
+          step === "questions" && /* @__PURE__ */ jsxs3("div", { className: "space-y-3", children: [
+            usedDimensions.length > 0 && /* @__PURE__ */ jsx3("div", { className: "flex flex-wrap items-center gap-1.5", children: ["all", ...usedDimensions].map((d) => /* @__PURE__ */ jsx3(
               "button",
               {
                 type: "button",
@@ -1586,20 +1621,20 @@ var QuestionnaireModal = ({
               },
               d
             )) }),
-            questions.length === 0 ? /* @__PURE__ */ jsxs("div", { className: "rounded-lg border border-dashed border-border p-8 text-center", children: [
-              /* @__PURE__ */ jsx("p", { className: "text-foreground text-xs font-semibold", children: "No questions yet" }),
-              /* @__PURE__ */ jsx("p", { className: "text-muted-foreground text-[11px] mt-1 mb-3", children: "Add questions or load a template from Setup." }),
-              /* @__PURE__ */ jsxs(Button, { type: "button", size: "sm", onClick: addQuestion, children: [
-                /* @__PURE__ */ jsx(Plus, { className: "h-3.5 w-3.5" }),
+            questions.length === 0 ? /* @__PURE__ */ jsxs3("div", { className: "rounded-lg border border-dashed border-border p-8 text-center", children: [
+              /* @__PURE__ */ jsx3("p", { className: "text-foreground text-xs font-semibold", children: "No questions yet" }),
+              /* @__PURE__ */ jsx3("p", { className: "text-muted-foreground text-[11px] mt-1 mb-3", children: "Add questions or load a template from Setup." }),
+              /* @__PURE__ */ jsxs3(Button, { type: "button", size: "sm", onClick: addQuestion, children: [
+                /* @__PURE__ */ jsx3(Plus2, { className: "h-3.5 w-3.5" }),
                 " Add question"
               ] })
-            ] }) : /* @__PURE__ */ jsxs("div", { className: "space-y-2", children: [
+            ] }) : /* @__PURE__ */ jsxs3("div", { className: "space-y-2", children: [
               visibleQuestions.map(({ q, index }) => {
                 const isCollapsed = collapsed[q.id];
-                return /* @__PURE__ */ jsxs("div", { className: "rounded-md border border-border bg-card", children: [
-                  /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2 p-2", children: [
-                    /* @__PURE__ */ jsx("span", { className: "shrink-0 w-6 text-center text-[11px] font-bold text-muted-foreground", children: index + 1 }),
-                    /* @__PURE__ */ jsx(
+                return /* @__PURE__ */ jsxs3("div", { className: "rounded-md border border-border bg-card", children: [
+                  /* @__PURE__ */ jsxs3("div", { className: "flex items-center gap-2 p-2", children: [
+                    /* @__PURE__ */ jsx3("span", { className: "shrink-0 w-6 text-center text-[11px] font-bold text-muted-foreground", children: index + 1 }),
+                    /* @__PURE__ */ jsx3(
                       "input",
                       {
                         value: q.label,
@@ -1608,36 +1643,36 @@ var QuestionnaireModal = ({
                         className: `${fieldSm} flex-1 min-w-0`
                       }
                     ),
-                    /* @__PURE__ */ jsx(
+                    /* @__PURE__ */ jsx3(
                       "button",
                       {
                         type: "button",
                         onClick: () => setCollapsed((c) => ({ ...c, [q.id]: !c[q.id] })),
                         className: "shrink-0 text-muted-foreground hover:text-foreground",
-                        children: isCollapsed ? /* @__PURE__ */ jsx(ChevronRight, { className: "h-4 w-4" }) : /* @__PURE__ */ jsx(ChevronDown, { className: "h-4 w-4" })
+                        children: isCollapsed ? /* @__PURE__ */ jsx3(ChevronRight2, { className: "h-4 w-4" }) : /* @__PURE__ */ jsx3(ChevronDown3, { className: "h-4 w-4" })
                       }
                     ),
-                    /* @__PURE__ */ jsx(
+                    /* @__PURE__ */ jsx3(
                       "button",
                       {
                         type: "button",
                         onClick: () => removeQuestion(q.id),
                         className: "shrink-0 text-muted-foreground hover:text-destructive",
-                        children: /* @__PURE__ */ jsx(Trash2, { className: "h-3.5 w-3.5" })
+                        children: /* @__PURE__ */ jsx3(Trash22, { className: "h-3.5 w-3.5" })
                       }
                     )
                   ] }),
-                  !isCollapsed && /* @__PURE__ */ jsxs("div", { className: "border-t border-border p-2.5 space-y-2", children: [
-                    /* @__PURE__ */ jsxs(
+                  !isCollapsed && /* @__PURE__ */ jsxs3("div", { className: "border-t border-border p-2.5 space-y-2", children: [
+                    /* @__PURE__ */ jsxs3(
                       "div",
                       {
                         className: "flex flex-wrap items-center",
                         style: { columnGap: "2rem", rowGap: "0.5rem" },
                         children: [
-                          /* @__PURE__ */ jsxs("label", { className: "flex items-center gap-2", children: [
-                            /* @__PURE__ */ jsxs("span", { className: "flex items-center gap-1 shrink-0 text-[11px] font-semibold text-muted-foreground", children: [
+                          /* @__PURE__ */ jsxs3("label", { className: "flex items-center gap-2", children: [
+                            /* @__PURE__ */ jsxs3("span", { className: "flex items-center gap-1 shrink-0 text-[11px] font-semibold text-muted-foreground", children: [
                               "Question type",
-                              /* @__PURE__ */ jsx(
+                              /* @__PURE__ */ jsx3(
                                 InfoTooltip,
                                 {
                                   content: TYPE_HINTS[q.type],
@@ -1646,7 +1681,7 @@ var QuestionnaireModal = ({
                                 }
                               )
                             ] }),
-                            /* @__PURE__ */ jsx(
+                            /* @__PURE__ */ jsx3(
                               "select",
                               {
                                 value: q.type,
@@ -1669,19 +1704,19 @@ var QuestionnaireModal = ({
                                 },
                                 className: `${fieldSm} w-36`,
                                 style: selectStyle,
-                                children: QUESTION_TYPES.map((t) => /* @__PURE__ */ jsx("option", { style: optionStyle, value: t.value, children: t.label }, t.value))
+                                children: QUESTION_TYPES.map((t) => /* @__PURE__ */ jsx3("option", { style: optionStyle, value: t.value, children: t.label }, t.value))
                               }
                             ),
-                            typeHasOptions(q.type) && /* @__PURE__ */ jsxs("span", { className: "text-[11px] text-muted-foreground", children: [
+                            typeHasOptions(q.type) && /* @__PURE__ */ jsxs3("span", { className: "text-[11px] text-muted-foreground", children: [
                               q.options.length,
                               " ",
                               q.type === "matrix" ? "columns" : "answers"
                             ] })
                           ] }),
-                          /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2", children: [
-                            /* @__PURE__ */ jsxs("span", { className: "flex items-center gap-1 shrink-0 text-[11px] font-semibold text-muted-foreground", children: [
+                          /* @__PURE__ */ jsxs3("div", { className: "flex items-center gap-2", children: [
+                            /* @__PURE__ */ jsxs3("span", { className: "flex items-center gap-1 shrink-0 text-[11px] font-semibold text-muted-foreground", children: [
                               "Dimension",
-                              /* @__PURE__ */ jsx(
+                              /* @__PURE__ */ jsx3(
                                 InfoTooltip,
                                 {
                                   content: "On: this question's answer counts toward a dimension's score. Off: it's collected as a plain label only (e.g. a free-text main concern), with no effect on scoring.",
@@ -1690,7 +1725,7 @@ var QuestionnaireModal = ({
                                 }
                               )
                             ] }),
-                            /* @__PURE__ */ jsx(
+                            /* @__PURE__ */ jsx3(
                               "button",
                               {
                                 type: "button",
@@ -1701,7 +1736,7 @@ var QuestionnaireModal = ({
                                 }),
                                 title: q.dimension ? "Counts toward scoring" : "Label only \u2014 click to score it",
                                 className: `relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${q.dimension ? "bg-emerald-500" : "bg-secondary border border-border"}`,
-                                children: /* @__PURE__ */ jsx(
+                                children: /* @__PURE__ */ jsx3(
                                   "span",
                                   {
                                     className: `pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${q.dimension ? "translate-x-4" : "translate-x-0"}`
@@ -1709,27 +1744,27 @@ var QuestionnaireModal = ({
                                 )
                               }
                             ),
-                            q.dimension && /* @__PURE__ */ jsx(
+                            q.dimension && /* @__PURE__ */ jsx3(
                               "select",
                               {
                                 value: q.dimension,
                                 onChange: (e) => updateQuestion(q.id, { dimension: e.target.value }),
                                 className: `${fieldSm} w-56`,
                                 style: selectStyle,
-                                children: dimensionList.map((d) => /* @__PURE__ */ jsx("option", { style: optionStyle, value: d.code, children: d.label }, d.code))
+                                children: dimensionList.map((d) => /* @__PURE__ */ jsx3("option", { style: optionStyle, value: d.code, children: d.label }, d.code))
                               }
                             )
                           ] })
                         ]
                       }
                     ),
-                    q.type === "boolean" && /* @__PURE__ */ jsx("div", { className: "flex items-center gap-3", children: ["scoreTrue", "scoreFalse"].map((k) => /* @__PURE__ */ jsxs(
+                    q.type === "boolean" && /* @__PURE__ */ jsx3("div", { className: "flex items-center gap-3", children: ["scoreTrue", "scoreFalse"].map((k) => /* @__PURE__ */ jsxs3(
                       "label",
                       {
                         className: "flex items-center gap-1 text-[11px] text-muted-foreground",
                         children: [
                           k === "scoreTrue" ? "Score if Yes" : "Score if No",
-                          /* @__PURE__ */ jsx(
+                          /* @__PURE__ */ jsx3(
                             "input",
                             {
                               type: "text",
@@ -1755,13 +1790,13 @@ var QuestionnaireModal = ({
                       },
                       k
                     )) }),
-                    (q.type === "rating" || q.type === "numeric_input") && /* @__PURE__ */ jsx("div", { className: "flex items-center gap-3", children: ["min", "max"].map((k) => /* @__PURE__ */ jsxs(
+                    (q.type === "rating" || q.type === "numeric_input") && /* @__PURE__ */ jsx3("div", { className: "flex items-center gap-3", children: ["min", "max"].map((k) => /* @__PURE__ */ jsxs3(
                       "label",
                       {
                         className: "flex items-center gap-1 text-[11px] text-muted-foreground",
                         children: [
                           k,
-                          /* @__PURE__ */ jsx(
+                          /* @__PURE__ */ jsx3(
                             "input",
                             {
                               type: "number",
@@ -1789,10 +1824,10 @@ var QuestionnaireModal = ({
                       },
                       k
                     )) }),
-                    q.type === "matrix" && /* @__PURE__ */ jsxs("div", { className: "rounded-md border border-border bg-muted/20 p-2 space-y-1.5", children: [
-                      /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1.5", children: [
-                        /* @__PURE__ */ jsx("p", { className: "text-[11px] font-semibold text-foreground", children: "Rows" }),
-                        /* @__PURE__ */ jsx(
+                    q.type === "matrix" && /* @__PURE__ */ jsxs3("div", { className: "rounded-md border border-border bg-muted/20 p-2 space-y-1.5", children: [
+                      /* @__PURE__ */ jsxs3("div", { className: "flex items-center gap-1.5", children: [
+                        /* @__PURE__ */ jsx3("p", { className: "text-[11px] font-semibold text-foreground", children: "Rows" }),
+                        /* @__PURE__ */ jsx3(
                           InfoTooltip,
                           {
                             content: "One score line per row.",
@@ -1801,9 +1836,9 @@ var QuestionnaireModal = ({
                           }
                         )
                       ] }),
-                      (q.rows ?? []).map((r, ri) => /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2", children: [
-                        /* @__PURE__ */ jsx("span", { className: "text-[10px] text-muted-foreground w-4 text-right", children: ri + 1 }),
-                        /* @__PURE__ */ jsx(
+                      (q.rows ?? []).map((r, ri) => /* @__PURE__ */ jsxs3("div", { className: "flex items-center gap-2", children: [
+                        /* @__PURE__ */ jsx3("span", { className: "text-[10px] text-muted-foreground w-4 text-right", children: ri + 1 }),
+                        /* @__PURE__ */ jsx3(
                           "input",
                           {
                             value: r.label,
@@ -1816,7 +1851,7 @@ var QuestionnaireModal = ({
                             className: `${fieldSm} flex-1 min-w-0`
                           }
                         ),
-                        /* @__PURE__ */ jsx(
+                        /* @__PURE__ */ jsx3(
                           "button",
                           {
                             type: "button",
@@ -1824,11 +1859,11 @@ var QuestionnaireModal = ({
                               rows: (q.rows ?? []).filter((_, i) => i !== ri)
                             }),
                             className: "shrink-0 text-muted-foreground hover:text-destructive",
-                            children: /* @__PURE__ */ jsx(X, { className: "h-3.5 w-3.5" })
+                            children: /* @__PURE__ */ jsx3(X, { className: "h-3.5 w-3.5" })
                           }
                         )
                       ] }, r.value)),
-                      /* @__PURE__ */ jsxs(
+                      /* @__PURE__ */ jsxs3(
                         "button",
                         {
                           type: "button",
@@ -1840,16 +1875,16 @@ var QuestionnaireModal = ({
                           }),
                           className: "text-beak text-[11px] font-semibold inline-flex items-center gap-1",
                           children: [
-                            /* @__PURE__ */ jsx(Plus, { className: "h-3 w-3" }),
+                            /* @__PURE__ */ jsx3(Plus2, { className: "h-3 w-3" }),
                             " Add row"
                           ]
                         }
                       )
                     ] }),
-                    typeHasOptions(q.type) && /* @__PURE__ */ jsxs("div", { className: q.type === "matrix" ? "rounded-md border border-border bg-muted/20 p-2 space-y-1.5" : "space-y-1", children: [
-                      q.type === "matrix" && /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1.5", children: [
-                        /* @__PURE__ */ jsx("p", { className: "text-[11px] font-semibold text-foreground", children: "Answer columns" }),
-                        /* @__PURE__ */ jsx(
+                    typeHasOptions(q.type) && /* @__PURE__ */ jsxs3("div", { className: q.type === "matrix" ? "rounded-md border border-border bg-muted/20 p-2 space-y-1.5" : "space-y-1", children: [
+                      q.type === "matrix" && /* @__PURE__ */ jsxs3("div", { className: "flex items-center gap-1.5", children: [
+                        /* @__PURE__ */ jsx3("p", { className: "text-[11px] font-semibold text-foreground", children: "Answer columns" }),
+                        /* @__PURE__ */ jsx3(
                           InfoTooltip,
                           {
                             content: "Shared by every row; each column carries a score.",
@@ -1860,8 +1895,8 @@ var QuestionnaireModal = ({
                       ] }),
                       q.options.map((o, idx) => {
                         const currentFlags = Object.keys(o.conditionMap || {});
-                        return /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2", children: [
-                          /* @__PURE__ */ jsx(
+                        return /* @__PURE__ */ jsxs3("div", { className: "flex items-center gap-2", children: [
+                          /* @__PURE__ */ jsx3(
                             "input",
                             {
                               value: o.label,
@@ -1870,9 +1905,9 @@ var QuestionnaireModal = ({
                               className: `${fieldSm} flex-1 min-w-0`
                             }
                           ),
-                          /* @__PURE__ */ jsxs("label", { className: "flex items-center gap-1 text-[11px] text-muted-foreground shrink-0", children: [
+                          /* @__PURE__ */ jsxs3("label", { className: "flex items-center gap-1 text-[11px] text-muted-foreground shrink-0", children: [
                             "score",
-                            /* @__PURE__ */ jsx(
+                            /* @__PURE__ */ jsx3(
                               "input",
                               {
                                 type: "text",
@@ -1895,7 +1930,7 @@ var QuestionnaireModal = ({
                               }
                             )
                           ] }),
-                          q.type !== "matrix" && /* @__PURE__ */ jsx(
+                          q.type !== "matrix" && /* @__PURE__ */ jsx3(
                             SafetyFlagPicker,
                             {
                               flags: currentFlags,
@@ -1913,7 +1948,7 @@ var QuestionnaireModal = ({
                               }
                             }
                           ),
-                          /* @__PURE__ */ jsx(
+                          /* @__PURE__ */ jsx3(
                             "button",
                             {
                               type: "button",
@@ -1921,19 +1956,19 @@ var QuestionnaireModal = ({
                                 options: q.options.filter((_, i) => i !== idx)
                               }),
                               className: "shrink-0 text-muted-foreground hover:text-destructive",
-                              children: /* @__PURE__ */ jsx(X, { className: "h-3.5 w-3.5" })
+                              children: /* @__PURE__ */ jsx3(X, { className: "h-3.5 w-3.5" })
                             }
                           )
                         ] }, idx);
                       }),
-                      /* @__PURE__ */ jsxs(
+                      /* @__PURE__ */ jsxs3(
                         "button",
                         {
                           type: "button",
                           onClick: () => updateQuestion(q.id, { options: [...q.options, newOption()] }),
                           className: "text-beak text-[11px] font-semibold inline-flex items-center gap-1",
                           children: [
-                            /* @__PURE__ */ jsx(Plus, { className: "h-3 w-3" }),
+                            /* @__PURE__ */ jsx3(Plus2, { className: "h-3 w-3" }),
                             " ",
                             q.type === "matrix" ? "Add column" : "Add answer"
                           ]
@@ -1943,24 +1978,24 @@ var QuestionnaireModal = ({
                   ] })
                 ] }, q.id);
               }),
-              /* @__PURE__ */ jsxs(
+              /* @__PURE__ */ jsxs3(
                 "button",
                 {
                   type: "button",
                   onClick: addQuestion,
                   className: "text-beak text-xs font-semibold inline-flex items-center gap-1",
                   children: [
-                    /* @__PURE__ */ jsx(Plus, { className: "h-3.5 w-3.5" }),
+                    /* @__PURE__ */ jsx3(Plus2, { className: "h-3.5 w-3.5" }),
                     " Add question"
                   ]
                 }
               )
             ] })
           ] }),
-          step === "calculation" && /* @__PURE__ */ jsxs("div", { className: "rounded-lg border border-border bg-card p-3 space-y-2", children: [
-            /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1.5", children: [
-              /* @__PURE__ */ jsx("p", { className: "text-foreground text-xs font-semibold", children: "Calculation method per dimension" }),
-              /* @__PURE__ */ jsx(
+          step === "calculation" && /* @__PURE__ */ jsxs3("div", { className: "rounded-lg border border-border bg-card p-3 space-y-2", children: [
+            /* @__PURE__ */ jsxs3("div", { className: "flex items-center gap-1.5", children: [
+              /* @__PURE__ */ jsx3("p", { className: "text-foreground text-xs font-semibold", children: "Calculation method per dimension" }),
+              /* @__PURE__ */ jsx3(
                 InfoTooltip,
                 {
                   content: "How every answer score for a dimension is combined into one number before it is sent to the Score Engine.",
@@ -1968,36 +2003,36 @@ var QuestionnaireModal = ({
                 }
               )
             ] }),
-            usedDimensions.length === 0 ? /* @__PURE__ */ jsx("p", { className: "text-muted-foreground text-xs py-4 text-center", children: "Add questions first." }) : /* @__PURE__ */ jsx("div", { className: "space-y-2 pt-1", children: usedDimensions.map((d) => {
+            usedDimensions.length === 0 ? /* @__PURE__ */ jsx3("p", { className: "text-muted-foreground text-xs py-4 text-center", children: "Add questions first." }) : /* @__PURE__ */ jsx3("div", { className: "space-y-2 pt-1", children: usedDimensions.map((d) => {
               const method = calcMethods[d] || "sum";
               const hint = CALCULATION_METHODS.find((m) => m.value === method)?.hint;
-              return /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-3", children: [
-                /* @__PURE__ */ jsxs("span", { className: "w-40 shrink-0 text-xs font-semibold text-foreground", children: [
+              return /* @__PURE__ */ jsxs3("div", { className: "flex items-center gap-3", children: [
+                /* @__PURE__ */ jsxs3("span", { className: "w-40 shrink-0 text-xs font-semibold text-foreground", children: [
                   metaOf(d).label,
-                  /* @__PURE__ */ jsxs("span", { className: "block text-[10px] font-normal text-muted-foreground", children: [
+                  /* @__PURE__ */ jsxs3("span", { className: "block text-[10px] font-normal text-muted-foreground", children: [
                     questions.filter((q) => q.dimension === d).length,
                     " question(s)"
                   ] })
                 ] }),
-                /* @__PURE__ */ jsx(
+                /* @__PURE__ */ jsx3(
                   "select",
                   {
                     value: method,
                     onChange: (e) => setCalcMethods((cur) => ({ ...cur, [d]: e.target.value })),
                     className: `${field} w-40 shrink-0`,
                     style: selectStyle,
-                    children: CALCULATION_METHODS.map((m) => /* @__PURE__ */ jsx("option", { style: optionStyle, value: m.value, children: m.label }, m.value))
+                    children: CALCULATION_METHODS.map((m) => /* @__PURE__ */ jsx3("option", { style: optionStyle, value: m.value, children: m.label }, m.value))
                   }
                 ),
-                /* @__PURE__ */ jsx(InfoTooltip, { content: hint, label: "About this calculation method" })
+                /* @__PURE__ */ jsx3(InfoTooltip, { content: hint, label: "About this calculation method" })
               ] }, d);
             }) })
           ] }),
-          step === "json" && /* @__PURE__ */ jsxs("div", { className: "rounded-lg border border-border bg-card p-3 space-y-2", children: [
-            /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between gap-2", children: [
-              /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1.5", children: [
-                /* @__PURE__ */ jsx("p", { className: "text-foreground text-xs font-semibold", children: "Stored SurveyJS schema" }),
-                /* @__PURE__ */ jsx(
+          step === "json" && /* @__PURE__ */ jsxs3("div", { className: "rounded-lg border border-border bg-card p-3 space-y-2", children: [
+            /* @__PURE__ */ jsxs3("div", { className: "flex items-center justify-between gap-2", children: [
+              /* @__PURE__ */ jsxs3("div", { className: "flex items-center gap-1.5", children: [
+                /* @__PURE__ */ jsx3("p", { className: "text-foreground text-xs font-semibold", children: "Stored SurveyJS schema" }),
+                /* @__PURE__ */ jsx3(
                   InfoTooltip,
                   {
                     content: "The exact JSON persisted to the Form Engine and rendered to respondents. Custom keys (dimension, score, condition_map, calculation_methods) drive scoring. Copy Create body gives the ready-to-paste payload for POST /v1/survey (Create Questionnaire).",
@@ -2005,8 +2040,8 @@ var QuestionnaireModal = ({
                   }
                 )
               ] }),
-              /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1.5", children: [
-                /* @__PURE__ */ jsx(
+              /* @__PURE__ */ jsxs3("div", { className: "flex items-center gap-1.5", children: [
+                /* @__PURE__ */ jsx3(
                   "button",
                   {
                     type: "button",
@@ -2015,7 +2050,7 @@ var QuestionnaireModal = ({
                     children: copied === "schema" ? "Copied" : "Copy schema"
                   }
                 ),
-                /* @__PURE__ */ jsx(
+                /* @__PURE__ */ jsx3(
                   "button",
                   {
                     type: "button",
@@ -2026,14 +2061,17 @@ var QuestionnaireModal = ({
                 )
               ] })
             ] }),
-            /* @__PURE__ */ jsx("pre", { className: "w-full max-h-96 overflow-auto rounded-md bg-muted/40 border border-border p-2.5 text-foreground text-[11px] font-mono leading-relaxed whitespace-pre", children: schemaJson })
+            /* @__PURE__ */ jsx3("pre", { className: "w-full max-h-96 overflow-auto rounded-md bg-muted/40 border border-border p-2.5 text-foreground text-[11px] font-mono leading-relaxed whitespace-pre", children: schemaJson })
           ] }),
-          /* @__PURE__ */ jsx("div", { className: "flex items-center justify-end pt-3 border-t border-border", children: /* @__PURE__ */ jsx(Button, { type: "submit", size: "sm", isLoading: submitting, disabled: !qName.trim(), children: editingQ ? "Save changes" : "Create questionnaire" }) })
+          /* @__PURE__ */ jsx3("div", { className: "flex items-center justify-end pt-3 border-t border-border", children: /* @__PURE__ */ jsx3(Button, { type: "submit", size: "sm", isLoading: submitting, disabled: !qName.trim(), children: editingQ ? "Save changes" : "Create questionnaire" }) })
         ] })
       ]
     }
   );
 };
+
+// src/form/components/FormManager.tsx
+import { jsx as jsx4, jsxs as jsxs4 } from "react/jsx-runtime";
 var TENANT_KEY = "xg.formEngine.tenant";
 var readTenant = () => {
   try {
@@ -2047,39 +2085,39 @@ var readTenant = () => {
   return { brandId: "wardah", applicationId: "skinverse" };
 };
 var FormManager = () => {
-  const [activeTab, setActiveTab] = usePersistentState("xg.formEngine.activeTab", "questionnaires");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [deleteConfirm, setDeleteConfirm] = useState({
+  const [activeTab, setActiveTab] = usePersistentState2("xg.formEngine.activeTab", "questionnaires");
+  const [searchQuery, setSearchQuery] = useState4("");
+  const [deleteConfirm, setDeleteConfirm] = useState4({
     isOpen: false,
     title: "",
     message: "",
     onConfirm: () => {
     }
   });
-  const [{ brandId, applicationId }, setTenant] = useState(readTenant);
-  const [questionnaires, setQuestionnaires] = useState([]);
-  const [isQuestionnaireModalOpen, setIsQuestionnaireModalOpen] = useState(false);
-  const [editingQ, setEditingQ] = useState(null);
-  const [selectedQCode, setSelectedQCode] = usePersistentState("xg.formEngine.simulator.questionnaire", "");
+  const [{ brandId, applicationId }, setTenant] = useState4(readTenant);
+  const [questionnaires, setQuestionnaires] = useState4([]);
+  const [isQuestionnaireModalOpen, setIsQuestionnaireModalOpen] = useState4(false);
+  const [editingQ, setEditingQ] = useState4(null);
+  const [selectedQCode, setSelectedQCode] = usePersistentState2("xg.formEngine.simulator.questionnaire", "");
   const loadData = () => {
     listQuestionnaires(brandId, applicationId).then(setQuestionnaires).catch(() => setQuestionnaires([]));
   };
-  useEffect(() => {
+  useEffect3(() => {
     loadData();
     try {
       localStorage.setItem(TENANT_KEY, JSON.stringify({ brandId, applicationId }));
     } catch {
     }
   }, [brandId, applicationId]);
-  useEffect(() => {
+  useEffect3(() => {
     if (questionnaires.length === 0) return;
     if (!questionnaires.some((q) => q.code === selectedQCode)) {
       setSelectedQCode(questionnaires[0].code);
     }
   }, [questionnaires, selectedQCode]);
   const formTabs = [
-    { id: "questionnaires", label: "Questionnaires", icon: /* @__PURE__ */ jsx(FileText, { className: "h-4 w-4" }), badge: questionnaires.length },
-    { id: "simulator", label: "Simulator", icon: /* @__PURE__ */ jsx(Play, { className: "h-4 w-4" }) }
+    { id: "questionnaires", label: "Questionnaires", icon: /* @__PURE__ */ jsx4(FileText3, { className: "h-4 w-4" }), badge: questionnaires.length },
+    { id: "simulator", label: "Simulator", icon: /* @__PURE__ */ jsx4(Play2, { className: "h-4 w-4" }) }
   ];
   const handleSaveQuestionnaire = async (data) => {
     if (editingQ) {
@@ -2120,18 +2158,18 @@ var FormManager = () => {
       }
     });
   };
-  return /* @__PURE__ */ jsxs("div", { className: "flex-1 min-w-0 h-full overflow-y-auto bg-background text-foreground font-sans flex flex-col select-none", children: [
-    /* @__PURE__ */ jsx(
+  return /* @__PURE__ */ jsxs4("div", { className: "flex-1 min-w-0 h-full overflow-y-auto bg-background text-foreground font-sans flex flex-col select-none", children: [
+    /* @__PURE__ */ jsx4(
       PageHeader,
       {
-        icon: /* @__PURE__ */ jsx(FileText, { className: "h-5 w-5" }),
+        icon: /* @__PURE__ */ jsx4(FileText3, { className: "h-5 w-5" }),
         breadcrumbs: [
           { label: "Workbench", href: "/" },
           { label: "Core Engines" },
           { label: "Form Engine" }
         ],
         title: "Form Engine",
-        children: /* @__PURE__ */ jsx(
+        children: /* @__PURE__ */ jsx4(
           TabNav,
           {
             tabs: formTabs,
@@ -2141,10 +2179,10 @@ var FormManager = () => {
         )
       }
     ),
-    /* @__PURE__ */ jsxs("main", { className: "flex-1 p-6 space-y-6 max-w-7xl w-full mx-auto", children: [
-      /* @__PURE__ */ jsxs("div", { className: "flex flex-wrap items-end gap-3 rounded-lg border border-border bg-card p-3", children: [
-        /* @__PURE__ */ jsx(
-          BrandSelect,
+    /* @__PURE__ */ jsxs4("main", { className: "flex-1 p-6 space-y-6 max-w-7xl w-full mx-auto", children: [
+      /* @__PURE__ */ jsxs4("div", { className: "flex flex-wrap items-end gap-3 rounded-lg border border-border bg-card p-3", children: [
+        /* @__PURE__ */ jsx4(
+          BrandSelect2,
           {
             value: brandId,
             includeUniversal: false,
@@ -2153,8 +2191,8 @@ var FormManager = () => {
             onChange: (v) => setTenant((t) => ({ ...t, brandId: v }))
           }
         ),
-        /* @__PURE__ */ jsx(
-          ApplicationSelect,
+        /* @__PURE__ */ jsx4(
+          ApplicationSelect2,
           {
             value: applicationId,
             includeUniversal: false,
@@ -2163,15 +2201,15 @@ var FormManager = () => {
             onChange: (v) => setTenant((t) => ({ ...t, applicationId: v }))
           }
         ),
-        /* @__PURE__ */ jsx("div", { className: "flex pb-2", children: /* @__PURE__ */ jsx(
-          InfoTooltip,
+        /* @__PURE__ */ jsx4("div", { className: "flex pb-2", children: /* @__PURE__ */ jsx4(
+          InfoTooltip2,
           {
             content: "Questionnaires below are scoped to this brand / application.",
             label: "About brand / application scope"
           }
         ) })
       ] }),
-      activeTab === "questionnaires" && /* @__PURE__ */ jsx(
+      activeTab === "questionnaires" && /* @__PURE__ */ jsx4(
         QuestionnairesTab,
         {
           questionnaires,
@@ -2188,7 +2226,7 @@ var FormManager = () => {
           onDeleteQuestionnaire: handleDeleteQuestionnaire
         }
       ),
-      activeTab === "simulator" && /* @__PURE__ */ jsx(
+      activeTab === "simulator" && /* @__PURE__ */ jsx4(
         FormSimulatorTab,
         {
           brandId,
@@ -2199,7 +2237,7 @@ var FormManager = () => {
         }
       )
     ] }),
-    /* @__PURE__ */ jsx(
+    /* @__PURE__ */ jsx4(
       QuestionnaireModal,
       {
         isOpen: isQuestionnaireModalOpen,
@@ -2210,7 +2248,7 @@ var FormManager = () => {
         applicationId
       }
     ),
-    /* @__PURE__ */ jsx(
+    /* @__PURE__ */ jsx4(
       ConfirmDialog,
       {
         isOpen: deleteConfirm.isOpen,
@@ -2222,6 +2260,12 @@ var FormManager = () => {
     )
   ] });
 };
+
+// src/form/QuestionnaireRunner.tsx
+import { useEffect as useEffect4, useMemo as useMemo3, useState as useState5 } from "react";
+import { Model as Model2 } from "survey-core";
+import { Survey as Survey2 } from "survey-react-ui";
+import { Fragment, jsx as jsx5, jsxs as jsxs5 } from "react/jsx-runtime";
 function computeDimensions(schema, data) {
   const byDimension = scoreSurveyAnswers(schema, data);
   const methods = schema.calculation_methods || {};
@@ -2248,11 +2292,11 @@ var QuestionnaireRunner = ({
   className = ""
 }) => {
   const initialSchema = modelProp ? modelProp : questionnaire ? toSurveyModel(questionnaire) : null;
-  const [schema, setSchema] = useState(initialSchema);
-  const [loading, setLoading] = useState(!initialSchema);
-  const [error, setError] = useState(null);
-  const [payload, setPayload] = useState(null);
-  useEffect(() => {
+  const [schema, setSchema] = useState5(initialSchema);
+  const [loading, setLoading] = useState5(!initialSchema);
+  const [error, setError] = useState5(null);
+  const [payload, setPayload] = useState5(null);
+  useEffect4(() => {
     if (initialSchema) {
       setSchema(initialSchema);
       setLoading(false);
@@ -2270,9 +2314,9 @@ var QuestionnaireRunner = ({
       alive = false;
     };
   }, [questionnaireCode, modelProp, questionnaire, brandId, applicationId]);
-  const survey = useMemo(() => {
+  const survey = useMemo3(() => {
     if (!schema) return null;
-    const m = new Model(schema);
+    const m = new Model2(schema);
     m.showCompletedPage = false;
     m.applyTheme(XG_SURVEY_THEME);
     m.getAllQuestions().forEach((q) => {
@@ -2280,7 +2324,7 @@ var QuestionnaireRunner = ({
     });
     return m;
   }, [schema]);
-  useEffect(() => {
+  useEffect4(() => {
     if (!survey || !schema) return;
     const onValue = (_, opt2) => onAnswer?.(opt2.name, opt2.value);
     const onComplete_ = async (sender) => {
@@ -2317,21 +2361,45 @@ var QuestionnaireRunner = ({
   }, [survey, schema, customerId, brandId, applicationId]);
   const shell = `w-full max-w-2xl mx-auto text-foreground ${className}`;
   if (loading) {
-    return /* @__PURE__ */ jsx("div", { className: shell, children: /* @__PURE__ */ jsx("div", { className: "rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground", children: "Loading\u2026" }) });
+    return /* @__PURE__ */ jsx5("div", { className: shell, children: /* @__PURE__ */ jsx5("div", { className: "rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground", children: "Loading\u2026" }) });
   }
   if (error || !survey) {
-    return /* @__PURE__ */ jsx("div", { className: shell, children: /* @__PURE__ */ jsx("div", { className: "rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground", children: error || "This questionnaire is not available." }) });
+    return /* @__PURE__ */ jsx5("div", { className: shell, children: /* @__PURE__ */ jsx5("div", { className: "rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground", children: error || "This questionnaire is not available." }) });
   }
   if (payload) {
-    return /* @__PURE__ */ jsx("div", { className: shell, children: renderComplete ? /* @__PURE__ */ jsx(Fragment, { children: renderComplete(payload) }) : /* @__PURE__ */ jsxs("div", { className: "rounded-xl border border-border bg-card p-8 text-center space-y-2", children: [
-      /* @__PURE__ */ jsx("div", { className: "mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-beak/15 text-beak text-xl", children: "\u2713" }),
-      /* @__PURE__ */ jsx("p", { className: "text-sm font-semibold", children: "Thanks \u2014 your answers are in." }),
-      /* @__PURE__ */ jsx("p", { className: "text-xs text-muted-foreground", children: "You can close this window now." })
+    return /* @__PURE__ */ jsx5("div", { className: shell, children: renderComplete ? /* @__PURE__ */ jsx5(Fragment, { children: renderComplete(payload) }) : /* @__PURE__ */ jsxs5("div", { className: "rounded-xl border border-border bg-card p-8 text-center space-y-2", children: [
+      /* @__PURE__ */ jsx5("div", { className: "mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-beak/15 text-beak text-xl", children: "\u2713" }),
+      /* @__PURE__ */ jsx5("p", { className: "text-sm font-semibold", children: "Thanks \u2014 your answers are in." }),
+      /* @__PURE__ */ jsx5("p", { className: "text-xs text-muted-foreground", children: "You can close this window now." })
     ] }) });
   }
-  return /* @__PURE__ */ jsx("div", { className: shell, children: /* @__PURE__ */ jsx(Survey, { model: survey }) });
+  return /* @__PURE__ */ jsx5("div", { className: shell, children: /* @__PURE__ */ jsx5(Survey2, { model: survey }) });
 };
-
-export { BUILTIN_TEMPLATES, CALCULATION_METHODS, FALLBACK_DIMENSIONS, FormManager, PFORM_EXAMPLE, PFORM_SUGGESTED_DIMENSIONS, PIXIE_OMG_SKIN_ANALYZER, QuestionnaireRunner, applyCalculationMethod, applyDimensionMapping, buildScoreRequest, createSafetyFlag, deleteQuestionnaire, flattenElements, fromPFormSchema, fromSurveyModel, getDimensionMeta, getDimensions, getQuestionnaire, getQuestionnaireModel, getSafetyFlags, listQuestionnaires, saveQuestionnaire, scoreSurveyAnswers, toSurveyModel };
-//# sourceMappingURL=index.mjs.map
+export {
+  BUILTIN_TEMPLATES,
+  CALCULATION_METHODS,
+  FALLBACK_DIMENSIONS,
+  FormManager,
+  PFORM_EXAMPLE,
+  PFORM_SUGGESTED_DIMENSIONS,
+  PIXIE_OMG_SKIN_ANALYZER,
+  QuestionnaireRunner,
+  applyCalculationMethod,
+  applyDimensionMapping,
+  buildScoreRequest,
+  createSafetyFlag,
+  deleteQuestionnaire,
+  flattenElements,
+  fromPFormSchema,
+  fromSurveyModel,
+  getDimensionMeta,
+  getDimensions,
+  getQuestionnaire,
+  getQuestionnaireModel,
+  getSafetyFlags,
+  listQuestionnaires,
+  saveQuestionnaire,
+  scoreSurveyAnswers,
+  toSurveyModel
+};
 //# sourceMappingURL=index.mjs.map

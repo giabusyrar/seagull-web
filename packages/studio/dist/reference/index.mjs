@@ -1,8 +1,11 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Edit2, Trash2, Globe, ExternalLink, Sparkles, Target, Loader2, Save, Database, Layers, Plus, ShieldAlert } from 'lucide-react';
-import { EmptyState, BrandTag, getDomainFromUrl, DataTable, Modal, SearchableSelect, PageHeader, SearchFilterBar, Pagination, ConfirmDialog, FilterPanel } from '@gateway-experience/shared';
-export { SearchFilterBar } from '@gateway-experience/shared';
-import { jsx, jsxs } from 'react/jsx-runtime';
+'use client';
+"use client";
+
+// src/reference/components/ReferenceEntityDashboard.tsx
+import { useState as useState3, useEffect as useEffect3, useCallback, useMemo } from "react";
+import {
+  Database
+} from "lucide-react";
 
 // src/reference/config/reference-entity-configs.ts
 var REFERENCE_ENTITY_CONFIGS = {
@@ -182,6 +185,11 @@ REFERENCE_ENTITY_CONFIGS["product"] = REFERENCE_ENTITY_CONFIGS["products"];
 REFERENCE_ENTITY_CONFIGS["ingredient"] = REFERENCE_ENTITY_CONFIGS["ingredients"];
 REFERENCE_ENTITY_CONFIGS["active-ingredients"] = REFERENCE_ENTITY_CONFIGS["ingredients"];
 REFERENCE_ENTITY_CONFIGS["application"] = REFERENCE_ENTITY_CONFIGS["applications"];
+
+// src/reference/components/ReferenceTable.tsx
+import { Edit2, Trash2, Sparkles, Globe, ExternalLink, Target } from "lucide-react";
+import { DataTable, EmptyState, BrandTag, getDomainFromUrl } from "@gateway-experience/shared";
+import { jsx, jsxs } from "react/jsx-runtime";
 var ReferenceTable = ({
   config,
   items,
@@ -405,6 +413,12 @@ var ReferenceTable = ({
   ];
   return /* @__PURE__ */ jsx(DataTable, { columns, data: items, keyField: "id" });
 };
+
+// src/reference/components/ReferenceFormModal.tsx
+import { useState, useEffect } from "react";
+import { Save, Loader2 } from "lucide-react";
+import { SearchableSelect, Modal } from "@gateway-experience/shared";
+import { jsx as jsx2, jsxs as jsxs2 } from "react/jsx-runtime";
 var ReferenceFormModal = ({
   isOpen,
   config,
@@ -472,7 +486,7 @@ var ReferenceFormModal = ({
       setIsSubmitting(false);
     }
   };
-  return /* @__PURE__ */ jsx(
+  return /* @__PURE__ */ jsx2(
     Modal,
     {
       isOpen,
@@ -481,17 +495,17 @@ var ReferenceFormModal = ({
       title: initialData ? `Edit ${config.singularTitle}` : `New ${config.singularTitle}`,
       isLoading: isSubmitting,
       loadingText: isSubmitting ? initialData ? `Updating ${config.singularTitle}...` : `Saving ${config.singularTitle}...` : void 0,
-      children: /* @__PURE__ */ jsxs("form", { onSubmit: handleSubmit, className: "space-y-4 pb-12 relative", children: [
-        error && /* @__PURE__ */ jsx("div", { className: "p-2.5 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded text-xs", children: error }),
+      children: /* @__PURE__ */ jsxs2("form", { onSubmit: handleSubmit, className: "space-y-4 pb-12 relative", children: [
+        error && /* @__PURE__ */ jsx2("div", { className: "p-2.5 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded text-xs", children: error }),
         config.fields.map((field, idx) => {
           const zIndexVal = (config.fields.length - idx) * 10;
-          return /* @__PURE__ */ jsxs("div", { style: { zIndex: zIndexVal }, className: "space-y-1.5 relative", children: [
-            /* @__PURE__ */ jsxs("label", { className: "block text-muted-foreground font-medium", children: [
+          return /* @__PURE__ */ jsxs2("div", { style: { zIndex: zIndexVal }, className: "space-y-1.5 relative", children: [
+            /* @__PURE__ */ jsxs2("label", { className: "block text-muted-foreground font-medium", children: [
               field.label,
               " ",
-              field.required && /* @__PURE__ */ jsx("span", { className: "text-amber-500", children: "*" })
+              field.required && /* @__PURE__ */ jsx2("span", { className: "text-amber-500", children: "*" })
             ] }),
-            field.type === "number" && /* @__PURE__ */ jsx(
+            field.type === "number" && /* @__PURE__ */ jsx2(
               "input",
               {
                 type: "number",
@@ -504,7 +518,7 @@ var ReferenceFormModal = ({
                 className: "w-full h-9 bg-background border border-border rounded-lg px-3 text-foreground outline-none focus:border-ring transition font-mono"
               }
             ),
-            field.type === "text" && /* @__PURE__ */ jsx(
+            field.type === "text" && /* @__PURE__ */ jsx2(
               "input",
               {
                 type: "text",
@@ -514,7 +528,7 @@ var ReferenceFormModal = ({
                 className: "w-full h-9 bg-background border border-border rounded-lg px-3 text-foreground outline-none focus:border-ring transition"
               }
             ),
-            field.type === "textarea" && /* @__PURE__ */ jsx(
+            field.type === "textarea" && /* @__PURE__ */ jsx2(
               "textarea",
               {
                 rows: 3,
@@ -523,19 +537,19 @@ var ReferenceFormModal = ({
                 className: "w-full bg-background border border-border rounded-lg p-2.5 text-foreground outline-none focus:border-ring transition"
               }
             ),
-            field.type === "select" && /* @__PURE__ */ jsx(
+            field.type === "select" && /* @__PURE__ */ jsx2(
               "select",
               {
                 value: formData[field.key] || field.options?.[0]?.value || "",
                 onChange: (e) => setFormData({ ...formData, [field.key]: e.target.value }),
                 className: "w-full h-9 bg-background border border-border rounded-lg px-3 text-foreground outline-none focus:border-ring transition cursor-pointer",
-                children: field.options?.map((opt) => /* @__PURE__ */ jsx("option", { value: opt.value, children: opt.label }, opt.value))
+                children: field.options?.map((opt) => /* @__PURE__ */ jsx2("option", { value: opt.value, children: opt.label }, opt.value))
               }
             ),
             field.type === "relation" && field.relationEntity && (() => {
               const opts = relationOptions[field.relationEntity] || [];
               const isCodeBased = field.relationEntity === "dimensions";
-              field.relationEntity === "dimensions";
+              const isDimensionRelation = field.relationEntity === "dimensions";
               const currentVal = (() => {
                 const direct = formData[field.key];
                 if (direct) {
@@ -548,7 +562,7 @@ var ReferenceFormModal = ({
                 }
                 return direct || "";
               })();
-              return /* @__PURE__ */ jsx(
+              return /* @__PURE__ */ jsx2(
                 SearchableSelect,
                 {
                   options: opts.map((opt) => ({
@@ -573,7 +587,7 @@ var ReferenceFormModal = ({
                 }
                 return isCodeBased && v?.code ? v.code : v?.id || v?.ingredientId;
               }).filter(Boolean) : typeof rawVal === "string" && rawVal ? [rawVal] : [];
-              return /* @__PURE__ */ jsx(
+              return /* @__PURE__ */ jsx2(
                 SearchableSelect,
                 {
                   multiple: true,
@@ -594,15 +608,15 @@ var ReferenceFormModal = ({
             })()
           ] }, field.key);
         }),
-        /* @__PURE__ */ jsx("div", { className: "pt-3 flex items-center justify-end border-t border-border shrink-0", children: /* @__PURE__ */ jsxs(
+        /* @__PURE__ */ jsx2("div", { className: "pt-3 flex items-center justify-end border-t border-border shrink-0", children: /* @__PURE__ */ jsxs2(
           "button",
           {
             type: "submit",
             disabled: isSubmitting,
             className: "px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-lg flex items-center gap-1.5 transition disabled:opacity-50 cursor-pointer shadow-sm",
             children: [
-              isSubmitting ? /* @__PURE__ */ jsx(Loader2, { className: "h-3.5 w-3.5 animate-spin" }) : /* @__PURE__ */ jsx(Save, { className: "h-3.5 w-3.5" }),
-              /* @__PURE__ */ jsx("span", { children: isSubmitting ? initialData ? "Updating..." : "Saving..." : initialData ? "Update Item" : "Save Item" })
+              isSubmitting ? /* @__PURE__ */ jsx2(Loader2, { className: "h-3.5 w-3.5 animate-spin" }) : /* @__PURE__ */ jsx2(Save, { className: "h-3.5 w-3.5" }),
+              /* @__PURE__ */ jsx2("span", { children: isSubmitting ? initialData ? "Updating..." : "Saving..." : initialData ? "Update Item" : "Save Item" })
             ]
           }
         ) })
@@ -610,6 +624,12 @@ var ReferenceFormModal = ({
     }
   );
 };
+
+// src/reference/components/SeverityTierGroupModal.tsx
+import { useState as useState2, useEffect as useEffect2 } from "react";
+import { ShieldAlert, Plus, Trash2 as Trash22, Save as Save2, Layers, Loader2 as Loader22 } from "lucide-react";
+import { Modal as Modal2 } from "@gateway-experience/shared";
+import { jsx as jsx3, jsxs as jsxs3 } from "react/jsx-runtime";
 var PRESET_COLORS = [
   "#10b981",
   // Emerald
@@ -638,13 +658,13 @@ var SeverityTierGroupModal = ({
   onClose,
   onSave
 }) => {
-  const [code, setCode] = useState("");
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [items, setItems] = useState([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState(null);
-  useEffect(() => {
+  const [code, setCode] = useState2("");
+  const [name, setName] = useState2("");
+  const [description, setDescription] = useState2("");
+  const [items, setItems] = useState2([]);
+  const [isSubmitting, setIsSubmitting] = useState2(false);
+  const [error, setError] = useState2(null);
+  useEffect2(() => {
     if (isOpen) {
       if (initialData) {
         setCode(initialData.code || "");
@@ -738,26 +758,26 @@ var SeverityTierGroupModal = ({
       setIsSubmitting(false);
     }
   };
-  return /* @__PURE__ */ jsx(
-    Modal,
+  return /* @__PURE__ */ jsx3(
+    Modal2,
     {
       isOpen,
       onClose,
       size: "3xl",
-      icon: /* @__PURE__ */ jsx(ShieldAlert, { className: "h-5 w-5 text-amber-400" }),
+      icon: /* @__PURE__ */ jsx3(ShieldAlert, { className: "h-5 w-5 text-amber-400" }),
       title: initialData ? `Edit Classification Group (${code})` : "New Severity Classification Group",
       subtitle: "Define a diagnostic group (e.g. Severity Level, Acne Prone Level) and configure its classification tier items.",
       isLoading: isSubmitting,
       loadingText: isSubmitting ? initialData ? "Updating Classification Group..." : "Creating Classification Group..." : void 0,
-      children: /* @__PURE__ */ jsxs("form", { onSubmit: handleSubmit, className: "space-y-4 text-xs", children: [
-        error && /* @__PURE__ */ jsx("div", { className: "p-2.5 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded text-xs font-semibold", children: error }),
-        /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-3 bg-secondary/40 p-3.5 rounded-xl border border-border", children: [
-          /* @__PURE__ */ jsxs("div", { className: "space-y-1", children: [
-            /* @__PURE__ */ jsxs("label", { className: "text-muted-foreground font-bold", children: [
+      children: /* @__PURE__ */ jsxs3("form", { onSubmit: handleSubmit, className: "space-y-4 text-xs", children: [
+        error && /* @__PURE__ */ jsx3("div", { className: "p-2.5 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded text-xs font-semibold", children: error }),
+        /* @__PURE__ */ jsxs3("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-3 bg-secondary/40 p-3.5 rounded-xl border border-border", children: [
+          /* @__PURE__ */ jsxs3("div", { className: "space-y-1", children: [
+            /* @__PURE__ */ jsxs3("label", { className: "text-muted-foreground font-bold", children: [
               "Group Display Name ",
-              /* @__PURE__ */ jsx("span", { className: "text-amber-500", children: "*" })
+              /* @__PURE__ */ jsx3("span", { className: "text-amber-500", children: "*" })
             ] }),
-            /* @__PURE__ */ jsx(
+            /* @__PURE__ */ jsx3(
               "input",
               {
                 type: "text",
@@ -769,12 +789,12 @@ var SeverityTierGroupModal = ({
               }
             )
           ] }),
-          /* @__PURE__ */ jsxs("div", { className: "space-y-1", children: [
-            /* @__PURE__ */ jsxs("label", { className: "text-muted-foreground font-bold", children: [
+          /* @__PURE__ */ jsxs3("div", { className: "space-y-1", children: [
+            /* @__PURE__ */ jsxs3("label", { className: "text-muted-foreground font-bold", children: [
               "Group Code ",
-              /* @__PURE__ */ jsx("span", { className: "text-amber-500", children: "*" })
+              /* @__PURE__ */ jsx3("span", { className: "text-amber-500", children: "*" })
             ] }),
-            /* @__PURE__ */ jsx(
+            /* @__PURE__ */ jsx3(
               "input",
               {
                 type: "text",
@@ -786,9 +806,9 @@ var SeverityTierGroupModal = ({
               }
             )
           ] }),
-          /* @__PURE__ */ jsxs("div", { className: "col-span-1 sm:col-span-2 space-y-1", children: [
-            /* @__PURE__ */ jsx("label", { className: "text-muted-foreground font-bold", children: "Clinical / Operational Description" }),
-            /* @__PURE__ */ jsx(
+          /* @__PURE__ */ jsxs3("div", { className: "col-span-1 sm:col-span-2 space-y-1", children: [
+            /* @__PURE__ */ jsx3("label", { className: "text-muted-foreground font-bold", children: "Clinical / Operational Description" }),
+            /* @__PURE__ */ jsx3(
               "textarea",
               {
                 rows: 2,
@@ -800,30 +820,30 @@ var SeverityTierGroupModal = ({
             )
           ] })
         ] }),
-        /* @__PURE__ */ jsxs("div", { className: "space-y-2.5 pt-1", children: [
-          /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between", children: [
-            /* @__PURE__ */ jsxs("span", { className: "text-foreground font-bold flex items-center gap-1.5 text-xs", children: [
-              /* @__PURE__ */ jsx(Layers, { className: "h-4 w-4 text-amber-500" }),
-              /* @__PURE__ */ jsxs("span", { children: [
+        /* @__PURE__ */ jsxs3("div", { className: "space-y-2.5 pt-1", children: [
+          /* @__PURE__ */ jsxs3("div", { className: "flex items-center justify-between", children: [
+            /* @__PURE__ */ jsxs3("span", { className: "text-foreground font-bold flex items-center gap-1.5 text-xs", children: [
+              /* @__PURE__ */ jsx3(Layers, { className: "h-4 w-4 text-amber-500" }),
+              /* @__PURE__ */ jsxs3("span", { children: [
                 "Classification Tier Items (",
                 items.length,
                 ")"
               ] })
             ] }),
-            /* @__PURE__ */ jsxs(
+            /* @__PURE__ */ jsxs3(
               "button",
               {
                 type: "button",
                 onClick: handleAddItem,
                 className: "px-2.5 py-1 bg-secondary hover:bg-accent border border-border text-amber-600 hover:text-foreground rounded-lg flex items-center gap-1.5 font-semibold text-xs transition cursor-pointer",
                 children: [
-                  /* @__PURE__ */ jsx(Plus, { className: "h-3.5 w-3.5" }),
-                  /* @__PURE__ */ jsx("span", { children: "Add Tier Item" })
+                  /* @__PURE__ */ jsx3(Plus, { className: "h-3.5 w-3.5" }),
+                  /* @__PURE__ */ jsx3("span", { children: "Add Tier Item" })
                 ]
               }
             )
           ] }),
-          /* @__PURE__ */ jsxs(
+          /* @__PURE__ */ jsxs3(
             "div",
             {
               style: {
@@ -834,15 +854,15 @@ var SeverityTierGroupModal = ({
               },
               className: "px-3 py-1.5 bg-secondary/40 border border-border rounded-lg text-[10px] font-bold text-muted-foreground uppercase tracking-wider select-none",
               children: [
-                /* @__PURE__ */ jsx("div", { className: "text-center", children: "#" }),
-                /* @__PURE__ */ jsx("div", { children: "Display Name" }),
-                /* @__PURE__ */ jsx("div", { children: "Code" }),
-                /* @__PURE__ */ jsx("div", { className: "text-center", children: "Badge Color" }),
-                /* @__PURE__ */ jsx("div", { className: "text-center", children: "Act" })
+                /* @__PURE__ */ jsx3("div", { className: "text-center", children: "#" }),
+                /* @__PURE__ */ jsx3("div", { children: "Display Name" }),
+                /* @__PURE__ */ jsx3("div", { children: "Code" }),
+                /* @__PURE__ */ jsx3("div", { className: "text-center", children: "Badge Color" }),
+                /* @__PURE__ */ jsx3("div", { className: "text-center", children: "Act" })
               ]
             }
           ),
-          /* @__PURE__ */ jsx("div", { className: "space-y-2 max-h-64 overflow-y-auto pr-1", children: items.map((item, idx) => /* @__PURE__ */ jsxs(
+          /* @__PURE__ */ jsx3("div", { className: "space-y-2 max-h-64 overflow-y-auto pr-1", children: items.map((item, idx) => /* @__PURE__ */ jsxs3(
             "div",
             {
               style: {
@@ -853,11 +873,11 @@ var SeverityTierGroupModal = ({
               },
               className: "bg-card hover:bg-accent/50 border border-border hover:border-ring/40 p-2 rounded-lg transition",
               children: [
-                /* @__PURE__ */ jsxs("div", { className: "text-center font-mono font-bold text-amber-600 bg-secondary/60 border border-border rounded py-1", children: [
+                /* @__PURE__ */ jsxs3("div", { className: "text-center font-mono font-bold text-amber-600 bg-secondary/60 border border-border rounded py-1", children: [
                   "#",
                   idx + 1
                 ] }),
-                /* @__PURE__ */ jsx("div", { children: /* @__PURE__ */ jsx(
+                /* @__PURE__ */ jsx3("div", { children: /* @__PURE__ */ jsx3(
                   "input",
                   {
                     type: "text",
@@ -868,7 +888,7 @@ var SeverityTierGroupModal = ({
                     className: "w-full bg-background border border-border focus:border-ring rounded px-2.5 py-1 text-foreground text-xs outline-none"
                   }
                 ) }),
-                /* @__PURE__ */ jsx("div", { children: /* @__PURE__ */ jsx(
+                /* @__PURE__ */ jsx3("div", { children: /* @__PURE__ */ jsx3(
                   "input",
                   {
                     type: "text",
@@ -879,8 +899,8 @@ var SeverityTierGroupModal = ({
                     className: "w-full bg-background border border-border focus:border-ring rounded px-2 py-1 text-purple-600 font-mono uppercase font-bold text-xs outline-none"
                   }
                 ) }),
-                /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1.5 justify-center", children: [
-                  /* @__PURE__ */ jsx(
+                /* @__PURE__ */ jsxs3("div", { className: "flex items-center gap-1.5 justify-center", children: [
+                  /* @__PURE__ */ jsx3(
                     "input",
                     {
                       type: "color",
@@ -890,7 +910,7 @@ var SeverityTierGroupModal = ({
                       title: "Choose Badge Color"
                     }
                   ),
-                  /* @__PURE__ */ jsx(
+                  /* @__PURE__ */ jsx3(
                     "input",
                     {
                       type: "text",
@@ -900,7 +920,7 @@ var SeverityTierGroupModal = ({
                     }
                   )
                 ] }),
-                /* @__PURE__ */ jsx("div", { className: "text-center", children: /* @__PURE__ */ jsx(
+                /* @__PURE__ */ jsx3("div", { className: "text-center", children: /* @__PURE__ */ jsx3(
                   "button",
                   {
                     type: "button",
@@ -908,7 +928,7 @@ var SeverityTierGroupModal = ({
                     onClick: () => handleRemoveItem(idx),
                     className: "p-1 text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10 disabled:opacity-30 rounded transition cursor-pointer",
                     title: items.length <= 1 ? "Minimum 1 tier required" : "Remove Tier",
-                    children: /* @__PURE__ */ jsx(Trash2, { className: "h-3.5 w-3.5" })
+                    children: /* @__PURE__ */ jsx3(Trash22, { className: "h-3.5 w-3.5" })
                   }
                 ) })
               ]
@@ -916,15 +936,15 @@ var SeverityTierGroupModal = ({
             idx
           )) })
         ] }),
-        /* @__PURE__ */ jsx("div", { className: "pt-3 flex items-center justify-end border-t border-border", children: /* @__PURE__ */ jsxs(
+        /* @__PURE__ */ jsx3("div", { className: "pt-3 flex items-center justify-end border-t border-border", children: /* @__PURE__ */ jsxs3(
           "button",
           {
             type: "submit",
             disabled: isSubmitting,
             className: "px-5 py-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-lg flex items-center gap-1.5 transition disabled:opacity-50 cursor-pointer shadow-md",
             children: [
-              isSubmitting ? /* @__PURE__ */ jsx(Loader2, { className: "h-4 w-4 animate-spin" }) : /* @__PURE__ */ jsx(Save, { className: "h-4 w-4" }),
-              /* @__PURE__ */ jsx("span", { children: isSubmitting ? initialData ? "Updating..." : "Creating..." : initialData ? "Update Group" : "Create Group" })
+              isSubmitting ? /* @__PURE__ */ jsx3(Loader22, { className: "h-4 w-4 animate-spin" }) : /* @__PURE__ */ jsx3(Save2, { className: "h-4 w-4" }),
+              /* @__PURE__ */ jsx3("span", { children: isSubmitting ? initialData ? "Updating..." : "Creating..." : initialData ? "Update Group" : "Create Group" })
             ]
           }
         ) })
@@ -932,35 +952,39 @@ var SeverityTierGroupModal = ({
     }
   );
 };
+
+// src/reference/components/ReferenceEntityDashboard.tsx
+import { PageHeader, SearchFilterBar, ConfirmDialog, Pagination, FilterPanel } from "@gateway-experience/shared";
+import { jsx as jsx4, jsxs as jsxs4 } from "react/jsx-runtime";
 var ReferenceEntityDashboard = ({ slug }) => {
-  const [activeSlug, setActiveSlug] = useState(slug);
-  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
-  const [activeFilters, setActiveFilters] = useState({});
-  useEffect(() => {
+  const [activeSlug, setActiveSlug] = useState3(slug);
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState3(false);
+  const [activeFilters, setActiveFilters] = useState3({});
+  useEffect3(() => {
     setActiveSlug(slug);
   }, [slug]);
   const config = REFERENCE_ENTITY_CONFIGS[activeSlug] || REFERENCE_ENTITY_CONFIGS["brands"];
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchColumn, setSearchColumn] = useState("all");
-  const [filterOption, setFilterOption] = useState("all");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState(null);
-  const [deleteConfig, setDeleteConfig] = useState({
+  const [items, setItems] = useState3([]);
+  const [loading, setLoading] = useState3(true);
+  const [searchQuery, setSearchQuery] = useState3("");
+  const [searchColumn, setSearchColumn] = useState3("all");
+  const [filterOption, setFilterOption] = useState3("all");
+  const [currentPage, setCurrentPage] = useState3(1);
+  const [pageSize, setPageSize] = useState3(10);
+  const [isModalOpen, setIsModalOpen] = useState3(false);
+  const [editingItem, setEditingItem] = useState3(null);
+  const [deleteConfig, setDeleteConfig] = useState3({
     isOpen: false,
     item: null,
     isDeleting: false
   });
-  useEffect(() => {
+  useEffect3(() => {
     setSearchColumn("all");
     setFilterOption("all");
     setActiveFilters({});
     setCurrentPage(1);
   }, [activeSlug]);
-  useEffect(() => {
+  useEffect3(() => {
     setCurrentPage(1);
   }, [searchQuery, searchColumn, filterOption]);
   const columnOptions = useMemo(() => {
@@ -1011,7 +1035,7 @@ var ReferenceEntityDashboard = ({ slug }) => {
       setLoading(false);
     }
   }, [config.apiEndpoint, config.slug]);
-  useEffect(() => {
+  useEffect3(() => {
     fetchItems();
   }, [fetchItems]);
   const handleSave = async (formData) => {
@@ -1118,11 +1142,11 @@ var ReferenceEntityDashboard = ({ slug }) => {
     (currentPage - 1) * pageSize,
     currentPage * pageSize
   );
-  return /* @__PURE__ */ jsxs("div", { className: "flex-1 min-w-0 h-full overflow-y-auto bg-background text-foreground font-sans flex flex-col select-none", children: [
-    /* @__PURE__ */ jsx(
+  return /* @__PURE__ */ jsxs4("div", { className: "flex-1 min-w-0 h-full overflow-y-auto bg-background text-foreground font-sans flex flex-col select-none", children: [
+    /* @__PURE__ */ jsx4(
       PageHeader,
       {
-        icon: /* @__PURE__ */ jsx(Database, { className: "h-5 w-5 text-beak" }),
+        icon: /* @__PURE__ */ jsx4(Database, { className: "h-5 w-5 text-beak" }),
         breadcrumbs: [
           { label: "Workbench", href: "/" },
           { label: "Reference Data" },
@@ -1132,8 +1156,8 @@ var ReferenceEntityDashboard = ({ slug }) => {
         description: config.description
       }
     ),
-    /* @__PURE__ */ jsxs("main", { className: "flex-1 p-4 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl w-full mx-auto flex flex-col", children: [
-      /* @__PURE__ */ jsx(
+    /* @__PURE__ */ jsxs4("main", { className: "flex-1 p-4 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl w-full mx-auto flex flex-col", children: [
+      /* @__PURE__ */ jsx4(
         SearchFilterBar,
         {
           searchQuery,
@@ -1153,7 +1177,7 @@ var ReferenceEntityDashboard = ({ slug }) => {
           }
         }
       ),
-      /* @__PURE__ */ jsx("div", { className: "w-full", children: /* @__PURE__ */ jsx(
+      /* @__PURE__ */ jsx4("div", { className: "w-full", children: /* @__PURE__ */ jsx4(
         ReferenceTable,
         {
           config,
@@ -1166,7 +1190,7 @@ var ReferenceEntityDashboard = ({ slug }) => {
           onDelete: handleRequestDelete
         }
       ) }),
-      !loading && totalItems > 0 && /* @__PURE__ */ jsx("div", { className: "pt-2", children: /* @__PURE__ */ jsx(
+      !loading && totalItems > 0 && /* @__PURE__ */ jsx4("div", { className: "pt-2", children: /* @__PURE__ */ jsx4(
         Pagination,
         {
           currentPage,
@@ -1181,7 +1205,7 @@ var ReferenceEntityDashboard = ({ slug }) => {
         }
       ) })
     ] }),
-    ["severity-tier-groups", "severity-tier-group", "severity-tiers", "severity-tier", "severity-groups", "severity-group"].includes(config.slug) ? /* @__PURE__ */ jsx(
+    ["severity-tier-groups", "severity-tier-group", "severity-tiers", "severity-tier", "severity-groups", "severity-group"].includes(config.slug) ? /* @__PURE__ */ jsx4(
       SeverityTierGroupModal,
       {
         isOpen: isModalOpen,
@@ -1192,7 +1216,7 @@ var ReferenceEntityDashboard = ({ slug }) => {
         },
         onSave: handleSave
       }
-    ) : /* @__PURE__ */ jsx(
+    ) : /* @__PURE__ */ jsx4(
       ReferenceFormModal,
       {
         isOpen: isModalOpen,
@@ -1205,7 +1229,7 @@ var ReferenceEntityDashboard = ({ slug }) => {
         onSave: handleSave
       }
     ),
-    /* @__PURE__ */ jsx(
+    /* @__PURE__ */ jsx4(
       ConfirmDialog,
       {
         isOpen: deleteConfig.isOpen,
@@ -1218,7 +1242,7 @@ var ReferenceEntityDashboard = ({ slug }) => {
         isLoading: deleteConfig.isDeleting
       }
     ),
-    config.slug !== "brands" && /* @__PURE__ */ jsx(
+    config.slug !== "brands" && /* @__PURE__ */ jsx4(
       FilterPanel,
       {
         isOpen: isFilterPanelOpen,
@@ -1264,6 +1288,9 @@ var ReferenceEntityDashboard = ({ slug }) => {
     )
   ] });
 };
+
+// src/reference/components/ReferenceManager.tsx
+import { jsx as jsx5 } from "react/jsx-runtime";
 var ReferenceManager = ({ initialEntity = "brands" }) => {
   const slugMap = {
     brand: "brands",
@@ -1290,9 +1317,17 @@ var ReferenceManager = ({ initialEntity = "brands" }) => {
     concerns: "skin-conditions"
   };
   const slug = slugMap[initialEntity] || initialEntity || "brands";
-  return /* @__PURE__ */ jsx(ReferenceEntityDashboard, { slug });
+  return /* @__PURE__ */ jsx5(ReferenceEntityDashboard, { slug });
 };
 
-export { REFERENCE_ENTITY_CONFIGS, ReferenceEntityDashboard, ReferenceFormModal, ReferenceManager, ReferenceTable };
-//# sourceMappingURL=index.mjs.map
+// src/reference/index.ts
+import { SearchFilterBar as SearchFilterBar2 } from "@gateway-experience/shared";
+export {
+  REFERENCE_ENTITY_CONFIGS,
+  ReferenceEntityDashboard,
+  ReferenceFormModal,
+  ReferenceManager,
+  ReferenceTable,
+  SearchFilterBar2 as SearchFilterBar
+};
 //# sourceMappingURL=index.mjs.map
