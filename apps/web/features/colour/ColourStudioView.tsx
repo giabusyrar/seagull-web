@@ -9,9 +9,11 @@ import { CameraCapture } from './CameraCapture';
 import { ProductPicker } from './ProductPicker';
 import { useTryOn } from './useTryOn';
 import { YesNoField, type YesNo } from './YesNoField';
+import { brandsInCatalog, filterCatalog, type BrandCount } from './brands/filterCatalog';
+import { useProductBrands } from './brands/useProductBrands';
 import { FacePanel } from './studio/FacePanel';
 import { PhotoStage, type Panel, type Stage } from './studio/PhotoStage';
-import { SidePhoto } from './face/HeadPanel';
+import { SideShots, type Side, type Sides } from './studio/SideShots';
 import { measurementGeometry } from './face/faceTypes';
 import { physicalScale } from './face/physicalScale';
 import { useFaceArchitecture } from './face/useFaceArchitecture';
@@ -48,7 +50,7 @@ export function ColourStudioView() {
 
   const [file, setFile] = useState<File | null>(null);
   const photoUrl = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
-  const [sides, setSides] = useState<Partial<Record<'left' | 'right', File>>>({});
+  const [sides, setSides] = useState<Sides>({});
   const [hijab, setHijab] = usePersistentState<YesNo>(PERSIST_PREFIX + 'hijab', '');
   const [hairVisible, setHairVisible] = usePersistentState<YesNo>(PERSIST_PREFIX + 'hairVisible', '');
   const [brandId, setBrandId] = usePersistentState<string>(FACE_PREFIX + 'brand', '*');
@@ -108,6 +110,19 @@ export function ColourStudioView() {
 
   const step: Step = !file ? 'capture' : result || plain ? 'result' : 'questions';
   const catalog = useMemo(() => (result ? catalogOf(result) : plain?.catalog ?? {}), [result, plain]);
+  // Brand filter over the try-on catalog ('' = every brand). Products whose
+  // brand reference-service does not know stay under "Semua brand" only.
+  const productBrands = useProductBrands();
+  const [brandFilter, setBrandFilter] = usePersistentState<string>(PERSIST_PREFIX + 'brandFilter', '');
+  const catalogBrands = useMemo(
+    () => brandsInCatalog(catalog, productBrands.brands, productBrands.brandOf),
+    [catalog, productBrands],
+  );
+  const activeBrand = catalogBrands.some((b) => b.id === brandFilter) ? brandFilter : '';
+  const shownCatalog = useMemo(
+    () => filterCatalog(catalog, activeBrand, productBrands.brandOf),
+    [catalog, activeBrand, productBrands],
+  );
 
   const drawn = useMemo<DrawnMeasurement[]>(() => {
     const r = face.result;
@@ -132,6 +147,21 @@ export function ColourStudioView() {
     setSelected(null);
     setStage('2d');
   };
+
+  // A side photo added or changed on the result page refits the head with it.
+  const sidesChanged = useRef(false);
+  const changeSide = (side: Side, f: File | null) => {
+    sidesChanged.current = true;
+    setSides((s) => ({ ...s, [side]: f ?? undefined }));
+  };
+  const { build: buildHead } = head;
+  useEffect(() => {
+    if (!sidesChanged.current) return;
+    sidesChanged.current = false;
+    if (step === 'result') void buildHead(brandId, applicationId);
+    // buildHead changes when the photos do; that is the trigger.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [buildHead]);
 
   const analyzeFace = () => {
     void face.analyze(brandId, applicationId);
@@ -244,6 +274,7 @@ export function ColourStudioView() {
                   )}
                 </div>
                 {tryon.error && <p className="text-xs text-destructive">{errorText(tryon.error)}</p>}
+                <SideShots sides={sides} onChange={changeSide} disabled={head.loading} />
               </div>
             )}
           </div>
@@ -266,19 +297,6 @@ export function ColourStudioView() {
                 <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Sebelum analisis</div>
                 <YesNoField label="Memakai hijab atau penutup kepala?" value={hijab} onChange={setHijab} />
                 <YesNoField label="Rambut terlihat di foto?" value={hairVisible} onChange={setHairVisible} />
-                <div className="space-y-1.5">
-                  <div className="flex flex-wrap gap-2">
-                    {(['left', 'right'] as const).map((side) => (
-                      <SidePhoto
-                        key={side}
-                        label={side === 'left' ? 'Samping kiri' : 'Samping kanan'}
-                        file={sides[side]}
-                        onChange={(f) => setSides((s) => ({ ...s, [side]: f ?? undefined }))}
-                      />
-                    ))}
-                  </div>
-                  <p className="text-[11px] text-muted-foreground">Foto samping (tiga perempat) opsional, untuk kepala 3D yang lebih akurat.</p>
-                </div>
                 <details className="text-xs">
                   <summary className="cursor-pointer select-none text-[11px] text-muted-foreground">Scope profil bentuk wajah</summary>
                   <div className="mt-2 grid gap-3 sm:grid-cols-2">
@@ -340,7 +358,10 @@ export function ColourStudioView() {
                       </div>
                     )}
                     <div className="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs">
-                      <ProductPicker catalog={catalog} look={look} onPick={pick} analyzed={!!result} />
+                      {catalogBrands.length > 1 && (
+                        <BrandFilter brands={catalogBrands} value={activeBrand} onChange={setBrandFilter} />
+                      )}
+                      <ProductPicker catalog={shownCatalog} look={look} onPick={pick} analyzed={!!result} />
                     </div>
                   </>
                 )}
@@ -363,6 +384,35 @@ export function ColourStudioView() {
             )}
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function BrandFilter({ brands, value, onChange }: { brands: BrandCount[]; value: string; onChange: (id: string) => void }) {
+  const options = [{ id: '', name: 'Semua brand', products: brands.reduce((n, b) => n + b.products, 0) }, ...brands];
+  return (
+    <div className="mb-4 space-y-1.5">
+      <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Brand</div>
+      <div role="radiogroup" aria-label="Brand" className="flex flex-wrap gap-1.5">
+        {options.map((b) => (
+          <button
+            key={b.id || 'all'}
+            type="button"
+            role="radio"
+            aria-checked={value === b.id}
+            onClick={() => onChange(b.id)}
+            className={cn(
+              'rounded-full border px-3 py-1 text-xs font-semibold transition cursor-pointer',
+              value === b.id
+                ? 'border-primary bg-primary text-primary-foreground'
+                : 'border-border bg-card text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {b.name}
+            <span className={cn('ml-1 font-normal', value === b.id ? 'opacity-80' : 'text-muted-foreground')}>({b.products})</span>
+          </button>
+        ))}
       </div>
     </div>
   );
