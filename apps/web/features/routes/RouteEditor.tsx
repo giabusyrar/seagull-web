@@ -17,6 +17,16 @@ import type { Collection, Route, RouteGroup, ApiClientRequest, KeyValuePair, Htt
 import { Workbench } from '@/features/workbench';
 import { getStatusColorClass } from '@/lib/api-client-utils';
 import { ParamsTable } from './ParamsTable';
+import {
+  listCollectionEnvironments,
+  listCollectionGlobalVariables,
+  listCollectionParameters,
+  listGlobalEnvironments,
+  logRouteExecution,
+  sendTryRequest,
+  setActiveCollectionEnvironment,
+} from './api';
+import { buildTryRequest } from './try-request';
 import { recallTryApiKey } from '@/lib/try-api-key';
 import { RouteExecutionHistoryPanel, RouteExecutionHistoryPanelRef } from './RouteExecutionHistoryPanel';
 
@@ -190,21 +200,15 @@ export const RouteEditor: React.FC<RouteEditorProps> = ({
 
   const loadCollectionData = React.useCallback(() => {
     if (!collection?.id) return;
-    fetch(`/api/collections/${collection.id}/parameters`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success && Array.isArray(data.parameters)) {
-          setCollectionParams(data.parameters);
-        }
+    listCollectionParameters(collection.id)
+      .then((list) => {
+        if (list) setCollectionParams(list);
       })
       .catch(() => {});
 
-    fetch(`/api/collections/${collection.id}/global-variables`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success && Array.isArray(data.variables)) {
-          setCollectionGlobalVars(data.variables);
-        }
+    listCollectionGlobalVariables(collection.id)
+      .then((list) => {
+        if (list) setCollectionGlobalVars(list);
       })
       .catch(() => {});
   }, [collection?.id]);
@@ -212,24 +216,18 @@ export const RouteEditor: React.FC<RouteEditorProps> = ({
   useEffect(() => {
     if (!collection?.id) return;
 
-    fetch(`/api/collections/${collection.id}/environments`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success && Array.isArray(data.environments)) {
-          setCollectionEnvs(data.environments);
-        }
+    listCollectionEnvironments(collection.id)
+      .then((list) => {
+        if (list) setCollectionEnvs(list);
       })
       .catch(() => {});
 
     loadCollectionData();
 
     if (!globalEnvironments || globalEnvironments.length === 0) {
-      fetch('/api/global-environments')
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success && Array.isArray(data.environments)) {
-            setGlobalEnvs(data.environments);
-          }
+      listGlobalEnvironments()
+        .then((list) => {
+          if (list) setGlobalEnvs(list);
         })
         .catch(() => {});
     }
@@ -238,11 +236,7 @@ export const RouteEditor: React.FC<RouteEditorProps> = ({
   const handleSelectCollectionEnv = async (envId: string) => {
     setActiveCollectionEnvId(envId);
     try {
-      await fetch(`/api/collections/${collection.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ activeEnvironmentId: envId || null }),
-      });
+      await setActiveCollectionEnvironment(collection.id, envId);
       loadCollectionData();
       onCollectionUpdated?.();
     } catch {}
@@ -580,121 +574,31 @@ export const RouteEditor: React.FC<RouteEditorProps> = ({
   const handleSendTry = async () => {
     setIsSending(true);
     try {
-      let finalUrl = tryRequest.url;
-      const queryParams: string[] = [];
-
-      tryRequest.params.forEach((param) => {
-        if (!param.enabled || !param.key) return;
-        const key = param.key.trim();
-        const rawVal = param.value.trim();
-
-        const hasPathPlaceholder =
-          finalUrl.includes(`[${key}]`) ||
-          finalUrl.includes(`:${key}`) ||
-          finalUrl.includes(`{${key}}`);
-
-        if (hasPathPlaceholder) {
-          finalUrl = finalUrl
-            .replace(`[${key}]`, encodeURIComponent(rawVal))
-            .replace(`:${key}`, encodeURIComponent(rawVal))
-            .replace(`{${key}}`, encodeURIComponent(rawVal));
-        } else if (rawVal) {
-          queryParams.push(`${encodeURIComponent(key)}=${encodeURIComponent(rawVal)}`);
-        }
-      });
-
-      if (queryParams.length > 0) {
-        finalUrl += (finalUrl.includes('?') ? '&' : '?') + queryParams.join('&');
-      }
-
-      const reqHeaders = tryRequest.headers.reduce<Record<string, string>>((acc, h) => {
-        if (h.enabled && h.key) acc[h.key] = h.value;
-        return acc;
-      }, {});
-
-      // The transport is derived from Route Settings' own Body Variables —
-      // the single place field type (text/file) is declared — rather than a
-      // separate manual toggle: any file field makes this a real multipart
-      // request, otherwise it's a plain JSON body.
-      const isMultipart = routeParamsInput.body.some((b) => b.fieldType === 'file');
-
-      if (['POST', 'PUT', 'PATCH'].includes(tryRequest.method) && !isMultipart) {
-        const hasContentType = Object.keys(reqHeaders).some((k) => k.toLowerCase() === 'content-type');
-        if (!hasContentType) {
-          reqHeaders['Content-Type'] = 'application/json; charset=UTF-8';
-        }
-      }
-      if (isMultipart) {
-        // fetch sets Content-Type itself (with the multipart boundary) when the
-        // body is a FormData instance — a manually-set header here has no
-        // boundary and breaks upstream multipart parsing, so it must be absent.
-        for (const k of Object.keys(reqHeaders)) {
-          if (k.toLowerCase() === 'content-type') delete reqHeaders[k];
-        }
-      }
-
-      if (activeColEnv) {
-        if (!reqHeaders['X-Environment']) reqHeaders['X-Environment'] = activeColEnv.name;
-        if (!reqHeaders['X-Collection-Environment']) reqHeaders['X-Collection-Environment'] = activeColEnv.name;
-        // The gateway routes by X-Environment to registered environment hosts
-        // only; it no longer accepts an arbitrary X-Target-Host.
-      }
-
-      let sendBody: BodyInit | undefined;
-      if (['POST', 'PUT', 'PATCH'].includes(tryRequest.method)) {
-        if (isMultipart) {
-          const fd = new FormData();
-          let bodyObj: Record<string, string> = {};
-          try {
-            bodyObj = JSON.parse(tryRequest.body || '{}');
-          } catch {}
-          for (const b of routeParamsInput.body) {
-            if (!b.key) continue;
-            if (b.fieldType === 'file') {
-              const picked = tryRequest.multipartFields?.find((f) => f.key === b.key)?.file;
-              if (picked) fd.append(b.key, picked);
-            } else {
-              fd.append(b.key, bodyObj[b.key] ?? (b.value || ''));
-            }
-          }
-          sendBody = fd;
-        } else {
-          sendBody = tryRequest.body;
-        }
-      }
-
-      const res = await fetch(finalUrl, {
-        method: tryRequest.method,
-        headers: reqHeaders,
-        body: sendBody,
-      });
-      const text = await res.text();
+      const { url: finalUrl, init } = buildTryRequest(tryRequest, routeParamsInput.body, activeColEnv?.name);
+      const res = await sendTryRequest(finalUrl, init);
+      const text = res.text;
       setTryResponse({
         status: res.status,
         statusText: res.statusText,
         latency: 120,
         size: text.length + ' B',
-        headers: Object.fromEntries(res.headers.entries()),
+        headers: res.headers,
         body: text,
         error: null,
       });
 
       // Save execution log to DB for History sidebar view
-      fetch('/api/logs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          routeId: route.id,
-          collectionId: collection.id,
-          method: tryRequest.method,
-          url: finalUrl,
-          status: res.status,
-          statusText: res.statusText,
-          latencyMs: 120,
-          source: 'ui-try',
-          requestBody: tryRequest.body || null,
-          responseBody: text,
-        }),
+      logRouteExecution({
+        routeId: route.id,
+        collectionId: collection.id,
+        method: tryRequest.method,
+        url: finalUrl,
+        status: res.status,
+        statusText: res.statusText,
+        latencyMs: 120,
+        source: 'ui-try',
+        requestBody: tryRequest.body || null,
+        responseBody: text,
       })
         .then(() => historyPanelRef.current?.refetch())
         .catch(() => historyPanelRef.current?.refetch());
@@ -710,21 +614,17 @@ export const RouteEditor: React.FC<RouteEditorProps> = ({
         error: errMsg,
       });
 
-      fetch('/api/logs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          routeId: route.id,
-          collectionId: collection.id,
-          method: tryRequest.method,
-          url: tryRequest.url,
-          status: 500,
-          statusText: 'Error',
-          latencyMs: 0,
-          source: 'ui-try',
-          requestBody: tryRequest.body || null,
-          responseBody: errMsg,
-        }),
+      logRouteExecution({
+        routeId: route.id,
+        collectionId: collection.id,
+        method: tryRequest.method,
+        url: tryRequest.url,
+        status: 500,
+        statusText: 'Error',
+        latencyMs: 0,
+        source: 'ui-try',
+        requestBody: tryRequest.body || null,
+        responseBody: errMsg,
       })
         .then(() => historyPanelRef.current?.refetch())
         .catch(() => historyPanelRef.current?.refetch());
