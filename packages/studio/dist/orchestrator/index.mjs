@@ -201,50 +201,91 @@ async function fetchRegimens(params) {
   }
 }
 
-// src/orchestrator/pipeline-executor.ts
+// src/orchestrator/pipeline-defaults.ts
+var DEFAULT_PIPELINE_SETTINGS = {
+  id: "pipe-default",
+  brandId: "brand_wardah",
+  applicationId: "app_kiosk",
+  channel: "kiosk",
+  executionStrategy: "dynamic_capability_dispatch",
+  vision: {
+    timeoutMs: 3e3,
+    inputMode: "single_image",
+    confidenceThreshold: 0.6,
+    enabledCapabilities: []
+  },
+  form: {
+    questionnaireCode: "q_default_diagnostic",
+    dimensionMappingRules: {
+      q_sebum: "sebum",
+      q_sensitivity: "sensitivity",
+      q_pigmentation: "pigmentation",
+      q_aging: "aging",
+      q_barrier: "barrier"
+    }
+  },
+  scoring: {
+    rulesetCode: "ruleset_default_jdm",
+    dimensionFusionWeights: {
+      sebum: { formWeight: 0.4, visionWeight: 0.6 },
+      acne: { formWeight: 0.3, visionWeight: 0.7 },
+      pigmentation: { formWeight: 0.4, visionWeight: 0.6 },
+      aging: { formWeight: 0.5, visionWeight: 0.5 },
+      sensitivity: { formWeight: 0.6, visionWeight: 0.4 },
+      barrier: { formWeight: 0.5, visionWeight: 0.5 }
+    }
+  },
+  matching: {
+    minEfficacyScore: 40,
+    strictContraindications: true,
+    maxAmRoutineSteps: 4,
+    maxPmRoutineSteps: 4,
+    timeoutMs: 5e3
+  }
+};
 var DEFAULT_MODEL_SERVER_URL = "http://127.0.0.1:8096";
-async function executeAssessmentPipeline(payload) {
-  const startTime = Date.now();
-  const timings = {};
-  const config = {
-    brandId: payload.brandId || "brand_wardah",
-    applicationId: payload.applicationId || "app_kiosk",
-    executionStrategy: payload.configOverride?.executionStrategy || "dynamic_capability_dispatch",
+var MODEL_DISPATCH_PATH = "/api/v1/models/dispatch-capabilities";
+
+// src/orchestrator/pipeline-executor.ts
+function pipelineEnvFromProcess() {
+  return {
+    modelServerUrl: process.env.MODEL_SERVER_URL,
+    matchEngineUrl: process.env.MATCH_ENGINE_URL,
+    gatewayApiKey: process.env.GATEWAY_API_KEY
+  };
+}
+var defaultClients = () => ({
+  resolveRequiredCapabilities: resolveRequiredCapabilitiesFromDb,
+  fetchSkinConditions: fetchSkinConditionsFromDb,
+  dispatchCapabilities: dispatchPyTorchCapabilities,
+  fuseScores: fuseDimensionScores,
+  fetchRegimens
+});
+function resolvePipelineConfig(payload, settings, env) {
+  return {
+    ...settings,
+    brandId: payload.brandId || settings.brandId,
+    applicationId: payload.applicationId || settings.applicationId,
+    executionStrategy: payload.configOverride?.executionStrategy || settings.executionStrategy,
     vision: {
-      // Capability dispatch lives on worker-models (the model server), at
-      // /api/v1/models/dispatch-capabilities. It was addressed here as
-      // /api/v1/dispatch-capabilities on the skin worker, which that worker
-      // has never served — the call 404'd unless a configOverride supplied
-      // the whole URL.
-      serviceUrl: payload.configOverride?.vision?.serviceUrl || `${process.env.MODEL_SERVER_URL || DEFAULT_MODEL_SERVER_URL}/api/v1/models/dispatch-capabilities`,
-      timeoutMs: 3e3},
-    form: {
-      dimensionMappingRules: {
-        q_sebum: "sebum",
-        q_sensitivity: "sensitivity",
-        q_pigmentation: "pigmentation",
-        q_aging: "aging",
-        q_barrier: "barrier"
-      }
-    },
-    scoring: {
-      dimensionFusionWeights: {
-        sebum: { formWeight: 0.4, visionWeight: 0.6 },
-        acne: { formWeight: 0.3, visionWeight: 0.7 },
-        pigmentation: { formWeight: 0.4, visionWeight: 0.6 },
-        aging: { formWeight: 0.5, visionWeight: 0.5 },
-        sensitivity: { formWeight: 0.6, visionWeight: 0.4 },
-        barrier: { formWeight: 0.5, visionWeight: 0.5 }
-      }
+      ...settings.vision,
+      serviceUrl: payload.configOverride?.vision?.serviceUrl || `${env.modelServerUrl || DEFAULT_MODEL_SERVER_URL}${MODEL_DISPATCH_PATH}`
     },
     matching: {
-      // MATCH_ENGINE_URL when the pipeline runs on a server; otherwise the
-      // app's own path, which the dashboard proxies to the gateway.
-      serviceUrl: process.env.MATCH_ENGINE_URL ? `${process.env.MATCH_ENGINE_URL}${DEFAULT_MATCH_ENGINE_PATH}` : `${payload.baseUrl || ""}${DEFAULT_MATCH_ENGINE_PATH}`,
-      timeoutMs: 5e3
+      ...settings.matching,
+      // The match engine origin when the pipeline runs on a server; otherwise
+      // the app's own path, which the dashboard proxies to the gateway.
+      serviceUrl: env.matchEngineUrl ? `${env.matchEngineUrl}${DEFAULT_MATCH_ENGINE_PATH}` : `${payload.baseUrl || ""}${DEFAULT_MATCH_ENGINE_PATH}`
     },
     ...payload.configOverride || {}
   };
+}
+async function executeAssessmentPipeline(payload, deps = {}) {
+  const startTime = Date.now();
+  const timings = {};
+  const env = deps.env ?? pipelineEnvFromProcess();
+  const clients = { ...defaultClients(), ...deps.clients };
+  const config = resolvePipelineConfig(payload, deps.defaults ?? DEFAULT_PIPELINE_SETTINGS, env);
   const t0 = Date.now();
   const extractedDimensions = {};
   const detectedConditions = [];
@@ -277,28 +318,26 @@ async function executeAssessmentPipeline(payload) {
   const t1 = Date.now();
   let dispatchedCaps = [];
   if (config.executionStrategy === "dynamic_capability_dispatch") {
-    dispatchedCaps = await resolveRequiredCapabilitiesFromDb(detectedConditions, payload.baseUrl || "");
+    dispatchedCaps = await clients.resolveRequiredCapabilities(detectedConditions, payload.baseUrl || "");
   } else if (config.executionStrategy === "parallel_late_fusion" || config.executionStrategy === "vision_only") {
-    const allConditions = await fetchSkinConditionsFromDb(payload.baseUrl || "");
+    const allConditions = await clients.fetchSkinConditions(payload.baseUrl || "");
     const allCaps = /* @__PURE__ */ new Set();
     allConditions.forEach((c) => {
       (c.visionCapabilities || []).forEach((cap) => allCaps.add(cap));
     });
     dispatchedCaps = Array.from(allCaps);
   }
-  const visionDispatch = await dispatchPyTorchCapabilities({
+  const visionDispatch = await clients.dispatchCapabilities({
     serviceUrl: config.vision.serviceUrl,
     timeoutMs: config.vision.timeoutMs,
     capabilities: dispatchedCaps,
     images: payload.images,
-    // Server-side only: process.env is empty in a browser bundle, so the key
-    // is simply absent there rather than shipped to one.
-    apiKey: process.env.GATEWAY_API_KEY
+    apiKey: env.gatewayApiKey
   });
   const visionSignals = visionDispatch.telemetry;
   timings["stage2_vision_ms"] = Date.now() - t1;
   const t2 = Date.now();
-  const fusedScores = fuseDimensionScores(
+  const fusedScores = clients.fuseScores(
     config.executionStrategy === "vision_only" ? {} : extractedDimensions,
     config.executionStrategy === "form_only" ? {} : visionSignals,
     config.scoring.dimensionFusionWeights
@@ -374,7 +413,7 @@ async function executeAssessmentPipeline(payload) {
   if (usesRetinol) {
     contraindicationWarnings.push("Active retinoid user: High-concentration AHA/BHA exfoliants slotted exclusively for alternate night PM use.");
   }
-  const regimens = await fetchRegimens({
+  const regimens = await clients.fetchRegimens({
     url: config.matching.serviceUrl,
     brandId: config.brandId,
     applicationId: config.applicationId,
@@ -422,6 +461,6 @@ async function executeAssessmentPipeline(payload) {
   };
 }
 
-export { dispatchPyTorchCapabilities, executeAssessmentPipeline, fetchSkinConditionsFromDb, fuseDimensionScores, invalidateSkinConditionCache, resolveRequiredCapabilities, resolveRequiredCapabilitiesFromDb };
+export { DEFAULT_MODEL_SERVER_URL, DEFAULT_PIPELINE_SETTINGS, MODEL_DISPATCH_PATH, dispatchPyTorchCapabilities, executeAssessmentPipeline, fetchSkinConditionsFromDb, fuseDimensionScores, invalidateSkinConditionCache, pipelineEnvFromProcess, resolvePipelineConfig, resolveRequiredCapabilities, resolveRequiredCapabilitiesFromDb };
 //# sourceMappingURL=index.mjs.map
 //# sourceMappingURL=index.mjs.map

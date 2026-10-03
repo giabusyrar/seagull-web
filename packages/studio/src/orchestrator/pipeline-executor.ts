@@ -3,72 +3,99 @@ import { resolveRequiredCapabilitiesFromDb, fetchSkinConditionsFromDb } from './
 import { dispatchPyTorchCapabilities } from './pytorch-client';
 import { fuseDimensionScores } from './score-fusion';
 import { fetchRegimens, DEFAULT_MATCH_ENGINE_PATH } from './match-client';
+import {
+  DEFAULT_MODEL_SERVER_URL,
+  DEFAULT_PIPELINE_SETTINGS,
+  MODEL_DISPATCH_PATH,
+  type PipelineSettings,
+} from './pipeline-defaults';
 
-// Where worker-models listens in local development (Seagull-core
-// docs/PORTS.md). Deployments set MODEL_SERVER_URL instead.
-const DEFAULT_MODEL_SERVER_URL = 'http://127.0.0.1:8096';
+/** Deployment values the pipeline reads from its environment. */
+export interface PipelineEnv {
+  /** worker-models origin; DEFAULT_MODEL_SERVER_URL when absent. */
+  modelServerUrl?: string;
+  /** Match engine origin; when absent the payload's baseUrl is used. */
+  matchEngineUrl?: string;
+  /** Sent to the model server. Server-side only. */
+  gatewayApiKey?: string;
+}
 
-export async function executeAssessmentPipeline(
-  payload: AssessmentPayload
-): Promise<UnifiedAssessmentResponse> {
-  const startTime = Date.now();
-  const timings: Record<string, number> = {};
+/**
+ * The environment as `process.env` has it. In a browser bundle process.env is
+ * empty, so the API key is simply absent there rather than shipped to one.
+ */
+export function pipelineEnvFromProcess(): PipelineEnv {
+  return {
+    modelServerUrl: process.env.MODEL_SERVER_URL,
+    matchEngineUrl: process.env.MATCH_ENGINE_URL,
+    gatewayApiKey: process.env.GATEWAY_API_KEY,
+  };
+}
 
-  const config: OrchestratorPipelineConfig = {
-    id: 'pipe-default',
-    brandId: payload.brandId || 'brand_wardah',
-    applicationId: payload.applicationId || 'app_kiosk',
-    channel: 'kiosk',
-    executionStrategy: payload.configOverride?.executionStrategy || 'dynamic_capability_dispatch',
+/** The services each pipeline stage calls. */
+export interface PipelineClients {
+  resolveRequiredCapabilities: typeof resolveRequiredCapabilitiesFromDb;
+  fetchSkinConditions: typeof fetchSkinConditionsFromDb;
+  dispatchCapabilities: typeof dispatchPyTorchCapabilities;
+  fuseScores: typeof fuseDimensionScores;
+  fetchRegimens: typeof fetchRegimens;
+}
+
+export interface PipelineDeps {
+  /** Settings used where the payload's configOverride is silent. */
+  defaults?: PipelineSettings;
+  /** Defaults to `pipelineEnvFromProcess()`. */
+  env?: PipelineEnv;
+  /** Any client left out uses the package's own HTTP client. */
+  clients?: Partial<PipelineClients>;
+}
+
+const defaultClients = (): PipelineClients => ({
+  resolveRequiredCapabilities: resolveRequiredCapabilitiesFromDb,
+  fetchSkinConditions: fetchSkinConditionsFromDb,
+  dispatchCapabilities: dispatchPyTorchCapabilities,
+  fuseScores: fuseDimensionScores,
+  fetchRegimens,
+});
+
+/** The effective config: settings, plus service URLs from env, under the payload's override. */
+export function resolvePipelineConfig(
+  payload: AssessmentPayload,
+  settings: PipelineSettings,
+  env: PipelineEnv,
+): OrchestratorPipelineConfig {
+  return {
+    ...settings,
+    brandId: payload.brandId || settings.brandId,
+    applicationId: payload.applicationId || settings.applicationId,
+    executionStrategy: payload.configOverride?.executionStrategy || settings.executionStrategy,
     vision: {
-      // Capability dispatch lives on worker-models (the model server), at
-      // /api/v1/models/dispatch-capabilities. It was addressed here as
-      // /api/v1/dispatch-capabilities on the skin worker, which that worker
-      // has never served — the call 404'd unless a configOverride supplied
-      // the whole URL.
+      ...settings.vision,
       serviceUrl:
         payload.configOverride?.vision?.serviceUrl ||
-        `${process.env.MODEL_SERVER_URL || DEFAULT_MODEL_SERVER_URL}/api/v1/models/dispatch-capabilities`,
-      timeoutMs: 3000,
-      inputMode: 'single_image',
-      confidenceThreshold: 0.6,
-      enabledCapabilities: [],
-    },
-    form: {
-      questionnaireCode: 'q_default_diagnostic',
-      dimensionMappingRules: {
-        q_sebum: 'sebum',
-        q_sensitivity: 'sensitivity',
-        q_pigmentation: 'pigmentation',
-        q_aging: 'aging',
-        q_barrier: 'barrier',
-      },
-    },
-    scoring: {
-      rulesetCode: 'ruleset_default_jdm',
-      dimensionFusionWeights: {
-        sebum: { formWeight: 0.4, visionWeight: 0.6 },
-        acne: { formWeight: 0.3, visionWeight: 0.7 },
-        pigmentation: { formWeight: 0.4, visionWeight: 0.6 },
-        aging: { formWeight: 0.5, visionWeight: 0.5 },
-        sensitivity: { formWeight: 0.6, visionWeight: 0.4 },
-        barrier: { formWeight: 0.5, visionWeight: 0.5 },
-      },
+        `${env.modelServerUrl || DEFAULT_MODEL_SERVER_URL}${MODEL_DISPATCH_PATH}`,
     },
     matching: {
-      minEfficacyScore: 40,
-      strictContraindications: true,
-      maxAmRoutineSteps: 4,
-      maxPmRoutineSteps: 4,
-      // MATCH_ENGINE_URL when the pipeline runs on a server; otherwise the
-      // app's own path, which the dashboard proxies to the gateway.
-      serviceUrl: process.env.MATCH_ENGINE_URL
-        ? `${process.env.MATCH_ENGINE_URL}${DEFAULT_MATCH_ENGINE_PATH}`
+      ...settings.matching,
+      // The match engine origin when the pipeline runs on a server; otherwise
+      // the app's own path, which the dashboard proxies to the gateway.
+      serviceUrl: env.matchEngineUrl
+        ? `${env.matchEngineUrl}${DEFAULT_MATCH_ENGINE_PATH}`
         : `${payload.baseUrl || ''}${DEFAULT_MATCH_ENGINE_PATH}`,
-      timeoutMs: 5000,
     },
     ...(payload.configOverride || {}),
   };
+}
+
+export async function executeAssessmentPipeline(
+  payload: AssessmentPayload,
+  deps: PipelineDeps = {},
+): Promise<UnifiedAssessmentResponse> {
+  const startTime = Date.now();
+  const timings: Record<string, number> = {};
+  const env = deps.env ?? pipelineEnvFromProcess();
+  const clients = { ...defaultClients(), ...deps.clients };
+  const config = resolvePipelineConfig(payload, deps.defaults ?? DEFAULT_PIPELINE_SETTINGS, env);
 
   // -------------------------------------------------------------
   // STAGE 1: FORM PARSING & CONCERN EXTRACTION
@@ -113,12 +140,12 @@ export async function executeAssessmentPipeline(
   let dispatchedCaps: string[] = [];
 
   if (config.executionStrategy === 'dynamic_capability_dispatch') {
-    dispatchedCaps = await resolveRequiredCapabilitiesFromDb(detectedConditions, payload.baseUrl || '');
+    dispatchedCaps = await clients.resolveRequiredCapabilities(detectedConditions, payload.baseUrl || '');
   } else if (
     config.executionStrategy === 'parallel_late_fusion' ||
     config.executionStrategy === 'vision_only'
   ) {
-    const allConditions = await fetchSkinConditionsFromDb(payload.baseUrl || '');
+    const allConditions = await clients.fetchSkinConditions(payload.baseUrl || '');
     const allCaps = new Set<string>();
     allConditions.forEach((c) => {
       (c.visionCapabilities || []).forEach((cap) => allCaps.add(cap));
@@ -126,14 +153,12 @@ export async function executeAssessmentPipeline(
     dispatchedCaps = Array.from(allCaps);
   }
 
-  const visionDispatch = await dispatchPyTorchCapabilities({
+  const visionDispatch = await clients.dispatchCapabilities({
     serviceUrl: config.vision.serviceUrl,
     timeoutMs: config.vision.timeoutMs,
     capabilities: dispatchedCaps,
     images: payload.images,
-    // Server-side only: process.env is empty in a browser bundle, so the key
-    // is simply absent there rather than shipped to one.
-    apiKey: process.env.GATEWAY_API_KEY,
+    apiKey: env.gatewayApiKey,
   });
   const visionSignals = visionDispatch.telemetry;
 
@@ -143,7 +168,7 @@ export async function executeAssessmentPipeline(
   // STAGE 3: SCORE FUSION & DECISION MODEL
   // -------------------------------------------------------------
   const t2 = Date.now();
-  const fusedScores = fuseDimensionScores(
+  const fusedScores = clients.fuseScores(
     config.executionStrategy === 'vision_only' ? {} : extractedDimensions,
     config.executionStrategy === 'form_only' ? {} : visionSignals,
     config.scoring.dimensionFusionWeights
@@ -252,7 +277,7 @@ export async function executeAssessmentPipeline(
   // Routines come from the match engine. They used to be literals in this
   // file — fixed product names and fixed scores dressed as engine output —
   // which meant the dashboard showed recommendations no catalogue had made.
-  const regimens = await fetchRegimens({
+  const regimens = await clients.fetchRegimens({
     url: config.matching.serviceUrl,
     brandId: config.brandId,
     applicationId: config.applicationId,

@@ -199,6 +199,148 @@ declare function fuseDimensionScores(formScores: Record<string, number>, visionS
     visionWeight: number;
 }>): Record<string, number>;
 
-declare function executeAssessmentPipeline(payload: AssessmentPayload): Promise<UnifiedAssessmentResponse>;
+interface RoutineStep {
+    step: string;
+    productName: string;
+    matchScore: number;
+    reason: string;
+}
+interface RegimenResult {
+    amRoutine: RoutineStep[];
+    pmRoutine: RoutineStep[];
+    /**
+     * Brand-defined phases, when the engine answers with those instead of the
+     * AM/PM pair (its response carries either shape).
+     */
+    phases: Record<string, RoutineStep[]>;
+    /** Warnings the engine raised about ingredient interactions. */
+    warnings: string[];
+    /** Why there is no regimen — unreachable, refused, or simply none returned. */
+    error?: string;
+}
+declare function fetchRegimens(params: {
+    url: string;
+    brandId: string;
+    applicationId: string;
+    dimensionScores: Record<string, number>;
+    customerConditions?: Record<string, boolean>;
+    strategyId?: string;
+    timeoutMs?: number;
+}): Promise<RegimenResult>;
 
-export { type AssessmentPayload, type CapabilityDispatchResult, type DbSkinConditionRecord, type OrchestratorPipelineConfig, type PipelineExecutionStrategy, type UnifiedAssessmentResponse, type VisionCapabilityInfo, dispatchPyTorchCapabilities, executeAssessmentPipeline, fetchSkinConditionsFromDb, fuseDimensionScores, invalidateSkinConditionCache, resolveRequiredCapabilities, resolveRequiredCapabilitiesFromDb };
+/**
+ * The pipeline settings used when the caller supplies none. Every value here
+ * is the one the executor has always applied inline; they were collected
+ * into this object, unchanged, so a deployment can replace them through
+ * `executeAssessmentPipeline(payload, { defaults })` or a payload
+ * `configOverride`.
+ *
+ * None of these are measurements or calibrated values. The brand and
+ * application ids are the demo tenant; the fusion weights, efficacy floor
+ * and routine-step limits are policy that has no recorded source. Treat
+ * them as placeholders until a deployment's own pipeline config replaces
+ * them. Service URLs are not here: they come from the environment (see
+ * `PipelineEnv`).
+ */
+declare const DEFAULT_PIPELINE_SETTINGS: {
+    id: string;
+    brandId: string;
+    applicationId: string;
+    channel: "kiosk";
+    executionStrategy: "dynamic_capability_dispatch";
+    vision: {
+        timeoutMs: number;
+        inputMode: "single_image";
+        confidenceThreshold: number;
+        enabledCapabilities: never[];
+    };
+    form: {
+        questionnaireCode: string;
+        dimensionMappingRules: {
+            q_sebum: string;
+            q_sensitivity: string;
+            q_pigmentation: string;
+            q_aging: string;
+            q_barrier: string;
+        };
+    };
+    scoring: {
+        rulesetCode: string;
+        dimensionFusionWeights: {
+            sebum: {
+                formWeight: number;
+                visionWeight: number;
+            };
+            acne: {
+                formWeight: number;
+                visionWeight: number;
+            };
+            pigmentation: {
+                formWeight: number;
+                visionWeight: number;
+            };
+            aging: {
+                formWeight: number;
+                visionWeight: number;
+            };
+            sensitivity: {
+                formWeight: number;
+                visionWeight: number;
+            };
+            barrier: {
+                formWeight: number;
+                visionWeight: number;
+            };
+        };
+    };
+    matching: {
+        minEfficacyScore: number;
+        strictContraindications: true;
+        maxAmRoutineSteps: number;
+        maxPmRoutineSteps: number;
+        timeoutMs: number;
+    };
+};
+/** A pipeline config without its service URLs, which come from `PipelineEnv`. */
+type PipelineSettings = Omit<OrchestratorPipelineConfig, 'vision' | 'matching'> & {
+    vision: Omit<OrchestratorPipelineConfig['vision'], 'serviceUrl'>;
+    matching: Omit<OrchestratorPipelineConfig['matching'], 'serviceUrl'>;
+};
+declare const DEFAULT_MODEL_SERVER_URL = "http://127.0.0.1:8096";
+declare const MODEL_DISPATCH_PATH = "/api/v1/models/dispatch-capabilities";
+
+/** Deployment values the pipeline reads from its environment. */
+interface PipelineEnv {
+    /** worker-models origin; DEFAULT_MODEL_SERVER_URL when absent. */
+    modelServerUrl?: string;
+    /** Match engine origin; when absent the payload's baseUrl is used. */
+    matchEngineUrl?: string;
+    /** Sent to the model server. Server-side only. */
+    gatewayApiKey?: string;
+}
+/**
+ * The environment as `process.env` has it. In a browser bundle process.env is
+ * empty, so the API key is simply absent there rather than shipped to one.
+ */
+declare function pipelineEnvFromProcess(): PipelineEnv;
+/** The services each pipeline stage calls. */
+interface PipelineClients {
+    resolveRequiredCapabilities: typeof resolveRequiredCapabilitiesFromDb;
+    fetchSkinConditions: typeof fetchSkinConditionsFromDb;
+    dispatchCapabilities: typeof dispatchPyTorchCapabilities;
+    fuseScores: typeof fuseDimensionScores;
+    fetchRegimens: typeof fetchRegimens;
+}
+interface PipelineDeps {
+    /** Settings used where the payload's configOverride is silent. */
+    defaults?: PipelineSettings;
+    /** Defaults to `pipelineEnvFromProcess()`. */
+    env?: PipelineEnv;
+    /** Any client left out uses the package's own HTTP client. */
+    clients?: Partial<PipelineClients>;
+}
+/** The effective config: settings, plus service URLs from env, under the payload's override. */
+declare function resolvePipelineConfig(payload: AssessmentPayload, settings: PipelineSettings, env: PipelineEnv): OrchestratorPipelineConfig;
+declare function executeAssessmentPipeline(payload: AssessmentPayload, deps?: PipelineDeps): Promise<UnifiedAssessmentResponse>;
+
+export { type AssessmentPayload, type CapabilityDispatchResult, DEFAULT_MODEL_SERVER_URL, DEFAULT_PIPELINE_SETTINGS, type DbSkinConditionRecord, MODEL_DISPATCH_PATH, type OrchestratorPipelineConfig, type PipelineClients, type PipelineDeps, type PipelineEnv, type PipelineExecutionStrategy, type PipelineSettings, type UnifiedAssessmentResponse, type VisionCapabilityInfo, dispatchPyTorchCapabilities, executeAssessmentPipeline, fetchSkinConditionsFromDb, fuseDimensionScores, invalidateSkinConditionCache, pipelineEnvFromProcess, resolvePipelineConfig, resolveRequiredCapabilities, resolveRequiredCapabilitiesFromDb };
