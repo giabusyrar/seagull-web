@@ -43,6 +43,13 @@ const CORNEA_IOR = 1.376;
 export const PRIOR_GREY = '#9ca3af';
 // Sequential ramp for _SIGMA_MM: light = less uncertain, dark = more.
 export const SIGMA_RAMP: [string, string] = ['#fef3c7', '#b91c1c'];
+// Parts the GLB gives no _SIGMA_MM (hair, head covering: the model has no
+// uncertainty for them) are drawn this neutral grey in the sigma view, so a
+// missing value never reads as the most certain end of the ramp.
+export const NO_SIGMA_GREY = '#e5e7eb';
+// Per-vertex stand-in for "no _SIGMA_MM": negative, so it can never be a
+// real uncertainty, and the shader tests for it.
+const NO_SIGMA = -1;
 // Layout: room around the head when it is first framed.
 const FRAME_MARGIN = 1.25;
 
@@ -52,6 +59,8 @@ export interface HeadStats {
   sigmaRange: [number, number] | null;
   /** The GLB had no _OBSERVED attribute: every region is shown as estimated. */
   provenanceMissing: boolean;
+  /** Some parts (e.g. hair) carry no _SIGMA_MM; the sigma view draws them NO_SIGMA_GREY. */
+  sigmaMissing: boolean;
 }
 
 /**
@@ -90,6 +99,7 @@ interface ShaderUniforms {
   uPriorGrey: { value: THREE.Color };
   uRampLo: { value: THREE.Color };
   uRampHi: { value: THREE.Color };
+  uNoSigma: { value: THREE.Color };
 }
 
 /**
@@ -165,6 +175,7 @@ export function HeadViewer({ glb, shading, onLoaded, onError, markers = [], clas
         let sigmaMin = Infinity;
         let sigmaMax = -Infinity;
         let provenanceMissing = false;
+        let sigmaMissing = false;
 
         gltf.scene.traverse((obj) => {
           const mesh = obj as THREE.Mesh;
@@ -184,7 +195,8 @@ export function HeadViewer({ glb, shading, onLoaded, onError, markers = [], clas
               }
             }
           }
-          geo.setAttribute('aSigma', sigma ?? new THREE.BufferAttribute(new Float32Array(count), 1));
+          if (!sigma) sigmaMissing = true;
+          geo.setAttribute('aSigma', sigma ?? new THREE.BufferAttribute(new Float32Array(count).fill(NO_SIGMA), 1));
 
           const part = typeof geo.userData?.part === 'string' ? (geo.userData.part as string) : null;
           if (part) mesh.material = partMaterial(part, mesh.material as THREE.MeshStandardMaterial);
@@ -204,6 +216,7 @@ export function HeadViewer({ glb, shading, onLoaded, onError, markers = [], clas
                 uPriorGrey: { value: new THREE.Color(PRIOR_GREY) },
                 uRampLo: { value: new THREE.Color(SIGMA_RAMP[0]) },
                 uRampHi: { value: new THREE.Color(SIGMA_RAMP[1]) },
+                uNoSigma: { value: new THREE.Color(NO_SIGMA_GREY) },
               };
               Object.assign(shader.uniforms, u);
               uniforms.current.push(u);
@@ -216,7 +229,7 @@ export function HeadViewer({ glb, shading, onLoaded, onError, markers = [], clas
               shader.fragmentShader = shader.fragmentShader
                 .replace(
                   '#include <common>',
-                  '#include <common>\nuniform float uMode;\nuniform float uSigmaMax;\nuniform vec3 uPriorGrey;\nuniform vec3 uRampLo;\nuniform vec3 uRampHi;\nvarying float vObserved;\nvarying float vSigma;',
+                  '#include <common>\nuniform float uMode;\nuniform float uSigmaMax;\nuniform vec3 uPriorGrey;\nuniform vec3 uRampLo;\nuniform vec3 uRampHi;\nuniform vec3 uNoSigma;\nvarying float vObserved;\nvarying float vSigma;',
                 )
                 .replace(
                   '#include <map_fragment>',
@@ -225,7 +238,7 @@ export function HeadViewer({ glb, shading, onLoaded, onError, markers = [], clas
                     'if (uMode > 0.5 && uMode < 1.5) {',
                     '  if (vObserved < 0.5) diffuseColor.rgb = uPriorGrey;',
                     '} else if (uMode > 1.5) {',
-                    '  diffuseColor.rgb = mix(uRampLo, uRampHi, clamp(vSigma / max(uSigmaMax, 1e-6), 0.0, 1.0));',
+                    '  diffuseColor.rgb = vSigma < 0.0 ? uNoSigma : mix(uRampLo, uRampHi, clamp(vSigma / max(uSigmaMax, 1e-6), 0.0, 1.0));',
                     '}',
                   ].join('\n'),
                 );
@@ -265,6 +278,7 @@ export function HeadViewer({ glb, shading, onLoaded, onError, markers = [], clas
           report: isHeadReport(extras) ? extras : null,
           sigmaRange: Number.isFinite(sigmaMax) ? [sigmaMin, sigmaMax] : null,
           provenanceMissing,
+          sigmaMissing,
         });
         sigmaMaxRef.current = Number.isFinite(sigmaMax) ? sigmaMax : 1;
         setReady(true);

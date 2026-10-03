@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, Box, ImagePlus, X } from 'lucide-react';
 import { Button, cn } from '@gateway-experience/shared';
-import { HeadViewer, PRIOR_GREY, SIGMA_RAMP, type HeadShading, type HeadStats } from './HeadViewer';
+import { HeadViewer, NO_SIGMA_GREY, PRIOR_GREY, SIGMA_RAMP, type HeadShading, type HeadStats } from './HeadViewer';
 import { HEAD_VIEW_LABEL, headErrorText, type HeadReport, type HeadViewName } from './headTypes';
 import { useFaceHead } from './useFaceHead';
 
@@ -188,6 +188,12 @@ export function ShadingControl({ shading, onChange, stats }: { shading: HeadShad
               Ketidakpastian posisi tiap titik, <span className="font-semibold text-foreground">setidaknya</span> sebesar ini
               (batas bawah dari model, bukan rentang kepercayaan).
             </p>
+            {stats?.sigmaMissing && (
+              <p className="flex items-center gap-1.5">
+                <span className="inline-block h-3 w-3 rounded-sm border border-border" style={{ backgroundColor: NO_SIGMA_GREY }} />
+                Abu-abu muda = tidak ada nilai ketidakpastian dari model (mis. rambut atau penutup kepala).
+              </p>
+            )}
           </div>
         )
       )}
