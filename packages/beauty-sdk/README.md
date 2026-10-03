@@ -20,7 +20,7 @@ Copy `.npmrc.example` to your app's `.npmrc` (registry + read-only token), then:
          apiKey: process.env.BEAUTY_API_KEY!,
          brandId: process.env.BEAUTY_BRAND_ID!,
          applicationId: process.env.BEAUTY_APP_ID!,
-         // authorize: async (req) => ({ customerId: ... }) — needed for customer history
+         // authorize: async (req) => ({ customerId: ... }) — for customer-scoped operations (none in this release; they return in phase 5)
        });
 
    The API key must come from server env (never a NEXT_PUBLIC_ variable); the browser client never sees it. `createBeautyProxy` throws at construction, naming the field, if any of the four options is missing or empty.
