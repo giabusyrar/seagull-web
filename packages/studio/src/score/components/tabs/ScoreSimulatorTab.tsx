@@ -3,7 +3,9 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Copy, Check } from 'lucide-react';
 import { InfoTooltip, usePersistentState, useHostRoutes } from '@gateway-experience/shared';
-import type { ScoreRuleset, RulesetSimulationResponse } from '../../types';
+import type { ScoreRuleset, RulesetSimulationResponse, DimensionBlend } from '../../types';
+import { AGE_FIELD, FORM_SOURCE, VISION_SOURCE } from '../../types';
+import { readBlend } from '../../utils/blend';
 import { getSafetyFlags } from '../../../form/api';
 import { SIMULATE_PATH, fetchTenantSurveys, simulateRuleset } from '../../api';
 import { safetyFlagsFromSurveys } from '../../utils/safety-flags';
@@ -19,12 +21,6 @@ const card = 'rounded-lg border border-border bg-card p-4';
 const sliderCls =
   'w-full h-1.5 rounded appearance-none cursor-pointer bg-muted accent-[#d97706]';
 
-const sourceLabel: Record<string, string> = {
-  form: 'Form',
-  vision: 'Vision',
-  blend: 'Blend',
-  none: 'No data',
-};
 
 export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
   rulesets,
@@ -49,7 +45,7 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
         ...Object.keys(s.dimension_weights || {}),
         ...Object.keys(s.concern_labels || {}),
         ...Object.keys(s.axis_codes || {}),
-        ...Object.keys(s.field_mapping || {}),
+        ...Object.keys(readBlend(s).dims),
       ]);
       for (const node of s.nodes || []) {
         if (node?.type !== 'decisionTableNode') continue;
@@ -67,30 +63,40 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
     }
   }, [activeRuleset]);
 
-  // field_mapping (registered on the ruleset from the Blending tab) is the
-  // authoritative source for which axes are form-driven, vision-driven, or
-  // both — the backend's stage2Score reads it the same way for /evaluate and
-  // /simulate.
-  const fieldMapping = useMemo<Record<string, { form?: string; vision?: string }>>(() => {
+  // The ruleset's blend (the Blending tab's sources + dimension_inputs, or a
+  // legacy ruleset read the way core reads it) says which axes take which
+  // sources — the backend's stage2Score reads it the same way for /evaluate
+  // and /simulate.
+  const blend = useMemo(() => {
     try {
-      return JSON.parse(activeRuleset?.schema || '{}').field_mapping || {};
+      return readBlend(JSON.parse(activeRuleset?.schema || '{}'), rulesetDims);
     } catch {
-      return {};
+      return readBlend({});
     }
-  }, [activeRuleset]);
+  }, [activeRuleset, rulesetDims]);
+  const fieldOf = useCallback(
+    (d: string, source: string) => blend.dims[d]?.inputs.find((i) => i.source === source)?.field,
+    [blend],
+  );
 
   // Age is never a generic 0-100 slider — it's always the dedicated Age
   // input below, sent as age_years and resolved server-side via the same
   // AgeOverThirty check /evaluate uses.
-  const ageAxisKeys = useMemo(() => rulesetDims.filter((d) => fieldMapping[d]?.form === 'age_over_30'), [rulesetDims, fieldMapping]);
-  // Questionnaire result: every axis with a form source, other than the
+  const ageAxisKeys = useMemo(() => rulesetDims.filter((d) => fieldOf(d, FORM_SOURCE) === AGE_FIELD), [rulesetDims, fieldOf]);
+  // Questionnaire result: every axis with a form input, other than the
   // age-driven ones above.
   const formDims = useMemo(
-    () => rulesetDims.filter((d) => !ageAxisKeys.includes(d) && (fieldMapping[d]?.form || !fieldMapping[d]?.vision)),
-    [rulesetDims, fieldMapping, ageAxisKeys],
+    () => rulesetDims.filter((d) => !ageAxisKeys.includes(d) && !!fieldOf(d, FORM_SOURCE)),
+    [rulesetDims, fieldOf, ageAxisKeys],
   );
-  // Vision result: every axis with a vision source.
-  const visionDims = useMemo(() => rulesetDims.filter((d) => fieldMapping[d]?.vision), [rulesetDims, fieldMapping]);
+  // Vision result: every axis with a vision input.
+  const visionDims = useMemo(() => rulesetDims.filter((d) => !!fieldOf(d, VISION_SOURCE)), [rulesetDims, fieldOf]);
+  // Other sources (a device, a lab): /simulate takes no signals for them yet,
+  // so they always count as missing here.
+  const otherSources = useMemo(
+    () => Array.from(new Set(Object.values(blend.dims).flatMap((d) => d.inputs.map((i) => i.source)))).filter((s) => s !== FORM_SOURCE && s !== VISION_SOURCE),
+    [blend],
+  );
 
   // Slider values survive a reload. Keyed by dimension and never pruned:
   // every read goes through formDims/visionDims with a 50 default, so a
@@ -260,6 +266,8 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
 
   const result = simResponse?.result;
   const dimensions = result?.dimensions || {};
+  const breakdown: Record<string, DimensionBlend> = result?.dimension_breakdown || {};
+  const breakdownKeys = Array.from(new Set([...Object.keys(dimensions), ...Object.keys(breakdown)]));
   const skinProfile = result?.skin_profile;
   const subClassification = result?.sub_classification || {};
   const warnings = result?.warnings || [];
@@ -379,6 +387,13 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {otherSources.length > 0 && (
+          <div className={card + ' text-[11px] text-muted-foreground'}>
+            The simulator cannot send <span className="font-mono">{otherSources.join(', ')}</span> yet, so those
+            inputs count as missing and their weight is shared among the sources above.
           </div>
         )}
 
@@ -513,42 +528,55 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
           )}
         </div>
 
-        {Object.keys(dimensions).length > 0 && (
+        {breakdownKeys.length > 0 && (
           <div className={card}>
             <h3 className="text-sm font-bold text-foreground mb-3">Dimension breakdown</h3>
             <div className="space-y-2">
-              {Object.entries(dimensions).map(([dimKey, d]) => (
-                <div
-                  key={dimKey}
-                  className="rounded-md border border-border bg-muted/20 p-2.5 flex items-center justify-between text-xs gap-2"
-                >
-                  <div className="min-w-0">
-                    <div className="text-foreground font-semibold truncate">{dimKey}</div>
-                    <div className="text-muted-foreground text-[10px]">
-                      {sourceLabel[d.source] || d.source}
-                      {d.source === 'blend' && d.weight
-                        ? ` (form ${Math.round(d.weight.form * 100)}% / vision ${Math.round(d.weight.vision * 100)}%)`
-                        : ''}
+              {breakdownKeys.map((dimKey) => {
+                const d = dimensions[dimKey];
+                const b = breakdown[dimKey];
+                const contributions = Object.entries(b?.contributions || d?.contributions || {}).sort((x, y) => y[1].weight - x[1].weight);
+                const missing = b?.missing || d?.missing || [];
+                const scored = b ? b.scored : d?.scored !== false && d?.final_score !== null;
+                const finalScore = d?.final_score ?? b?.score;
+                return (
+                  <div key={dimKey} className="rounded-md border border-border bg-muted/20 p-2.5 text-xs space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-foreground font-semibold truncate">{dimKey}</div>
+                      <div className="flex items-center gap-2 shrink-0 font-mono">
+                        {scored ? (
+                          <span className="text-beak font-semibold" title="final score (100 = healthy)">
+                            {typeof finalScore === 'number' ? Math.round(finalScore * 10) / 10 : '—'}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground text-[11px] font-sans">Not scored</span>
+                        )}
+                        {d?.axis && (
+                          <span className="text-foreground font-semibold bg-card border border-border rounded px-1.5 py-0.5">
+                            {d.axis}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-3 shrink-0 font-mono">
-                    <span className="text-muted-foreground text-[10px]" title="form_score">
-                      F {d.form_score ?? '—'}
-                    </span>
-                    <span className="text-muted-foreground text-[10px]" title="vision_score">
-                      V {d.vision_score ?? '—'}
-                    </span>
-                    <span className="text-beak font-semibold" title="final_score">
-                      {d.final_score ?? '—'}
-                    </span>
-                    {d.axis && (
-                      <span className="text-foreground font-semibold bg-card border border-border rounded px-1.5 py-0.5">
-                        {d.axis}
-                      </span>
+                    {contributions.map(([src, c]) => (
+                      <div key={src} className="flex items-center gap-2 text-[10px]">
+                        <span className="w-16 truncate font-mono text-muted-foreground">{src}</span>
+                        <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                          <span className="block h-full rounded-full bg-beak" style={{ width: `${Math.max(0, Math.min(1, c.weight)) * 100}%` }} />
+                        </span>
+                        <span className="w-10 text-right font-mono text-muted-foreground">{Math.round(c.weight * 1000) / 10}%</span>
+                        <span className="w-10 text-right font-mono text-foreground">{Math.round(c.score * 10) / 10}</span>
+                      </div>
+                    ))}
+                    {missing.length > 0 && (
+                      <div className="text-[10px] text-amber-600 dark:text-amber-400">Missing: {missing.join(', ')}</div>
+                    )}
+                    {!scored && (b?.reason || d?.reason) && (
+                      <div className="text-[10px] text-muted-foreground">{b?.reason || d?.reason}</div>
                     )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}

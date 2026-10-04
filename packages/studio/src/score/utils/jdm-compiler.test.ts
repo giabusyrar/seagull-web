@@ -76,46 +76,48 @@ describe('compileVisualToJDM save round-trip', () => {
     expect(nodeIds).toContain('sensitivity-subtype');
   });
 
-  it('preserves field_mapping for a dimension the editor does not represent as an axis (pore_severity)', () => {
+  it('converts the legacy blend to sources + dimension_inputs, keeping a dimension it does not show as an axis letter (pore_severity)', () => {
     const decompiled = decompileJDMToVisualComponents(schemaWithCustomNode);
-    const recompiled = compileVisualToJDM(
-      decompiled.axes,
-      decompiled.profileConfig,
-      decompiled.scoreRangeBands,
-      decompiled.severityBands,
-      schemaWithCustomNode,
-    );
-    const after = JSON.parse(recompiled);
+    expect(decompiled.convertedBlend).toBe(true);
+    const after = JSON.parse(compileVisualToJDM(
+      decompiled.axes, decompiled.profileConfig, decompiled.scoreRangeBands, decompiled.severityBands, schemaWithCustomNode,
+    ));
 
-    expect(after.field_mapping.pore_severity).toEqual({ vision: 'Pores' });
-    // The editor-owned dimensions must still be present and correct.
-    expect(after.field_mapping.aging).toEqual({ form: 'age_over_30', vision: 'score_wrinkle' });
-    expect(after.field_mapping.pigmentation).toEqual({ form: 'pigmentation', vision: 'score_darkspot' });
+    // Only the new shape is saved: core reads a ruleset as all-new or all-legacy.
+    expect(after.field_mapping).toBeUndefined();
+    expect(after.dimension_fusion).toBeUndefined();
+    expect(after.sources).toEqual({ form: { scale: [0, 100], direction: 'concern' }, vision: { scale: [0, 100], direction: 'health' } });
+    expect(after.dimension_inputs).toEqual({
+      // form's field is the dimension key, except the date-of-birth field.
+      aging: { inputs: { form: 'age_over_30', vision: 'score_wrinkle' }, weights: { form: 0.5, vision: 0.5 } },
+      pigmentation: { inputs: { form: 'pigmentation', vision: 'score_darkspot' }, weights: { form: 0.8, vision: 0.2 } },
+      sebum: { inputs: { form: 'sebum' }, weights: { form: 1 } },
+      sensitivity: { inputs: { form: 'sensitivity' }, weights: { form: 1 } },
+      pore_severity: { inputs: { vision: 'Pores' }, weights: { vision: 1 } },
+    });
   });
 
-  it('surfaces every field_mapping dimension as an editable axis, even one with no axis letter', () => {
+  it('surfaces every blended dimension as an editable axis, even one with no axis letter', () => {
     const decompiled = decompileJDMToVisualComponents(schemaWithCustomNode);
-
-    const keys = decompiled.axes.map((a) => a.dimensionKey);
-    expect(keys).toContain('pore_severity');
-
     const pore = decompiled.axes.find((a) => a.dimensionKey === 'pore_severity')!;
-    expect(pore.inputComposition).toBe('single_source');
-    expect(pore.source).toEqual({ origin: 'vision', fieldCode: 'Pores', label: 'Pores' });
+    expect(pore.inputs).toEqual([{ source: 'vision', field: 'Pores', label: 'Pores', weight: 100 }]);
     // No axis_codes/band node exists for it -> no bands, and recompiling
     // must never invent an axis_codes entry (it must never gain a letter).
     expect(pore.bands ?? []).toHaveLength(0);
-
-    const recompiled = compileVisualToJDM(
-      decompiled.axes,
-      decompiled.profileConfig,
-      decompiled.scoreRangeBands,
-      decompiled.severityBands,
-      schemaWithCustomNode,
-    );
-    const after = JSON.parse(recompiled);
+    const after = JSON.parse(compileVisualToJDM(
+      decompiled.axes, decompiled.profileConfig, decompiled.scoreRangeBands, decompiled.severityBands, schemaWithCustomNode,
+    ));
     expect(after.axis_codes.pore_severity).toBeUndefined();
-    expect(after.field_mapping.pore_severity).toEqual({ vision: 'Pores' });
+  });
+
+  it('keeps the blend of a dimension the caller does not pass as an axis, converted', () => {
+    const decompiled = decompileJDMToVisualComponents(schemaWithCustomNode);
+    const onlySebum = decompiled.axes.filter((a) => a.dimensionKey === 'sebum');
+    const after = JSON.parse(compileVisualToJDM(
+      onlySebum, decompiled.profileConfig, decompiled.scoreRangeBands, decompiled.severityBands, schemaWithCustomNode,
+    ));
+    expect(after.dimension_inputs.pigmentation).toEqual({ inputs: { form: 'pigmentation', vision: 'score_darkspot' }, weights: { form: 0.8, vision: 0.2 } });
+    expect(after.dimension_inputs.pore_severity).toEqual({ inputs: { vision: 'Pores' }, weights: { vision: 1 } });
   });
 
   it('preserves top-level ruleset config the editor does not manage', () => {
@@ -132,5 +134,32 @@ describe('compileVisualToJDM save round-trip', () => {
     expect(after.vision_source_code).toBe('paradev_skin_analyzer');
     expect(after.form_survey_code).toBe('skinverse_q1_q6');
     expect(after.suppress_severity_labels).toBe(true);
+  });
+});
+
+describe('hand-authored band nodes', () => {
+  // baumann_16_types' sebum-band names its columns 'sebum'/'sebum_axis', not 'in'/'out'.
+  const schema = JSON.stringify({
+    nodes: [{
+      id: 'sebum-band', name: 'Sebum', type: 'decisionTableNode',
+      content: {
+        hitPolicy: 'first',
+        inputs: [{ id: 'sebum', field: 'dimension_scores.sebum' }],
+        outputs: [{ id: 'sebum_axis', field: 'axis_values.SEBUM' }],
+        rules: [{ sebum: '[60..100]', sebum_axis: '"D"' }, { sebum: '[45..55]', sebum_axis: '"C"' }, { sebum: '[0..40]', sebum_axis: '"O"' }],
+      },
+    }],
+    edges: [],
+    dimension_weights: { sebum: 1 },
+    dimension_fusion: { sebum: { form: 1, vision: 0 } },
+  });
+
+  it('reads its bands by the node’s own column ids, so a save keeps the axis letter', () => {
+    const d = decompileJDMToVisualComponents(schema);
+    expect(d.axes[0].bands?.map((b) => [b.min, b.max, b.letter])).toEqual([[60, 100, 'D'], [45, 55, 'C'], [0, 40, 'O']]);
+    const after = JSON.parse(compileVisualToJDM(d.axes, d.profileConfig, d.scoreRangeBands, d.severityBands, schema));
+    const node = after.nodes.find((n: { id: string }) => n.id === 'sebum-band');
+    expect(node.content.outputs[0].field).toBe('axis_values.SEBUM');
+    expect(node.content.rules).toHaveLength(3);
   });
 });

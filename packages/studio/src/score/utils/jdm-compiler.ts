@@ -7,21 +7,14 @@ import type {
   JDMDecisionModel,
   JDMNode,
   JDMEdge,
-  InputSource,
   ThresholdBand,
+  SourceSpec,
+  DimensionInputs,
 } from '../types';
-import { DEFAULT_SCORE_RANGE_BANDS, DEFAULT_SEVERITY_BANDS, KNOWN_VISION_FIELDS } from '../types';
+import { DEFAULT_SCORE_RANGE_BANDS, DEFAULT_SEVERITY_BANDS, KNOWN_VISION_FIELDS, VISION_SOURCE } from '../types';
+import { readBlend, toDimensionInputs } from './blend';
 
 const visionFieldLabel = (code: string) => KNOWN_VISION_FIELDS.find((f) => f.code === code)?.label || code;
-
-const makeSource = (fieldCode: string | undefined, origin: 'form' | 'vision'): InputSource | undefined =>
-  fieldCode
-    ? {
-        origin,
-        fieldCode,
-        label: origin === 'vision' ? visionFieldLabel(fieldCode) : fieldCode,
-      }
-    : undefined;
 
 // Health-oriented model: the 0-100 score climbs from 0 (critical) to 100
 // (optimal) — a higher number always means healthier skin. Score Range,
@@ -119,6 +112,10 @@ export function compileVisualToJDM(
    *  sub_classification, not a 4-letter code) that this editor has no way
    *  to represent yet. Without this, saving silently deletes it. */
   existingSchema?: string,
+  /** The ruleset's sources. Omitted (e.g. the Skin Grading editor, which does
+   *  not edit them): the existing schema's, or its legacy pair when it is
+   *  being converted. */
+  sources?: Record<string, SourceSpec>,
 ): string {
   const effectiveAxes = axes.length > 0 ? axes : DEFAULT_STARTER_AXES;
 
@@ -213,28 +210,17 @@ export function compileVisualToJDM(
 
   // --- schema-level config the engine reads ---
   const dimension_weights: Record<string, number> = {};
-  const dimension_fusion: Record<string, { form: number; vision: number }> = {};
+  const dimension_inputs: Record<string, DimensionInputs> = {};
   const concern_labels: Record<string, string> = {};
   const axis_codes: Record<string, { threshold: number; low: string; high: string }> = {};
-  const field_mapping: Record<string, { form?: string; vision?: string }> = {};
 
   for (const a of effectiveAxes) {
     const key = a.dimensionKey.toLowerCase();
     dimension_weights[key] = a.weight ?? 1;
     concern_labels[key] = a.concernLabel || defaultConcernLabel(key);
 
-    if (a.inputComposition === 'weighted_blend') {
-      const fw = a.formWeight ?? 50;
-      dimension_fusion[key] = { form: fw / 100, vision: (100 - fw) / 100 };
-      const mapping: { form?: string; vision?: string } = {};
-      if (a.formSource?.fieldCode) mapping.form = a.formSource.fieldCode;
-      if (a.visionSource?.fieldCode) mapping.vision = a.visionSource.fieldCode;
-      if (Object.keys(mapping).length > 0) field_mapping[key] = mapping;
-    } else if (a.source?.fieldCode) {
-      // single_source: no dimension_fusion entry needed — 100% one side is
-      // already the engine's default when the other side is never sent.
-      field_mapping[key] = a.source.origin === 'form' ? { form: a.source.fieldCode } : { vision: a.source.fieldCode };
-    }
+    const di = toDimensionInputs(a);
+    if (di) dimension_inputs[key] = di;
 
     // Bands -> axis_codes (exactly 2 bands) or a decisionTableNode (3+).
     const bands = (a.bands || []).slice().sort((x, y) => x.min - y.min);
@@ -298,12 +284,25 @@ export function compileVisualToJDM(
     return { ...merged, ...fresh };
   };
 
+  // The blend is saved only in the new shape. Core reads a ruleset as all-new
+  // or all-legacy, so the legacy keys go, and any dimension this editor does
+  // not own keeps its blend, converted from the legacy keys if need be.
+  const prevBlend = readBlend(base, [...Object.keys(base.dimension_weights || {}), ...Object.keys(base.concern_labels || {})]);
+  const carried: Record<string, DimensionInputs> = {};
+  for (const [k, d] of Object.entries(prevBlend.dims)) {
+    if (ownedDimKeys.has(k)) continue;
+    const di = toDimensionInputs(d);
+    if (di) carried[k] = di;
+  }
+  const mergedInputs = mergeOwned(carried, dimension_inputs);
+  const usedSources = new Set(Object.values(mergedInputs).flatMap((d) => Object.keys(d.inputs)));
+  const declared = sources ?? prevBlend.sources;
+
   const model: JDMDecisionModel = {
     ...base,
     nodes: [...nodes, ...preservedNodes],
     edges,
     dimension_weights: mergeOwned(base.dimension_weights, dimension_weights),
-    dimension_fusion: mergeOwned(base.dimension_fusion, dimension_fusion),
     concern_labels: mergeOwned(base.concern_labels, concern_labels),
     score_range_bands: bandsToSchema(scoreRangeBands),
     severity_bands: bandsToSchema(severityBands),
@@ -311,9 +310,17 @@ export function compileVisualToJDM(
   const mergedAxisCodes = mergeOwned(base.axis_codes, axis_codes);
   if (Object.keys(mergedAxisCodes).length > 0) model.axis_codes = mergedAxisCodes;
   else delete model.axis_codes;
-  const mergedFieldMapping = mergeOwned(base.field_mapping, field_mapping);
-  if (Object.keys(mergedFieldMapping).length > 0) model.field_mapping = mergedFieldMapping;
-  else delete model.field_mapping;
+  delete model.field_mapping;
+  delete model.dimension_fusion;
+  // Sources the editor was given are all kept, even unused ones; carried-over ones only when used.
+  const sourcesOut = sources ? { ...declared } : Object.fromEntries(Object.entries(declared).filter(([n]) => usedSources.has(n)));
+  if (Object.keys(sourcesOut).length > 0 || Object.keys(mergedInputs).length > 0) {
+    model.sources = sourcesOut;
+    model.dimension_inputs = mergedInputs;
+  } else {
+    delete model.sources;
+    delete model.dimension_inputs;
+  }
   return JSON.stringify(model, null, 2);
 }
 
@@ -322,6 +329,10 @@ export interface DecompiledGrading {
   profileConfig: VisualProfileMappingConfig;
   scoreRangeBands: VisualBand[];
   severityBands: VisualBand[];
+  /** The ruleset's input sources (the legacy pair for a ruleset being converted). */
+  sources: Record<string, SourceSpec>;
+  /** true: the blend was read from legacy keys; saving rewrites it in the new shape. */
+  convertedBlend: boolean;
   /** True when the schema had content but carried none of the Phase-2 markers
    *  (dimension_weights / concern_labels / a skin_profile.* node). The editor
    *  shows best-effort defaults and a warning: saving rewrites it to the new
@@ -347,6 +358,8 @@ export function decompileJDMToVisualComponents(schemaStr: string): DecompiledGra
     profileConfig: DEFAULT_STARTER_PROFILES,
     scoreRangeBands: DEFAULT_SCORE_RANGE_BANDS.map((b) => ({ ...b })),
     severityBands: DEFAULT_SEVERITY_BANDS.map((b) => ({ ...b })),
+    sources: {},
+    convertedBlend: false,
     legacy: false,
   };
   if (!schemaStr || !schemaStr.trim()) return fallback;
@@ -365,11 +378,9 @@ export function decompileJDMToVisualComponents(schemaStr: string): DecompiledGra
   };
 
   const weights: Record<string, number> = parsed.dimension_weights || {};
-  const fusion: Record<string, { form: number; vision: number }> = parsed.dimension_fusion || {};
   const concernLabels: Record<string, string> = parsed.concern_labels || {};
   const axisCodes: Record<string, { threshold?: number; low?: string; high?: string }> =
     parsed.axis_codes || {};
-  const fieldMapping: Record<string, { form?: string; vision?: string }> = parsed.field_mapping || {};
 
   const allNodes: any[] = Array.isArray(parsed.nodes) ? parsed.nodes : [];
   const nodeContents = allNodes.map((n) =>
@@ -413,10 +424,11 @@ export function decompileJDMToVisualComponents(schemaStr: string): DecompiledGra
       ...Object.keys(weights),
       ...Object.keys(concernLabels),
       ...Object.keys(axisCodes),
-      ...Object.keys(fieldMapping),
       ...salvagedKeys,
     ]),
   );
+  const blend = readBlend(parsed, dimKeys);
+  for (const k of Object.keys(blend.dims)) if (!dimKeys.includes(k)) dimKeys.push(k);
 
   const legacy =
     Object.keys(weights).length === 0 &&
@@ -442,18 +454,23 @@ export function decompileJDMToVisualComponents(schemaStr: string): DecompiledGra
     });
 
   const axes: VisualAxisConfig[] = dimKeys.map((key, i) => {
-    const df = fusion[key];
     const ac = axisCodes[key.toLowerCase()];
-    const fm = fieldMapping[key];
+    const bd = blend.dims[key];
     const bandNode = bandNodeFor(key);
 
     let bands: ThresholdBand[] | undefined;
     if (bandNode) {
+      // Read the node's own column ids: this editor writes 'in'/'out', but a
+      // hand-authored node names them freely (baumann_16_types' sebum-band
+      // uses 'sebum'/'sebum_axis'), and reading only 'in'/'out' found no
+      // bands, so a save dropped the node and the axis lost its letter.
+      const inId = bandNode.inputs?.[0]?.id ?? 'in';
+      const outId = bandNode.outputs?.[0]?.id ?? 'out';
       bands = (bandNode.rules || [])
         .map((r: Record<string, string>, ri: number) => {
-          const range = parseRange(r.in);
+          const range = parseRange(r[inId]);
           if (!range) return null;
-          return { id: `${key}_b${ri}`, min: range.min, max: range.max, letter: clean(r.out) };
+          return { id: `${key}_b${ri}`, min: range.min, max: range.max, letter: clean(r[outId]) };
         })
         .filter(Boolean) as ThresholdBand[];
     } else if (ac && (ac.low || ac.high)) {
@@ -463,12 +480,6 @@ export function decompileJDMToVisualComponents(schemaStr: string): DecompiledGra
         { id: `${key}_hi`, min: t, max: 100, letter: ac.high || '' },
       ];
     }
-
-    const inputComposition: 'single_source' | 'weighted_blend' | undefined = df
-      ? 'weighted_blend'
-      : fm
-        ? 'single_source'
-        : undefined;
 
     return {
       id: `axis_${key}`,
@@ -480,12 +491,8 @@ export function decompileJDMToVisualComponents(schemaStr: string): DecompiledGra
       dimensionKey: key,
       weight: typeof weights[key] === 'number' ? weights[key] : 1,
       concernLabel: concernLabels[key] || defaultConcernLabel(key),
-      inputComposition,
-      source: !df ? makeSource(fm?.form, 'form') || makeSource(fm?.vision, 'vision') : undefined,
-      formSource: df ? makeSource(fm?.form, 'form') : undefined,
-      visionSource: df ? makeSource(fm?.vision, 'vision') : undefined,
-      formWeight: df ? Math.round(df.form * 100) : 100,
-      visionWeight: df ? Math.round(df.vision * 100) : 0,
+      inputs: (bd?.inputs || []).map((i) => ({ ...i, label: i.source === VISION_SOURCE ? visionFieldLabel(i.field) : i.field })),
+      required: bd?.required || [],
       bands,
       ...(ac && (ac.low || ac.high)
         ? {
@@ -562,6 +569,8 @@ export function decompileJDMToVisualComponents(schemaStr: string): DecompiledGra
     profileConfig,
     scoreRangeBands: bandsFromSchema(parsed.score_range_bands, DEFAULT_SCORE_RANGE_BANDS, 'sr'),
     severityBands: bandsFromSchema(parsed.severity_bands, DEFAULT_SEVERITY_BANDS, 'sv'),
+    sources: blend.sources,
+    convertedBlend: blend.converted,
     legacy,
   };
 }
