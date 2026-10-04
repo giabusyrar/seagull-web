@@ -27,9 +27,9 @@ __export(match_exports, {
 module.exports = __toCommonJS(match_exports);
 
 // src/match/components/MatchManager.tsx
-var import_react4 = require("react");
-var import_lucide_react8 = require("lucide-react");
-var import_shared8 = require("@gateway-experience/shared");
+var import_react5 = require("react");
+var import_lucide_react9 = require("lucide-react");
+var import_shared9 = require("@gateway-experience/shared");
 
 // src/match/components/tabs/ConflictMatrixTab.tsx
 var import_lucide_react = require("lucide-react");
@@ -397,12 +397,6 @@ var ProductGroupsTab = ({
 var import_lucide_react3 = require("lucide-react");
 var import_shared3 = require("@gateway-experience/shared");
 var import_jsx_runtime3 = require("react/jsx-runtime");
-var STATUS_ICON = {
-  pending: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_lucide_react3.Clock, { className: "h-3.5 w-3.5 text-muted-foreground" }),
-  processing: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_lucide_react3.Loader2, { className: "h-3.5 w-3.5 text-amber-400 animate-spin" }),
-  ready: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_lucide_react3.CheckCircle2, { className: "h-3.5 w-3.5 text-emerald-400" }),
-  failed: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_lucide_react3.XCircle, { className: "h-3.5 w-3.5 text-rose-400" })
-};
 var ShadesTab = ({
   shades,
   searchQuery,
@@ -432,18 +426,6 @@ var ShadesTab = ({
       key: "region",
       header: "Applies To",
       render: (s) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "font-mono text-[10px] uppercase text-muted-foreground", children: s.region })
-    },
-    {
-      key: "extractionStatus",
-      header: "Try-On Status",
-      render: (s) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "flex items-center gap-1.5", children: [
-        STATUS_ICON[s.extractionStatus],
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "text-[11px] capitalize", children: s.extractionStatus }),
-        s.extractionStatus === "failed" && s.failureReason && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "text-[10px] text-rose-400 truncate max-w-[160px]", title: s.failureReason, children: [
-          "\u2014 ",
-          s.failureReason
-        ] })
-      ] })
     },
     {
       key: "actions",
@@ -764,7 +746,7 @@ var MatchSimulatorTab = ({
   ] });
 };
 
-// src/match/components/modals/ConflictRuleModal.tsx
+// src/match/components/tabs/PhotoTryOnTab.tsx
 var import_react = require("react");
 var import_lucide_react5 = require("lucide-react");
 var import_shared5 = require("@gateway-experience/shared");
@@ -841,35 +823,253 @@ async function runMatch(payload, doFetch = fetch) {
   const res = await sendJson(doFetch, ep("/api/matching/match"), "POST", payload);
   return res.ok ? await res.json() : null;
 }
+var colourEp = (path) => resolveDynamicEndpoint("colour", path);
+var ColourApiError = class extends Error {
+  constructor(status, code, message) {
+    super(message);
+    this.status = status;
+    this.code = code;
+    this.name = "ColourApiError";
+  }
+};
+async function colourError(res) {
+  const text = await res.text();
+  try {
+    const j = JSON.parse(text);
+    return new ColourApiError(res.status, String(j.code ?? ""), String(j.error || j.message || `HTTP ${res.status}`));
+  } catch {
+    return new ColourApiError(res.status, "", text || `HTTP ${res.status}`);
+  }
+}
+async function fetchColourCatalog(doFetch = fetch) {
+  const res = await doFetch(colourEp("/catalog"));
+  if (!res.ok) throw await colourError(res);
+  const data = await res.json();
+  return data.catalog ?? {};
+}
+async function colourTryOn(image, shadeIds, doFetch = fetch) {
+  const fd = new FormData();
+  fd.append("image", image);
+  shadeIds.filter(Boolean).forEach((id) => fd.append("shadeIds", id));
+  const res = await doFetch(colourEp("/tryon"), { method: "POST", body: fd });
+  if (!res.ok) throw await colourError(res);
+  return res.blob();
+}
 async function listReferenceIngredients(routes, doFetch = fetch) {
   const data = await (await doFetch(routes.reference("ingredients"))).json();
   const raw = Array.isArray(data.ingredients) ? data.ingredients : Array.isArray(data) ? data : [];
   return raw.map((i) => ({ code: i.code || i.name, name: i.name }));
 }
 
-// src/match/components/modals/ConflictRuleModal.tsx
+// src/match/components/tabs/PhotoTryOnTab.tsx
 var import_jsx_runtime5 = require("react/jsx-runtime");
+var errorMessage = (e) => e instanceof Error && e.message ? e.message : String(e);
+function useObjectUrl(blob) {
+  const [url, setUrl] = (0, import_react.useState)(null);
+  (0, import_react.useEffect)(() => {
+    if (!blob) {
+      setUrl(null);
+      return;
+    }
+    const u = URL.createObjectURL(blob);
+    setUrl(u);
+    return () => URL.revokeObjectURL(u);
+  }, [blob]);
+  return url;
+}
+var PhotoTryOnTab = () => {
+  const [catalog, setCatalog] = (0, import_react.useState)(null);
+  const [catalogLoading, setCatalogLoading] = (0, import_react.useState)(true);
+  const [catalogError, setCatalogError] = (0, import_react.useState)(null);
+  const [photo, setPhoto] = (0, import_react.useState)(null);
+  const [selected, setSelected] = (0, import_react.useState)({});
+  const [result, setResult] = (0, import_react.useState)(null);
+  const [rendering, setRendering] = (0, import_react.useState)(false);
+  const [renderError, setRenderError] = (0, import_react.useState)(null);
+  const requestId = (0, import_react.useRef)(0);
+  const photoUrl = useObjectUrl(photo);
+  const resultUrl = useObjectUrl(result);
+  const loadCatalog = (0, import_react.useCallback)(() => {
+    setCatalogLoading(true);
+    setCatalogError(null);
+    fetchColourCatalog().then(setCatalog).catch((e) => setCatalogError(errorMessage(e))).finally(() => setCatalogLoading(false));
+  }, []);
+  (0, import_react.useEffect)(() => {
+    loadCatalog();
+  }, [loadCatalog]);
+  const resetResult = () => {
+    requestId.current += 1;
+    setResult(null);
+    setRendering(false);
+    setRenderError(null);
+  };
+  const choosePhoto = (file) => {
+    resetResult();
+    setPhoto(file);
+  };
+  const toggleShade = (category, shadeId) => {
+    resetResult();
+    setSelected((prev) => {
+      const next = { ...prev };
+      if (next[category] === shadeId) delete next[category];
+      else next[category] = shadeId;
+      return next;
+    });
+  };
+  const shadeIds = Object.values(selected);
+  const render = async () => {
+    if (!photo || shadeIds.length === 0) return;
+    const id = ++requestId.current;
+    setRendering(true);
+    setRenderError(null);
+    setResult(null);
+    try {
+      const png = await colourTryOn(photo, shadeIds);
+      if (id === requestId.current) setResult(png);
+    } catch (e) {
+      if (id === requestId.current) setRenderError(errorMessage(e));
+    } finally {
+      if (id === requestId.current) setRendering(false);
+    }
+  };
+  const categories = Object.entries(catalog ?? {}).filter(([, shades]) => Array.isArray(shades) && shades.length > 0);
+  return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-4 sm:gap-6", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "space-y-4", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "bg-card border border-border rounded-xl p-4 space-y-3", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("h3", { className: "text-xs font-bold uppercase tracking-wider text-muted-foreground", children: "1. Face photo" }),
+        /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "flex items-center gap-2", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("label", { className: "flex items-center gap-1.5 px-3 py-2 rounded border border-border bg-secondary/40 hover:border-primary/60 text-xs font-semibold cursor-pointer", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_lucide_react5.ImagePlus, { className: "h-3.5 w-3.5" }),
+            /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { children: photo ? "Change photo" : "Choose photo" }),
+            /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+              "input",
+              {
+                type: "file",
+                accept: "image/jpeg,image/png",
+                className: "hidden",
+                onChange: (e) => {
+                  choosePhoto(e.target.files?.[0] ?? null);
+                  e.target.value = "";
+                }
+              }
+            )
+          ] }),
+          photo && /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_jsx_runtime5.Fragment, { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { className: "text-[11px] text-muted-foreground truncate max-w-[180px]", title: photo.name, children: photo.name }),
+            /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_shared5.Button, { variant: "ghost", size: "icon-xs", onClick: () => choosePhoto(null), title: "Remove photo", children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_lucide_react5.X, { className: "h-3.5 w-3.5" }) })
+          ] })
+        ] })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "bg-card border border-border rounded-xl p-4 space-y-3", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "flex items-center justify-between", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("h3", { className: "text-xs font-bold uppercase tracking-wider text-muted-foreground", children: "2. Shades (one per category)" }),
+          shadeIds.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+            "button",
+            {
+              type: "button",
+              onClick: () => {
+                resetResult();
+                setSelected({});
+              },
+              className: "text-[11px] text-muted-foreground hover:text-foreground cursor-pointer",
+              children: "Clear"
+            }
+          )
+        ] }),
+        catalogLoading && /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("p", { className: "flex items-center gap-1.5 text-xs text-muted-foreground", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_lucide_react5.Loader2, { className: "h-3.5 w-3.5 animate-spin" }),
+          " Loading the try-on catalog..."
+        ] }),
+        !catalogLoading && catalogError && /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "flex items-start justify-between gap-2 rounded border border-destructive/40 bg-destructive/10 px-3 py-2", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("p", { className: "text-xs text-destructive", children: [
+            "Could not load the catalog: ",
+            catalogError
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_shared5.Button, { variant: "ghost", size: "icon-xs", onClick: loadCatalog, title: "Retry", children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_lucide_react5.RefreshCw, { className: "h-3.5 w-3.5" }) })
+        ] }),
+        !catalogLoading && !catalogError && categories.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("p", { className: "text-xs text-muted-foreground", children: "The colour engine's catalog has no shades to try." }),
+        categories.map(([category, shades]) => /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "space-y-1.5", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("p", { className: "text-[11px] font-semibold capitalize text-foreground", children: category }),
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "flex flex-wrap gap-2", children: shades.map((s) => {
+            const isSelected = selected[category] === s.shadeId;
+            return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(
+              "button",
+              {
+                type: "button",
+                "aria-pressed": isSelected,
+                onClick: () => toggleShade(category, s.shadeId),
+                title: `${s.productName} \u2014 ${s.shadeName} (${s.hexColor})`,
+                className: `flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-semibold transition cursor-pointer ${isSelected ? "border-primary ring-2 ring-primary/40" : "border-border hover:border-primary/60"}`,
+                children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { className: "h-4 w-4 rounded-full border border-black/10 shrink-0", style: { backgroundColor: s.hexColor } }),
+                  /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { children: s.shadeName })
+                ]
+              },
+              s.shadeId
+            );
+          }) })
+        ] }, category))
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_shared5.Button, { onClick: render, disabled: !photo || shadeIds.length === 0 || rendering, className: "w-full", children: [
+        rendering ? /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_lucide_react5.Loader2, { className: "h-4 w-4 animate-spin" }) : /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_lucide_react5.Wand2, { className: "h-4 w-4" }),
+        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { children: rendering ? "Rendering..." : "Render try-on" })
+      ] })
+    ] }),
+    /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "bg-card border border-border rounded-xl p-4 space-y-3", children: !photoUrl ? /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+      import_shared5.EmptyState,
+      {
+        icon: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_lucide_react5.ImagePlus, { className: "h-6 w-6" }),
+        title: "No photo yet",
+        description: "Choose a face photo and the shades to try; the colour engine renders the look onto it."
+      }
+    ) : /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "grid grid-cols-2 gap-3", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("figure", { className: "space-y-1.5", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("figcaption", { className: "text-[11px] font-semibold uppercase tracking-wider text-muted-foreground", children: "Before" }),
+        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("img", { src: photoUrl, alt: "Original photo", className: "w-full rounded-lg border border-border object-contain bg-black/40" })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("figure", { className: "space-y-1.5", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("figcaption", { className: "text-[11px] font-semibold uppercase tracking-wider text-muted-foreground", children: "After" }),
+        resultUrl ? /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("img", { src: resultUrl, alt: "Photo with the selected shades rendered", className: "w-full rounded-lg border border-border object-contain bg-black/40" }) : /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "flex aspect-[3/4] items-center justify-center rounded-lg border border-dashed border-border p-3 text-center text-xs text-muted-foreground", children: rendering ? /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("span", { className: "flex items-center gap-1.5", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_lucide_react5.Loader2, { className: "h-4 w-4 animate-spin" }),
+          " Rendering..."
+        ] }) : renderError ? /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("span", { className: "flex flex-col items-center gap-1.5 text-destructive", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_lucide_react5.AlertTriangle, { className: "h-4 w-4" }),
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("span", { children: [
+            "Try-on failed: ",
+            renderError
+          ] })
+        ] }) : shadeIds.length === 0 ? "Pick at least one shade." : 'Press "Render try-on".' })
+      ] })
+    ] }) })
+  ] });
+};
+
+// src/match/components/modals/ConflictRuleModal.tsx
+var import_react2 = require("react");
+var import_lucide_react6 = require("lucide-react");
+var import_shared6 = require("@gateway-experience/shared");
+var import_jsx_runtime6 = require("react/jsx-runtime");
 var ConflictRuleModal = ({
   isOpen,
   onClose,
   onSave,
   editingConflict
 }) => {
-  const hostRoutes = (0, import_shared5.useHostRoutes)();
-  const [confA, setConfA] = (0, import_react.useState)("");
-  const [confB, setConfB] = (0, import_react.useState)("");
-  const [confType, setConfType] = (0, import_react.useState)("over_exfoliation");
-  const [confAction, setConfAction] = (0, import_react.useState)("split_am_pm");
-  const [confWarning, setConfWarning] = (0, import_react.useState)("");
-  const [isSubmitting, setIsSubmitting] = (0, import_react.useState)(false);
-  const [ingredients, setIngredients] = (0, import_react.useState)([]);
-  (0, import_react.useEffect)(() => {
+  const hostRoutes = (0, import_shared6.useHostRoutes)();
+  const [confA, setConfA] = (0, import_react2.useState)("");
+  const [confB, setConfB] = (0, import_react2.useState)("");
+  const [confType, setConfType] = (0, import_react2.useState)("over_exfoliation");
+  const [confAction, setConfAction] = (0, import_react2.useState)("split_am_pm");
+  const [confWarning, setConfWarning] = (0, import_react2.useState)("");
+  const [isSubmitting, setIsSubmitting] = (0, import_react2.useState)(false);
+  const [ingredients, setIngredients] = (0, import_react2.useState)([]);
+  (0, import_react2.useEffect)(() => {
     listReferenceIngredients(hostRoutes).then((list2) => {
       if (list2.length > 0) setIngredients(list2);
     }).catch(() => {
     });
   }, [isOpen, hostRoutes]);
-  (0, import_react.useEffect)(() => {
+  (0, import_react2.useEffect)(() => {
     if (editingConflict) {
       setConfA(editingConflict.ingredientA);
       setConfB(editingConflict.ingredientB);
@@ -903,21 +1103,21 @@ var ConflictRuleModal = ({
       setIsSubmitting(false);
     }
   };
-  return /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
-    import_shared5.Modal,
+  return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+    import_shared6.Modal,
     {
       isOpen,
       onClose,
       size: "md",
-      icon: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_lucide_react5.ShieldAlert, { className: "h-4 w-4 text-rose-400" }),
+      icon: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_lucide_react6.ShieldAlert, { className: "h-4 w-4 text-rose-400" }),
       title: editingConflict ? "Edit Conflict Rule" : "New Ingredient Conflict",
       isLoading: isSubmitting,
       loadingText: isSubmitting ? editingConflict ? "Updating Conflict Rule..." : "Saving Conflict Rule..." : void 0,
-      children: /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("form", { onSubmit: handleSubmit, className: "space-y-4 text-xs", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "grid grid-cols-2 gap-3", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "space-y-1", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("label", { className: "text-muted-foreground", children: "Primary Ingredient (A):" }),
-            /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+      children: /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("form", { onSubmit: handleSubmit, className: "space-y-4 text-xs", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "grid grid-cols-2 gap-3", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "space-y-1", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("label", { className: "text-muted-foreground", children: "Primary Ingredient (A):" }),
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
               "input",
               {
                 type: "text",
@@ -930,9 +1130,9 @@ var ConflictRuleModal = ({
               }
             )
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "space-y-1", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("label", { className: "text-muted-foreground", children: "Conflicting Ingredient (B):" }),
-            /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "space-y-1", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("label", { className: "text-muted-foreground", children: "Conflicting Ingredient (B):" }),
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
               "input",
               {
                 type: "text",
@@ -945,46 +1145,46 @@ var ConflictRuleModal = ({
               }
             )
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("datalist", { id: "conflict-ing-list", children: ingredients.map((ing) => /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("option", { value: ing.name }, ing.code)) })
+          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("datalist", { id: "conflict-ing-list", children: ingredients.map((ing) => /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("option", { value: ing.name }, ing.code)) })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "grid grid-cols-2 gap-3", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "space-y-1", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("label", { className: "text-muted-foreground", children: "Conflict Type:" }),
-            /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "grid grid-cols-2 gap-3", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "space-y-1", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("label", { className: "text-muted-foreground", children: "Conflict Type:" }),
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(
               "select",
               {
                 value: confType,
                 onChange: (e) => setConfType(e.target.value),
                 className: "w-full bg-muted/40 border border-border rounded px-3 py-2 text-foreground font-mono",
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("option", { value: "incompatible", children: "Strictly Incompatible" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("option", { value: "over_exfoliation", children: "Over-exfoliation Risk" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("option", { value: "pH_clash", children: "pH Neutralization Clash" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("option", { value: "barrier_irritation", children: "Barrier Irritation Risk" })
+                  /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("option", { value: "incompatible", children: "Strictly Incompatible" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("option", { value: "over_exfoliation", children: "Over-exfoliation Risk" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("option", { value: "pH_clash", children: "pH Neutralization Clash" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("option", { value: "barrier_irritation", children: "Barrier Irritation Risk" })
                 ]
               }
             )
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "space-y-1", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("label", { className: "text-muted-foreground", children: "Resolution Protocol:" }),
-            /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(
+          /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "space-y-1", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("label", { className: "text-muted-foreground", children: "Resolution Protocol:" }),
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(
               "select",
               {
                 value: confAction,
                 onChange: (e) => setConfAction(e.target.value),
                 className: "w-full bg-muted/40 border border-border rounded px-3 py-2 text-foreground font-mono",
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("option", { value: "split_am_pm", children: "Split Routine (AM vs PM)" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("option", { value: "alternate_days", children: "Alternate Use Days" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("option", { value: "strict_block", children: "Strict Product Exclusion" })
+                  /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("option", { value: "split_am_pm", children: "Split Routine (AM vs PM)" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("option", { value: "alternate_days", children: "Alternate Use Days" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("option", { value: "strict_block", children: "Strict Product Exclusion" })
                 ]
               }
             )
           ] })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "space-y-1", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("label", { className: "text-muted-foreground", children: "Clinical Warning Message:" }),
-          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "space-y-1", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("label", { className: "text-muted-foreground", children: "Clinical Warning Message:" }),
+          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
             "textarea",
             {
               rows: 2,
@@ -995,15 +1195,15 @@ var ConflictRuleModal = ({
             }
           )
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "flex justify-end pt-2", children: /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "flex justify-end pt-2", children: /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(
           "button",
           {
             type: "submit",
             disabled: isSubmitting,
             className: "px-4 py-2 bg-rose-600 hover:bg-rose-500 text-foreground font-bold rounded disabled:opacity-50 cursor-pointer flex items-center gap-1.5",
             children: [
-              isSubmitting ? /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_lucide_react5.Loader2, { className: "h-3.5 w-3.5 animate-spin" }) : null,
-              /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { children: isSubmitting ? editingConflict ? "Updating..." : "Saving..." : editingConflict ? "Update Rule" : "Save Rule" })
+              isSubmitting ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_lucide_react6.Loader2, { className: "h-3.5 w-3.5 animate-spin" }) : null,
+              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { children: isSubmitting ? editingConflict ? "Updating..." : "Saving..." : editingConflict ? "Update Rule" : "Save Rule" })
             ]
           }
         ) })
@@ -1013,10 +1213,10 @@ var ConflictRuleModal = ({
 };
 
 // src/match/components/modals/ProductGroupModal.tsx
-var import_react2 = require("react");
-var import_lucide_react6 = require("lucide-react");
-var import_shared6 = require("@gateway-experience/shared");
-var import_jsx_runtime6 = require("react/jsx-runtime");
+var import_react3 = require("react");
+var import_lucide_react7 = require("lucide-react");
+var import_shared7 = require("@gateway-experience/shared");
+var import_jsx_runtime7 = require("react/jsx-runtime");
 var BRAND_OPTIONS = [
   { value: "wardah", label: "Wardah Beauty" },
   { value: "kahf", label: "Kahf Men Care" },
@@ -1030,25 +1230,25 @@ var ProductGroupModal = ({
   editingGroup,
   defaultBrand
 }) => {
-  const [brandId, setBrandId] = (0, import_react2.useState)(defaultBrand && defaultBrand !== "*" ? defaultBrand : "wardah");
-  const [applicationId, setApplicationId] = (0, import_react2.useState)("*");
-  const [name, setName] = (0, import_react2.useState)("");
-  const [code, setCode] = (0, import_react2.useState)("");
-  const [description, setDescription] = (0, import_react2.useState)("");
-  const [productIds, setProductIds] = (0, import_react2.useState)([]);
-  const [categories, setCategories] = (0, import_react2.useState)([]);
-  const [categoryDraft, setCategoryDraft] = (0, import_react2.useState)("");
-  const [isActive, setIsActive] = (0, import_react2.useState)(true);
-  const [isSubmitting, setIsSubmitting] = (0, import_react2.useState)(false);
-  const [products, setProducts] = (0, import_react2.useState)([]);
-  (0, import_react2.useEffect)(() => {
+  const [brandId, setBrandId] = (0, import_react3.useState)(defaultBrand && defaultBrand !== "*" ? defaultBrand : "wardah");
+  const [applicationId, setApplicationId] = (0, import_react3.useState)("*");
+  const [name, setName] = (0, import_react3.useState)("");
+  const [code, setCode] = (0, import_react3.useState)("");
+  const [description, setDescription] = (0, import_react3.useState)("");
+  const [productIds, setProductIds] = (0, import_react3.useState)([]);
+  const [categories, setCategories] = (0, import_react3.useState)([]);
+  const [categoryDraft, setCategoryDraft] = (0, import_react3.useState)("");
+  const [isActive, setIsActive] = (0, import_react3.useState)(true);
+  const [isSubmitting, setIsSubmitting] = (0, import_react3.useState)(false);
+  const [products, setProducts] = (0, import_react3.useState)([]);
+  (0, import_react3.useEffect)(() => {
     if (!isOpen) return;
     productsApi.listForBrand(brandId).then((list2) => {
       if (list2) setProducts(list2);
     }).catch(() => {
     });
   }, [isOpen, brandId]);
-  (0, import_react2.useEffect)(() => {
+  (0, import_react3.useEffect)(() => {
     if (editingGroup) {
       setBrandId(editingGroup.brandId);
       setApplicationId(editingGroup.applicationId || "*");
@@ -1070,11 +1270,11 @@ var ProductGroupModal = ({
     }
     setCategoryDraft("");
   }, [editingGroup, isOpen, defaultBrand]);
-  const productOptions = (0, import_react2.useMemo)(
+  const productOptions = (0, import_react3.useMemo)(
     () => products.map((p) => ({ value: p.id, label: p.name, description: p.category })),
     [products]
   );
-  const availableCategories = (0, import_react2.useMemo)(
+  const availableCategories = (0, import_react3.useMemo)(
     () => Array.from(new Set(products.map((p) => p.category).filter(Boolean))),
     [products]
   );
@@ -1105,34 +1305,34 @@ var ProductGroupModal = ({
       setIsSubmitting(false);
     }
   };
-  return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
-    import_shared6.Modal,
+  return /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+    import_shared7.Modal,
     {
       isOpen,
       onClose,
       size: "lg",
-      icon: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_lucide_react6.Boxes, { className: "h-4 w-4 text-primary" }),
+      icon: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_lucide_react7.Boxes, { className: "h-4 w-4 text-primary" }),
       title: editingGroup ? "Edit Product Group" : "New Product Group",
       isLoading: isSubmitting,
       loadingText: isSubmitting ? editingGroup ? "Updating Product Group..." : "Saving Product Group..." : void 0,
-      children: /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("form", { onSubmit: handleSubmit, className: "space-y-4 text-xs", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "grid grid-cols-2 gap-3", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "space-y-1", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("label", { className: "text-[#888888]", children: "Brand:" }),
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+      children: /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("form", { onSubmit: handleSubmit, className: "space-y-4 text-xs", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "grid grid-cols-2 gap-3", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "space-y-1", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("label", { className: "text-[#888888]", children: "Brand:" }),
+            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
               "select",
               {
                 value: brandId,
                 onChange: (e) => setBrandId(e.target.value),
                 disabled: !!editingGroup,
                 className: "w-full bg-[#161616] border border-[#333333] rounded px-3 py-2 text-white font-mono disabled:opacity-60",
-                children: BRAND_OPTIONS.map((b) => /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("option", { value: b.value, children: b.label }, b.value))
+                children: BRAND_OPTIONS.map((b) => /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("option", { value: b.value, children: b.label }, b.value))
               }
             )
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "space-y-1", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("label", { className: "text-[#888888]", children: "Group Name:" }),
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "space-y-1", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("label", { className: "text-[#888888]", children: "Group Name:" }),
+            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
               "input",
               {
                 type: "text",
@@ -1145,10 +1345,10 @@ var ProductGroupModal = ({
             )
           ] })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "grid grid-cols-2 gap-3", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "space-y-1", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("label", { className: "text-[#888888]", children: "Group Code:" }),
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+        /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "grid grid-cols-2 gap-3", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "space-y-1", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("label", { className: "text-[#888888]", children: "Group Code:" }),
+            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
               "input",
               {
                 type: "text",
@@ -1159,10 +1359,10 @@ var ProductGroupModal = ({
               }
             )
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "space-y-1", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("label", { className: "text-[#888888] flex items-center justify-between", children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { children: "Status:" }) }),
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("label", { className: "flex items-center gap-2 bg-[#161616] border border-[#333333] rounded px-3 py-2 cursor-pointer", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "space-y-1", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("label", { className: "text-[#888888] flex items-center justify-between", children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { children: "Status:" }) }),
+            /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("label", { className: "flex items-center gap-2 bg-[#161616] border border-[#333333] rounded px-3 py-2 cursor-pointer", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
                 "input",
                 {
                   type: "checkbox",
@@ -1171,13 +1371,13 @@ var ProductGroupModal = ({
                   className: "accent-primary"
                 }
               ),
-              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "text-white", children: "Active in matching engine" })
+              /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { className: "text-white", children: "Active in matching engine" })
             ] })
           ] })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "space-y-1", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("label", { className: "text-[#888888]", children: "Campaign Description:" }),
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+        /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "space-y-1", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("label", { className: "text-[#888888]", children: "Campaign Description:" }),
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
             "textarea",
             {
               rows: 2,
@@ -1188,10 +1388,10 @@ var ProductGroupModal = ({
             }
           )
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "space-y-1", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("label", { className: "text-[#888888]", children: "Products in Group:" }),
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
-            import_shared6.SearchableSelect,
+        /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "space-y-1", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("label", { className: "text-[#888888]", children: "Products in Group:" }),
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+            import_shared7.SearchableSelect,
             {
               multiple: true,
               options: productOptions,
@@ -1202,31 +1402,31 @@ var ProductGroupModal = ({
             }
           )
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "space-y-1", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "flex items-center gap-1.5", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("label", { className: "text-[#888888]", children: "Categories in Group:" }),
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_shared6.InfoTooltip, { content: "Every product in each listed category is included in the group.", label: "About Categories in Group" })
+        /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "space-y-1", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "flex items-center gap-1.5", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("label", { className: "text-[#888888]", children: "Categories in Group:" }),
+            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_shared7.InfoTooltip, { content: "Every product in each listed category is included in the group.", label: "About Categories in Group" })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "flex flex-wrap items-center gap-1.5 mb-1.5", children: categories.map((c) => /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "flex flex-wrap items-center gap-1.5 mb-1.5", children: categories.map((c) => /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
             "span",
             {
               className: "flex items-center gap-1 bg-amber-500/15 text-amber-400 font-mono px-2 py-0.5 rounded text-[10px] uppercase border border-amber-500/30 font-bold",
               children: [
                 c,
-                /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
                   "button",
                   {
                     type: "button",
                     onClick: () => setCategories((prev) => prev.filter((x) => x !== c)),
                     className: "hover:text-white cursor-pointer",
-                    children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_lucide_react6.X, { className: "h-3 w-3" })
+                    children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_lucide_react7.X, { className: "h-3 w-3" })
                   }
                 )
               ]
             },
             c
           )) }),
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
             "input",
             {
               type: "text",
@@ -1243,17 +1443,17 @@ var ProductGroupModal = ({
               className: "w-full bg-[#161616] border border-[#333333] rounded px-3 py-2 text-white"
             }
           ),
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("datalist", { id: "product-group-category-list", children: availableCategories.map((c) => /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("option", { value: c }, c)) })
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("datalist", { id: "product-group-category-list", children: availableCategories.map((c) => /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("option", { value: c }, c)) })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "flex justify-end pt-2", children: /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(
+        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "flex justify-end pt-2", children: /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
           "button",
           {
             type: "submit",
             disabled: isSubmitting,
             className: "px-4 py-2 bg-primary hover:opacity-90 text-primary-foreground font-bold rounded disabled:opacity-50 cursor-pointer flex items-center gap-1.5",
             children: [
-              isSubmitting ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_lucide_react6.Loader2, { className: "h-3.5 w-3.5 animate-spin" }) : null,
-              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { children: isSubmitting ? editingGroup ? "Updating..." : "Saving..." : editingGroup ? "Update Group" : "Save Group" })
+              isSubmitting ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_lucide_react7.Loader2, { className: "h-3.5 w-3.5 animate-spin" }) : null,
+              /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { children: isSubmitting ? editingGroup ? "Updating..." : "Saving..." : editingGroup ? "Update Group" : "Save Group" })
             ]
           }
         ) })
@@ -1263,27 +1463,24 @@ var ProductGroupModal = ({
 };
 
 // src/match/components/modals/ShadeModal.tsx
-var import_react3 = require("react");
-var import_lucide_react7 = require("lucide-react");
-var import_shared7 = require("@gateway-experience/shared");
-var import_jsx_runtime7 = require("react/jsx-runtime");
+var import_react4 = require("react");
+var import_lucide_react8 = require("lucide-react");
+var import_shared8 = require("@gateway-experience/shared");
+var import_jsx_runtime8 = require("react/jsx-runtime");
 var ShadeModal = ({ isOpen, onClose, onSave, editingShade, productId }) => {
-  const [name, setName] = (0, import_react3.useState)("");
-  const [hexColor, setHexColor] = (0, import_react3.useState)("#C41E3A");
-  const [region, setRegion] = (0, import_react3.useState)("lip");
-  const [referencePhotoUrl, setReferencePhotoUrl] = (0, import_react3.useState)("");
-  const [isSubmitting, setIsSubmitting] = (0, import_react3.useState)(false);
-  (0, import_react3.useEffect)(() => {
+  const [name, setName] = (0, import_react4.useState)("");
+  const [hexColor, setHexColor] = (0, import_react4.useState)("#C41E3A");
+  const [region, setRegion] = (0, import_react4.useState)("lip");
+  const [isSubmitting, setIsSubmitting] = (0, import_react4.useState)(false);
+  (0, import_react4.useEffect)(() => {
     if (editingShade) {
       setName(editingShade.name);
       setHexColor(editingShade.hexColor);
       setRegion(editingShade.region);
-      setReferencePhotoUrl(editingShade.referencePhotoUrl || "");
     } else {
       setName("");
       setHexColor("#C41E3A");
       setRegion("lip");
-      setReferencePhotoUrl("");
     }
   }, [editingShade, isOpen]);
   const handleSubmit = async (e) => {
@@ -1296,29 +1493,28 @@ var ShadeModal = ({ isOpen, onClose, onSave, editingShade, productId }) => {
         productId,
         name: name.trim(),
         hexColor: hexColor.trim(),
-        region,
-        referencePhotoUrl: referencePhotoUrl.trim()
+        region
       });
       onClose();
     } finally {
       setIsSubmitting(false);
     }
   };
-  return /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
-    import_shared7.Modal,
+  return /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+    import_shared8.Modal,
     {
       isOpen,
       onClose,
       size: "md",
-      icon: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_lucide_react7.Palette, { className: "h-4 w-4 text-primary" }),
+      icon: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_lucide_react8.Palette, { className: "h-4 w-4 text-primary" }),
       title: editingShade ? "Edit Shade" : "New Shade",
       isLoading: isSubmitting,
       loadingText: isSubmitting ? editingShade ? "Updating Shade..." : "Saving Shade..." : void 0,
-      children: /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("form", { onSubmit: handleSubmit, className: "space-y-4 text-xs", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "grid grid-cols-2 gap-3", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "space-y-1", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("label", { className: "text-[#888888]", children: "Shade Name:" }),
-            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+      children: /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("form", { onSubmit: handleSubmit, className: "space-y-4 text-xs", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "grid grid-cols-2 gap-3", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "space-y-1", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("label", { className: "text-[#888888]", children: "Shade Name:" }),
+            /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
               "input",
               {
                 type: "text",
@@ -1330,10 +1526,10 @@ var ShadeModal = ({ isOpen, onClose, onSave, editingShade, productId }) => {
               }
             )
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "space-y-1", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("label", { className: "text-[#888888]", children: "Exact Color:" }),
-            /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "flex items-center gap-2", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "space-y-1", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("label", { className: "text-[#888888]", children: "Exact Color:" }),
+            /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "flex items-center gap-2", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
                 "input",
                 {
                   type: "color",
@@ -1342,7 +1538,7 @@ var ShadeModal = ({ isOpen, onClose, onSave, editingShade, productId }) => {
                   className: "h-9 w-9 rounded border border-[#333333] bg-transparent cursor-pointer"
                 }
               ),
-              /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
                 "input",
                 {
                   type: "text",
@@ -1356,49 +1552,32 @@ var ShadeModal = ({ isOpen, onClose, onSave, editingShade, productId }) => {
             ] })
           ] })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "space-y-1", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("label", { className: "text-[#888888]", children: "Applies To:" }),
-          /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
+        /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "space-y-1", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("label", { className: "text-[#888888]", children: "Applies To:" }),
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
             "select",
             {
               value: region,
               onChange: (e) => setRegion(e.target.value),
               className: "w-full bg-[#161616] border border-[#333333] rounded px-3 py-2 text-white font-mono",
               children: [
-                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("option", { value: "lip", children: "Lips" }),
-                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("option", { value: "eye", children: "Eyes" }),
-                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("option", { value: "cheek", children: "Cheeks" }),
-                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("option", { value: "skin", children: "Skin / Foundation" })
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("option", { value: "lip", children: "Lips" }),
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("option", { value: "eye", children: "Eyes" }),
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("option", { value: "cheek", children: "Cheeks" }),
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("option", { value: "skin", children: "Skin / Foundation" })
               ]
             }
           )
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "space-y-1", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "flex items-center gap-1.5", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("label", { className: "text-[#888888]", children: "Reference Photo URL:" }),
-            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_shared7.InfoTooltip, { content: "A face photo used to generate the realistic shade texture.", label: "About Reference Photo URL" })
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
-            "input",
-            {
-              type: "url",
-              required: true,
-              placeholder: "https://...",
-              value: referencePhotoUrl,
-              onChange: (e) => setReferencePhotoUrl(e.target.value),
-              className: "w-full bg-[#161616] border border-[#333333] rounded px-3 py-2 text-white"
-            }
-          )
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "flex justify-end pt-2", children: /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
+        /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: "flex justify-end pt-2", children: /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
           "button",
           {
             type: "submit",
             disabled: isSubmitting,
             className: "px-4 py-2 bg-primary hover:opacity-90 text-primary-foreground font-bold rounded disabled:opacity-50 cursor-pointer flex items-center gap-1.5",
             children: [
-              isSubmitting ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_lucide_react7.Loader2, { className: "h-3.5 w-3.5 animate-spin" }) : null,
-              /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { children: isSubmitting ? editingShade ? "Updating..." : "Saving..." : editingShade ? "Update Shade" : "Save Shade & Start Extraction" })
+              isSubmitting ? /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_lucide_react8.Loader2, { className: "h-3.5 w-3.5 animate-spin" }) : null,
+              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { children: isSubmitting ? editingShade ? "Updating..." : "Saving..." : editingShade ? "Update Shade" : "Save Shade" })
             ]
           }
         ) })
@@ -1408,41 +1587,41 @@ var ShadeModal = ({ isOpen, onClose, onSave, editingShade, productId }) => {
 };
 
 // src/match/components/MatchManager.tsx
-var import_jsx_runtime8 = require("react/jsx-runtime");
+var import_jsx_runtime9 = require("react/jsx-runtime");
 var MatchManager = () => {
-  const [activeTab, setActiveTab] = (0, import_shared8.usePersistentState)("xg.matchEngine.activeTab", "conflicts");
-  const [searchQuery, setSearchQuery] = (0, import_react4.useState)("");
-  const [isFilterPanelOpen, setIsFilterPanelOpen] = (0, import_react4.useState)(false);
-  const [activeFilters, setActiveFilters] = (0, import_react4.useState)({});
-  const [deleteConfirm, setDeleteConfirm] = (0, import_react4.useState)({
+  const [activeTab, setActiveTab] = (0, import_shared9.usePersistentState)("xg.matchEngine.activeTab", "conflicts");
+  const [searchQuery, setSearchQuery] = (0, import_react5.useState)("");
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = (0, import_react5.useState)(false);
+  const [activeFilters, setActiveFilters] = (0, import_react5.useState)({});
+  const [deleteConfirm, setDeleteConfirm] = (0, import_react5.useState)({
     isOpen: false,
     title: "",
     message: "",
     onConfirm: () => {
     }
   });
-  const [selectedBrand, setSelectedBrand] = (0, import_shared8.usePersistentState)("xg.matchEngine.brand", "*");
-  const [selectedApp, setSelectedApp] = (0, import_shared8.usePersistentState)("xg.matchEngine.application", "*");
-  const [conflicts, setConflicts] = (0, import_react4.useState)([]);
-  const [productGroups, setProductGroups] = (0, import_react4.useState)([]);
-  const [products, setProducts] = (0, import_react4.useState)([]);
-  const [shades, setShades] = (0, import_react4.useState)([]);
-  const [shadeProductId, setShadeProductId] = (0, import_react4.useState)("");
-  const [isConflictModalOpen, setIsConflictModalOpen] = (0, import_react4.useState)(false);
-  const [isGroupModalOpen, setIsGroupModalOpen] = (0, import_react4.useState)(false);
-  const [isShadeModalOpen, setIsShadeModalOpen] = (0, import_react4.useState)(false);
-  const [editingConflict, setEditingConflict] = (0, import_react4.useState)(null);
-  const [editingGroup, setEditingGroup] = (0, import_react4.useState)(null);
-  const [editingShade, setEditingShade] = (0, import_react4.useState)(null);
-  const [simBrand, setSimBrand] = (0, import_shared8.usePersistentState)("xg.matchEngine.simulator.brand", "*");
-  const [simSkinType, setSimSkinType] = (0, import_shared8.usePersistentState)("xg.matchEngine.simulator.skinType", "OSPT");
-  const [simSebum, setSimSebum] = (0, import_shared8.usePersistentState)("xg.matchEngine.simulator.sebum", 75);
-  const [simHydration, setSimHydration] = (0, import_shared8.usePersistentState)("xg.matchEngine.simulator.hydration", 40);
-  const [simSensitivity, setSimSensitivity] = (0, import_shared8.usePersistentState)("xg.matchEngine.simulator.sensitivity", 65);
-  const [simPregnant, setSimPregnant] = (0, import_shared8.usePersistentState)("xg.matchEngine.simulator.pregnant", false);
-  const [simRetinol, setSimRetinol] = (0, import_shared8.usePersistentState)("xg.matchEngine.simulator.retinol", true);
-  const [isSimulating, setIsSimulating] = (0, import_react4.useState)(false);
-  const [simResult, setSimResult] = (0, import_shared8.usePersistentState)("xg.matchEngine.simulator.result", null);
+  const [selectedBrand, setSelectedBrand] = (0, import_shared9.usePersistentState)("xg.matchEngine.brand", "*");
+  const [selectedApp, setSelectedApp] = (0, import_shared9.usePersistentState)("xg.matchEngine.application", "*");
+  const [conflicts, setConflicts] = (0, import_react5.useState)([]);
+  const [productGroups, setProductGroups] = (0, import_react5.useState)([]);
+  const [products, setProducts] = (0, import_react5.useState)([]);
+  const [shades, setShades] = (0, import_react5.useState)([]);
+  const [shadeProductId, setShadeProductId] = (0, import_react5.useState)("");
+  const [isConflictModalOpen, setIsConflictModalOpen] = (0, import_react5.useState)(false);
+  const [isGroupModalOpen, setIsGroupModalOpen] = (0, import_react5.useState)(false);
+  const [isShadeModalOpen, setIsShadeModalOpen] = (0, import_react5.useState)(false);
+  const [editingConflict, setEditingConflict] = (0, import_react5.useState)(null);
+  const [editingGroup, setEditingGroup] = (0, import_react5.useState)(null);
+  const [editingShade, setEditingShade] = (0, import_react5.useState)(null);
+  const [simBrand, setSimBrand] = (0, import_shared9.usePersistentState)("xg.matchEngine.simulator.brand", "*");
+  const [simSkinType, setSimSkinType] = (0, import_shared9.usePersistentState)("xg.matchEngine.simulator.skinType", "OSPT");
+  const [simSebum, setSimSebum] = (0, import_shared9.usePersistentState)("xg.matchEngine.simulator.sebum", 75);
+  const [simHydration, setSimHydration] = (0, import_shared9.usePersistentState)("xg.matchEngine.simulator.hydration", 40);
+  const [simSensitivity, setSimSensitivity] = (0, import_shared9.usePersistentState)("xg.matchEngine.simulator.sensitivity", 65);
+  const [simPregnant, setSimPregnant] = (0, import_shared9.usePersistentState)("xg.matchEngine.simulator.pregnant", false);
+  const [simRetinol, setSimRetinol] = (0, import_shared9.usePersistentState)("xg.matchEngine.simulator.retinol", true);
+  const [isSimulating, setIsSimulating] = (0, import_react5.useState)(false);
+  const [simResult, setSimResult] = (0, import_shared9.usePersistentState)("xg.matchEngine.simulator.result", null);
   const loadData = () => {
     conflictsApi.list().then((list2) => {
       if (list2) setConflicts(list2);
@@ -1470,17 +1649,18 @@ var MatchManager = () => {
     }).catch(() => {
     });
   };
-  (0, import_react4.useEffect)(() => {
+  (0, import_react5.useEffect)(() => {
     loadData();
   }, []);
-  (0, import_react4.useEffect)(() => {
+  (0, import_react5.useEffect)(() => {
     loadShades(shadeProductId);
   }, [shadeProductId]);
   const matchTabs = [
-    { id: "conflicts", label: "Contraindication Matrix", icon: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_lucide_react8.ShieldAlert, { className: "h-4 w-4 text-rose-400" }), badge: conflicts.length },
-    { id: "groups", label: "Product Groups", icon: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_lucide_react8.Boxes, { className: "h-4 w-4 text-amber-400" }), badge: productGroups.length },
-    { id: "shades", label: "Shades", icon: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_lucide_react8.Palette, { className: "h-4 w-4 text-rose-400" }), badge: shades.length },
-    { id: "simulator", label: "Match Simulator", icon: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_lucide_react8.Play, { className: "h-4 w-4 text-emerald-400" }) }
+    { id: "conflicts", label: "Contraindication Matrix", icon: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_lucide_react9.ShieldAlert, { className: "h-4 w-4 text-rose-400" }), badge: conflicts.length },
+    { id: "groups", label: "Product Groups", icon: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_lucide_react9.Boxes, { className: "h-4 w-4 text-amber-400" }), badge: productGroups.length },
+    { id: "shades", label: "Shades", icon: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_lucide_react9.Palette, { className: "h-4 w-4 text-rose-400" }), badge: shades.length },
+    { id: "tryon", label: "Photo Try-On", icon: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_lucide_react9.Wand2, { className: "h-4 w-4 text-purple-400" }) },
+    { id: "simulator", label: "Match Simulator", icon: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_lucide_react9.Play, { className: "h-4 w-4 text-emerald-400" }) }
   ];
   const handleSaveConflict = async (data) => {
     if (editingConflict) {
@@ -1567,13 +1747,11 @@ var MatchManager = () => {
     } else {
       const newShade = {
         id: `shade-${Date.now()}`,
-        extractionStatus: "pending",
         ...data
       };
       setShades((prev) => [newShade, ...prev]);
       try {
         await shadesApi.create(newShade);
-        setTimeout(() => loadShades(shadeProductId), 1e3);
       } catch {
       }
     }
@@ -1619,19 +1797,19 @@ var MatchManager = () => {
       setIsSimulating(false);
     }
   };
-  return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "flex-1 min-w-0 h-full overflow-y-auto bg-background text-foreground font-sans flex flex-col select-none", children: [
-    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
-      import_shared8.PageHeader,
+  return /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "flex-1 min-w-0 h-full overflow-y-auto bg-background text-foreground font-sans flex flex-col select-none", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+      import_shared9.PageHeader,
       {
-        icon: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_lucide_react8.Sparkles, { className: "h-5 w-5 text-beak" }),
+        icon: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_lucide_react9.Sparkles, { className: "h-5 w-5 text-beak" }),
         breadcrumbs: [
           { label: "Workbench", href: "/" },
           { label: "Core Engines" },
           { label: "Match Engine" }
         ],
         title: "Clinical Product Matcher & Routine Generator",
-        children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
-          import_shared8.TabNav,
+        children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+          import_shared9.TabNav,
           {
             tabs: matchTabs,
             activeTab,
@@ -1640,8 +1818,8 @@ var MatchManager = () => {
         )
       }
     ),
-    /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("main", { className: "flex-1 p-4 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl w-full mx-auto", children: [
-      activeTab === "conflicts" && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+    /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("main", { className: "flex-1 p-4 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl w-full mx-auto", children: [
+      activeTab === "conflicts" && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
         ConflictMatrixTab,
         {
           conflicts,
@@ -1662,7 +1840,7 @@ var MatchManager = () => {
           setSelectedApp
         }
       ),
-      activeTab === "groups" && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+      activeTab === "groups" && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
         ProductGroupsTab,
         {
           groups: productGroups,
@@ -1683,23 +1861,23 @@ var MatchManager = () => {
           setSelectedApp
         }
       ),
-      activeTab === "shades" && /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "space-y-4", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "flex items-center gap-2 bg-secondary/40 border border-border rounded-lg px-3 py-2 w-fit", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("label", { className: "text-xs font-semibold text-muted-foreground", children: "Product:" }),
-          /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+      activeTab === "shades" && /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "space-y-4", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "flex items-center gap-2 bg-secondary/40 border border-border rounded-lg px-3 py-2 w-fit", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("label", { className: "text-xs font-semibold text-muted-foreground", children: "Product:" }),
+          /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(
             "select",
             {
               value: shadeProductId,
               onChange: (e) => setShadeProductId(e.target.value),
               className: "bg-transparent text-xs font-bold text-foreground outline-none cursor-pointer",
               children: [
-                products.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("option", { value: "", children: "No products found" }),
-                products.map((p) => /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("option", { value: p.id, children: p.name }, p.id))
+                products.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("option", { value: "", children: "No products found" }),
+                products.map((p) => /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("option", { value: p.id, children: p.name }, p.id))
               ]
             }
           )
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+        /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
           ShadesTab,
           {
             shades,
@@ -1717,7 +1895,8 @@ var MatchManager = () => {
           }
         )
       ] }),
-      activeTab === "simulator" && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+      activeTab === "tryon" && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(PhotoTryOnTab, {}),
+      activeTab === "simulator" && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
         MatchSimulatorTab,
         {
           simBrand,
@@ -1740,7 +1919,7 @@ var MatchManager = () => {
         }
       )
     ] }),
-    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
       ConflictRuleModal,
       {
         isOpen: isConflictModalOpen,
@@ -1749,7 +1928,7 @@ var MatchManager = () => {
         editingConflict
       }
     ),
-    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
       ProductGroupModal,
       {
         isOpen: isGroupModalOpen,
@@ -1759,7 +1938,7 @@ var MatchManager = () => {
         defaultBrand: selectedBrand
       }
     ),
-    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
       ShadeModal,
       {
         isOpen: isShadeModalOpen,
@@ -1769,8 +1948,8 @@ var MatchManager = () => {
         productId: shadeProductId
       }
     ),
-    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
-      import_shared8.ConfirmDialog,
+    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+      import_shared9.ConfirmDialog,
       {
         isOpen: deleteConfirm.isOpen,
         title: deleteConfirm.title,

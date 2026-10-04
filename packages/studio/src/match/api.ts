@@ -1,8 +1,7 @@
 import type { HostRoutes } from '@gateway-experience/shared';
 import { resolveDynamicEndpoint } from '../core/collection-resolver';
 import { withTenantScope } from '../core/scope';
-import type { ClinicalMatchResult, ConflictMatrixRule, ProductCatalogItem, ProductGroup, Shade } from './types';
-import type { ShadeAsset } from './components/tryon/ShadeAssetTypes';
+import type { ClinicalMatchResult, ColourCatalog, ConflictMatrixRule, ProductCatalogItem, ProductGroup, Shade } from './types';
 
 /**
  * Match-engine calls made by the match studio. Each resolves through the
@@ -56,10 +55,51 @@ export async function runMatch(payload: Record<string, unknown>, doFetch: typeof
   return res.ok ? ((await res.json()) as ClinicalMatchResult) : null;
 }
 
-/** GET a shade's extracted try-on asset; undefined when the engine has none. */
-export async function fetchShadeAsset(assetId: string, doFetch: typeof fetch = fetch): Promise<ShadeAsset | undefined> {
-  const data = (await (await doFetch(ep(`/api/matching/shade-assets/${assetId}`))).json()) as { asset?: ShadeAsset };
-  return data.asset;
+const colourEp = (path: string) => resolveDynamicEndpoint('colour', path);
+
+/** A failed colour-engine call: the HTTP status and the engine's own error text. */
+export class ColourApiError extends Error {
+  constructor(
+    readonly status: number,
+    readonly code: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'ColourApiError';
+  }
+}
+
+/** Reads the engine's JSON error body ({ error, code }); a non-JSON body is kept as text. */
+async function colourError(res: Response): Promise<ColourApiError> {
+  const text = await res.text();
+  try {
+    const j = JSON.parse(text) as { error?: unknown; message?: unknown; code?: unknown };
+    return new ColourApiError(res.status, String(j.code ?? ''), String(j.error || j.message || `HTTP ${res.status}`));
+  } catch {
+    return new ColourApiError(res.status, '', text || `HTTP ${res.status}`);
+  }
+}
+
+/** GET colour-engine /catalog: every shade available to try, by category. Throws ColourApiError. */
+export async function fetchColourCatalog(doFetch: typeof fetch = fetch): Promise<ColourCatalog> {
+  const res = await doFetch(colourEp('/catalog'));
+  if (!res.ok) throw await colourError(res);
+  const data = (await res.json()) as { catalog?: ColourCatalog };
+  return data.catalog ?? {};
+}
+
+/**
+ * POST colour-engine /tryon: the photo with the chosen shades rendered on it
+ * (a PNG). Shades are sent by id only, at most one per category; the engine
+ * resolves their colours from its catalog. Throws ColourApiError.
+ */
+export async function colourTryOn(image: Blob, shadeIds: string[], doFetch: typeof fetch = fetch): Promise<Blob> {
+  const fd = new FormData();
+  fd.append('image', image);
+  shadeIds.filter(Boolean).forEach((id) => fd.append('shadeIds', id));
+  const res = await doFetch(colourEp('/tryon'), { method: 'POST', body: fd });
+  if (!res.ok) throw await colourError(res);
+  return res.blob();
 }
 
 /** Ingredient options for conflict rules, from the host app's reference route. */
