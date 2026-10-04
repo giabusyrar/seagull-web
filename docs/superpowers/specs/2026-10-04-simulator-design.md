@@ -104,6 +104,16 @@ Workers:
 - **Skin** — `/api/v1/segment-and-pose` (declaredAngle); zones shown as JSON.
 - **Try-on** — `/extract`; labelled "async: result goes to core-engine callback, not here".
 
+## SDK screen (added 2026-10-04)
+
+`/sdk` exercises the built `@gateway-experience/beauty-sdk` (packed from
+`seagull-web/packages/beauty-sdk/dist` into `vendor/`, not rebuilt) through its
+own browser client and server proxy. The proxy is created per request with the
+picked brand/app and a placeholder API key (core and reference ignore it), and
+targets `/svc/sdkgw`, where two rewrites emulate the gateway's routing
+(`/core/*` to core-engine, `/reference/*` to reference-service). Each of the
+SDK's 8 operations can also be run as the simulator's direct call, side by side.
+
 ## Errors
 
 Every response shows its real status and body. Unreachable service → red

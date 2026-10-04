@@ -1280,3 +1280,372 @@ page renders it. `npm test` checks every definition builds.
 - [ ] **Step 3: Final checks** `npm test && npm run lint && npm run build` — all pass.
 
 - [ ] **Step 4: Commit** `git add -A && git commit -m "docs: README"`
+
+---
+
+### Task 9: SDK screen (built beauty-sdk, no gateway)
+
+Added 2026-10-04 at the user's request: exercise the **built** `@gateway-experience/beauty-sdk` (seagull-web/packages/beauty-sdk/dist, v0.2.0, not published to npm) against the services directly, side by side with the simulator's own direct call for the same operation.
+
+How it works without a gateway:
+- The SDK is packed from its existing `dist/` (`npm pack --ignore-scripts`, no rebuild) into `vendor/` and installed from that tarball, so the simulator tests exactly what was built.
+- Browser: `createBeautyClient({ baseUrl: '/api/beauty', fetch })` (proxy mode). The `fetch` wrapper adds `x-sim-brand` / `x-sim-app` headers from the brand picker.
+- Server: `app/api/beauty/[...path]/route.ts` builds a `createBeautyProxy` per request (the proxy fixes brand/app at creation) with `gatewayUrl = <own origin>/svc/sdkgw` and a placeholder `apiKey` (the SDK requires one; core and reference ignore `x-api-key`).
+- `/svc/sdkgw/core/*` → core-engine `/core/*` and `/svc/sdkgw/reference/*` → reference-service `/reference/*` emulate the gateway's path routing with two rewrites — still no gateway.
+
+**Files:**
+- Create: `scripts/pack-sdk.sh`, `vendor/gateway-experience-beauty-sdk-0.2.0.tgz` (generated), `lib/sdk.ts`, `tests/sdk.test.ts`, `app/api/beauty/[...path]/route.ts`, `tests/beauty-route.test.ts`, `app/sdk/page.tsx`, `components/SdkPanel.tsx`
+- Modify: `package.json` (dependency + `sdk:refresh` script), `lib/services.ts` (+ `sdkGatewayRewrites`), `next.config.ts`, `tests/services.test.ts`, `lib/http.ts` (extract `readResponse`), `tests/http.test.ts`, `components/Nav.tsx` (link)
+
+**Interfaces:**
+- Consumes: `buildRequest`, `Field`, `FieldValue`, `Brand` (T2); `call`, `CallResult` (T3); `GROUPS` (T4); `useBrand`, `Nav` (T5); `FieldInput`, `ResponseView` (T6).
+- Produces:
+```ts
+// lib/http.ts
+export async function readResponse(r: Response, url: string, t0: number): Promise<CallResult>  // call() delegates to it
+// lib/services.ts
+export function sdkGatewayRewrites(env: Record<string, string | undefined>): { source: string; destination: string }[]
+// lib/sdk.ts
+export const SIM_BRAND_HEADER = 'x-sim-brand'; export const SIM_APP_HEADER = 'x-sim-app';
+export interface SdkOpDef { id: OperationId; title: string; directId: string; body: 'none' | 'multipart'; fields: Field[] }
+export const SDK_OPS: SdkOpDef[];
+export function sdkInit(def: SdkOpDef, values: Record<string, FieldValue>): CallInit;
+export function withBrandHeaders(brand: Brand, f?: typeof fetch): typeof fetch;
+```
+
+- [ ] **Step 1: Pack and install the built SDK**
+
+`scripts/pack-sdk.sh`:
+```bash
+#!/usr/bin/env bash
+# Packs the already-built beauty-sdk (its dist/, no rebuild) into vendor/.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+SDK="${SDK_DIR:-../seagull-web/packages/beauty-sdk}"
+test -f "$SDK/dist/client/index.mjs" || { echo "beauty-sdk is not built: $SDK/dist missing" >&2; exit 1; }
+mkdir -p vendor
+rm -f vendor/gateway-experience-beauty-sdk-*.tgz
+npm pack "$SDK" --ignore-scripts --pack-destination vendor
+```
+package.json scripts: `"sdk:refresh": "bash scripts/pack-sdk.sh && npm install ./vendor/gateway-experience-beauty-sdk-0.2.0.tgz"`.
+Run `npm run sdk:refresh`. Expected: the tarball exists and package.json has `"@gateway-experience/beauty-sdk": "file:vendor/gateway-experience-beauty-sdk-0.2.0.tgz"`. If npm reports peer-dependency conflicts (e.g. optional `three`), add `--legacy-peer-deps` to the install in the script and report it. Commit the tarball (it records which build is under test).
+
+- [ ] **Step 2: Failing tests**
+
+Append to `tests/services.test.ts`:
+```ts
+import { sdkGatewayRewrites } from '@/lib/services';
+describe('sdkGatewayRewrites', () => {
+  it('routes core and reference like the gateway', () => {
+    expect(sdkGatewayRewrites({})).toEqual([
+      { source: '/svc/sdkgw/core/:path*', destination: 'http://localhost:8082/core/:path*' },
+      { source: '/svc/sdkgw/reference/:path*', destination: 'http://localhost:8086/reference/:path*' },
+    ]);
+  });
+  it('honours env overrides', () => {
+    expect(sdkGatewayRewrites({ SIM_CORE_URL: 'http://vps:1/' })[0].destination).toBe('http://vps:1/core/:path*');
+  });
+});
+```
+
+Append to `tests/http.test.ts`:
+```ts
+import { readResponse } from '@/lib/http';
+describe('readResponse', () => {
+  it('classifies an existing Response', async () => {
+    const r = await readResponse(new Response('{"a":1}', { status: 201, headers: { 'content-type': 'application/json' } }), 'sdk colour.catalog', performance.now());
+    expect(r).toMatchObject({ ok: true, status: 201, kind: 'json', json: { a: 1 }, url: 'sdk colour.catalog' });
+  });
+});
+```
+
+`tests/sdk.test.ts`:
+```ts
+import { describe, it, expect } from 'vitest';
+import { OPERATIONS } from '@gateway-experience/beauty-sdk/client';
+import { SDK_OPS, sdkInit, withBrandHeaders, SIM_BRAND_HEADER, SIM_APP_HEADER } from '@/lib/sdk';
+import { GROUPS } from '@/lib/groups';
+
+const direct = new Map(GROUPS.flatMap((g) => g.endpoints).map((e) => [e.id, e]));
+
+describe('SDK_OPS', () => {
+  it('covers exactly the operations the built SDK exposes', () => {
+    expect(SDK_OPS.map((o) => o.id).sort()).toEqual(OPERATIONS.map((o) => o.id).sort());
+  });
+  it('each maps to a direct endpoint with the same field names', () => {
+    for (const op of SDK_OPS) {
+      const d = direct.get(op.directId);
+      expect(d, op.id).toBeDefined();
+      const names = new Set(d!.fields.map((f) => f.name));
+      for (const f of op.fields) expect(names.has(f.name), `${op.id}.${f.name}`).toBe(true);
+    }
+  });
+});
+
+describe('sdkInit', () => {
+  it('multipart builds FormData with bools and files', () => {
+    const op = SDK_OPS.find((o) => o.id === 'colour.analyze')!;
+    const img = new File(['x'], 'a.jpg', { type: 'image/jpeg' });
+    const init = sdkInit(op, { image: img, hijab: false, hairVisible: true });
+    const fd = init.body as FormData;
+    expect(fd.get('image')).toBeInstanceOf(File);
+    expect(fd.get('hijab')).toBe('false');
+    expect(fd.get('hairVisible')).toBe('true');
+    expect(init.query).toBeUndefined();
+  });
+  it('GET puts fields in query and sends no body', () => {
+    const op = SDK_OPS.find((o) => o.id === 'reference.products')!;
+    expect(sdkInit(op, { brandId: 'brd-1' })).toEqual({ query: { brandId: 'brd-1' } });
+    expect(sdkInit(op, {})).toEqual({});
+  });
+});
+
+describe('withBrandHeaders', () => {
+  it('adds brand and app headers and keeps existing ones', async () => {
+    let seen: Headers | undefined;
+    const f = withBrandHeaders({ brandId: 'wardah', applicationId: 'skinverse' }, async (_u, init) => { seen = new Headers(init?.headers); return new Response(null, { status: 204 }); });
+    await f('/api/beauty/colour/catalog', { headers: { accept: 'application/json' } });
+    expect(seen?.get(SIM_BRAND_HEADER)).toBe('wardah');
+    expect(seen?.get(SIM_APP_HEADER)).toBe('skinverse');
+    expect(seen?.get('accept')).toBe('application/json');
+  });
+});
+```
+
+`tests/beauty-route.test.ts`:
+```ts
+import { describe, it, expect } from 'vitest';
+import { GET } from '@/app/api/beauty/[...path]/route';
+
+const ctx = (path: string[]) => ({ params: Promise.resolve({ path }) });
+
+describe('beauty proxy route', () => {
+  it('refuses without brand and application headers', async () => {
+    const r = await GET(new Request('http://localhost:3100/api/beauty/colour/catalog'), ctx(['colour', 'catalog']));
+    expect(r.status).toBe(400);
+    expect(await r.json()).toEqual({ detail: { code: 'pick_brand_and_application' } });
+  });
+  it('unknown SDK path is the proxy 404', async () => {
+    const r = await GET(new Request('http://localhost:3100/api/beauty/nope', { headers: { 'x-sim-brand': 'wardah', 'x-sim-app': 'skinverse' } }), ctx(['nope']));
+    expect(r.status).toBe(404);
+  });
+});
+```
+
+- [ ] **Step 3: Run** `npm test` — FAIL (missing exports/modules).
+
+- [ ] **Step 4: Implement**
+
+`lib/http.ts`: move everything after the successful `fetchImpl(...)` into `export async function readResponse(r: Response, url: string, t0: number): Promise<CallResult>` (same body-read try/catch, same classification); `call()` becomes fetch-with-catch + `return readResponse(r, req.url, t0)`. No behaviour change; existing http tests must still pass.
+
+`lib/services.ts` (append, and refactor `serviceRewrites` to use the same `baseUrl` helper):
+```ts
+const baseUrl = (env: Record<string, string | undefined>, id: ServiceId) => (env[SERVICES[id].envVar] || SERVICES[id].defaultUrl).replace(/\/+$/, '');
+
+/** Emulates the gateway's path routing for the SDK proxy: /core/* → core-engine, /reference/* → reference-service. */
+export function sdkGatewayRewrites(env: Record<string, string | undefined>) {
+  return [
+    { source: '/svc/sdkgw/core/:path*', destination: `${baseUrl(env, 'core')}/core/:path*` },
+    { source: '/svc/sdkgw/reference/:path*', destination: `${baseUrl(env, 'ref')}/reference/:path*` },
+  ];
+}
+```
+
+`next.config.ts` rewrites: `return [...sdkGatewayRewrites(process.env), ...serviceRewrites(process.env)];`
+
+`lib/sdk.ts`:
+```ts
+import type { CallInit, OperationId } from '@gateway-experience/beauty-sdk/client';
+import { buildRequest, type Brand, type Field, type FieldValue } from './endpoint';
+
+export const SIM_BRAND_HEADER = 'x-sim-brand';
+export const SIM_APP_HEADER = 'x-sim-app';
+
+export interface SdkOpDef { id: OperationId; title: string; directId: string; body: 'none' | 'multipart'; fields: Field[] }
+
+const img = (name: string, required = false): Field => ({ name, kind: 'file', required });
+
+export const SDK_OPS: SdkOpDef[] = [
+  { id: 'colour.analyze', title: 'colour.analyze', directId: 'colour-analyze', body: 'multipart', fields: [img('image', true), { name: 'hijab', kind: 'bool', default: false }, { name: 'hairVisible', kind: 'bool', default: true }] },
+  { id: 'colour.tryOn', title: 'colour.tryOn', directId: 'colour-tryon', body: 'multipart', fields: [img('image', true), { name: 'shadeIds', kind: 'text', repeat: true, required: true, help: 'comma list of shade ids' }] },
+  { id: 'colour.catalog', title: 'colour.catalog', directId: 'colour-catalog', body: 'none', fields: [] },
+  { id: 'face.analyze', title: 'face.analyze', directId: 'facearch-measure', body: 'multipart', fields: [img('image', true)] },
+  { id: 'face.head', title: 'face.head', directId: 'facearch-head', body: 'multipart', fields: [img('front', true), img('left'), img('right')] },
+  { id: 'skin.analyze', title: 'skin.analyze', directId: 'vision-analyze', body: 'multipart', fields: [img('image_front', true), img('image_left'), img('image_right'), { name: 'dimensions', kind: 'text', help: 'comma list' }, { name: 'skinConditions', kind: 'text', help: 'comma list' }] },
+  { id: 'reference.brands', title: 'reference.brands', directId: 'ref-brands', body: 'none', fields: [] },
+  { id: 'reference.products', title: 'reference.products', directId: 'ref-products', body: 'none', fields: [{ name: 'brandId', kind: 'text', help: 'ref brand id (brd-…)' }] },
+];
+
+/** Turns form values into the SDK's CallInit, reusing buildRequest's encoding rules. The proxy adds brand/app itself. */
+export function sdkInit(def: SdkOpDef, values: Record<string, FieldValue>): CallInit {
+  const built = buildRequest(
+    { id: def.id, title: def.title, service: 'core', method: def.body === 'multipart' ? 'POST' : 'GET', path: '/', body: def.body, brand: 'none', fields: def.fields },
+    values,
+    { brandId: '', applicationId: '' },
+  );
+  if (def.body === 'multipart') return { body: built.init.body as FormData };
+  const q = new URL(built.url, 'http://sim.local').searchParams;
+  return q.size ? { query: Object.fromEntries(q) } : {};
+}
+
+export function withBrandHeaders(brand: Brand, f: typeof fetch = fetch): typeof fetch {
+  return (input, init) => {
+    const headers = new Headers(init?.headers);
+    headers.set(SIM_BRAND_HEADER, brand.brandId);
+    headers.set(SIM_APP_HEADER, brand.applicationId);
+    return f(input, { ...init, headers });
+  };
+}
+```
+
+`app/api/beauty/[...path]/route.ts`:
+```ts
+import { createBeautyProxy } from '@gateway-experience/beauty-sdk/server';
+import { SIM_APP_HEADER, SIM_BRAND_HEADER } from '@/lib/sdk';
+
+type Ctx = { params: Promise<{ path?: string[] }> };
+
+// The SDK proxy requires an API key; core-engine and reference-service do not check it (only the gateway does).
+const PLACEHOLDER_API_KEY = 'simulator-no-gateway';
+
+async function handle(req: Request, ctx: Ctx): Promise<Response> {
+  const brandId = req.headers.get(SIM_BRAND_HEADER) ?? '';
+  const applicationId = req.headers.get(SIM_APP_HEADER) ?? '';
+  if (!brandId || !applicationId) return Response.json({ detail: { code: 'pick_brand_and_application' } }, { status: 400 });
+  const proxy = createBeautyProxy({ gatewayUrl: `${new URL(req.url).origin}/svc/sdkgw`, apiKey: PLACEHOLDER_API_KEY, brandId, applicationId });
+  return req.method === 'POST' ? proxy.POST(req, ctx) : proxy.GET(req, ctx);
+}
+
+export const GET = handle;
+export const POST = handle;
+```
+(If Next 16's route-handler typing rejects the `ctx` type, adapt to the type Next generates — check node_modules/next/dist/docs — and report.)
+
+`components/SdkPanel.tsx`:
+```tsx
+'use client';
+import { useMemo, useState } from 'react';
+import { createBeautyClient } from '@gateway-experience/beauty-sdk/client';
+import { buildRequest, type FieldValue } from '@/lib/endpoint';
+import { call, readResponse, type CallResult } from '@/lib/http';
+import { GROUPS } from '@/lib/groups';
+import { sdkInit, withBrandHeaders, type SdkOpDef } from '@/lib/sdk';
+import { useBrand } from '@/lib/brand';
+import { FieldInput } from './FieldInput';
+import { ResponseView } from './ResponseView';
+
+const DIRECT = new Map(GROUPS.flatMap((g) => g.endpoints).map((e) => [e.id, e]));
+
+export function SdkPanel({ def }: { def: SdkOpDef }) {
+  const brand = useBrand();
+  const client = useMemo(
+    () => createBeautyClient({ baseUrl: '/api/beauty', fetch: withBrandHeaders({ brandId: brand.brandId, applicationId: brand.applicationId }) }),
+    [brand.brandId, brand.applicationId],
+  );
+  const [values, setValues] = useState<Record<string, FieldValue>>(() => Object.fromEntries(def.fields.map((f) => [f.name, f.default])));
+  const [sdk, setSdk] = useState<CallResult | null>(null);
+  const [direct, setDirect] = useState<CallResult | null>(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const viaSdk = async (): Promise<CallResult> => {
+    const t0 = performance.now();
+    try {
+      return await readResponse(await client.call(def.id, sdkInit(def, values)), `sdk ${def.id}`, t0);
+    } catch (e) {
+      return { ok: false, status: 0, ms: Math.round(performance.now() - t0), url: `sdk ${def.id}`, headers: [], kind: 'empty', networkError: `SDK call failed: ${e instanceof Error ? e.message : String(e)}` };
+    }
+  };
+  const viaDirect = async (): Promise<CallResult | null> => {
+    const d = DIRECT.get(def.directId);
+    if (!d) { setError(`no direct endpoint ${def.directId}`); return null; }
+    return call(buildRequest(d, values, brand));
+  };
+  const run = async (which: 'sdk' | 'direct' | 'both') => {
+    setError('');
+    if (!brand.brandId || !brand.applicationId) { setError('pick a brand and application in the top bar'); return; }
+    setBusy(true);
+    try {
+      const [s, d] = await Promise.all([which !== 'direct' ? viaSdk() : null, which !== 'sdk' ? viaDirect() : null]);
+      if (which !== 'direct') setSdk(s);
+      if (which !== 'sdk') setDirect(d);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const btn = 'rounded px-3 py-1 text-sm disabled:opacity-50';
+  return (
+    <section className="rounded-lg border p-3">
+      <div className="flex items-baseline gap-2">
+        <h2 className="font-mono font-medium">{def.title}</h2>
+        <span className="text-xs text-zinc-500">direct equivalent: {def.directId}</span>
+      </div>
+      {def.fields.length > 0 && (
+        <div className="mt-2 grid grid-cols-[10rem_1fr] items-center gap-x-3 gap-y-1.5">
+          {def.fields.map((f) => [
+            <label key={`${f.name}-l`} className="font-mono text-xs">{f.name}{f.required && <span className="text-red-600">*</span>}</label>,
+            <div key={`${f.name}-i`}>
+              <FieldInput field={f} value={values[f.name]} onChange={(v) => setValues((p) => ({ ...p, [f.name]: v }))} />
+              {f.help && <div className="text-[11px] text-zinc-500">{f.help}</div>}
+            </div>,
+          ])}
+        </div>
+      )}
+      <div className="mt-2 flex items-center gap-2">
+        <button className={`${btn} bg-zinc-900 text-white`} disabled={busy} onClick={() => run('sdk')}>Via SDK</button>
+        <button className={`${btn} border`} disabled={busy} onClick={() => run('direct')}>Direct</button>
+        <button className={`${btn} border`} disabled={busy} onClick={() => run('both')}>Both</button>
+        {error && <span className="text-xs text-red-700">{error}</span>}
+      </div>
+      {(sdk || direct) && (
+        <div className="mt-2 grid gap-3 lg:grid-cols-2">
+          <div><div className="text-xs font-semibold">SDK</div>{sdk ? <ResponseView key={`s-${sdk.ms}`} result={sdk} /> : <p className="text-xs text-zinc-500">not run</p>}</div>
+          <div><div className="text-xs font-semibold">Direct</div>{direct ? <ResponseView key={`d-${direct.ms}`} result={direct} /> : <p className="text-xs text-zinc-500">not run</p>}</div>
+        </div>
+      )}
+    </section>
+  );
+}
+```
+
+`app/sdk/page.tsx`:
+```tsx
+import { SDK_OPS } from '@/lib/sdk';
+import { SdkPanel } from '@/components/SdkPanel';
+
+export default function SdkPage() {
+  return (
+    <div className="space-y-4">
+      <h1 className="text-lg font-semibold">beauty-sdk (built, v0.2.0)</h1>
+      <p className="max-w-3xl text-sm text-zinc-600">
+        Calls go through the SDK&apos;s own client and server proxy (<code>/api/beauty</code>). The proxy targets the services directly via
+        <code> /svc/sdkgw</code> rewrites — no gateway. &quot;Both&quot; also runs the simulator&apos;s direct call for the same operation, side by side.
+      </p>
+      {SDK_OPS.map((op) => <SdkPanel key={op.id} def={op} />)}
+    </div>
+  );
+}
+```
+
+`components/Nav.tsx`: add a section after Conversation:
+```tsx
+<div>
+  <div className="mb-1 text-xs font-semibold uppercase text-zinc-500">SDK</div>
+  {item('/sdk', 'beauty-sdk')}
+</div>
+```
+
+- [ ] **Step 5: Run** `npm test` — PASS. `npx tsc --noEmit`, `npm run lint`, `npm run build` — clean.
+
+- [ ] **Step 6: Live check** (core :8082 and reference :8086 running). `npm run dev`, then:
+```bash
+curl -s -H 'x-sim-brand: WARDAH' -H 'x-sim-app: skinverse' localhost:3100/api/beauty/reference/brands | head -c 200
+curl -s -o /dev/null -w '%{http_code}\n' -H 'x-sim-brand: WARDAH' -H 'x-sim-app: skinverse' localhost:3100/api/beauty/colour/catalog
+curl -s -o /dev/null -w '%{http_code}\n' localhost:3100/sdk
+```
+Expected: brands JSON (Make Over / Wardah); catalog returns core's real status (200, or 503 with reason); `/sdk` 200. Record outputs in the report.
+
+- [ ] **Step 7: Commit** `git add -A && git commit -m "feat: SDK screen using the built beauty-sdk through its own proxy, no gateway"`
