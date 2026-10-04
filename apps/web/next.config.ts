@@ -1,5 +1,6 @@
 import path from "node:path";
 import type { NextConfig } from "next";
+import { DEFAULT_CONTROL_PLANE_PORT } from "./lib/config/services";
 
 // Turbopack infers the workspace root from the nearest lockfile. This repo has
 // no package-lock.json yet (README: it cannot be generated honestly until
@@ -12,11 +13,7 @@ const protocol = process.env.SERVICE_PROTOCOL || "http";
 
 const GATEWAY_ENGINE_URL =
   process.env.GATEWAY_ENGINE_URL ||
-  `${protocol}://${baseHost}:${process.env.GATEWAY_ENGINE_PORT || "8081"}`;
-
-const GATEWAY_PROXY_URL =
-  process.env.GATEWAY_PROXY_URL ||
-  `${protocol}://${baseHost}:${process.env.GATEWAY_PROXY_PORT || "8080"}`;
+  `${protocol}://${baseHost}:${process.env.GATEWAY_ENGINE_PORT || DEFAULT_CONTROL_PLANE_PORT}`;
 
 const nextConfig: NextConfig = {
   output: "standalone",
@@ -24,13 +21,9 @@ const nextConfig: NextConfig = {
   turbopack: { root: WORKSPACE_ROOT },
   async rewrites() {
     return [
-      // 1. Dynamic API Gateway Collection Proxy Data Plane (:8080)
-      //    core-engine is reached only through here (/core/<module>/...);
-      //    the dashboard has no direct route to it.
-      {
-        source: "/core/:path*",
-        destination: `${GATEWAY_PROXY_URL}/core/:path*`,
-      },
+      // 1. /core/* has no rewrite: proxy.ts sends it to lib/proxy-handler.ts,
+      //    which picks the data plane of the environment selected in the UI
+      //    first (lib/data-plane.ts) and attaches the data-plane key.
 
       // 2. Reference data (/api/reference/*, /reference-api/*, /api/<entity>)
       //    has no rewrite here: lib/proxy-handler.ts sends it through the

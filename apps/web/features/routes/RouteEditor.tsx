@@ -28,6 +28,7 @@ import {
 } from './api';
 import { buildTryRequest } from './try-request';
 import { recallTryApiKey } from '@/lib/try-api-key';
+import { DEFAULT_DATA_PLANE_PORT } from '@/lib/config/services';
 import { RouteExecutionHistoryPanel, RouteExecutionHistoryPanelRef } from './RouteExecutionHistoryPanel';
 
 export interface RouteEditorProps {
@@ -258,7 +259,7 @@ export const RouteEditor: React.FC<RouteEditorProps> = ({
     }
     const { protocol, hostname } = window.location;
     if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.includes('local')) {
-      return `${protocol}//${hostname}:8080`;
+      return `${protocol}//${hostname}:${DEFAULT_DATA_PLANE_PORT}`;
     }
     return `${protocol}//${hostname}`;
   };

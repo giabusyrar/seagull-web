@@ -38,6 +38,7 @@ import type {
   Collection,
 } from '@/types/api-client';
 import { executeHttpRequest, formatJsonString } from '@/lib/api-client-utils';
+import { setDataPlaneHostCookie } from '@/lib/data-plane-cookie';
 import { useCollections, useRoutes, useAllRoutes } from '@/lib/hooks/use-collections';
 import { useGlobalEnvironments } from '@/lib/hooks/use-global-environments';
 import { MissingHostModal } from './MissingHostModal';
@@ -275,6 +276,12 @@ export function ApiClientApp() {
     }
     return map;
   }, [environments, selectedEnvId]);
+  // The selected environment's host is also where the dashboard's own engine
+  // calls go (lib/data-plane.ts); the server reads it from this cookie.
+  const selectedHost = currentEnvVars['host'];
+  useEffect(() => {
+    if (environments.length > 0) setDataPlaneHostCookie(selectedHost);
+  }, [environments.length, selectedHost]);
   const [isEnvModalOpen, setIsEnvModalOpen] = useState(false);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);

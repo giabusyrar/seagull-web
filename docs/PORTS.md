@@ -8,7 +8,7 @@ services from two repos still collide on the same machine.
 | 3000 | web (Next.js) | Seagull-web |
 | 3100 | next-brand example (dev only) | Seagull-web |
 | 3200 | simulator (`apps/simulator`, dev only) | Seagull-web |
-| 8080 | gateway-proxy | Seagull-gateway |
+| 8080 | **retired 2026-09-16** gateway-proxy (the data plane is APISIX on 9080) | Seagull-gateway |
 | 8081 | gateway-engine | Seagull-gateway |
 | 8082 | core-engine | Seagull-core |
 | 8086 | reference-service | Seagull-core — reached through the gateway, not directly |

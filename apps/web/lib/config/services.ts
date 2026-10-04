@@ -1,6 +1,16 @@
 // Centralized Service URL Configuration Resolver
 // Single source of truth for all frontend backend service URL resolution.
 
+/**
+ * The data plane's local port: APISIX (docs/PORTS.md). It was gateway-proxy
+ * on 8080 until that was removed (2026-09-16). Deployments set
+ * GATEWAY_PROXY_URL instead.
+ */
+export const DEFAULT_DATA_PLANE_PORT = 9080;
+
+/** The control plane's local port: gateway-engine (docs/PORTS.md). */
+export const DEFAULT_CONTROL_PLANE_PORT = 8081;
+
 function normalizeUrl(rawUrl: string): string {
   const trimmed = rawUrl.trim().replace(/\/+$/, '');
   if (typeof window === 'undefined') {
@@ -23,7 +33,7 @@ export function getGatewayEngineUrl(): string {
   const rawUrl =
     process.env.GATEWAY_ENGINE_URL ||
     process.env.NEXT_PUBLIC_GATEWAY_ENGINE_URL ||
-    `${getProtocol()}://${getBaseHost()}:8081`;
+    `${getProtocol()}://${getBaseHost()}:${DEFAULT_CONTROL_PLANE_PORT}`;
   return normalizeUrl(rawUrl);
 }
 
@@ -31,7 +41,7 @@ export function getGatewayProxyUrl(): string {
   const rawUrl =
     process.env.GATEWAY_PROXY_URL ||
     process.env.NEXT_PUBLIC_GATEWAY_PROXY_URL ||
-    `${getProtocol()}://${getBaseHost()}:8080`;
+    `${getProtocol()}://${getBaseHost()}:${DEFAULT_DATA_PLANE_PORT}`;
   return normalizeUrl(rawUrl);
 }
 

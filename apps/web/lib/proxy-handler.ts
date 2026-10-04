@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getGatewayEngineUrl, getGatewayProxyUrl } from '@/lib/config/services';
+import { getGatewayEngineUrl } from '@/lib/config/services';
+import { resolveDataPlane, type DataPlaneSource } from '@/lib/data-plane';
 
 // core-engine's own mounts. It is reached only through the gateway data plane
 // as /core/<module>/..., never directly; see the branch that answers these.
@@ -41,12 +42,22 @@ export async function handleApiProxy(
     // Server-side only: this runs in a route handler, so the key never needs a
     // NEXT_PUBLIC_ variant — that would inline it into the browser bundle.
     const dataPlaneKey = process.env.GATEWAY_API_KEY || '';
+    // The caller's credentials, also used to read the gateway's environments.
+    const sessionCookie = request.cookies.get('session')?.value;
+    const authorization = request.headers.get('authorization') || (sessionCookie ? `Bearer ${sessionCookie}` : undefined);
+    // The data plane: the environment selected in the UI first, then .env (lib/data-plane.ts).
+    let dataPlaneSource: DataPlaneSource | null = null;
+    const dataPlaneUrl = async () => {
+      const r = await resolveDataPlane(request, authorization);
+      dataPlaneSource = r.source;
+      return r.url;
+    };
 
     if (cleanPath.startsWith('http://') || cleanPath.startsWith('https://')) {
       targetUrl = `${cleanPath}${search}`;
     } else if (cleanPath === 'core' || cleanPath.startsWith('core/')) {
-      // Dynamic core-engine collection — hits the gateway-proxy data plane (:8080)
-      targetUrl = `${getGatewayProxyUrl()}/${cleanPath}${search}`;
+      // Dynamic core-engine collection — hits the data plane (APISIX)
+      targetUrl = `${await dataPlaneUrl()}/${cleanPath}${search}`;
       if (dataPlaneKey) headers['x-api-key'] = dataPlaneKey;
     } else if (
       cleanPath.startsWith('api/reference/') ||
@@ -58,11 +69,11 @@ export async function handleApiProxy(
       // gateway data plane: its "/reference" collection forwards /reference/*
       // unchanged, and reference-service serves the same handlers there.
       const subPath = cleanPath.replace(/^(api\/reference|reference-api)\/?/, '');
-      targetUrl = `${getGatewayProxyUrl()}/reference${subPath ? `/${subPath}` : ''}${search}`;
+      targetUrl = `${await dataPlaneUrl()}/reference${subPath ? `/${subPath}` : ''}${search}`;
       if (dataPlaneKey) headers['x-api-key'] = dataPlaneKey;
     } else if (cleanPath.startsWith('api/') && REFERENCE_ENTITIES.has(cleanPath.replace(/^api\//, '').split('/')[0])) {
       const subPath = cleanPath.replace(/^api\//, '');
-      targetUrl = `${getGatewayProxyUrl()}/reference/${subPath}${search}`;
+      targetUrl = `${await dataPlaneUrl()}/reference/${subPath}${search}`;
       if (dataPlaneKey) headers['x-api-key'] = dataPlaneKey;
     } else if (DIRECT_CORE_ENGINE_PATH.test(cleanPath)) {
       // These used to go straight to a local core-engine. There is no direct
@@ -79,8 +90,8 @@ export async function handleApiProxy(
       // Gateway Engine Control Plane (:8081) — Admin, Collections, Auth, Environments, Users, etc.
       targetUrl = `${getGatewayEngineUrl()}/${cleanPath}${search}`;
     } else {
-      // Any other custom collection path (e.g. /nasa/*, /weather/*) -> Gateway Proxy Data Plane (:8080)
-      targetUrl = `${getGatewayProxyUrl()}/${cleanPath}${search}`;
+      // Any other custom collection path (e.g. /nasa/*, /weather/*) -> the data plane (APISIX)
+      targetUrl = `${await dataPlaneUrl()}/${cleanPath}${search}`;
       if (dataPlaneKey) headers['x-api-key'] = dataPlaneKey;
     }
 
@@ -100,11 +111,8 @@ export async function handleApiProxy(
     });
 
     // Auto-forward session cookie as Bearer token if not explicitly present
-    if (!headers['authorization']) {
-      const sessionCookie = request.cookies.get('session')?.value;
-      if (sessionCookie) {
-        headers['authorization'] = `Bearer ${sessionCookie}`;
-      }
+    if (!headers['authorization'] && sessionCookie) {
+      headers['authorization'] = `Bearer ${sessionCookie}`;
     }
 
     // ArrayBuffer (not text()) to pass binary bodies (file uploads, multipart/form-data)
@@ -121,12 +129,11 @@ export async function handleApiProxy(
     // ArrayBuffer (not text()) on the way back too: binary responses such as
     // the colour engine's try-on PNG are corrupted by a UTF-8 round trip.
     const data = await res.arrayBuffer();
-    return new NextResponse(data, {
-      status: res.status,
-      headers: {
-        'Content-Type': res.headers.get('content-type') || 'application/json',
-      },
-    });
+    const out: Record<string, string> = { 'Content-Type': res.headers.get('content-type') || 'application/json' };
+    // Which data plane answered: the selected environment's, or .env's.
+    const source = dataPlaneSource as DataPlaneSource | null;
+    if (source) out['X-Data-Plane-Source'] = source;
+    return new NextResponse(data, { status: res.status, headers: out });
   } catch (err: any) {
     const errorMsg = err instanceof Error ? err.message : 'Backend connection error';
     console.error(`[API Proxy] ${request.method} -> ${targetUrl || request.nextUrl.pathname} failed:`, errorMsg);
