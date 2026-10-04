@@ -1,13 +1,15 @@
 import { BeautyClientConfig } from './types/index.mjs';
-import { A as AssessmentEvaluateRequest, a as AssessmentEvaluateResponse } from './assessment-types-atxVAW_S.mjs';
+import { a as AssessmentEvaluator, A as AssessmentEvaluateInput, b as AssessmentEvaluateResponse } from './evaluate-assessment-wMND-bNb.mjs';
 
 interface UseSkinAssessmentOptions extends BeautyClientConfig {
+    /**
+     * Evaluates the survey. Defaults to calling the gateway directly with this
+     * config, as the hook always has.
+     */
+    evaluator?: AssessmentEvaluator;
 }
 declare function useSkinAssessment(config: UseSkinAssessmentOptions): {
-    evaluate: (surveyCode: string, request: Omit<AssessmentEvaluateRequest, "brand_id" | "application_id"> & {
-        brand_id?: string;
-        application_id?: string;
-    }) => Promise<AssessmentEvaluateResponse>;
+    evaluate: (surveyCode: string, request: AssessmentEvaluateInput) => Promise<AssessmentEvaluateResponse>;
     reset: () => void;
     isLoading: boolean;
     error: Error | null;

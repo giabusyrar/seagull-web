@@ -15,8 +15,46 @@ __export(core_exports, {
   FormSubClient: () => FormSubClient,
   MatchSubClient: () => MatchSubClient,
   ReferenceSubClient: () => ReferenceSubClient,
-  VisionSubClient: () => VisionSubClient
+  VisionSubClient: () => VisionSubClient,
+  evaluateAssessment: () => evaluateAssessment,
+  gatewayAssessmentEvaluator: () => gatewayAssessmentEvaluator
 });
+
+// src/core/evaluate-assessment.ts
+async function evaluateAssessment(config, surveyCode, request, doFetch = fetch) {
+  if (!surveyCode) {
+    throw new Error("evaluateAssessment needs a survey code: core-engine looks the survey up by it.");
+  }
+  const payload = {
+    ...request,
+    brand_id: request.brand_id || config.brandId,
+    application_id: request.application_id || config.applicationId
+  };
+  const headers = {
+    "Content-Type": "application/json"
+  };
+  if (config.apiKey) {
+    headers["X-API-Key"] = config.apiKey;
+  }
+  if (config.token) {
+    headers["Authorization"] = `Bearer ${config.token}`;
+  }
+  const url = `${config.gatewayUrl}/core/form-engine/survey/${encodeURIComponent(surveyCode)}/evaluate`;
+  const response = await doFetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) {
+    const errBody = await response.text();
+    throw new Error(`Assessment evaluation failed (${response.status}): ${errBody}`);
+  }
+  return response.json();
+}
+function gatewayAssessmentEvaluator(config) {
+  const normalized = { ...config, gatewayUrl: config.gatewayUrl.replace(/\/$/, "") };
+  return { evaluateAssessment: (surveyCode, request) => evaluateAssessment(normalized, surveyCode, request) };
+}
 
 // src/core/client.ts
 var FormSubClient = class {
@@ -120,42 +158,9 @@ var BeautyClient = class {
     }
     return response.json();
   }
-  /**
-   * Evaluate one survey and store the result as a customer assessment.
-   *
-   * core-engine takes the survey code from the path: its handler reads :code
-   * and looks the survey up with it, so a call without one finds nothing. The
-   * gateway's own /api/v1/assessments/evaluate is being retired.
-   */
+  /** Evaluate one survey and store the result as a customer assessment (see evaluateAssessment). */
   async evaluateAssessment(surveyCode, request) {
-    if (!surveyCode) {
-      throw new Error("evaluateAssessment needs a survey code: core-engine looks the survey up by it.");
-    }
-    const payload = {
-      ...request,
-      brand_id: request.brand_id || this.config.brandId,
-      application_id: request.application_id || this.config.applicationId
-    };
-    const headers = {
-      "Content-Type": "application/json"
-    };
-    if (this.config.apiKey) {
-      headers["X-API-Key"] = this.config.apiKey;
-    }
-    if (this.config.token) {
-      headers["Authorization"] = `Bearer ${this.config.token}`;
-    }
-    const url = `${this.config.gatewayUrl}/core/form-engine/survey/${encodeURIComponent(surveyCode)}/evaluate`;
-    const response = await fetch(url, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(payload)
-    });
-    if (!response.ok) {
-      const errBody = await response.text();
-      throw new Error(`Assessment evaluation failed (${response.status}): ${errBody}`);
-    }
-    return response.json();
+    return evaluateAssessment(this.config, surveyCode, request);
   }
   /**
    * Submits unlabelled face captures to Vision Engine in a single call.
@@ -234,7 +239,7 @@ __export(hooks_exports, {
   useSkinAssessment: () => useSkinAssessment
 });
 function useSkinAssessment(config) {
-  const [client] = useState(() => new BeautyClient(config));
+  const [evaluator] = useState(() => config.evaluator ?? gatewayAssessmentEvaluator(config));
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
@@ -243,7 +248,7 @@ function useSkinAssessment(config) {
       setIsLoading(true);
       setError(null);
       try {
-        const data = await client.evaluateAssessment(surveyCode, request);
+        const data = await evaluator.evaluateAssessment(surveyCode, request);
         setResult(data);
         return data;
       } catch (err) {
@@ -254,7 +259,7 @@ function useSkinAssessment(config) {
         setIsLoading(false);
       }
     },
-    [client]
+    [evaluator]
   );
   const reset = useCallback(() => {
     setResult(null);
@@ -713,6 +718,6 @@ var BeautyExperienceWidget = ({
   ] });
 };
 
-export { AgingProgressionSlider, AssessmentsSubClient, BeautyClient, BeautyExperienceWidget, core_exports as Core, DimensionScoreCard, DimensionSelector, FormSubClient, hooks_exports as Hooks, MatchSubClient, PolygonHeatmap, ProductRecommendationCard, ReferenceSubClient, ui_exports as UI, ui_exports as Vision, VisionSubClient, useRegimenMatch, useSkinAssessment };
+export { AgingProgressionSlider, AssessmentsSubClient, BeautyClient, BeautyExperienceWidget, core_exports as Core, DimensionScoreCard, DimensionSelector, FormSubClient, hooks_exports as Hooks, MatchSubClient, PolygonHeatmap, ProductRecommendationCard, ReferenceSubClient, ui_exports as UI, ui_exports as Vision, VisionSubClient, evaluateAssessment, gatewayAssessmentEvaluator, useRegimenMatch, useSkinAssessment };
 //# sourceMappingURL=index.mjs.map
 //# sourceMappingURL=index.mjs.map
