@@ -29,6 +29,7 @@ export { KeyValueTable } from './components/KeyValueTable';
 export { StatusBadge } from './components/StatusBadge';
 export { SeverityBadge } from './components/SeverityBadge';
 export { ScoreRangeInput } from './components/ScoreRangeInput';
+export { HostRoutesProvider, useHostRoutes } from './host-routes';
 export { ReferenceDataProvider, useReferenceDataSource, } from './components/reference/ReferenceDataProvider';
 export { BrandSelect } from './components/reference/BrandSelect';
 export { ApplicationSelect } from './components/reference/ApplicationSelect';

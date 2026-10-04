@@ -105,8 +105,8 @@ function surveyList(data) {
   const d = data;
   return Array.isArray(data) ? data : Array.isArray(d?.surveys) ? d.surveys : d?.code ? [data] : [];
 }
-async function listSkinConditions() {
-  const data = await (await fetch("/api/skin-conditions")).json();
+async function listSkinConditions(routes) {
+  const data = await (await fetch(routes.skinConditions)).json();
   return Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
 }
 
@@ -727,10 +727,11 @@ var import_shared2 = require("@gateway-experience/shared");
 var import_jsx_runtime2 = require("react/jsx-runtime");
 function useVisionFields() {
   const [conditions, setConditions] = (0, import_react2.useState)([]);
+  const hostRoutes = (0, import_shared2.useHostRoutes)();
   (0, import_react2.useEffect)(() => {
-    listSkinConditions().then(setConditions).catch(() => {
+    listSkinConditions(hostRoutes).then(setConditions).catch(() => {
     });
-  }, []);
+  }, [hostRoutes]);
   return (0, import_react2.useMemo)(
     () => conditions.flatMap(
       (c) => (c.visionCapabilities || []).map((cap) => ({ code: cap, label: `${c.name} (${cap})` }))
@@ -1119,9 +1120,9 @@ var import_lucide_react4 = require("lucide-react");
 var import_shared4 = require("@gateway-experience/shared");
 
 // src/form/api.ts
-async function getSafetyFlags() {
+async function getSafetyFlags(routes) {
   try {
-    const res = await fetch(`/api/reference/conditions`, { cache: "no-store" });
+    const res = await fetch(routes.reference("conditions"), { cache: "no-store" });
     if (!res.ok) return [];
     const data = await res.json();
     const arr = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
@@ -1170,6 +1171,7 @@ var ScoreSimulatorTab = ({
   selectedRuleset,
   onSelectRuleset
 }) => {
+  const hostRoutes = (0, import_shared4.useHostRoutes)();
   const activeRuleset = selectedRuleset || rulesets[0] || null;
   const rulesetDims = (0, import_react4.useMemo)(() => {
     if (!activeRuleset?.schema) return [];
@@ -1262,8 +1264,8 @@ var ScoreSimulatorTab = ({
   }, [activeRuleset?.brandId, activeRuleset?.applicationId, formSurveyCode]);
   const [catalogSafetyFlags, setCatalogSafetyFlags] = (0, import_react4.useState)([]);
   (0, import_react4.useEffect)(() => {
-    getSafetyFlags().then((rows) => setCatalogSafetyFlags(rows.map((r) => r.code))).catch(() => setCatalogSafetyFlags([]));
-  }, []);
+    getSafetyFlags(hostRoutes).then((rows) => setCatalogSafetyFlags(rows.map((r) => r.code))).catch(() => setCatalogSafetyFlags([]));
+  }, [hostRoutes]);
   const allSafetyFlags = (0, import_react4.useMemo)(
     () => Array.from(/* @__PURE__ */ new Set([...rulesetSafetyFlags, ...surveySafetyFlags])),
     [rulesetSafetyFlags, surveySafetyFlags]

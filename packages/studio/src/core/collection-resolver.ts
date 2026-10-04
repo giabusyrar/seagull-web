@@ -40,16 +40,17 @@ let lastFetchedAt = 0;
 const CACHE_TTL_MS = 30000; // 30 seconds cache
 
 /**
- * Fetch all active Core Collections from the API Gateway database
+ * Fetch all active Core Collections from the API Gateway database, through
+ * the host app's collections route (HostRoutes.collections).
  */
-export async function getActiveCoreCollections(forceRefresh = false): Promise<DynamicCollection[]> {
+export async function getActiveCoreCollections(collectionsPath: string, forceRefresh = false): Promise<DynamicCollection[]> {
   const now = Date.now();
   if (!forceRefresh && cachedCollections && now - lastFetchedAt < CACHE_TTL_MS) {
     return cachedCollections;
   }
 
   try {
-    const res = await fetch('/api/collections?type=core', { cache: 'no-store' });
+    const res = await fetch(`${collectionsPath}?type=core`, { cache: 'no-store' });
     if (!res.ok) throw new Error(`Failed to fetch core collections: HTTP ${res.status}`);
     const data = await res.json();
     const cols = Array.isArray(data.collections) ? data.collections : [];

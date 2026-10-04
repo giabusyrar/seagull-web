@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { conflictsApi, fetchShadeAsset, listReferenceIngredients, productsApi, runMatch, shadesApi } from './api';
 
+const routes = { reference: (r: string) => `/api/reference/${r}` };
+
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
 const fake = (body: unknown, status = 200) => vi.fn<typeof fetch>(async () => json(body, status));
 
@@ -55,9 +57,9 @@ describe('match api', () => {
   });
 
   it('normalises reference ingredients from either response shape', async () => {
-    expect(await listReferenceIngredients(fake({ ingredients: [{ name: 'Niacinamide' }] }))).toEqual([
+    expect(await listReferenceIngredients(routes, fake({ ingredients: [{ name: 'Niacinamide' }] }))).toEqual([
       { code: 'Niacinamide', name: 'Niacinamide' },
     ]);
-    expect(await listReferenceIngredients(fake([{ code: 'r', name: 'Retinol' }]))).toEqual([{ code: 'r', name: 'Retinol' }]);
+    expect(await listReferenceIngredients(routes, fake([{ code: 'r', name: 'Retinol' }]))).toEqual([{ code: 'r', name: 'Retinol' }]);
   });
 });

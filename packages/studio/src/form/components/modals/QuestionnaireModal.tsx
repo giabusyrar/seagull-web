@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { FileText, Plus, Trash2, X, ChevronDown, ChevronRight, Flag } from "lucide-react";
-import { Modal, Button, BrandSelect, ApplicationSelect, InfoTooltip } from "@gateway-experience/shared";
+import { Modal, Button, BrandSelect, ApplicationSelect, InfoTooltip, useHostRoutes } from "@gateway-experience/shared";
 import type {
   CalculationMethod,
   QuestionnaireItem,
@@ -219,6 +219,7 @@ export const QuestionnaireModal: React.FC<QuestionnaireModalProps> = ({
   brandId = "wardah",
   applicationId = "skinverse",
 }) => {
+  const hostRoutes = useHostRoutes();
   const [step, setStep] = useState<"setup" | "questions" | "calculation" | "json">("setup");
   const [qCode, setQCode] = useState("");
   const [qBrand, setQBrand] = useState(brandId);
@@ -283,7 +284,7 @@ export const QuestionnaireModal: React.FC<QuestionnaireModalProps> = ({
     if (!isOpen) return;
     // Falls back to the built-in catalog (FALLBACK_DIMENSIONS) when the route
     // is unavailable, so the builder still works offline.
-    getDimensions()
+    getDimensions(hostRoutes)
       .then((raw) => {
         setApiDimensions(
           raw
@@ -296,14 +297,14 @@ export const QuestionnaireModal: React.FC<QuestionnaireModalProps> = ({
         );
       })
       .catch(() => setApiDimensions([]));
-  }, [isOpen]);
+  }, [isOpen, hostRoutes]);
 
   useEffect(() => {
     if (!isOpen) return;
-    getSafetyFlags()
+    getSafetyFlags(hostRoutes)
       .then(setSafetyFlagCatalog)
       .catch(() => setSafetyFlagCatalog([]));
-  }, [isOpen]);
+  }, [isOpen, hostRoutes]);
 
   const effectiveCode = codeEdited ? qCode : slugify(qName);
   const usedDimensions = Array.from(new Set(questions.map((q) => q.dimension).filter(Boolean)));
@@ -336,7 +337,7 @@ export const QuestionnaireModal: React.FC<QuestionnaireModalProps> = ({
     if (!code) return null;
     const existing = safetyFlagCatalog.find((f) => f.code === code);
     if (existing) return existing.code;
-    const created = await createSafetyFlag(code, name);
+    const created = await createSafetyFlag(hostRoutes, code, name);
     if (created) setSafetyFlagCatalog((prev) => [...prev, created]);
     return code;
   };

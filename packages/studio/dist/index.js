@@ -65,7 +65,7 @@ var REFERENCE_ENTITY_CONFIGS = {
     singularTitle: "Brand",
     description: "Manage brand identities and master reference items",
     iconName: "Tag",
-    apiEndpoint: "/api/reference/brands",
+    resource: "brands",
     dataKey: "brands",
     fields: [
       { key: "name", label: "Brand Name", type: "text", required: true },
@@ -81,7 +81,7 @@ var REFERENCE_ENTITY_CONFIGS = {
     singularTitle: "Product",
     description: "Manage product catalog items and brand/category associations",
     iconName: "Package",
-    apiEndpoint: "/api/reference/products",
+    resource: "products",
     dataKey: "products",
     fields: [
       { key: "name", label: "Product Name", type: "text", required: true },
@@ -102,7 +102,7 @@ var REFERENCE_ENTITY_CONFIGS = {
     singularTitle: "Category",
     description: "Product categories a product is filed under",
     iconName: "LayoutGrid",
-    apiEndpoint: "/api/reference/categories",
+    resource: "categories",
     dataKey: "categories",
     fields: [
       { key: "name", label: "Category Name", type: "text", required: true },
@@ -117,7 +117,7 @@ var REFERENCE_ENTITY_CONFIGS = {
     singularTitle: "Texture",
     description: "Product textures a product can carry",
     iconName: "Droplet",
-    apiEndpoint: "/api/reference/textures",
+    resource: "textures",
     dataKey: "textures",
     fields: [
       { key: "name", label: "Texture Name", type: "text", required: true },
@@ -131,7 +131,7 @@ var REFERENCE_ENTITY_CONFIGS = {
     singularTitle: "Dimension",
     description: "Master assessment metrics and diagnostic domains (MOVE, NUT, SLP, STR, GUT, SKN, sebum, etc.)",
     iconName: "Target",
-    apiEndpoint: "/api/reference/dimensions",
+    resource: "dimensions",
     dataKey: "dimensions",
     fields: [
       { key: "code", label: "Dimension Code (e.g. SLP, sebum)", type: "text", required: true },
@@ -145,7 +145,7 @@ var REFERENCE_ENTITY_CONFIGS = {
     singularTitle: "Customer Condition",
     description: "Master baseline conditions & zero-tolerance safety flags (is_pregnant, uses_retinol, etc.)",
     iconName: "Tag",
-    apiEndpoint: "/api/reference/conditions",
+    resource: "conditions",
     dataKey: "conditions",
     fields: [
       { key: "code", label: "Condition Code (e.g. is_pregnant, uses_retinol)", type: "text", required: true },
@@ -159,7 +159,7 @@ var REFERENCE_ENTITY_CONFIGS = {
     singularTitle: "Ingredient",
     description: "Manage skincare actives, botanical extracts, and chemical formulation ingredients",
     iconName: "Sparkles",
-    apiEndpoint: "/api/reference/ingredients",
+    resource: "ingredients",
     dataKey: "ingredients",
     fields: [
       { key: "name", label: "Ingredient Name", type: "text", required: true },
@@ -174,7 +174,7 @@ var REFERENCE_ENTITY_CONFIGS = {
     singularTitle: "Severity Tier Group",
     description: "Master diagnostic classification groups and clinical severity tiers (e.g. Severity Level, Acne Prone Level)",
     iconName: "ShieldAlert",
-    apiEndpoint: "/api/reference/severity-tier-groups",
+    resource: "severity-tier-groups",
     dataKey: "severityTierGroups",
     fields: [
       { key: "name", label: "Group Name (e.g. Severity Level, Acne Prone Level)", type: "text", required: true },
@@ -188,7 +188,7 @@ var REFERENCE_ENTITY_CONFIGS = {
     singularTitle: "Skin Condition",
     description: "Master clinical skin conditions and their target clinical dimension",
     iconName: "ShieldAlert",
-    apiEndpoint: "/api/reference/skin-conditions",
+    resource: "skin-conditions",
     dataKey: "skinConditions",
     fields: [
       { key: "code", label: "Condition Code (e.g. concern_oiliness)", type: "text", required: true },
@@ -203,7 +203,7 @@ var REFERENCE_ENTITY_CONFIGS = {
     singularTitle: "Application",
     description: "Master experience client applications, channels, and tenant credentials",
     iconName: "Layers",
-    apiEndpoint: "/api/reference/applications",
+    resource: "applications",
     dataKey: "applications",
     fields: [
       { key: "name", label: "Application Name", type: "text", required: true },
@@ -474,8 +474,8 @@ function entityListFrom(data, config) {
   const rawList = data.data || (config.dataKey ? data[config.dataKey] : null) || (config.slug ? data[config.slug] : null) || data.items || data.brands || data.products || data.ingredients || data.eventTypes || data.reference || [];
   return Array.isArray(rawList) ? rawList : [];
 }
-async function listEntityItems(config) {
-  const res = await fetch(config.apiEndpoint, { cache: "no-store" });
+async function listEntityItems(apiEndpoint, config) {
+  const res = await fetch(apiEndpoint, { cache: "no-store" });
   if (!res.ok) throw new Error("Failed to fetch reference items");
   return entityListFrom(await res.json(), config);
 }
@@ -498,8 +498,8 @@ async function deleteEntityItem(apiEndpoint, id) {
   }
   if (!res.ok) throw new Error("Failed to delete item");
 }
-async function listRelationOptions(entity) {
-  const data = await (await fetch(`/api/reference/${entity}`)).json();
+async function listRelationOptions(routes, entity) {
+  const data = await (await fetch(routes.reference(entity))).json();
   const list2 = data.data || data[entity] || data.dimensions || data.items || data.brands || data.products || data.ingredients || [];
   return data.success && Array.isArray(list2) ? list2 : null;
 }
@@ -513,6 +513,7 @@ var ReferenceFormModal = ({
   onClose,
   onSave
 }) => {
+  const hostRoutes = (0, import_shared2.useHostRoutes)();
   const [formData, setFormData] = (0, import_react.useState)({});
   const [relationOptions, setRelationOptions] = (0, import_react.useState)({});
   const [isSubmitting, setIsSubmitting] = (0, import_react.useState)(false);
@@ -530,7 +531,7 @@ var ReferenceFormModal = ({
       config.fields.forEach(async (field2) => {
         if ((field2.type === "relation" || field2.type === "multi-relation") && field2.relationEntity) {
           try {
-            const list2 = await listRelationOptions(field2.relationEntity);
+            const list2 = await listRelationOptions(hostRoutes, field2.relationEntity);
             if (list2) {
               setRelationOptions((prev) => ({ ...prev, [field2.relationEntity]: list2 }));
             }
@@ -539,7 +540,7 @@ var ReferenceFormModal = ({
         }
       });
     }
-  }, [isOpen, initialData, config]);
+  }, [isOpen, initialData, config, hostRoutes]);
   if (!isOpen) return null;
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -1049,6 +1050,8 @@ var ReferenceEntityDashboard = ({ slug }) => {
     setActiveSlug(slug);
   }, [slug]);
   const config = REFERENCE_ENTITY_CONFIGS[activeSlug] || REFERENCE_ENTITY_CONFIGS["brands"];
+  const hostRoutes = (0, import_shared4.useHostRoutes)();
+  const apiEndpoint = hostRoutes.reference(config.resource);
   const [items, setItems] = (0, import_react3.useState)([]);
   const [loading, setLoading] = (0, import_react3.useState)(true);
   const [searchQuery, setSearchQuery] = (0, import_react3.useState)("");
@@ -1107,14 +1110,14 @@ var ReferenceEntityDashboard = ({ slug }) => {
   const fetchItems = (0, import_react3.useCallback)(async () => {
     setLoading(true);
     try {
-      setItems(await listEntityItems(config));
+      setItems(await listEntityItems(apiEndpoint, config));
     } catch (err) {
       console.error("Fetch items error:", err);
       setItems([]);
     } finally {
       setLoading(false);
     }
-  }, [config]);
+  }, [apiEndpoint, config]);
   (0, import_react3.useEffect)(() => {
     fetchItems();
   }, [fetchItems]);
@@ -1122,7 +1125,7 @@ var ReferenceEntityDashboard = ({ slug }) => {
     try {
       const isEdit = !!editingItem;
       const payload = isEdit ? { ...editingItem, ...formData, id: editingItem.id } : formData;
-      await saveEntityItem(config.apiEndpoint, payload, isEdit);
+      await saveEntityItem(apiEndpoint, payload, isEdit);
       await fetchItems();
       setIsModalOpen(false);
       setEditingItem(null);
@@ -1144,7 +1147,7 @@ var ReferenceEntityDashboard = ({ slug }) => {
     if (!targetId || typeof targetId !== "string") return;
     setDeleteConfig((prev) => ({ ...prev, isDeleting: true }));
     try {
-      await deleteEntityItem(config.apiEndpoint, targetId);
+      await deleteEntityItem(apiEndpoint, targetId);
       await fetchItems();
       setDeleteConfig({ isOpen: false, item: null, isDeleting: false });
     } catch (err) {
@@ -2506,9 +2509,9 @@ async function deleteQuestionnaire(code, brandId = DEFAULT_BRAND, applicationId 
   });
   if (!res.ok) throw new Error(`form-engine archive failed (${res.status})`);
 }
-async function getDimensions() {
+async function getDimensions(routes) {
   try {
-    const res = await fetch(`/api/reference/dimensions`, { cache: "no-store" });
+    const res = await fetch(routes.reference("dimensions"), { cache: "no-store" });
     if (!res.ok) return [];
     const data = await res.json();
     const arr = Array.isArray(data) ? data : Array.isArray(data?.dimensions) ? data.dimensions : Array.isArray(data?.data) ? data.data : [];
@@ -2517,9 +2520,9 @@ async function getDimensions() {
     return [];
   }
 }
-async function getSafetyFlags() {
+async function getSafetyFlags(routes) {
   try {
-    const res = await fetch(`/api/reference/conditions`, { cache: "no-store" });
+    const res = await fetch(routes.reference("conditions"), { cache: "no-store" });
     if (!res.ok) return [];
     const data = await res.json();
     const arr = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
@@ -2528,9 +2531,9 @@ async function getSafetyFlags() {
     return [];
   }
 }
-async function createSafetyFlag(code, name) {
+async function createSafetyFlag(routes, code, name) {
   try {
-    const res = await fetch(`/api/reference/conditions`, {
+    const res = await fetch(routes.reference("conditions"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ code, name })
@@ -2686,6 +2689,7 @@ var QuestionnaireModal = ({
   brandId = "wardah",
   applicationId = "skinverse"
 }) => {
+  const hostRoutes = (0, import_shared8.useHostRoutes)();
   const [step, setStep] = (0, import_react6.useState)("setup");
   const [qCode, setQCode] = (0, import_react6.useState)("");
   const [qBrand, setQBrand] = (0, import_react6.useState)(brandId);
@@ -2746,7 +2750,7 @@ var QuestionnaireModal = ({
   }, [editingQ, isOpen]);
   (0, import_react6.useEffect)(() => {
     if (!isOpen) return;
-    getDimensions().then((raw) => {
+    getDimensions(hostRoutes).then((raw) => {
       setApiDimensions(
         raw.filter((it) => it && it.code && !it.parentCode).map((it) => ({
           code: it.code,
@@ -2755,11 +2759,11 @@ var QuestionnaireModal = ({
         }))
       );
     }).catch(() => setApiDimensions([]));
-  }, [isOpen]);
+  }, [isOpen, hostRoutes]);
   (0, import_react6.useEffect)(() => {
     if (!isOpen) return;
-    getSafetyFlags().then(setSafetyFlagCatalog).catch(() => setSafetyFlagCatalog([]));
-  }, [isOpen]);
+    getSafetyFlags(hostRoutes).then(setSafetyFlagCatalog).catch(() => setSafetyFlagCatalog([]));
+  }, [isOpen, hostRoutes]);
   const effectiveCode = codeEdited ? qCode : slugify(qName);
   const usedDimensions = Array.from(new Set(questions.map((q) => q.dimension).filter(Boolean)));
   const flagOptions = (0, import_react6.useMemo)(() => {
@@ -2781,7 +2785,7 @@ var QuestionnaireModal = ({
     if (!code) return null;
     const existing = safetyFlagCatalog.find((f) => f.code === code);
     if (existing) return existing.code;
-    const created = await createSafetyFlag(code, name);
+    const created = await createSafetyFlag(hostRoutes, code, name);
     if (created) setSafetyFlagCatalog((prev) => [...prev, created]);
     return code;
   };
@@ -3861,8 +3865,8 @@ function surveyList(data) {
   const d = data;
   return Array.isArray(data) ? data : Array.isArray(d?.surveys) ? d.surveys : d?.code ? [data] : [];
 }
-async function listSkinConditions() {
-  const data = await (await fetch("/api/skin-conditions")).json();
+async function listSkinConditions(routes) {
+  const data = await (await fetch(routes.skinConditions)).json();
   return Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
 }
 
@@ -4483,10 +4487,11 @@ var import_shared11 = require("@gateway-experience/shared");
 var import_jsx_runtime12 = require("react/jsx-runtime");
 function useVisionFields() {
   const [conditions, setConditions] = (0, import_react10.useState)([]);
+  const hostRoutes = (0, import_shared11.useHostRoutes)();
   (0, import_react10.useEffect)(() => {
-    listSkinConditions().then(setConditions).catch(() => {
+    listSkinConditions(hostRoutes).then(setConditions).catch(() => {
     });
-  }, []);
+  }, [hostRoutes]);
   return (0, import_react10.useMemo)(
     () => conditions.flatMap(
       (c) => (c.visionCapabilities || []).map((cap) => ({ code: cap, label: `${c.name} (${cap})` }))
@@ -4913,6 +4918,7 @@ var ScoreSimulatorTab = ({
   selectedRuleset,
   onSelectRuleset
 }) => {
+  const hostRoutes = (0, import_shared13.useHostRoutes)();
   const activeRuleset = selectedRuleset || rulesets[0] || null;
   const rulesetDims = (0, import_react12.useMemo)(() => {
     if (!activeRuleset?.schema) return [];
@@ -5005,8 +5011,8 @@ var ScoreSimulatorTab = ({
   }, [activeRuleset?.brandId, activeRuleset?.applicationId, formSurveyCode]);
   const [catalogSafetyFlags, setCatalogSafetyFlags] = (0, import_react12.useState)([]);
   (0, import_react12.useEffect)(() => {
-    getSafetyFlags().then((rows) => setCatalogSafetyFlags(rows.map((r) => r.code))).catch(() => setCatalogSafetyFlags([]));
-  }, []);
+    getSafetyFlags(hostRoutes).then((rows) => setCatalogSafetyFlags(rows.map((r) => r.code))).catch(() => setCatalogSafetyFlags([]));
+  }, [hostRoutes]);
   const allSafetyFlags = (0, import_react12.useMemo)(
     () => Array.from(/* @__PURE__ */ new Set([...rulesetSafetyFlags, ...surveySafetyFlags])),
     [rulesetSafetyFlags, surveySafetyFlags]
@@ -7546,8 +7552,8 @@ async function runMatch(payload, doFetch = fetch) {
   const res = await sendJson(doFetch, ep("/api/matching/match"), "POST", payload);
   return res.ok ? await res.json() : null;
 }
-async function listReferenceIngredients(doFetch = fetch) {
-  const data = await (await doFetch("/api/reference/ingredients")).json();
+async function listReferenceIngredients(routes, doFetch = fetch) {
+  const data = await (await doFetch(routes.reference("ingredients"))).json();
   const raw = Array.isArray(data.ingredients) ? data.ingredients : Array.isArray(data) ? data : [];
   return raw.map((i) => ({ code: i.code || i.name, name: i.name }));
 }
@@ -7560,6 +7566,7 @@ var ConflictRuleModal = ({
   onSave,
   editingConflict
 }) => {
+  const hostRoutes = (0, import_shared22.useHostRoutes)();
   const [confA, setConfA] = (0, import_react17.useState)("");
   const [confB, setConfB] = (0, import_react17.useState)("");
   const [confType, setConfType] = (0, import_react17.useState)("over_exfoliation");
@@ -7568,11 +7575,11 @@ var ConflictRuleModal = ({
   const [isSubmitting, setIsSubmitting] = (0, import_react17.useState)(false);
   const [ingredients, setIngredients] = (0, import_react17.useState)([]);
   (0, import_react17.useEffect)(() => {
-    listReferenceIngredients().then((list2) => {
+    listReferenceIngredients(hostRoutes).then((list2) => {
       if (list2.length > 0) setIngredients(list2);
     }).catch(() => {
     });
-  }, [isOpen]);
+  }, [isOpen, hostRoutes]);
   (0, import_react17.useEffect)(() => {
     if (editingConflict) {
       setConfA(editingConflict.ingredientA);

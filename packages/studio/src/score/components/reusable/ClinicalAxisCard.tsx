@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Trash2, ChevronRight, ChevronDown, Plus } from 'lucide-react';
-import { DimensionSelect, InfoTooltip } from '@gateway-experience/shared';
+import { DimensionSelect, InfoTooltip, useHostRoutes } from '@gateway-experience/shared';
 import type { VisualAxisConfig, InputSource, ThresholdBand } from '../../types';
 import { defaultConcernLabel } from '../../utils/jdm-compiler';
 import { listSkinConditions } from '../../api';
@@ -15,11 +15,12 @@ export function useVisionFields() {
   const [conditions, setConditions] = useState<
     Array<{ code: string; name: string; visionCapabilities?: string[] }>
   >([]);
+  const hostRoutes = useHostRoutes();
   useEffect(() => {
-    listSkinConditions()
+    listSkinConditions(hostRoutes)
       .then(setConditions)
       .catch(() => {});
-  }, []);
+  }, [hostRoutes]);
   return useMemo(
     () =>
       conditions.flatMap((c) =>

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Copy, Check } from 'lucide-react';
-import { InfoTooltip, usePersistentState } from '@gateway-experience/shared';
+import { InfoTooltip, usePersistentState, useHostRoutes } from '@gateway-experience/shared';
 import type { ScoreRuleset, RulesetSimulationResponse } from '../../types';
 import { getSafetyFlags } from '../../../form/api';
 import { SIMULATE_PATH, fetchTenantSurveys, simulateRuleset } from '../../api';
@@ -31,6 +31,7 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
   selectedRuleset,
   onSelectRuleset,
 }) => {
+  const hostRoutes = useHostRoutes();
   const activeRuleset = selectedRuleset || rulesets[0] || null;
 
   // Dimensions to expose as sliders — read from the selected ruleset's schema
@@ -167,10 +168,10 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
   // still shows every flag someone could conceivably pick, not just two.
   const [catalogSafetyFlags, setCatalogSafetyFlags] = useState<string[]>([]);
   useEffect(() => {
-    getSafetyFlags()
+    getSafetyFlags(hostRoutes)
       .then((rows) => setCatalogSafetyFlags(rows.map((r) => r.code)))
       .catch(() => setCatalogSafetyFlags([]));
-  }, []);
+  }, [hostRoutes]);
 
   const allSafetyFlags = useMemo(
     () => Array.from(new Set([...rulesetSafetyFlags, ...surveySafetyFlags])),

@@ -1,3 +1,4 @@
+import type { HostRoutes } from '@gateway-experience/shared';
 import { resolveDynamicEndpoint } from '../core/collection-resolver';
 import { withTenantScope } from '../core/scope';
 import type { ClinicalMatchResult, ConflictMatrixRule, ProductCatalogItem, ProductGroup, Shade } from './types';
@@ -61,13 +62,12 @@ export async function fetchShadeAsset(assetId: string, doFetch: typeof fetch = f
   return data.asset;
 }
 
-/**
- * Ingredient options for conflict rules, from the host app's reference route.
- * The path belongs to the dashboard, not this package (audit item 4: host
- * paths should be injected); it is unchanged here, only moved.
- */
-export async function listReferenceIngredients(doFetch: typeof fetch = fetch): Promise<Array<{ code: string; name: string }>> {
-  const data = await (await doFetch('/api/reference/ingredients')).json();
+/** Ingredient options for conflict rules, from the host app's reference route. */
+export async function listReferenceIngredients(
+  routes: Pick<HostRoutes, 'reference'>,
+  doFetch: typeof fetch = fetch,
+): Promise<Array<{ code: string; name: string }>> {
+  const data = await (await doFetch(routes.reference('ingredients'))).json();
   const raw = Array.isArray(data.ingredients) ? data.ingredients : Array.isArray(data) ? data : [];
   return raw.map((i: { code?: string; name: string }) => ({ code: i.code || i.name, name: i.name }));
 }

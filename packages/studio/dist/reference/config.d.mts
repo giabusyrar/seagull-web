@@ -17,7 +17,8 @@ interface EntityConfig {
     singularTitle: string;
     description: string;
     iconName: string;
-    apiEndpoint: string;
+    /** The host's reference collection for this entity (HostRoutes.reference). */
+    resource: string;
     dataKey: string;
     fields: EntityFieldSchema[];
 }

@@ -43,10 +43,12 @@ afterEach(() => {
 });
 
 const basePayload = { brandId: '', applicationId: '', answers: {}, baseUrl: 'http://app' };
+// The host route the pipeline calls back into; resolved against baseUrl.
+const routes = { skinConditions: '/api/skin-conditions' };
 
 describe('executeAssessmentPipeline (default config)', () => {
   it('falls back to the default brand, application and service URLs', async () => {
-    await executeAssessmentPipeline(basePayload);
+    await executeAssessmentPipeline(basePayload, { routes });
     expect(dispatchPyTorchCapabilities).toHaveBeenCalledWith(
       expect.objectContaining({
         serviceUrl: 'http://127.0.0.1:8096/api/v1/models/dispatch-capabilities',
@@ -68,7 +70,7 @@ describe('executeAssessmentPipeline (default config)', () => {
     process.env.MODEL_SERVER_URL = 'http://models';
     process.env.MATCH_ENGINE_URL = 'http://match';
     process.env.GATEWAY_API_KEY = 'k';
-    await executeAssessmentPipeline({ ...basePayload, brandId: 'b', applicationId: 'a' });
+    await executeAssessmentPipeline({ ...basePayload, brandId: 'b', applicationId: 'a' }, { routes });
     expect(dispatchPyTorchCapabilities).toHaveBeenCalledWith(
       expect.objectContaining({ serviceUrl: 'http://models/api/v1/models/dispatch-capabilities', apiKey: 'k' }),
     );
@@ -78,11 +80,14 @@ describe('executeAssessmentPipeline (default config)', () => {
   });
 
   it('maps answers to dimensions and fuses them with the default weights', async () => {
-    const res = await executeAssessmentPipeline({
-      ...basePayload,
-      answers: { skin_type: 'oily', concerns: ['concern_acne'], q_sensitivity: 20 },
-    });
-    expect(resolveRequiredCapabilitiesFromDb).toHaveBeenCalledWith(['concern_acne', 'concern_oiliness'], 'http://app');
+    const res = await executeAssessmentPipeline(
+      { ...basePayload, answers: { skin_type: 'oily', concerns: ['concern_acne'], q_sensitivity: 20 } },
+      { routes },
+    );
+    expect(resolveRequiredCapabilitiesFromDb).toHaveBeenCalledWith(
+      ['concern_acne', 'concern_oiliness'],
+      'http://app/api/skin-conditions',
+    );
     expect(res.stages.form.extractedDimensions).toEqual({ sebum: 75, sensitivity: 20 });
     // sebum: form only. sensitivity: 0.6*20 + 0.4*60 = 36.
     expect(res.stages.scoring.fusedDimensionScores).toMatchObject({ sebum: 75, sensitivity: 36, pigmentation: 40, aging: 50 });
@@ -91,28 +96,31 @@ describe('executeAssessmentPipeline (default config)', () => {
   });
 
   it('dispatches every known capability for parallel late fusion', async () => {
-    const res = await executeAssessmentPipeline({
-      ...basePayload,
-      configOverride: { executionStrategy: 'parallel_late_fusion' },
-    });
-    expect(fetchSkinConditionsFromDb).toHaveBeenCalledWith('http://app');
+    const res = await executeAssessmentPipeline(
+      { ...basePayload, configOverride: { executionStrategy: 'parallel_late_fusion' } },
+      { routes },
+    );
+    expect(fetchSkinConditionsFromDb).toHaveBeenCalledWith('http://app/api/skin-conditions');
     expect(res.stages.vision.dispatchedCapabilities).toEqual(['cap_a', 'cap_b']);
   });
 
   it('lets a configOverride replace a whole section', async () => {
-    await executeAssessmentPipeline({
-      ...basePayload,
-      configOverride: {
-        matching: {
-          serviceUrl: 'http://override',
-          timeoutMs: 1,
-          minEfficacyScore: 0,
-          strictContraindications: false,
-          maxAmRoutineSteps: 1,
-          maxPmRoutineSteps: 1,
+    await executeAssessmentPipeline(
+      {
+        ...basePayload,
+        configOverride: {
+          matching: {
+            serviceUrl: 'http://override',
+            timeoutMs: 1,
+            minEfficacyScore: 0,
+            strictContraindications: false,
+            maxAmRoutineSteps: 1,
+            maxPmRoutineSteps: 1,
+          },
         },
       },
-    });
+      { routes },
+    );
     expect(fetchRegimens).toHaveBeenCalledWith(expect.objectContaining({ url: 'http://override', timeoutMs: 1 }));
   });
 });
@@ -121,6 +129,7 @@ describe('executeAssessmentPipeline (injected dependencies)', () => {
   it('uses injected env instead of process.env', async () => {
     process.env.MODEL_SERVER_URL = 'http://from-process';
     await executeAssessmentPipeline(basePayload, {
+      routes,
       env: { modelServerUrl: 'http://injected', matchEngineUrl: 'http://m', gatewayApiKey: 'x' },
     });
     expect(dispatchPyTorchCapabilities).toHaveBeenCalledWith(
@@ -133,6 +142,7 @@ describe('executeAssessmentPipeline (injected dependencies)', () => {
     const res = await executeAssessmentPipeline(
       { ...basePayload, answers: { q_sensitivity: 20 } },
       {
+        routes,
         defaults: {
           ...DEFAULT_PIPELINE_SETTINGS,
           brandId: 'brand_x',
@@ -147,6 +157,7 @@ describe('executeAssessmentPipeline (injected dependencies)', () => {
   it('calls injected clients instead of the HTTP ones', async () => {
     const fetchRegimensFake = vi.fn(async () => ({ amRoutine: [], pmRoutine: [], phases: {}, warnings: ['w'] }));
     const res = await executeAssessmentPipeline(basePayload, {
+      routes,
       clients: {
         resolveRequiredCapabilities: async () => [],
         dispatchCapabilities: async () => ({ telemetry: {}, unavailable: {}, missing: [] }),

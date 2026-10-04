@@ -17,15 +17,14 @@ const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
  * Fetches dynamic skin conditions and their PyTorch vision capability mappings from the database.
  * No static hardcoded arrays — database is the single source of truth.
  */
-export async function fetchSkinConditionsFromDb(baseUrl = ''): Promise<DbSkinConditionRecord[]> {
+export async function fetchSkinConditionsFromDb(skinConditionsUrl: string): Promise<DbSkinConditionRecord[]> {
   const now = Date.now();
   if (cachedConditions && now - lastFetchTime < CACHE_TTL_MS) {
     return cachedConditions;
   }
 
   try {
-    const endpoint = baseUrl ? `${baseUrl}/api/skin-conditions` : '/api/skin-conditions';
-    const res = await fetch(endpoint, { cache: 'no-store' });
+    const res = await fetch(skinConditionsUrl, { cache: 'no-store' });
     if (res.ok) {
       const data = await res.json();
       const records: DbSkinConditionRecord[] = Array.isArray(data.items)
@@ -60,9 +59,9 @@ export function invalidateSkinConditionCache(): void {
  */
 export async function resolveRequiredCapabilitiesFromDb(
   detectedConditions: string[],
-  baseUrl = ''
+  skinConditionsUrl: string
 ): Promise<string[]> {
-  const allDbConditions = await fetchSkinConditionsFromDb(baseUrl);
+  const allDbConditions = await fetchSkinConditionsFromDb(skinConditionsUrl);
   const matchedCapabilities = new Set<string>();
   const normalizedUserConditions = detectedConditions.map((c) => c.toLowerCase().trim());
 
@@ -93,7 +92,7 @@ export async function resolveRequiredCapabilitiesFromDb(
  */
 export async function resolveRequiredCapabilities(
   detectedConditions: string[],
-  baseUrl = ''
+  skinConditionsUrl: string
 ): Promise<string[]> {
-  return resolveRequiredCapabilitiesFromDb(detectedConditions, baseUrl);
+  return resolveRequiredCapabilitiesFromDb(detectedConditions, skinConditionsUrl);
 }

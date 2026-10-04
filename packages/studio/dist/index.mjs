@@ -30,7 +30,7 @@ var REFERENCE_ENTITY_CONFIGS = {
     singularTitle: "Brand",
     description: "Manage brand identities and master reference items",
     iconName: "Tag",
-    apiEndpoint: "/api/reference/brands",
+    resource: "brands",
     dataKey: "brands",
     fields: [
       { key: "name", label: "Brand Name", type: "text", required: true },
@@ -46,7 +46,7 @@ var REFERENCE_ENTITY_CONFIGS = {
     singularTitle: "Product",
     description: "Manage product catalog items and brand/category associations",
     iconName: "Package",
-    apiEndpoint: "/api/reference/products",
+    resource: "products",
     dataKey: "products",
     fields: [
       { key: "name", label: "Product Name", type: "text", required: true },
@@ -67,7 +67,7 @@ var REFERENCE_ENTITY_CONFIGS = {
     singularTitle: "Category",
     description: "Product categories a product is filed under",
     iconName: "LayoutGrid",
-    apiEndpoint: "/api/reference/categories",
+    resource: "categories",
     dataKey: "categories",
     fields: [
       { key: "name", label: "Category Name", type: "text", required: true },
@@ -82,7 +82,7 @@ var REFERENCE_ENTITY_CONFIGS = {
     singularTitle: "Texture",
     description: "Product textures a product can carry",
     iconName: "Droplet",
-    apiEndpoint: "/api/reference/textures",
+    resource: "textures",
     dataKey: "textures",
     fields: [
       { key: "name", label: "Texture Name", type: "text", required: true },
@@ -96,7 +96,7 @@ var REFERENCE_ENTITY_CONFIGS = {
     singularTitle: "Dimension",
     description: "Master assessment metrics and diagnostic domains (MOVE, NUT, SLP, STR, GUT, SKN, sebum, etc.)",
     iconName: "Target",
-    apiEndpoint: "/api/reference/dimensions",
+    resource: "dimensions",
     dataKey: "dimensions",
     fields: [
       { key: "code", label: "Dimension Code (e.g. SLP, sebum)", type: "text", required: true },
@@ -110,7 +110,7 @@ var REFERENCE_ENTITY_CONFIGS = {
     singularTitle: "Customer Condition",
     description: "Master baseline conditions & zero-tolerance safety flags (is_pregnant, uses_retinol, etc.)",
     iconName: "Tag",
-    apiEndpoint: "/api/reference/conditions",
+    resource: "conditions",
     dataKey: "conditions",
     fields: [
       { key: "code", label: "Condition Code (e.g. is_pregnant, uses_retinol)", type: "text", required: true },
@@ -124,7 +124,7 @@ var REFERENCE_ENTITY_CONFIGS = {
     singularTitle: "Ingredient",
     description: "Manage skincare actives, botanical extracts, and chemical formulation ingredients",
     iconName: "Sparkles",
-    apiEndpoint: "/api/reference/ingredients",
+    resource: "ingredients",
     dataKey: "ingredients",
     fields: [
       { key: "name", label: "Ingredient Name", type: "text", required: true },
@@ -139,7 +139,7 @@ var REFERENCE_ENTITY_CONFIGS = {
     singularTitle: "Severity Tier Group",
     description: "Master diagnostic classification groups and clinical severity tiers (e.g. Severity Level, Acne Prone Level)",
     iconName: "ShieldAlert",
-    apiEndpoint: "/api/reference/severity-tier-groups",
+    resource: "severity-tier-groups",
     dataKey: "severityTierGroups",
     fields: [
       { key: "name", label: "Group Name (e.g. Severity Level, Acne Prone Level)", type: "text", required: true },
@@ -153,7 +153,7 @@ var REFERENCE_ENTITY_CONFIGS = {
     singularTitle: "Skin Condition",
     description: "Master clinical skin conditions and their target clinical dimension",
     iconName: "ShieldAlert",
-    apiEndpoint: "/api/reference/skin-conditions",
+    resource: "skin-conditions",
     dataKey: "skinConditions",
     fields: [
       { key: "code", label: "Condition Code (e.g. concern_oiliness)", type: "text", required: true },
@@ -168,7 +168,7 @@ var REFERENCE_ENTITY_CONFIGS = {
     singularTitle: "Application",
     description: "Master experience client applications, channels, and tenant credentials",
     iconName: "Layers",
-    apiEndpoint: "/api/reference/applications",
+    resource: "applications",
     dataKey: "applications",
     fields: [
       { key: "name", label: "Application Name", type: "text", required: true },
@@ -432,15 +432,15 @@ var ReferenceTable = ({
 // src/reference/components/ReferenceFormModal.tsx
 import { useState, useEffect } from "react";
 import { Save, Loader2 } from "lucide-react";
-import { SearchableSelect, Modal } from "@gateway-experience/shared";
+import { SearchableSelect, Modal, useHostRoutes } from "@gateway-experience/shared";
 
 // src/reference/api.ts
 function entityListFrom(data, config) {
   const rawList = data.data || (config.dataKey ? data[config.dataKey] : null) || (config.slug ? data[config.slug] : null) || data.items || data.brands || data.products || data.ingredients || data.eventTypes || data.reference || [];
   return Array.isArray(rawList) ? rawList : [];
 }
-async function listEntityItems(config) {
-  const res = await fetch(config.apiEndpoint, { cache: "no-store" });
+async function listEntityItems(apiEndpoint, config) {
+  const res = await fetch(apiEndpoint, { cache: "no-store" });
   if (!res.ok) throw new Error("Failed to fetch reference items");
   return entityListFrom(await res.json(), config);
 }
@@ -463,8 +463,8 @@ async function deleteEntityItem(apiEndpoint, id) {
   }
   if (!res.ok) throw new Error("Failed to delete item");
 }
-async function listRelationOptions(entity) {
-  const data = await (await fetch(`/api/reference/${entity}`)).json();
+async function listRelationOptions(routes, entity) {
+  const data = await (await fetch(routes.reference(entity))).json();
   const list2 = data.data || data[entity] || data.dimensions || data.items || data.brands || data.products || data.ingredients || [];
   return data.success && Array.isArray(list2) ? list2 : null;
 }
@@ -478,6 +478,7 @@ var ReferenceFormModal = ({
   onClose,
   onSave
 }) => {
+  const hostRoutes = useHostRoutes();
   const [formData, setFormData] = useState({});
   const [relationOptions, setRelationOptions] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -495,7 +496,7 @@ var ReferenceFormModal = ({
       config.fields.forEach(async (field2) => {
         if ((field2.type === "relation" || field2.type === "multi-relation") && field2.relationEntity) {
           try {
-            const list2 = await listRelationOptions(field2.relationEntity);
+            const list2 = await listRelationOptions(hostRoutes, field2.relationEntity);
             if (list2) {
               setRelationOptions((prev) => ({ ...prev, [field2.relationEntity]: list2 }));
             }
@@ -504,7 +505,7 @@ var ReferenceFormModal = ({
         }
       });
     }
-  }, [isOpen, initialData, config]);
+  }, [isOpen, initialData, config, hostRoutes]);
   if (!isOpen) return null;
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -1004,7 +1005,7 @@ var SeverityTierGroupModal = ({
 };
 
 // src/reference/components/ReferenceEntityDashboard.tsx
-import { PageHeader, SearchFilterBar, ConfirmDialog, Pagination, FilterPanel } from "@gateway-experience/shared";
+import { PageHeader, SearchFilterBar, ConfirmDialog, Pagination, FilterPanel, useHostRoutes as useHostRoutes2 } from "@gateway-experience/shared";
 import { jsx as jsx4, jsxs as jsxs4 } from "react/jsx-runtime";
 var ReferenceEntityDashboard = ({ slug }) => {
   const [activeSlug, setActiveSlug] = useState3(slug);
@@ -1014,6 +1015,8 @@ var ReferenceEntityDashboard = ({ slug }) => {
     setActiveSlug(slug);
   }, [slug]);
   const config = REFERENCE_ENTITY_CONFIGS[activeSlug] || REFERENCE_ENTITY_CONFIGS["brands"];
+  const hostRoutes = useHostRoutes2();
+  const apiEndpoint = hostRoutes.reference(config.resource);
   const [items, setItems] = useState3([]);
   const [loading, setLoading] = useState3(true);
   const [searchQuery, setSearchQuery] = useState3("");
@@ -1072,14 +1075,14 @@ var ReferenceEntityDashboard = ({ slug }) => {
   const fetchItems = useCallback(async () => {
     setLoading(true);
     try {
-      setItems(await listEntityItems(config));
+      setItems(await listEntityItems(apiEndpoint, config));
     } catch (err) {
       console.error("Fetch items error:", err);
       setItems([]);
     } finally {
       setLoading(false);
     }
-  }, [config]);
+  }, [apiEndpoint, config]);
   useEffect3(() => {
     fetchItems();
   }, [fetchItems]);
@@ -1087,7 +1090,7 @@ var ReferenceEntityDashboard = ({ slug }) => {
     try {
       const isEdit = !!editingItem;
       const payload = isEdit ? { ...editingItem, ...formData, id: editingItem.id } : formData;
-      await saveEntityItem(config.apiEndpoint, payload, isEdit);
+      await saveEntityItem(apiEndpoint, payload, isEdit);
       await fetchItems();
       setIsModalOpen(false);
       setEditingItem(null);
@@ -1109,7 +1112,7 @@ var ReferenceEntityDashboard = ({ slug }) => {
     if (!targetId || typeof targetId !== "string") return;
     setDeleteConfig((prev) => ({ ...prev, isDeleting: true }));
     try {
-      await deleteEntityItem(config.apiEndpoint, targetId);
+      await deleteEntityItem(apiEndpoint, targetId);
       await fetchItems();
       setDeleteConfig({ isOpen: false, item: null, isDeleting: false });
     } catch (err) {
@@ -2376,7 +2379,7 @@ var FormSimulatorTab = ({
 // src/form/components/modals/QuestionnaireModal.tsx
 import { useEffect as useEffect5, useMemo as useMemo3, useRef, useState as useState6 } from "react";
 import { FileText as FileText2, Plus as Plus3, Trash2 as Trash24, X, ChevronDown as ChevronDown3, ChevronRight as ChevronRight2, Flag } from "lucide-react";
-import { Modal as Modal3, Button, BrandSelect, ApplicationSelect, InfoTooltip } from "@gateway-experience/shared";
+import { Modal as Modal3, Button, BrandSelect, ApplicationSelect, InfoTooltip, useHostRoutes as useHostRoutes3 } from "@gateway-experience/shared";
 
 // src/form/api.ts
 var FORM = "/core/form-engine";
@@ -2479,9 +2482,9 @@ async function deleteQuestionnaire(code, brandId = DEFAULT_BRAND, applicationId 
   });
   if (!res.ok) throw new Error(`form-engine archive failed (${res.status})`);
 }
-async function getDimensions() {
+async function getDimensions(routes) {
   try {
-    const res = await fetch(`/api/reference/dimensions`, { cache: "no-store" });
+    const res = await fetch(routes.reference("dimensions"), { cache: "no-store" });
     if (!res.ok) return [];
     const data = await res.json();
     const arr = Array.isArray(data) ? data : Array.isArray(data?.dimensions) ? data.dimensions : Array.isArray(data?.data) ? data.data : [];
@@ -2490,9 +2493,9 @@ async function getDimensions() {
     return [];
   }
 }
-async function getSafetyFlags() {
+async function getSafetyFlags(routes) {
   try {
-    const res = await fetch(`/api/reference/conditions`, { cache: "no-store" });
+    const res = await fetch(routes.reference("conditions"), { cache: "no-store" });
     if (!res.ok) return [];
     const data = await res.json();
     const arr = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
@@ -2501,9 +2504,9 @@ async function getSafetyFlags() {
     return [];
   }
 }
-async function createSafetyFlag(code, name) {
+async function createSafetyFlag(routes, code, name) {
   try {
-    const res = await fetch(`/api/reference/conditions`, {
+    const res = await fetch(routes.reference("conditions"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ code, name })
@@ -2659,6 +2662,7 @@ var QuestionnaireModal = ({
   brandId = "wardah",
   applicationId = "skinverse"
 }) => {
+  const hostRoutes = useHostRoutes3();
   const [step, setStep] = useState6("setup");
   const [qCode, setQCode] = useState6("");
   const [qBrand, setQBrand] = useState6(brandId);
@@ -2719,7 +2723,7 @@ var QuestionnaireModal = ({
   }, [editingQ, isOpen]);
   useEffect5(() => {
     if (!isOpen) return;
-    getDimensions().then((raw) => {
+    getDimensions(hostRoutes).then((raw) => {
       setApiDimensions(
         raw.filter((it) => it && it.code && !it.parentCode).map((it) => ({
           code: it.code,
@@ -2728,11 +2732,11 @@ var QuestionnaireModal = ({
         }))
       );
     }).catch(() => setApiDimensions([]));
-  }, [isOpen]);
+  }, [isOpen, hostRoutes]);
   useEffect5(() => {
     if (!isOpen) return;
-    getSafetyFlags().then(setSafetyFlagCatalog).catch(() => setSafetyFlagCatalog([]));
-  }, [isOpen]);
+    getSafetyFlags(hostRoutes).then(setSafetyFlagCatalog).catch(() => setSafetyFlagCatalog([]));
+  }, [isOpen, hostRoutes]);
   const effectiveCode = codeEdited ? qCode : slugify(qName);
   const usedDimensions = Array.from(new Set(questions.map((q) => q.dimension).filter(Boolean)));
   const flagOptions = useMemo3(() => {
@@ -2754,7 +2758,7 @@ var QuestionnaireModal = ({
     if (!code) return null;
     const existing = safetyFlagCatalog.find((f) => f.code === code);
     if (existing) return existing.code;
-    const created = await createSafetyFlag(code, name);
+    const created = await createSafetyFlag(hostRoutes, code, name);
     if (created) setSafetyFlagCatalog((prev) => [...prev, created]);
     return code;
   };
@@ -3834,8 +3838,8 @@ function surveyList(data) {
   const d = data;
   return Array.isArray(data) ? data : Array.isArray(d?.surveys) ? d.surveys : d?.code ? [data] : [];
 }
-async function listSkinConditions() {
-  const data = await (await fetch("/api/skin-conditions")).json();
+async function listSkinConditions(routes) {
+  const data = await (await fetch(routes.skinConditions)).json();
   return Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
 }
 
@@ -4452,14 +4456,15 @@ function decompileJDMToVisual(schemaStr) {
 // src/score/components/reusable/ClinicalAxisCard.tsx
 import { useState as useState9, useEffect as useEffect8, useMemo as useMemo5 } from "react";
 import { Trash2 as Trash26, ChevronRight as ChevronRight3, ChevronDown as ChevronDown4 } from "lucide-react";
-import { DimensionSelect, InfoTooltip as InfoTooltip3 } from "@gateway-experience/shared";
+import { DimensionSelect, InfoTooltip as InfoTooltip3, useHostRoutes as useHostRoutes4 } from "@gateway-experience/shared";
 import { jsx as jsx12, jsxs as jsxs11 } from "react/jsx-runtime";
 function useVisionFields() {
   const [conditions, setConditions] = useState9([]);
+  const hostRoutes = useHostRoutes4();
   useEffect8(() => {
-    listSkinConditions().then(setConditions).catch(() => {
+    listSkinConditions(hostRoutes).then(setConditions).catch(() => {
     });
-  }, []);
+  }, [hostRoutes]);
   return useMemo5(
     () => conditions.flatMap(
       (c) => (c.visionCapabilities || []).map((cap) => ({ code: cap, label: `${c.name} (${cap})` }))
@@ -4845,7 +4850,7 @@ var BlendingTab = ({
 // src/score/components/tabs/ScoreSimulatorTab.tsx
 import { useState as useState11, useEffect as useEffect10, useMemo as useMemo6, useCallback as useCallback2 } from "react";
 import { Copy as Copy2, Check as Check3 } from "lucide-react";
-import { InfoTooltip as InfoTooltip5, usePersistentState as usePersistentState3 } from "@gateway-experience/shared";
+import { InfoTooltip as InfoTooltip5, usePersistentState as usePersistentState3, useHostRoutes as useHostRoutes5 } from "@gateway-experience/shared";
 
 // src/score/utils/safety-flags.ts
 function safetyFlagsFromSurveys(surveys, surveyCode) {
@@ -4886,6 +4891,7 @@ var ScoreSimulatorTab = ({
   selectedRuleset,
   onSelectRuleset
 }) => {
+  const hostRoutes = useHostRoutes5();
   const activeRuleset = selectedRuleset || rulesets[0] || null;
   const rulesetDims = useMemo6(() => {
     if (!activeRuleset?.schema) return [];
@@ -4978,8 +4984,8 @@ var ScoreSimulatorTab = ({
   }, [activeRuleset?.brandId, activeRuleset?.applicationId, formSurveyCode]);
   const [catalogSafetyFlags, setCatalogSafetyFlags] = useState11([]);
   useEffect10(() => {
-    getSafetyFlags().then((rows) => setCatalogSafetyFlags(rows.map((r) => r.code))).catch(() => setCatalogSafetyFlags([]));
-  }, []);
+    getSafetyFlags(hostRoutes).then((rows) => setCatalogSafetyFlags(rows.map((r) => r.code))).catch(() => setCatalogSafetyFlags([]));
+  }, [hostRoutes]);
   const allSafetyFlags = useMemo6(
     () => Array.from(/* @__PURE__ */ new Set([...rulesetSafetyFlags, ...surveySafetyFlags])),
     [rulesetSafetyFlags, surveySafetyFlags]
@@ -7454,7 +7460,7 @@ var MatchSimulatorTab = ({
 // src/match/components/modals/ConflictRuleModal.tsx
 import { useState as useState16, useEffect as useEffect13 } from "react";
 import { ShieldAlert as ShieldAlert3, Loader2 as Loader24 } from "lucide-react";
-import { Modal as Modal5 } from "@gateway-experience/shared";
+import { Modal as Modal5, useHostRoutes as useHostRoutes6 } from "@gateway-experience/shared";
 
 // src/core/collection-resolver.ts
 function getCollectionPrefix(key) {
@@ -7519,8 +7525,8 @@ async function runMatch(payload, doFetch = fetch) {
   const res = await sendJson(doFetch, ep("/api/matching/match"), "POST", payload);
   return res.ok ? await res.json() : null;
 }
-async function listReferenceIngredients(doFetch = fetch) {
-  const data = await (await doFetch("/api/reference/ingredients")).json();
+async function listReferenceIngredients(routes, doFetch = fetch) {
+  const data = await (await doFetch(routes.reference("ingredients"))).json();
   const raw = Array.isArray(data.ingredients) ? data.ingredients : Array.isArray(data) ? data : [];
   return raw.map((i) => ({ code: i.code || i.name, name: i.name }));
 }
@@ -7533,6 +7539,7 @@ var ConflictRuleModal = ({
   onSave,
   editingConflict
 }) => {
+  const hostRoutes = useHostRoutes6();
   const [confA, setConfA] = useState16("");
   const [confB, setConfB] = useState16("");
   const [confType, setConfType] = useState16("over_exfoliation");
@@ -7541,11 +7548,11 @@ var ConflictRuleModal = ({
   const [isSubmitting, setIsSubmitting] = useState16(false);
   const [ingredients, setIngredients] = useState16([]);
   useEffect13(() => {
-    listReferenceIngredients().then((list2) => {
+    listReferenceIngredients(hostRoutes).then((list2) => {
       if (list2.length > 0) setIngredients(list2);
     }).catch(() => {
     });
-  }, [isOpen]);
+  }, [isOpen, hostRoutes]);
   useEffect13(() => {
     if (editingConflict) {
       setConfA(editingConflict.ingredientA);

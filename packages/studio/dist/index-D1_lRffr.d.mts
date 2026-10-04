@@ -1,4 +1,5 @@
 import React from 'react';
+import { HostRoutes } from '@gateway-experience/shared';
 
 declare const FormManager: React.FC;
 
@@ -223,7 +224,7 @@ interface DimensionRow {
     parentCode?: string;
 }
 /** Dimension catalog from reference-service. Empty on failure (caller falls back). */
-declare function getDimensions(): Promise<DimensionRow[]>;
+declare function getDimensions(routes: Pick<HostRoutes, 'reference'>): Promise<DimensionRow[]>;
 interface SafetyFlagRow {
     code: string;
     name?: string;
@@ -235,7 +236,7 @@ interface SafetyFlagRow {
  * manages. Empty on failure (caller falls back to whatever's already used in
  * the questionnaire being edited, never a hardcoded list).
  */
-declare function getSafetyFlags(): Promise<SafetyFlagRow[]>;
+declare function getSafetyFlags(routes: Pick<HostRoutes, 'reference'>): Promise<SafetyFlagRow[]>;
 /**
  * Registers a new safety flag in the catalog (ref_conditions) — used when a
  * questionnaire builder picks "+ Custom..." on a choice's flag picker. The
@@ -244,7 +245,7 @@ declare function getSafetyFlags(): Promise<SafetyFlagRow[]>;
  * not just a bare code with no name anywhere. Returns null on failure —
  * caller still uses the flag locally on this questionnaire either way.
  */
-declare function createSafetyFlag(code: string, name: string): Promise<SafetyFlagRow | null>;
+declare function createSafetyFlag(routes: Pick<HostRoutes, 'reference'>, code: string, name: string): Promise<SafetyFlagRow | null>;
 
 interface DimensionMeta {
     code: string;

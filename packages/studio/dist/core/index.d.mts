@@ -20,9 +20,10 @@ interface DynamicCollection {
     routes?: DynamicCollectionRoute[];
 }
 /**
- * Fetch all active Core Collections from the API Gateway database
+ * Fetch all active Core Collections from the API Gateway database, through
+ * the host app's collections route (HostRoutes.collections).
  */
-declare function getActiveCoreCollections(forceRefresh?: boolean): Promise<DynamicCollection[]>;
+declare function getActiveCoreCollections(collectionsPath: string, forceRefresh?: boolean): Promise<DynamicCollection[]>;
 /**
  * Normalizes a collection key into standard original prefix
  */

@@ -7,6 +7,7 @@ import {
   resolveDynamicEndpoint,
   CoreCollectionKey,
 } from '@gateway-experience/studio/core';
+import { STUDIO_HOST_ROUTES } from '@/lib/host-routes';
 
 /**
  * Custom React Hook to dynamically resolve API Gateway Core Collections & Routes
@@ -21,7 +22,7 @@ export function useCoreCollection() {
     setLoading(true);
     setError(null);
     try {
-      const cols = await getActiveCoreCollections(forceRefresh);
+      const cols = await getActiveCoreCollections(STUDIO_HOST_ROUTES.collections, forceRefresh);
       setCollections(cols);
     } catch (err: any) {
       setError(err?.message || 'Failed to load core engine collections');

@@ -4,14 +4,13 @@
 var cachedConditions = null;
 var lastFetchTime = 0;
 var CACHE_TTL_MS = 10 * 60 * 1e3;
-async function fetchSkinConditionsFromDb(baseUrl = "") {
+async function fetchSkinConditionsFromDb(skinConditionsUrl) {
   const now = Date.now();
   if (cachedConditions && now - lastFetchTime < CACHE_TTL_MS) {
     return cachedConditions;
   }
   try {
-    const endpoint = baseUrl ? `${baseUrl}/api/skin-conditions` : "/api/skin-conditions";
-    const res = await fetch(endpoint, { cache: "no-store" });
+    const res = await fetch(skinConditionsUrl, { cache: "no-store" });
     if (res.ok) {
       const data = await res.json();
       const records = Array.isArray(data.items) ? data.items : Array.isArray(data.skinConditions) ? data.skinConditions : Array.isArray(data) ? data : [];
@@ -28,8 +27,8 @@ function invalidateSkinConditionCache() {
   cachedConditions = null;
   lastFetchTime = 0;
 }
-async function resolveRequiredCapabilitiesFromDb(detectedConditions, baseUrl = "") {
-  const allDbConditions = await fetchSkinConditionsFromDb(baseUrl);
+async function resolveRequiredCapabilitiesFromDb(detectedConditions, skinConditionsUrl) {
+  const allDbConditions = await fetchSkinConditionsFromDb(skinConditionsUrl);
   const matchedCapabilities = /* @__PURE__ */ new Set();
   const normalizedUserConditions = detectedConditions.map((c) => c.toLowerCase().trim());
   for (const condition of allDbConditions) {
@@ -48,8 +47,8 @@ async function resolveRequiredCapabilitiesFromDb(detectedConditions, baseUrl = "
   }
   return Array.from(matchedCapabilities);
 }
-async function resolveRequiredCapabilities(detectedConditions, baseUrl = "") {
-  return resolveRequiredCapabilitiesFromDb(detectedConditions, baseUrl);
+async function resolveRequiredCapabilities(detectedConditions, skinConditionsUrl) {
+  return resolveRequiredCapabilitiesFromDb(detectedConditions, skinConditionsUrl);
 }
 
 // src/orchestrator/pytorch-client.ts
@@ -282,12 +281,13 @@ function resolvePipelineConfig(payload, settings, env) {
     ...payload.configOverride || {}
   };
 }
-async function executeAssessmentPipeline(payload, deps = {}) {
+async function executeAssessmentPipeline(payload, deps) {
   const startTime = Date.now();
   const timings = {};
   const env = deps.env ?? pipelineEnvFromProcess();
   const clients = { ...defaultClients(), ...deps.clients };
   const config = resolvePipelineConfig(payload, deps.defaults ?? DEFAULT_PIPELINE_SETTINGS, env);
+  const skinConditionsUrl = `${payload.baseUrl || ""}${deps.routes.skinConditions}`;
   const t0 = Date.now();
   const extractedDimensions = {};
   const detectedConditions = [];
@@ -320,9 +320,9 @@ async function executeAssessmentPipeline(payload, deps = {}) {
   const t1 = Date.now();
   let dispatchedCaps = [];
   if (config.executionStrategy === "dynamic_capability_dispatch") {
-    dispatchedCaps = await clients.resolveRequiredCapabilities(detectedConditions, payload.baseUrl || "");
+    dispatchedCaps = await clients.resolveRequiredCapabilities(detectedConditions, skinConditionsUrl);
   } else if (config.executionStrategy === "parallel_late_fusion" || config.executionStrategy === "vision_only") {
-    const allConditions = await clients.fetchSkinConditions(payload.baseUrl || "");
+    const allConditions = await clients.fetchSkinConditions(skinConditionsUrl);
     const allCaps = /* @__PURE__ */ new Set();
     allConditions.forEach((c) => {
       (c.visionCapabilities || []).forEach((cap) => allCaps.add(cap));

@@ -30,7 +30,7 @@ describe('products', () => {
 describe('the entities a product points at', () => {
   it.each(['categories', 'textures'])('%s is editable in its own right', (slug) => {
     const config = REFERENCE_ENTITY_CONFIGS[slug];
-    expect(config.apiEndpoint).toBe(`/api/reference/${slug}`);
+    expect(config.resource).toBe(slug);
     expect(config.dataKey).toBe(slug);
     // code and name are both required by reference-service.
     expect(config.fields.find((f) => f.key === 'code')?.required).toBe(true);

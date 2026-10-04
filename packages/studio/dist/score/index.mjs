@@ -56,8 +56,8 @@ function surveyList(data) {
   const d = data;
   return Array.isArray(data) ? data : Array.isArray(d?.surveys) ? d.surveys : d?.code ? [data] : [];
 }
-async function listSkinConditions() {
-  const data = await (await fetch("/api/skin-conditions")).json();
+async function listSkinConditions(routes) {
+  const data = await (await fetch(routes.skinConditions)).json();
   return Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
 }
 
@@ -674,14 +674,15 @@ function decompileJDMToVisual(schemaStr) {
 // src/score/components/reusable/ClinicalAxisCard.tsx
 import { useState, useEffect, useMemo } from "react";
 import { Trash2 as Trash22, ChevronRight, ChevronDown } from "lucide-react";
-import { DimensionSelect, InfoTooltip } from "@gateway-experience/shared";
+import { DimensionSelect, InfoTooltip, useHostRoutes } from "@gateway-experience/shared";
 import { jsx as jsx2, jsxs as jsxs2 } from "react/jsx-runtime";
 function useVisionFields() {
   const [conditions, setConditions] = useState([]);
+  const hostRoutes = useHostRoutes();
   useEffect(() => {
-    listSkinConditions().then(setConditions).catch(() => {
+    listSkinConditions(hostRoutes).then(setConditions).catch(() => {
     });
-  }, []);
+  }, [hostRoutes]);
   return useMemo(
     () => conditions.flatMap(
       (c) => (c.visionCapabilities || []).map((cap) => ({ code: cap, label: `${c.name} (${cap})` }))
@@ -1067,12 +1068,12 @@ var BlendingTab = ({
 // src/score/components/tabs/ScoreSimulatorTab.tsx
 import { useState as useState3, useEffect as useEffect3, useMemo as useMemo2, useCallback } from "react";
 import { Copy as Copy2, Check as Check3 } from "lucide-react";
-import { InfoTooltip as InfoTooltip3, usePersistentState } from "@gateway-experience/shared";
+import { InfoTooltip as InfoTooltip3, usePersistentState, useHostRoutes as useHostRoutes2 } from "@gateway-experience/shared";
 
 // src/form/api.ts
-async function getSafetyFlags() {
+async function getSafetyFlags(routes) {
   try {
-    const res = await fetch(`/api/reference/conditions`, { cache: "no-store" });
+    const res = await fetch(routes.reference("conditions"), { cache: "no-store" });
     if (!res.ok) return [];
     const data = await res.json();
     const arr = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
@@ -1121,6 +1122,7 @@ var ScoreSimulatorTab = ({
   selectedRuleset,
   onSelectRuleset
 }) => {
+  const hostRoutes = useHostRoutes2();
   const activeRuleset = selectedRuleset || rulesets[0] || null;
   const rulesetDims = useMemo2(() => {
     if (!activeRuleset?.schema) return [];
@@ -1213,8 +1215,8 @@ var ScoreSimulatorTab = ({
   }, [activeRuleset?.brandId, activeRuleset?.applicationId, formSurveyCode]);
   const [catalogSafetyFlags, setCatalogSafetyFlags] = useState3([]);
   useEffect3(() => {
-    getSafetyFlags().then((rows) => setCatalogSafetyFlags(rows.map((r) => r.code))).catch(() => setCatalogSafetyFlags([]));
-  }, []);
+    getSafetyFlags(hostRoutes).then((rows) => setCatalogSafetyFlags(rows.map((r) => r.code))).catch(() => setCatalogSafetyFlags([]));
+  }, [hostRoutes]);
   const allSafetyFlags = useMemo2(
     () => Array.from(/* @__PURE__ */ new Set([...rulesetSafetyFlags, ...surveySafetyFlags])),
     [rulesetSafetyFlags, surveySafetyFlags]

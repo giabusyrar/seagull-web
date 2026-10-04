@@ -1,8 +1,8 @@
-import type { EntityConfig } from './config/reference-entity-configs';
+import type { HostRoutes } from '@gateway-experience/shared';
 
 /**
  * Reference-data calls made by the reference studio, against each entity's
- * configured `apiEndpoint` (the host app's /api/reference/* routes).
+ * endpoint: the host app's reference route for its `resource`.
  */
 
 /**
@@ -26,8 +26,8 @@ export function entityListFrom(data: Record<string, unknown>, config: { dataKey?
 }
 
 /** Throws when the route answers with an error status. */
-export async function listEntityItems(config: Pick<EntityConfig, 'apiEndpoint' | 'dataKey' | 'slug'>): Promise<unknown[]> {
-  const res = await fetch(config.apiEndpoint, { cache: 'no-store' });
+export async function listEntityItems(apiEndpoint: string, config: { dataKey?: string; slug?: string }): Promise<unknown[]> {
+  const res = await fetch(apiEndpoint, { cache: 'no-store' });
   if (!res.ok) throw new Error('Failed to fetch reference items');
   return entityListFrom(await res.json(), config);
 }
@@ -59,11 +59,11 @@ export async function deleteEntityItem(apiEndpoint: string, id: string): Promise
 }
 
 /**
- * Options for a relation field, from /api/reference/{entity}. Null unless
- * the route reports success with a list.
+ * Options for a relation field, from the host's reference route for the
+ * entity. Null unless the route reports success with a list.
  */
-export async function listRelationOptions(entity: string): Promise<unknown[] | null> {
-  const data = await (await fetch(`/api/reference/${entity}`)).json();
+export async function listRelationOptions(routes: Pick<HostRoutes, 'reference'>, entity: string): Promise<unknown[] | null> {
+  const data = await (await fetch(routes.reference(entity))).json();
   const list =
     data.data || data[entity] || data.dimensions || data.items || data.brands || data.products || data.ingredients || [];
   return data.success && Array.isArray(list) ? list : null;

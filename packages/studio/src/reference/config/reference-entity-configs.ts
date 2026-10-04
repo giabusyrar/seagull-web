@@ -23,7 +23,8 @@ export interface EntityConfig {
   singularTitle: string;
   description: string;
   iconName: string;
-  apiEndpoint: string;
+  /** The host's reference collection for this entity (HostRoutes.reference). */
+  resource: string;
   dataKey: string;
   fields: EntityFieldSchema[];
 }
@@ -35,7 +36,7 @@ export const REFERENCE_ENTITY_CONFIGS: Record<string, EntityConfig> = {
     singularTitle: 'Brand',
     description: 'Manage brand identities and master reference items',
     iconName: 'Tag',
-    apiEndpoint: '/api/reference/brands',
+    resource: 'brands',
     dataKey: 'brands',
     fields: [
       { key: 'name', label: 'Brand Name', type: 'text', required: true },
@@ -51,7 +52,7 @@ export const REFERENCE_ENTITY_CONFIGS: Record<string, EntityConfig> = {
     singularTitle: 'Product',
     description: 'Manage product catalog items and brand/category associations',
     iconName: 'Package',
-    apiEndpoint: '/api/reference/products',
+    resource: 'products',
     dataKey: 'products',
     fields: [
       { key: 'name', label: 'Product Name', type: 'text', required: true },
@@ -73,7 +74,7 @@ export const REFERENCE_ENTITY_CONFIGS: Record<string, EntityConfig> = {
     singularTitle: 'Category',
     description: 'Product categories a product is filed under',
     iconName: 'LayoutGrid',
-    apiEndpoint: '/api/reference/categories',
+    resource: 'categories',
     dataKey: 'categories',
     fields: [
       { key: 'name', label: 'Category Name', type: 'text', required: true },
@@ -89,7 +90,7 @@ export const REFERENCE_ENTITY_CONFIGS: Record<string, EntityConfig> = {
     singularTitle: 'Texture',
     description: 'Product textures a product can carry',
     iconName: 'Droplet',
-    apiEndpoint: '/api/reference/textures',
+    resource: 'textures',
     dataKey: 'textures',
     fields: [
       { key: 'name', label: 'Texture Name', type: 'text', required: true },
@@ -104,7 +105,7 @@ export const REFERENCE_ENTITY_CONFIGS: Record<string, EntityConfig> = {
     singularTitle: 'Dimension',
     description: 'Master assessment metrics and diagnostic domains (MOVE, NUT, SLP, STR, GUT, SKN, sebum, etc.)',
     iconName: 'Target',
-    apiEndpoint: '/api/reference/dimensions',
+    resource: 'dimensions',
     dataKey: 'dimensions',
     fields: [
       { key: 'code', label: 'Dimension Code (e.g. SLP, sebum)', type: 'text', required: true },
@@ -119,7 +120,7 @@ export const REFERENCE_ENTITY_CONFIGS: Record<string, EntityConfig> = {
     singularTitle: 'Customer Condition',
     description: 'Master baseline conditions & zero-tolerance safety flags (is_pregnant, uses_retinol, etc.)',
     iconName: 'Tag',
-    apiEndpoint: '/api/reference/conditions',
+    resource: 'conditions',
     dataKey: 'conditions',
     fields: [
       { key: 'code', label: 'Condition Code (e.g. is_pregnant, uses_retinol)', type: 'text', required: true },
@@ -134,7 +135,7 @@ export const REFERENCE_ENTITY_CONFIGS: Record<string, EntityConfig> = {
     singularTitle: 'Ingredient',
     description: 'Manage skincare actives, botanical extracts, and chemical formulation ingredients',
     iconName: 'Sparkles',
-    apiEndpoint: '/api/reference/ingredients',
+    resource: 'ingredients',
     dataKey: 'ingredients',
     fields: [
       { key: 'name', label: 'Ingredient Name', type: 'text', required: true },
@@ -149,7 +150,7 @@ export const REFERENCE_ENTITY_CONFIGS: Record<string, EntityConfig> = {
     singularTitle: 'Severity Tier Group',
     description: 'Master diagnostic classification groups and clinical severity tiers (e.g. Severity Level, Acne Prone Level)',
     iconName: 'ShieldAlert',
-    apiEndpoint: '/api/reference/severity-tier-groups',
+    resource: 'severity-tier-groups',
     dataKey: 'severityTierGroups',
     fields: [
       { key: 'name', label: 'Group Name (e.g. Severity Level, Acne Prone Level)', type: 'text', required: true },
@@ -163,7 +164,7 @@ export const REFERENCE_ENTITY_CONFIGS: Record<string, EntityConfig> = {
     singularTitle: 'Skin Condition',
     description: 'Master clinical skin conditions and their target clinical dimension',
     iconName: 'ShieldAlert',
-    apiEndpoint: '/api/reference/skin-conditions',
+    resource: 'skin-conditions',
     dataKey: 'skinConditions',
     fields: [
       { key: 'code', label: 'Condition Code (e.g. concern_oiliness)', type: 'text', required: true },
@@ -178,7 +179,7 @@ export const REFERENCE_ENTITY_CONFIGS: Record<string, EntityConfig> = {
     singularTitle: 'Application',
     description: 'Master experience client applications, channels, and tenant credentials',
     iconName: 'Layers',
-    apiEndpoint: '/api/reference/applications',
+    resource: 'applications',
     dataKey: 'applications',
     fields: [
       { key: 'name', label: 'Application Name', type: 'text', required: true },

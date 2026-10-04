@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Save, Loader2 } from 'lucide-react';
-import { SearchableSelect, Modal } from '@gateway-experience/shared';
+import { SearchableSelect, Modal, useHostRoutes } from '@gateway-experience/shared';
 import type { EntityConfig } from '../config/reference-entity-configs';
 import { listRelationOptions } from '../api';
 
@@ -21,6 +21,7 @@ export const ReferenceFormModal: React.FC<ReferenceFormModalProps> = ({
   onClose,
   onSave,
 }) => {
+  const hostRoutes = useHostRoutes();
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [relationOptions, setRelationOptions] = useState<Record<string, any[]>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -40,7 +41,7 @@ export const ReferenceFormModal: React.FC<ReferenceFormModalProps> = ({
       config.fields.forEach(async (field) => {
         if ((field.type === 'relation' || field.type === 'multi-relation') && field.relationEntity) {
           try {
-            const list = await listRelationOptions(field.relationEntity);
+            const list = await listRelationOptions(hostRoutes, field.relationEntity);
             if (list) {
               setRelationOptions((prev) => ({ ...prev, [field.relationEntity!]: list }));
             }
@@ -48,7 +49,7 @@ export const ReferenceFormModal: React.FC<ReferenceFormModalProps> = ({
         }
       });
     }
-  }, [isOpen, initialData, config]);
+  }, [isOpen, initialData, config, hostRoutes]);
 
   if (!isOpen) return null;
 

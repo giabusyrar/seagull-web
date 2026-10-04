@@ -1,5 +1,6 @@
 'use client';
 
+import type { HostRoutes } from '@gateway-experience/shared';
 import type { QuestionnaireItem } from './types';
 import { type SurveyJSModel, toSurveyModel, fromSurveyModel } from './surveyjs';
 
@@ -10,8 +11,8 @@ import { type SurveyJSModel, toSurveyModel, fromSurveyModel } from './surveyjs';
  * registered as bare resources under the engine prefix:
  *   /core/form-engine/survey*   -> gateway-proxy -> core-engine (form) :8082
  * (`apps/web/proxy.ts` rewrites `/core/*` onto `/backend-api`, which attaches the
- * gateway API key and forwards to the data plane.) Reference lookups go straight
- * to reference-service via the `/api/reference/*` proxy-handler branch.
+ * gateway API key and forwards to the data plane.) Reference lookups go to the
+ * host app's reference routes, which the caller passes in (`HostRoutes`).
  *
  * The stored form structure is always a SurveyJS schema; this module converts to
  * and from the builder's QuestionnaireItem and exposes the raw model for runners.
@@ -181,9 +182,9 @@ export interface DimensionRow {
 }
 
 /** Dimension catalog from reference-service. Empty on failure (caller falls back). */
-export async function getDimensions(): Promise<DimensionRow[]> {
+export async function getDimensions(routes: Pick<HostRoutes, 'reference'>): Promise<DimensionRow[]> {
   try {
-    const res = await fetch(`/api/reference/dimensions`, { cache: 'no-store' });
+    const res = await fetch(routes.reference('dimensions'), { cache: 'no-store' });
     if (!res.ok) return [];
     const data = await res.json();
     const arr = Array.isArray(data)
@@ -211,9 +212,9 @@ export interface SafetyFlagRow {
  * manages. Empty on failure (caller falls back to whatever's already used in
  * the questionnaire being edited, never a hardcoded list).
  */
-export async function getSafetyFlags(): Promise<SafetyFlagRow[]> {
+export async function getSafetyFlags(routes: Pick<HostRoutes, 'reference'>): Promise<SafetyFlagRow[]> {
   try {
-    const res = await fetch(`/api/reference/conditions`, { cache: 'no-store' });
+    const res = await fetch(routes.reference('conditions'), { cache: 'no-store' });
     if (!res.ok) return [];
     const data = await res.json();
     const arr = Array.isArray(data)
@@ -235,9 +236,13 @@ export async function getSafetyFlags(): Promise<SafetyFlagRow[]> {
  * not just a bare code with no name anywhere. Returns null on failure —
  * caller still uses the flag locally on this questionnaire either way.
  */
-export async function createSafetyFlag(code: string, name: string): Promise<SafetyFlagRow | null> {
+export async function createSafetyFlag(
+  routes: Pick<HostRoutes, 'reference'>,
+  code: string,
+  name: string,
+): Promise<SafetyFlagRow | null> {
   try {
-    const res = await fetch(`/api/reference/conditions`, {
+    const res = await fetch(routes.reference('conditions'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code, name }),

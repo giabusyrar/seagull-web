@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { deleteEntityItem, entityListFrom, listRelationOptions, saveEntityItem } from './api';
 
+const routes = { reference: (r: string) => `/api/reference/${r}` };
+
 const stub = (...responses: Array<[unknown, number?]>) => {
   const f = vi.fn<typeof fetch>();
   for (const [body, status] of responses) f.mockResolvedValueOnce(new Response(JSON.stringify(body), { status: status ?? 200 }));
@@ -47,7 +49,7 @@ describe('reference entity writes', () => {
 describe('listRelationOptions', () => {
   it('returns the list only on success', async () => {
     stub([{ success: true, data: [{ id: 'b' }] }], [{ success: false, data: [] }]);
-    expect(await listRelationOptions('brands')).toEqual([{ id: 'b' }]);
-    expect(await listRelationOptions('brands')).toBeNull();
+    expect(await listRelationOptions(routes, 'brands')).toEqual([{ id: 'b' }]);
+    expect(await listRelationOptions(routes, 'brands')).toBeNull();
   });
 });

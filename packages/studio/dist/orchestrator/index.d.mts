@@ -1,3 +1,5 @@
+import { HostRoutes } from '@gateway-experience/shared';
+
 type PipelineExecutionStrategy = 'dynamic_capability_dispatch' | 'parallel_late_fusion' | 'vision_first_reverse_probe' | 'form_only' | 'vision_only';
 interface VisionCapabilityInfo {
     id: string;
@@ -139,7 +141,7 @@ interface DbSkinConditionRecord {
  * Fetches dynamic skin conditions and their PyTorch vision capability mappings from the database.
  * No static hardcoded arrays — database is the single source of truth.
  */
-declare function fetchSkinConditionsFromDb(baseUrl?: string): Promise<DbSkinConditionRecord[]>;
+declare function fetchSkinConditionsFromDb(skinConditionsUrl: string): Promise<DbSkinConditionRecord[]>;
 /**
  * Invalidates the in-memory cache to force a fresh DB read on next dispatch.
  */
@@ -148,11 +150,11 @@ declare function invalidateSkinConditionCache(): void;
  * Dynamically resolves required PyTorch vision capabilities from database-defined skin conditions
  * based on user-detected conditions and trigger keys.
  */
-declare function resolveRequiredCapabilitiesFromDb(detectedConditions: string[], baseUrl?: string): Promise<string[]>;
+declare function resolveRequiredCapabilitiesFromDb(detectedConditions: string[], skinConditionsUrl: string): Promise<string[]>;
 /**
  * Backward compatibility alias for resolveRequiredCapabilitiesFromDb.
  */
-declare function resolveRequiredCapabilities(detectedConditions: string[], baseUrl?: string): Promise<string[]>;
+declare function resolveRequiredCapabilities(detectedConditions: string[], skinConditionsUrl: string): Promise<string[]>;
 
 interface CapabilityDispatchResult {
     /**
@@ -332,6 +334,8 @@ interface PipelineClients {
     fetchRegimens: typeof fetchRegimens;
 }
 interface PipelineDeps {
+    /** The host app's routes the pipeline calls back into, resolved against the payload's baseUrl. */
+    routes: Pick<HostRoutes, 'skinConditions'>;
     /** Settings used where the payload's configOverride is silent. */
     defaults?: PipelineSettings;
     /** Defaults to `pipelineEnvFromProcess()`. */
@@ -341,6 +345,6 @@ interface PipelineDeps {
 }
 /** The effective config: settings, plus service URLs from env, under the payload's override. */
 declare function resolvePipelineConfig(payload: AssessmentPayload, settings: PipelineSettings, env: PipelineEnv): OrchestratorPipelineConfig;
-declare function executeAssessmentPipeline(payload: AssessmentPayload, deps?: PipelineDeps): Promise<UnifiedAssessmentResponse>;
+declare function executeAssessmentPipeline(payload: AssessmentPayload, deps: PipelineDeps): Promise<UnifiedAssessmentResponse>;
 
 export { type AssessmentPayload, type CapabilityDispatchResult, DEFAULT_MODEL_SERVER_URL, DEFAULT_PIPELINE_SETTINGS, type DbSkinConditionRecord, MODEL_DISPATCH_PATH, type OrchestratorPipelineConfig, type PipelineClients, type PipelineDeps, type PipelineEnv, type PipelineExecutionStrategy, type PipelineSettings, type UnifiedAssessmentResponse, type VisionCapabilityInfo, dispatchPyTorchCapabilities, executeAssessmentPipeline, fetchSkinConditionsFromDb, fuseDimensionScores, invalidateSkinConditionCache, pipelineEnvFromProcess, resolvePipelineConfig, resolveRequiredCapabilities, resolveRequiredCapabilitiesFromDb };

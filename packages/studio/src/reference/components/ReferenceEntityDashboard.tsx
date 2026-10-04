@@ -10,7 +10,7 @@ import { ReferenceTable } from './ReferenceTable';
 import { ReferenceFormModal } from './ReferenceFormModal';
 import { SeverityTierGroupModal } from './SeverityTierGroupModal';
 import { deleteEntityItem, listEntityItems, saveEntityItem } from '../api';
-import { PageHeader, SearchFilterBar, ConfirmDialog, Pagination, FilterPanel, type FilterSection } from '@gateway-experience/shared';
+import { PageHeader, SearchFilterBar, ConfirmDialog, Pagination, FilterPanel, type FilterSection, useHostRoutes } from '@gateway-experience/shared';
 
 
 interface ReferenceEntityDashboardProps {
@@ -27,6 +27,8 @@ export const ReferenceEntityDashboard: React.FC<ReferenceEntityDashboardProps> =
   }, [slug]);
 
   const config: EntityConfig = REFERENCE_ENTITY_CONFIGS[activeSlug] || REFERENCE_ENTITY_CONFIGS['brands'];
+  const hostRoutes = useHostRoutes();
+  const apiEndpoint = hostRoutes.reference(config.resource);
 
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -100,14 +102,14 @@ export const ReferenceEntityDashboard: React.FC<ReferenceEntityDashboardProps> =
   const fetchItems = useCallback(async () => {
     setLoading(true);
     try {
-      setItems(await listEntityItems(config));
+      setItems(await listEntityItems(apiEndpoint, config));
     } catch (err) {
       console.error('Fetch items error:', err);
       setItems([]);
     } finally {
       setLoading(false);
     }
-  }, [config]);
+  }, [apiEndpoint, config]);
 
   useEffect(() => {
     fetchItems();
@@ -120,7 +122,7 @@ export const ReferenceEntityDashboard: React.FC<ReferenceEntityDashboardProps> =
         ? { ...editingItem, ...formData, id: editingItem.id }
         : formData;
 
-      await saveEntityItem(config.apiEndpoint, payload, isEdit);
+      await saveEntityItem(apiEndpoint, payload, isEdit);
 
       await fetchItems();
       setIsModalOpen(false);
@@ -148,7 +150,7 @@ export const ReferenceEntityDashboard: React.FC<ReferenceEntityDashboardProps> =
 
     setDeleteConfig((prev) => ({ ...prev, isDeleting: true }));
     try {
-      await deleteEntityItem(config.apiEndpoint, targetId);
+      await deleteEntityItem(apiEndpoint, targetId);
       await fetchItems();
       setDeleteConfig({ isOpen: false, item: null, isDeleting: false });
     } catch (err: any) {

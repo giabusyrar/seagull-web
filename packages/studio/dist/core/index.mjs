@@ -2,13 +2,13 @@
 var cachedCollections = null;
 var lastFetchedAt = 0;
 var CACHE_TTL_MS = 3e4;
-async function getActiveCoreCollections(forceRefresh = false) {
+async function getActiveCoreCollections(collectionsPath, forceRefresh = false) {
   const now = Date.now();
   if (!forceRefresh && cachedCollections && now - lastFetchedAt < CACHE_TTL_MS) {
     return cachedCollections;
   }
   try {
-    const res = await fetch("/api/collections?type=core", { cache: "no-store" });
+    const res = await fetch(`${collectionsPath}?type=core`, { cache: "no-store" });
     if (!res.ok) throw new Error(`Failed to fetch core collections: HTTP ${res.status}`);
     const data = await res.json();
     const cols = Array.isArray(data.collections) ? data.collections : [];

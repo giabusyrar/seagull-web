@@ -15,7 +15,7 @@ var REFERENCE_ENTITY_CONFIGS = {
     singularTitle: "Brand",
     description: "Manage brand identities and master reference items",
     iconName: "Tag",
-    apiEndpoint: "/api/reference/brands",
+    resource: "brands",
     dataKey: "brands",
     fields: [
       { key: "name", label: "Brand Name", type: "text", required: true },
@@ -31,7 +31,7 @@ var REFERENCE_ENTITY_CONFIGS = {
     singularTitle: "Product",
     description: "Manage product catalog items and brand/category associations",
     iconName: "Package",
-    apiEndpoint: "/api/reference/products",
+    resource: "products",
     dataKey: "products",
     fields: [
       { key: "name", label: "Product Name", type: "text", required: true },
@@ -52,7 +52,7 @@ var REFERENCE_ENTITY_CONFIGS = {
     singularTitle: "Category",
     description: "Product categories a product is filed under",
     iconName: "LayoutGrid",
-    apiEndpoint: "/api/reference/categories",
+    resource: "categories",
     dataKey: "categories",
     fields: [
       { key: "name", label: "Category Name", type: "text", required: true },
@@ -67,7 +67,7 @@ var REFERENCE_ENTITY_CONFIGS = {
     singularTitle: "Texture",
     description: "Product textures a product can carry",
     iconName: "Droplet",
-    apiEndpoint: "/api/reference/textures",
+    resource: "textures",
     dataKey: "textures",
     fields: [
       { key: "name", label: "Texture Name", type: "text", required: true },
@@ -81,7 +81,7 @@ var REFERENCE_ENTITY_CONFIGS = {
     singularTitle: "Dimension",
     description: "Master assessment metrics and diagnostic domains (MOVE, NUT, SLP, STR, GUT, SKN, sebum, etc.)",
     iconName: "Target",
-    apiEndpoint: "/api/reference/dimensions",
+    resource: "dimensions",
     dataKey: "dimensions",
     fields: [
       { key: "code", label: "Dimension Code (e.g. SLP, sebum)", type: "text", required: true },
@@ -95,7 +95,7 @@ var REFERENCE_ENTITY_CONFIGS = {
     singularTitle: "Customer Condition",
     description: "Master baseline conditions & zero-tolerance safety flags (is_pregnant, uses_retinol, etc.)",
     iconName: "Tag",
-    apiEndpoint: "/api/reference/conditions",
+    resource: "conditions",
     dataKey: "conditions",
     fields: [
       { key: "code", label: "Condition Code (e.g. is_pregnant, uses_retinol)", type: "text", required: true },
@@ -109,7 +109,7 @@ var REFERENCE_ENTITY_CONFIGS = {
     singularTitle: "Ingredient",
     description: "Manage skincare actives, botanical extracts, and chemical formulation ingredients",
     iconName: "Sparkles",
-    apiEndpoint: "/api/reference/ingredients",
+    resource: "ingredients",
     dataKey: "ingredients",
     fields: [
       { key: "name", label: "Ingredient Name", type: "text", required: true },
@@ -124,7 +124,7 @@ var REFERENCE_ENTITY_CONFIGS = {
     singularTitle: "Severity Tier Group",
     description: "Master diagnostic classification groups and clinical severity tiers (e.g. Severity Level, Acne Prone Level)",
     iconName: "ShieldAlert",
-    apiEndpoint: "/api/reference/severity-tier-groups",
+    resource: "severity-tier-groups",
     dataKey: "severityTierGroups",
     fields: [
       { key: "name", label: "Group Name (e.g. Severity Level, Acne Prone Level)", type: "text", required: true },
@@ -138,7 +138,7 @@ var REFERENCE_ENTITY_CONFIGS = {
     singularTitle: "Skin Condition",
     description: "Master clinical skin conditions and their target clinical dimension",
     iconName: "ShieldAlert",
-    apiEndpoint: "/api/reference/skin-conditions",
+    resource: "skin-conditions",
     dataKey: "skinConditions",
     fields: [
       { key: "code", label: "Condition Code (e.g. concern_oiliness)", type: "text", required: true },
@@ -153,7 +153,7 @@ var REFERENCE_ENTITY_CONFIGS = {
     singularTitle: "Application",
     description: "Master experience client applications, channels, and tenant credentials",
     iconName: "Layers",
-    apiEndpoint: "/api/reference/applications",
+    resource: "applications",
     dataKey: "applications",
     fields: [
       { key: "name", label: "Application Name", type: "text", required: true },
@@ -417,15 +417,15 @@ var ReferenceTable = ({
 // src/reference/components/ReferenceFormModal.tsx
 import { useState, useEffect } from "react";
 import { Save, Loader2 } from "lucide-react";
-import { SearchableSelect, Modal } from "@gateway-experience/shared";
+import { SearchableSelect, Modal, useHostRoutes } from "@gateway-experience/shared";
 
 // src/reference/api.ts
 function entityListFrom(data, config) {
   const rawList = data.data || (config.dataKey ? data[config.dataKey] : null) || (config.slug ? data[config.slug] : null) || data.items || data.brands || data.products || data.ingredients || data.eventTypes || data.reference || [];
   return Array.isArray(rawList) ? rawList : [];
 }
-async function listEntityItems(config) {
-  const res = await fetch(config.apiEndpoint, { cache: "no-store" });
+async function listEntityItems(apiEndpoint, config) {
+  const res = await fetch(apiEndpoint, { cache: "no-store" });
   if (!res.ok) throw new Error("Failed to fetch reference items");
   return entityListFrom(await res.json(), config);
 }
@@ -448,8 +448,8 @@ async function deleteEntityItem(apiEndpoint, id) {
   }
   if (!res.ok) throw new Error("Failed to delete item");
 }
-async function listRelationOptions(entity) {
-  const data = await (await fetch(`/api/reference/${entity}`)).json();
+async function listRelationOptions(routes, entity) {
+  const data = await (await fetch(routes.reference(entity))).json();
   const list = data.data || data[entity] || data.dimensions || data.items || data.brands || data.products || data.ingredients || [];
   return data.success && Array.isArray(list) ? list : null;
 }
@@ -463,6 +463,7 @@ var ReferenceFormModal = ({
   onClose,
   onSave
 }) => {
+  const hostRoutes = useHostRoutes();
   const [formData, setFormData] = useState({});
   const [relationOptions, setRelationOptions] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -480,7 +481,7 @@ var ReferenceFormModal = ({
       config.fields.forEach(async (field) => {
         if ((field.type === "relation" || field.type === "multi-relation") && field.relationEntity) {
           try {
-            const list = await listRelationOptions(field.relationEntity);
+            const list = await listRelationOptions(hostRoutes, field.relationEntity);
             if (list) {
               setRelationOptions((prev) => ({ ...prev, [field.relationEntity]: list }));
             }
@@ -489,7 +490,7 @@ var ReferenceFormModal = ({
         }
       });
     }
-  }, [isOpen, initialData, config]);
+  }, [isOpen, initialData, config, hostRoutes]);
   if (!isOpen) return null;
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -989,7 +990,7 @@ var SeverityTierGroupModal = ({
 };
 
 // src/reference/components/ReferenceEntityDashboard.tsx
-import { PageHeader, SearchFilterBar, ConfirmDialog, Pagination, FilterPanel } from "@gateway-experience/shared";
+import { PageHeader, SearchFilterBar, ConfirmDialog, Pagination, FilterPanel, useHostRoutes as useHostRoutes2 } from "@gateway-experience/shared";
 import { jsx as jsx4, jsxs as jsxs4 } from "react/jsx-runtime";
 var ReferenceEntityDashboard = ({ slug }) => {
   const [activeSlug, setActiveSlug] = useState3(slug);
@@ -999,6 +1000,8 @@ var ReferenceEntityDashboard = ({ slug }) => {
     setActiveSlug(slug);
   }, [slug]);
   const config = REFERENCE_ENTITY_CONFIGS[activeSlug] || REFERENCE_ENTITY_CONFIGS["brands"];
+  const hostRoutes = useHostRoutes2();
+  const apiEndpoint = hostRoutes.reference(config.resource);
   const [items, setItems] = useState3([]);
   const [loading, setLoading] = useState3(true);
   const [searchQuery, setSearchQuery] = useState3("");
@@ -1057,14 +1060,14 @@ var ReferenceEntityDashboard = ({ slug }) => {
   const fetchItems = useCallback(async () => {
     setLoading(true);
     try {
-      setItems(await listEntityItems(config));
+      setItems(await listEntityItems(apiEndpoint, config));
     } catch (err) {
       console.error("Fetch items error:", err);
       setItems([]);
     } finally {
       setLoading(false);
     }
-  }, [config]);
+  }, [apiEndpoint, config]);
   useEffect3(() => {
     fetchItems();
   }, [fetchItems]);
@@ -1072,7 +1075,7 @@ var ReferenceEntityDashboard = ({ slug }) => {
     try {
       const isEdit = !!editingItem;
       const payload = isEdit ? { ...editingItem, ...formData, id: editingItem.id } : formData;
-      await saveEntityItem(config.apiEndpoint, payload, isEdit);
+      await saveEntityItem(apiEndpoint, payload, isEdit);
       await fetchItems();
       setIsModalOpen(false);
       setEditingItem(null);
@@ -1094,7 +1097,7 @@ var ReferenceEntityDashboard = ({ slug }) => {
     if (!targetId || typeof targetId !== "string") return;
     setDeleteConfig((prev) => ({ ...prev, isDeleting: true }));
     try {
-      await deleteEntityItem(config.apiEndpoint, targetId);
+      await deleteEntityItem(apiEndpoint, targetId);
       await fetchItems();
       setDeleteConfig({ isOpen: false, item: null, isDeleting: false });
     } catch (err) {

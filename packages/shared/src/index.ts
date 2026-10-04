@@ -118,6 +118,7 @@ export { KeyValueTable, type KeyValueTableProps, type KeyValueItem } from './com
 export { StatusBadge, type StatusBadgeProps } from './components/StatusBadge';
 export { SeverityBadge, type SeverityBadgeProps } from './components/SeverityBadge';
 export { ScoreRangeInput, type ScoreRangeInputProps } from './components/ScoreRangeInput';
+export { HostRoutesProvider, useHostRoutes, type HostRoutes } from './host-routes';
 export {
   ReferenceDataProvider,
   useReferenceDataSource,

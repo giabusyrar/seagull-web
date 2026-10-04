@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { ShieldAlert, Loader2 } from 'lucide-react';
-import { Modal } from '@gateway-experience/shared';
+import { Modal, useHostRoutes } from '@gateway-experience/shared';
 import type { ConflictMatrixRule } from '../../types';
 import { listReferenceIngredients } from '../../api';
 
@@ -19,6 +19,7 @@ export const ConflictRuleModal: React.FC<ConflictRuleModalProps> = ({
   onSave,
   editingConflict,
 }) => {
+  const hostRoutes = useHostRoutes();
   const [confA, setConfA] = useState('');
   const [confB, setConfB] = useState('');
   const [confType, setConfType] = useState<ConflictMatrixRule['conflictType']>('over_exfoliation');
@@ -28,12 +29,12 @@ export const ConflictRuleModal: React.FC<ConflictRuleModalProps> = ({
   const [ingredients, setIngredients] = useState<Array<{ code: string; name: string }>>([]);
 
   useEffect(() => {
-    listReferenceIngredients()
+    listReferenceIngredients(hostRoutes)
       .then((list) => {
         if (list.length > 0) setIngredients(list);
       })
       .catch(() => {});
-  }, [isOpen]);
+  }, [isOpen, hostRoutes]);
 
   useEffect(() => {
     if (editingConflict) {

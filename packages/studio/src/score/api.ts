@@ -1,3 +1,4 @@
+import type { HostRoutes } from '@gateway-experience/shared';
 import { withTenantScope } from '../core/scope';
 import type { RulesetSimulationResponse, ScoreRuleset } from './types';
 
@@ -90,12 +91,8 @@ export interface SkinConditionOption {
   visionCapabilities?: string[];
 }
 
-/**
- * Skin conditions from the host app's /api/skin-conditions route. The path
- * belongs to the dashboard, not this package (audit item 4); moved, not yet
- * injected.
- */
-export async function listSkinConditions(): Promise<SkinConditionOption[]> {
-  const data = await (await fetch('/api/skin-conditions')).json();
+/** Skin conditions from the host app's skin-conditions route. */
+export async function listSkinConditions(routes: Pick<HostRoutes, 'skinConditions'>): Promise<SkinConditionOption[]> {
+  const data = await (await fetch(routes.skinConditions)).json();
   return Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
 }

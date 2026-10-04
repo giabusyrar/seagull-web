@@ -1,4 +1,4 @@
-import type { ReferenceDataSource } from '@gateway-experience/shared';
+import type { HostRoutes, ReferenceDataSource } from '@gateway-experience/shared';
 
 /**
  * This app's own API routes, as the shared and studio packages need them.
@@ -11,6 +11,13 @@ export const HOST_ROUTES = {
   applications: '/api/applications',
   dimensions: '/api/dimensions',
 } as const;
+
+/** The routes the studio package calls (reference data, skin conditions, collections). */
+export const STUDIO_HOST_ROUTES: HostRoutes = {
+  reference: (resource) => `/api/reference/${resource}`,
+  skinConditions: '/api/skin-conditions',
+  collections: '/api/collections',
+};
 
 const getJson = (path: string) => fetch(path).then((res) => res.json());
 

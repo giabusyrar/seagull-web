@@ -1,3 +1,4 @@
+import type { HostRoutes } from '@gateway-experience/shared';
 import { AssessmentPayload, UnifiedAssessmentResponse, OrchestratorPipelineConfig } from './types';
 import { resolveRequiredCapabilitiesFromDb, fetchSkinConditionsFromDb } from './capability-registry';
 import { dispatchPyTorchCapabilities } from './pytorch-client';
@@ -42,6 +43,8 @@ export interface PipelineClients {
 }
 
 export interface PipelineDeps {
+  /** The host app's routes the pipeline calls back into, resolved against the payload's baseUrl. */
+  routes: Pick<HostRoutes, 'skinConditions'>;
   /** Settings used where the payload's configOverride is silent. */
   defaults?: PipelineSettings;
   /** Defaults to `pipelineEnvFromProcess()`. */
@@ -89,13 +92,14 @@ export function resolvePipelineConfig(
 
 export async function executeAssessmentPipeline(
   payload: AssessmentPayload,
-  deps: PipelineDeps = {},
+  deps: PipelineDeps,
 ): Promise<UnifiedAssessmentResponse> {
   const startTime = Date.now();
   const timings: Record<string, number> = {};
   const env = deps.env ?? pipelineEnvFromProcess();
   const clients = { ...defaultClients(), ...deps.clients };
   const config = resolvePipelineConfig(payload, deps.defaults ?? DEFAULT_PIPELINE_SETTINGS, env);
+  const skinConditionsUrl = `${payload.baseUrl || ''}${deps.routes.skinConditions}`;
 
   // -------------------------------------------------------------
   // STAGE 1: FORM PARSING & CONCERN EXTRACTION
@@ -140,12 +144,12 @@ export async function executeAssessmentPipeline(
   let dispatchedCaps: string[] = [];
 
   if (config.executionStrategy === 'dynamic_capability_dispatch') {
-    dispatchedCaps = await clients.resolveRequiredCapabilities(detectedConditions, payload.baseUrl || '');
+    dispatchedCaps = await clients.resolveRequiredCapabilities(detectedConditions, skinConditionsUrl);
   } else if (
     config.executionStrategy === 'parallel_late_fusion' ||
     config.executionStrategy === 'vision_only'
   ) {
-    const allConditions = await clients.fetchSkinConditions(payload.baseUrl || '');
+    const allConditions = await clients.fetchSkinConditions(skinConditionsUrl);
     const allCaps = new Set<string>();
     allConditions.forEach((c) => {
       (c.visionCapabilities || []).forEach((cap) => allCaps.add(cap));

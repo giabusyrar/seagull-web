@@ -841,8 +841,8 @@ async function runMatch(payload, doFetch = fetch) {
   const res = await sendJson(doFetch, ep("/api/matching/match"), "POST", payload);
   return res.ok ? await res.json() : null;
 }
-async function listReferenceIngredients(doFetch = fetch) {
-  const data = await (await doFetch("/api/reference/ingredients")).json();
+async function listReferenceIngredients(routes, doFetch = fetch) {
+  const data = await (await doFetch(routes.reference("ingredients"))).json();
   const raw = Array.isArray(data.ingredients) ? data.ingredients : Array.isArray(data) ? data : [];
   return raw.map((i) => ({ code: i.code || i.name, name: i.name }));
 }
@@ -855,6 +855,7 @@ var ConflictRuleModal = ({
   onSave,
   editingConflict
 }) => {
+  const hostRoutes = (0, import_shared5.useHostRoutes)();
   const [confA, setConfA] = (0, import_react.useState)("");
   const [confB, setConfB] = (0, import_react.useState)("");
   const [confType, setConfType] = (0, import_react.useState)("over_exfoliation");
@@ -863,11 +864,11 @@ var ConflictRuleModal = ({
   const [isSubmitting, setIsSubmitting] = (0, import_react.useState)(false);
   const [ingredients, setIngredients] = (0, import_react.useState)([]);
   (0, import_react.useEffect)(() => {
-    listReferenceIngredients().then((list2) => {
+    listReferenceIngredients(hostRoutes).then((list2) => {
       if (list2.length > 0) setIngredients(list2);
     }).catch(() => {
     });
-  }, [isOpen]);
+  }, [isOpen, hostRoutes]);
   (0, import_react.useEffect)(() => {
     if (editingConflict) {
       setConfA(editingConflict.ingredientA);

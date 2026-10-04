@@ -994,7 +994,7 @@ var FormSimulatorTab = ({
 // src/form/components/modals/QuestionnaireModal.tsx
 import { useEffect as useEffect2, useMemo as useMemo2, useRef, useState as useState3 } from "react";
 import { FileText as FileText2, Plus as Plus2, Trash2 as Trash22, X, ChevronDown as ChevronDown3, ChevronRight as ChevronRight2, Flag } from "lucide-react";
-import { Modal, Button, BrandSelect, ApplicationSelect, InfoTooltip } from "@gateway-experience/shared";
+import { Modal, Button, BrandSelect, ApplicationSelect, InfoTooltip, useHostRoutes } from "@gateway-experience/shared";
 
 // src/form/api.ts
 var FORM = "/core/form-engine";
@@ -1097,9 +1097,9 @@ async function deleteQuestionnaire(code, brandId = DEFAULT_BRAND, applicationId 
   });
   if (!res.ok) throw new Error(`form-engine archive failed (${res.status})`);
 }
-async function getDimensions() {
+async function getDimensions(routes) {
   try {
-    const res = await fetch(`/api/reference/dimensions`, { cache: "no-store" });
+    const res = await fetch(routes.reference("dimensions"), { cache: "no-store" });
     if (!res.ok) return [];
     const data = await res.json();
     const arr = Array.isArray(data) ? data : Array.isArray(data?.dimensions) ? data.dimensions : Array.isArray(data?.data) ? data.data : [];
@@ -1108,9 +1108,9 @@ async function getDimensions() {
     return [];
   }
 }
-async function getSafetyFlags() {
+async function getSafetyFlags(routes) {
   try {
-    const res = await fetch(`/api/reference/conditions`, { cache: "no-store" });
+    const res = await fetch(routes.reference("conditions"), { cache: "no-store" });
     if (!res.ok) return [];
     const data = await res.json();
     const arr = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
@@ -1119,9 +1119,9 @@ async function getSafetyFlags() {
     return [];
   }
 }
-async function createSafetyFlag(code, name) {
+async function createSafetyFlag(routes, code, name) {
   try {
-    const res = await fetch(`/api/reference/conditions`, {
+    const res = await fetch(routes.reference("conditions"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ code, name })
@@ -1277,6 +1277,7 @@ var QuestionnaireModal = ({
   brandId = "wardah",
   applicationId = "skinverse"
 }) => {
+  const hostRoutes = useHostRoutes();
   const [step, setStep] = useState3("setup");
   const [qCode, setQCode] = useState3("");
   const [qBrand, setQBrand] = useState3(brandId);
@@ -1337,7 +1338,7 @@ var QuestionnaireModal = ({
   }, [editingQ, isOpen]);
   useEffect2(() => {
     if (!isOpen) return;
-    getDimensions().then((raw) => {
+    getDimensions(hostRoutes).then((raw) => {
       setApiDimensions(
         raw.filter((it) => it && it.code && !it.parentCode).map((it) => ({
           code: it.code,
@@ -1346,11 +1347,11 @@ var QuestionnaireModal = ({
         }))
       );
     }).catch(() => setApiDimensions([]));
-  }, [isOpen]);
+  }, [isOpen, hostRoutes]);
   useEffect2(() => {
     if (!isOpen) return;
-    getSafetyFlags().then(setSafetyFlagCatalog).catch(() => setSafetyFlagCatalog([]));
-  }, [isOpen]);
+    getSafetyFlags(hostRoutes).then(setSafetyFlagCatalog).catch(() => setSafetyFlagCatalog([]));
+  }, [isOpen, hostRoutes]);
   const effectiveCode = codeEdited ? qCode : slugify(qName);
   const usedDimensions = Array.from(new Set(questions.map((q) => q.dimension).filter(Boolean)));
   const flagOptions = useMemo2(() => {
@@ -1372,7 +1373,7 @@ var QuestionnaireModal = ({
     if (!code) return null;
     const existing = safetyFlagCatalog.find((f) => f.code === code);
     if (existing) return existing.code;
-    const created = await createSafetyFlag(code, name);
+    const created = await createSafetyFlag(hostRoutes, code, name);
     if (created) setSafetyFlagCatalog((prev) => [...prev, created]);
     return code;
   };

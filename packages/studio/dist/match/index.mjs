@@ -742,7 +742,7 @@ var MatchSimulatorTab = ({
 // src/match/components/modals/ConflictRuleModal.tsx
 import { useState, useEffect } from "react";
 import { ShieldAlert as ShieldAlert2, Loader2 as Loader22 } from "lucide-react";
-import { Modal } from "@gateway-experience/shared";
+import { Modal, useHostRoutes } from "@gateway-experience/shared";
 
 // src/core/collection-resolver.ts
 function getCollectionPrefix(key) {
@@ -816,8 +816,8 @@ async function runMatch(payload, doFetch = fetch) {
   const res = await sendJson(doFetch, ep("/api/matching/match"), "POST", payload);
   return res.ok ? await res.json() : null;
 }
-async function listReferenceIngredients(doFetch = fetch) {
-  const data = await (await doFetch("/api/reference/ingredients")).json();
+async function listReferenceIngredients(routes, doFetch = fetch) {
+  const data = await (await doFetch(routes.reference("ingredients"))).json();
   const raw = Array.isArray(data.ingredients) ? data.ingredients : Array.isArray(data) ? data : [];
   return raw.map((i) => ({ code: i.code || i.name, name: i.name }));
 }
@@ -830,6 +830,7 @@ var ConflictRuleModal = ({
   onSave,
   editingConflict
 }) => {
+  const hostRoutes = useHostRoutes();
   const [confA, setConfA] = useState("");
   const [confB, setConfB] = useState("");
   const [confType, setConfType] = useState("over_exfoliation");
@@ -838,11 +839,11 @@ var ConflictRuleModal = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [ingredients, setIngredients] = useState([]);
   useEffect(() => {
-    listReferenceIngredients().then((list2) => {
+    listReferenceIngredients(hostRoutes).then((list2) => {
       if (list2.length > 0) setIngredients(list2);
     }).catch(() => {
     });
-  }, [isOpen]);
+  }, [isOpen, hostRoutes]);
   useEffect(() => {
     if (editingConflict) {
       setConfA(editingConflict.ingredientA);
