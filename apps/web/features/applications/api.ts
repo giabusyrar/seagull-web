@@ -45,21 +45,11 @@ export async function deleteApplication(key: string): Promise<boolean> {
   return res.ok;
 }
 
-export interface DimensionWeight {
-  dimensionId: string;
-  formWeight: number;
-  visionWeight: number;
-  isEnabled: boolean;
-}
-
 export interface PipelineConfig {
   formEnabled?: boolean;
   questionnaireCode?: string;
   visionEnabled?: boolean;
   visionPipelineCode?: string;
-  defaultFormWeight?: number;
-  defaultVisionWeight?: number;
-  dimensionWeights?: unknown;
 }
 
 /** The stored config for a brand/application, or null when there is none. */
@@ -76,9 +66,6 @@ export interface PipelineConfigInput {
   questionnaireCode: string;
   visionEnabled: boolean;
   visionPipelineCode: string;
-  defaultFormWeight: number;
-  defaultVisionWeight: number;
-  dimensionWeights: DimensionWeight[];
 }
 
 /** The route's `{ success, error }` answer. */

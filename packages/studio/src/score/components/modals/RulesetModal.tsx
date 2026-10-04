@@ -191,6 +191,8 @@ export const RulesetModal: React.FC<RulesetModalProps> = ({
         brandId,
         applicationId,
         status,
+        // Core's update replaces the whole row, so leaving the version out reset it to 0.
+        ...(editingRuleset ? { version: editingRuleset.version } : {}),
         schema: withSetupFields(compileVisualToJDM(axes, profileConfig, scoreRangeBands, severityBands, editingRuleset?.schema)),
       });
       onClose();

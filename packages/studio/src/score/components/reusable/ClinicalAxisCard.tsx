@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Trash2, ChevronRight, ChevronDown, Plus } from 'lucide-react';
 import { DimensionSelect, InfoTooltip, useHostRoutes } from '@gateway-experience/shared';
-import type { VisualAxisConfig, InputSource, ThresholdBand } from '../../types';
+import type { VisualAxisConfig, ThresholdBand } from '../../types';
+import { FORM_SOURCE, VISION_SOURCE } from '../../types';
 import { defaultConcernLabel } from '../../utils/jdm-compiler';
 import { listSkinConditions } from '../../api';
 
@@ -45,71 +46,59 @@ export interface ClinicalDimensionCardProps {
 const fieldCls =
   'w-full h-8 rounded-md bg-muted/40 border border-border px-2.5 text-foreground text-xs outline-none focus:border-ring disabled:opacity-50';
 
-/** One input source picker. Always a registered catalog entry — a
- *  reference-service dimension for 'form', or ref_skin_conditions'
- *  visionCapabilities for 'vision' — never free text, so a ruleset's
- *  field_mapping stays a real, checkable spec instead of a typo-prone
- *  string. Lives here but is also used by BlendingTab, which owns the
- *  actual per-axis rule editor (composition + bands) — this card just
- *  shows weight/concern label. */
-export const SourcePicker: React.FC<{
-  label: string;
-  origin: 'form' | 'vision';
-  onOriginChange?: (origin: 'form' | 'vision') => void;
-  value?: InputSource;
-  onChange: (source: InputSource | undefined) => void;
+/** The field one source feeds an axis from. Form and vision pick from their
+ *  registered catalogs (reference-service dimensions; ref_skin_conditions'
+ *  visionCapabilities), never free text, so the ruleset stays a checkable
+ *  spec. Any other declared source (a device, a lab) has no catalog here, so
+ *  its field is named directly, as that source's signals name it. */
+export const FieldPicker: React.FC<{
+  source: string;
+  field: string;
+  onChange: (field: string, label: string) => void;
   disabled?: boolean;
-}> = ({ label, origin, onOriginChange, value, onChange, disabled }) => {
+}> = ({ source, field, onChange, disabled }) => {
   const visionFields = useVisionFields();
+  if (source === FORM_SOURCE) {
+    return (
+      <DimensionSelect
+        value={field}
+        disabled={disabled}
+        onChange={(code, meta) => onChange(code || '', meta?.name || code || '')}
+        label=""
+      />
+    );
+  }
+  if (source === VISION_SOURCE) {
+    const known = visionFields.some((f) => f.code === field);
+    return (
+      <select
+        disabled={disabled}
+        value={field}
+        onChange={(e) => {
+          const code = e.target.value;
+          onChange(code, visionFields.find((f) => f.code === code)?.label || code);
+        }}
+        className={fieldCls}
+      >
+        <option value="">— pick a CV field (ref_skin_conditions) —</option>
+        {field && !known && <option value={field}>{field}</option>}
+        {visionFields.map((f) => (
+          <option key={`${f.code}:${f.label}`} value={f.code}>
+            {f.label}
+          </option>
+        ))}
+      </select>
+    );
+  }
   return (
-    <div>
-      <div className="flex items-center justify-between mb-1">
-        <label className="block text-[10px] font-semibold text-muted-foreground">{label}</label>
-        {onOriginChange && (
-          <div className="flex gap-1">
-            {(['form', 'vision'] as const).map((o) => (
-              <button
-                key={o}
-                type="button"
-                disabled={disabled}
-                onClick={() => onOriginChange(o)}
-                className={`px-1.5 py-0.5 rounded text-[9px] font-semibold border ${
-                  origin === o ? 'border-beak bg-beak/10 text-beak' : 'border-border text-muted-foreground'
-                }`}
-              >
-                {o}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-      {origin === 'form' ? (
-        <DimensionSelect
-          value={value?.fieldCode || ''}
-          disabled={disabled}
-          onChange={(code, meta) => onChange(code ? { origin: 'form', fieldCode: code, label: meta?.name || code } : undefined)}
-          label=""
-        />
-      ) : (
-        <select
-          disabled={disabled}
-          value={value?.fieldCode || ''}
-          onChange={(e) => {
-            const code = e.target.value;
-            const meta = visionFields.find((f) => f.code === code);
-            onChange(code ? { origin: 'vision', fieldCode: code, label: meta?.label || code } : undefined);
-          }}
-          className={fieldCls}
-        >
-          <option value="">— pilih field CV (dari ref_skin_conditions) —</option>
-          {visionFields.map((f) => (
-            <option key={f.code} value={f.code}>
-              {f.label}
-            </option>
-          ))}
-        </select>
-      )}
-    </div>
+    <input
+      type="text"
+      disabled={disabled}
+      value={field}
+      placeholder={`${source} field, e.g. its signal name`}
+      onChange={(e) => onChange(e.target.value.trim(), e.target.value.trim())}
+      className={fieldCls + ' font-mono'}
+    />
   );
 };
 
@@ -235,7 +224,7 @@ export const ClinicalDimensionCard: React.FC<ClinicalDimensionCardProps> = ({
           </div>
 
           <p className="text-[10px] text-muted-foreground italic">
-            How this axis's number is computed (form/vision source, blend %) and turned into a
+            How this axis's number is computed (its sources and their weights) and turned into a
             letter (bands) is set in the Blending tab, not here.
           </p>
         </div>

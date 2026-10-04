@@ -5,18 +5,6 @@ import { Modal } from '@gateway-experience/shared';
 import { Loader2 } from 'lucide-react';
 import { getPipelineConfig, savePipelineConfig } from './api';
 
-interface DimensionWeightItem {
-  dimensionId: string;
-  dimension: {
-    id: string;
-    code: string;
-    name: string;
-  };
-  formWeight: number;
-  visionWeight: number;
-  isEnabled: boolean;
-}
-
 interface PipelineConfigModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -40,9 +28,6 @@ export const PipelineConfigModal: React.FC<PipelineConfigModalProps> = ({
   const [questionnaireCode, setQuestionnaireCode] = useState('skinverse_longevity_v1');
   const [visionEnabled, setVisionEnabled] = useState(true);
   const [visionPipelineCode, setVisionPipelineCode] = useState('uv_aging_full');
-  const [formWeightPercent, setFormWeightPercent] = useState(40);
-  const [dimensionWeights, setDimensionWeights] = useState<DimensionWeightItem[]>([]);
-  const [showAdvancedDimensions, setShowAdvancedDimensions] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   const fetchConfig = async () => {
@@ -56,10 +41,6 @@ export const PipelineConfigModal: React.FC<PipelineConfigModalProps> = ({
         setQuestionnaireCode(c.questionnaireCode || 'skinverse_longevity_v1');
         setVisionEnabled(c.visionEnabled ?? true);
         setVisionPipelineCode(c.visionPipelineCode || 'uv_aging_full');
-        setFormWeightPercent(Math.round((c.defaultFormWeight ?? 0.4) * 100));
-        if (Array.isArray(c.dimensionWeights)) {
-          setDimensionWeights(c.dimensionWeights);
-        }
       }
     } catch (err: any) {
       console.error('Failed to load pipeline config', err);
@@ -78,9 +59,6 @@ export const PipelineConfigModal: React.FC<PipelineConfigModalProps> = ({
     setSaving(true);
     setStatusMessage(null);
     try {
-      const formWeight = formWeightPercent / 100;
-      const visionWeight = (100 - formWeightPercent) / 100;
-
       const data = await savePipelineConfig({
         brandId,
         applicationId,
@@ -88,14 +66,6 @@ export const PipelineConfigModal: React.FC<PipelineConfigModalProps> = ({
         questionnaireCode,
         visionEnabled,
         visionPipelineCode,
-        defaultFormWeight: formWeight,
-        defaultVisionWeight: visionWeight,
-        dimensionWeights: dimensionWeights.map((dw) => ({
-          dimensionId: dw.dimensionId,
-          formWeight: dw.formWeight,
-          visionWeight: dw.visionWeight,
-          isEnabled: dw.isEnabled,
-        })),
       });
       if (data.success) {
         setStatusMessage('Pipeline configuration saved.');
@@ -111,33 +81,6 @@ export const PipelineConfigModal: React.FC<PipelineConfigModalProps> = ({
     } finally {
       setSaving(false);
     }
-  };
-
-  const updateDimWeight = (dimensionId: string, formW: number) => {
-    setDimensionWeights((prev) =>
-      prev.map((item) => {
-        if (item.dimensionId === dimensionId) {
-          const normForm = Math.max(0, Math.min(100, formW)) / 100;
-          return {
-            ...item,
-            formWeight: normForm,
-            visionWeight: Math.round((1 - normForm) * 100) / 100,
-          };
-        }
-        return item;
-      })
-    );
-  };
-
-  const toggleDimEnabled = (dimensionId: string) => {
-    setDimensionWeights((prev) =>
-      prev.map((item) => {
-        if (item.dimensionId === dimensionId) {
-          return { ...item, isEnabled: !item.isEnabled };
-        }
-        return item;
-      })
-    );
   };
 
   return (
@@ -218,82 +161,11 @@ export const PipelineConfigModal: React.FC<PipelineConfigModalProps> = ({
             )}
           </div>
 
-          {/* Multimodal Score Weighting */}
-          <div className="rounded-lg border border-border bg-slate-50/50 p-4 space-y-3">
-            <div className="flex justify-between items-center text-xs">
-              <span className="font-medium text-foreground">Multimodal Scoring Balance</span>
-              <span className="text-muted-foreground">
-                {formWeightPercent}% Form / {100 - formWeightPercent}% Vision
-              </span>
-            </div>
-
-            <div className="pt-1">
-              <input
-                type="range"
-                min={0}
-                max={100}
-                step={5}
-                value={formWeightPercent}
-                onChange={(e) => setFormWeightPercent(parseInt(e.target.value, 10))}
-                className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#d97706]"
-              />
-              <div className="flex justify-between text-[11px] text-muted-foreground mt-1">
-                <span>Form (Subjective)</span>
-                <span>Vision (Objective Camera)</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Optional Dimension Breakdown */}
-          {dimensionWeights.length > 0 && (
-            <div className="border-t border-border pt-3">
-              <button
-                type="button"
-                onClick={() => setShowAdvancedDimensions(!showAdvancedDimensions)}
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-              >
-                {showAdvancedDimensions ? '▲ Hide Dimension Weights' : '▼ View Active Dimensions (' + dimensionWeights.length + ')'}
-              </button>
-
-              {showAdvancedDimensions && (
-                <div className="mt-3 space-y-2 max-h-48 overflow-y-auto pr-1">
-                  {dimensionWeights.map((dw) => (
-                    <div
-                      key={dw.dimensionId}
-                      className="flex items-center justify-between py-1.5 px-2 rounded bg-slate-100/70 text-xs border border-border"
-                    >
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={dw.isEnabled}
-                          onChange={() => toggleDimEnabled(dw.dimensionId)}
-                          className="rounded border-border bg-white text-primary focus:ring-0"
-                        />
-                        <span className={dw.isEnabled ? 'text-foreground font-medium' : 'text-muted-foreground line-through'}>
-                          {dw.dimension?.name || dw.dimension?.code}
-                        </span>
-                      </label>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] text-muted-foreground font-mono">
-                          {Math.round(dw.formWeight * 100)}% F / {Math.round(dw.visionWeight * 100)}% V
-                        </span>
-                        <input
-                          type="range"
-                          min={0}
-                          max={100}
-                          step={10}
-                          value={Math.round(dw.formWeight * 100)}
-                          disabled={!dw.isEnabled}
-                          onChange={(e) => updateDimWeight(dw.dimensionId, parseInt(e.target.value, 10))}
-                          className="w-20 h-1 bg-slate-200 rounded appearance-none cursor-pointer accent-[#d97706] disabled:opacity-30"
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+          {/* Weights are not set here: they belong to the scoring ruleset. */}
+          <p className="rounded-lg border border-border bg-slate-50/50 p-4 text-xs text-muted-foreground">
+            How form, vision and any other source are weighted is set per dimension in the scoring ruleset
+            (Score studio → Blending), so every engine scores from the same weights.
+          </p>
 
           {/* Action Buttons */}
           <div className="flex justify-end pt-4 border-t border-border">

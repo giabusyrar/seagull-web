@@ -3821,8 +3821,11 @@ async function listRulesets() {
   return Array.isArray(data.rulesets) ? data.rulesets : null;
 }
 async function throwFromBody(res, fallback) {
-  const errData = await res.json();
-  throw new Error(errData.error || fallback);
+  const errData = await res.json().catch(() => ({}));
+  const list2 = Array.isArray(errData?.errors) ? errData.errors : [];
+  const items = list2.map((e) => typeof e === "string" ? e : e?.message || JSON.stringify(e));
+  const head = errData?.error || fallback;
+  throw new Error(items.length ? `${head}: ${items.join("; ")}` : head);
 }
 async function saveRuleset(ruleset) {
   const isEdit = !!ruleset.id;
@@ -4046,6 +4049,13 @@ var import_lucide_react11 = require("lucide-react");
 var import_shared12 = require("@gateway-experience/shared");
 
 // src/score/types.ts
+var LEGACY_SOURCES = {
+  form: { scale: [0, 100], direction: "concern" },
+  vision: { scale: [0, 100], direction: "health" }
+};
+var AGE_FIELD = "age_over_30";
+var FORM_SOURCE = "form";
+var VISION_SOURCE = "vision";
 var DEFAULT_SCORE_RANGE_BANDS = [
   { id: "sr1", max: 40, label: "Perlu Perhatian Khusus" },
   { id: "sr2", max: 60, label: "Sedang" },
@@ -4065,13 +4075,103 @@ var KNOWN_VISION_FIELDS = [
   { code: "age_over_30", label: "Age > 30 (from DOB)", description: "Derived from date_of_birth on the identity questionnaire, not a Q1-Q6 question. 0 if <=30, 100 if >30." }
 ];
 
+// src/score/utils/blend.ts
+var WEIGHT_SUM_TOLERANCE = 1e-6;
+var isObj = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+var pct = (w) => typeof w === "number" && Number.isFinite(w) ? Math.round(w * 100 * 1e6) / 1e6 : void 0;
+function convertLegacyDimension(key, fusion, mapping) {
+  const formField = mapping?.form === AGE_FIELD ? AGE_FIELD : key;
+  const visionField = mapping?.vision;
+  if (fusion) {
+    const out = [];
+    if ((fusion.form ?? 0) > 0) out.push({ source: "form", field: formField, weight: pct(fusion.form) });
+    if ((fusion.vision ?? 0) > 0 && visionField) out.push({ source: "vision", field: visionField, weight: pct(fusion.vision) });
+    return out.length === 1 ? [{ ...out[0], weight: 100 }] : out;
+  }
+  const mapped = [];
+  if (mapping?.form) mapped.push({ source: "form", field: formField, weight: void 0 });
+  if (visionField) mapped.push({ source: "vision", field: visionField, weight: void 0 });
+  if (mapped.length === 0) return [{ source: "form", field: key, weight: 100 }];
+  if (mapped.length === 1) return [{ ...mapped[0], weight: 100 }];
+  return mapped;
+}
+function readBlend(schema, legacyKeys = []) {
+  if (isObj(schema.sources) || isObj(schema.dimension_inputs)) {
+    const sources2 = {};
+    for (const [name, s] of Object.entries(isObj(schema.sources) ? schema.sources : {})) {
+      if (!isObj(s)) continue;
+      const scale = Array.isArray(s.scale) && s.scale.length === 2 ? [Number(s.scale[0]), Number(s.scale[1])] : [NaN, NaN];
+      sources2[name] = { scale, direction: s.direction };
+    }
+    const dims2 = {};
+    for (const [key, d] of Object.entries(isObj(schema.dimension_inputs) ? schema.dimension_inputs : {})) {
+      if (!isObj(d)) continue;
+      const inputs = isObj(d.inputs) ? d.inputs : {};
+      const weights = isObj(d.weights) ? d.weights : {};
+      dims2[key] = {
+        inputs: Object.entries(inputs).map(([source, field2]) => ({ source, field: String(field2), weight: pct(weights[source]) })),
+        required: Array.isArray(d.required) ? d.required.map(String) : []
+      };
+    }
+    return { sources: sources2, dims: dims2, converted: false };
+  }
+  const fusion = isObj(schema.dimension_fusion) ? schema.dimension_fusion : {};
+  const mapping = isObj(schema.field_mapping) ? schema.field_mapping : {};
+  const keys = /* @__PURE__ */ new Set([...Object.keys(fusion), ...Object.keys(mapping), ...legacyKeys]);
+  const dims = {};
+  for (const key of keys) dims[key] = { inputs: convertLegacyDimension(key, fusion[key], mapping[key]), required: [] };
+  const used = new Set(Object.values(dims).flatMap((d) => d.inputs.map((i) => i.source)));
+  const sources = {};
+  for (const name of ["form", "vision"]) if (used.has(name)) sources[name] = { ...LEGACY_SOURCES[name], scale: [...LEGACY_SOURCES[name].scale] };
+  return { sources, dims, converted: keys.size > 0 };
+}
+function toDimensionInputs(axis) {
+  const rows = (axis.inputs || []).filter((i) => i.source && i.field);
+  if (rows.length === 0) return void 0;
+  const out = {
+    inputs: Object.fromEntries(rows.map((i) => [i.source, i.field])),
+    weights: Object.fromEntries(rows.map((i) => [i.source, typeof i.weight === "number" ? i.weight / 100 : NaN]))
+  };
+  const required = (axis.required || []).filter((r) => rows.some((i) => i.source === r));
+  if (required.length > 0) out.required = required;
+  return out;
+}
+function validateBlend(sources, axes) {
+  const problems = [];
+  for (const [name, s] of Object.entries(sources)) {
+    const [min, max] = s.scale || [];
+    if (!Number.isFinite(min) || !Number.isFinite(max) || !(min < max)) problems.push(`Source "${name}": scale needs two numbers, min below max.`);
+    if (s.direction !== "concern" && s.direction !== "health") problems.push(`Source "${name}": direction must be concern or health.`);
+  }
+  for (const a of axes) {
+    const label = a.name || a.dimensionKey;
+    const rows = a.inputs || [];
+    if (rows.length === 0) continue;
+    const seen = /* @__PURE__ */ new Set();
+    let sum = 0;
+    for (const i of rows) {
+      if (!i.source) {
+        problems.push(`${label}: a row has no source.`);
+        continue;
+      }
+      if (seen.has(i.source)) problems.push(`${label}: source "${i.source}" is used twice.`);
+      seen.add(i.source);
+      if (!sources[i.source]) problems.push(`${label}: source "${i.source}" is not declared.`);
+      if (!i.field) problems.push(`${label}: source "${i.source}" has no field.`);
+      if (typeof i.weight !== "number" || !Number.isFinite(i.weight)) problems.push(`${label}: source "${i.source}" has no weight.`);
+      else if (i.weight <= 0) problems.push(`${label}: source "${i.source}" weight must be above 0.`);
+      else sum += i.weight;
+    }
+    if (Math.abs(sum / 100 - 1) > WEIGHT_SUM_TOLERANCE && rows.every((i) => typeof i.weight === "number")) {
+      problems.push(`${label}: weights add up to ${Math.round(sum * 100) / 100}%, not 100%.`);
+    }
+    for (const r of a.required || []) if (!seen.has(r)) problems.push(`${label}: required source "${r}" is not one of its inputs.`);
+  }
+  return problems;
+}
+
 // src/score/utils/jdm-compiler.ts
 var visionFieldLabel = (code) => KNOWN_VISION_FIELDS.find((f) => f.code === code)?.label || code;
-var makeSource = (fieldCode, origin) => fieldCode ? {
-  origin,
-  fieldCode,
-  label: origin === "vision" ? visionFieldLabel(fieldCode) : fieldCode
-} : void 0;
 var DEFAULT_CONCERN_LABELS = {
   sebum: "Minyak Berlebih",
   oiliness: "Minyak Berlebih",
@@ -4134,7 +4234,7 @@ var DEFAULT_STARTER_PROFILES = {
 var bandsToSchema = (bands) => bands.map((b) => ({ max: Math.max(0, Math.min(100, Number(b.max) || 0)), label: b.label || "" }));
 var cleanVal = (v) => `"${(v || "").replace(/"/g, "")}"`;
 var rangeCell = (min, max) => `[${Math.max(0, Math.min(100, min ?? 0))}..${Math.max(0, Math.min(100, max ?? 100))}]`;
-function compileVisualToJDM(axes, profileConfig = DEFAULT_STARTER_PROFILES, scoreRangeBands = DEFAULT_SCORE_RANGE_BANDS, severityBands = DEFAULT_SEVERITY_BANDS, existingSchema) {
+function compileVisualToJDM(axes, profileConfig = DEFAULT_STARTER_PROFILES, scoreRangeBands = DEFAULT_SCORE_RANGE_BANDS, severityBands = DEFAULT_SEVERITY_BANDS, existingSchema, sources) {
   const effectiveAxes = axes.length > 0 ? axes : DEFAULT_STARTER_AXES;
   const nodes = [
     { id: "input_node", name: "Input", type: "inputNode", position: { x: 40, y: 40 } }
@@ -4218,24 +4318,15 @@ function compileVisualToJDM(axes, profileConfig = DEFAULT_STARTER_PROFILES, scor
   });
   edges.push({ id: "e_profile", sourceId: "input_node", targetId: "profile" });
   const dimension_weights = {};
-  const dimension_fusion = {};
+  const dimension_inputs = {};
   const concern_labels = {};
   const axis_codes = {};
-  const field_mapping = {};
   for (const a of effectiveAxes) {
     const key = a.dimensionKey.toLowerCase();
     dimension_weights[key] = a.weight ?? 1;
     concern_labels[key] = a.concernLabel || defaultConcernLabel(key);
-    if (a.inputComposition === "weighted_blend") {
-      const fw = a.formWeight ?? 50;
-      dimension_fusion[key] = { form: fw / 100, vision: (100 - fw) / 100 };
-      const mapping = {};
-      if (a.formSource?.fieldCode) mapping.form = a.formSource.fieldCode;
-      if (a.visionSource?.fieldCode) mapping.vision = a.visionSource.fieldCode;
-      if (Object.keys(mapping).length > 0) field_mapping[key] = mapping;
-    } else if (a.source?.fieldCode) {
-      field_mapping[key] = a.source.origin === "form" ? { form: a.source.fieldCode } : { vision: a.source.fieldCode };
-    }
+    const di = toDimensionInputs(a);
+    if (di) dimension_inputs[key] = di;
     const bands = (a.bands || []).slice().sort((x, y) => x.min - y.min);
     if (bands.length === 2) {
       const [lo, hi] = bands;
@@ -4278,12 +4369,21 @@ function compileVisualToJDM(axes, profileConfig = DEFAULT_STARTER_PROFILES, scor
     for (const k of ownedDimKeys) delete merged[k];
     return { ...merged, ...fresh };
   };
+  const prevBlend = readBlend(base, [...Object.keys(base.dimension_weights || {}), ...Object.keys(base.concern_labels || {})]);
+  const carried = {};
+  for (const [k, d] of Object.entries(prevBlend.dims)) {
+    if (ownedDimKeys.has(k)) continue;
+    const di = toDimensionInputs(d);
+    if (di) carried[k] = di;
+  }
+  const mergedInputs = mergeOwned(carried, dimension_inputs);
+  const usedSources = new Set(Object.values(mergedInputs).flatMap((d) => Object.keys(d.inputs)));
+  const declared = sources ?? prevBlend.sources;
   const model = {
     ...base,
     nodes: [...nodes, ...preservedNodes],
     edges,
     dimension_weights: mergeOwned(base.dimension_weights, dimension_weights),
-    dimension_fusion: mergeOwned(base.dimension_fusion, dimension_fusion),
     concern_labels: mergeOwned(base.concern_labels, concern_labels),
     score_range_bands: bandsToSchema(scoreRangeBands),
     severity_bands: bandsToSchema(severityBands)
@@ -4291,9 +4391,16 @@ function compileVisualToJDM(axes, profileConfig = DEFAULT_STARTER_PROFILES, scor
   const mergedAxisCodes = mergeOwned(base.axis_codes, axis_codes);
   if (Object.keys(mergedAxisCodes).length > 0) model.axis_codes = mergedAxisCodes;
   else delete model.axis_codes;
-  const mergedFieldMapping = mergeOwned(base.field_mapping, field_mapping);
-  if (Object.keys(mergedFieldMapping).length > 0) model.field_mapping = mergedFieldMapping;
-  else delete model.field_mapping;
+  delete model.field_mapping;
+  delete model.dimension_fusion;
+  const sourcesOut = sources ? { ...declared } : Object.fromEntries(Object.entries(declared).filter(([n]) => usedSources.has(n)));
+  if (Object.keys(sourcesOut).length > 0 || Object.keys(mergedInputs).length > 0) {
+    model.sources = sourcesOut;
+    model.dimension_inputs = mergedInputs;
+  } else {
+    delete model.sources;
+    delete model.dimension_inputs;
+  }
   return JSON.stringify(model, null, 2);
 }
 var bandsFromSchema = (raw, fallback, prefix) => {
@@ -4310,6 +4417,8 @@ function decompileJDMToVisualComponents(schemaStr) {
     profileConfig: DEFAULT_STARTER_PROFILES,
     scoreRangeBands: DEFAULT_SCORE_RANGE_BANDS.map((b) => ({ ...b })),
     severityBands: DEFAULT_SEVERITY_BANDS.map((b) => ({ ...b })),
+    sources: {},
+    convertedBlend: false,
     legacy: false
   };
   if (!schemaStr || !schemaStr.trim()) return fallback;
@@ -4325,10 +4434,8 @@ function decompileJDMToVisualComponents(schemaStr) {
     return m ? { min: Number(m[1]), max: Number(m[2]) } : null;
   };
   const weights = parsed.dimension_weights || {};
-  const fusion = parsed.dimension_fusion || {};
   const concernLabels = parsed.concern_labels || {};
   const axisCodes = parsed.axis_codes || {};
-  const fieldMapping = parsed.field_mapping || {};
   const allNodes = Array.isArray(parsed.nodes) ? parsed.nodes : [];
   const nodeContents = allNodes.map(
     (n) => typeof n?.content === "string" ? safeParse(n.content) : n?.content
@@ -4350,10 +4457,11 @@ function decompileJDMToVisualComponents(schemaStr) {
       ...Object.keys(weights),
       ...Object.keys(concernLabels),
       ...Object.keys(axisCodes),
-      ...Object.keys(fieldMapping),
       ...salvagedKeys
     ])
   );
+  const blend = readBlend(parsed, dimKeys);
+  for (const k of Object.keys(blend.dims)) if (!dimKeys.includes(k)) dimKeys.push(k);
   const legacy = Object.keys(weights).length === 0 && Object.keys(concernLabels).length === 0 && !hasProfileNode;
   const bandNodeFor = (key) => nodeContents.find((c) => {
     const ins = c?.inputs || [];
@@ -4361,16 +4469,17 @@ function decompileJDMToVisualComponents(schemaStr) {
     return ins.length === 1 && ins[0]?.field === `dimension_scores.${key}` && outs.length === 1 && outs[0]?.field === `axis_values.${key.toUpperCase()}`;
   });
   const axes = dimKeys.map((key, i) => {
-    const df = fusion[key];
     const ac = axisCodes[key.toLowerCase()];
-    const fm = fieldMapping[key];
+    const bd = blend.dims[key];
     const bandNode = bandNodeFor(key);
     let bands;
     if (bandNode) {
+      const inId = bandNode.inputs?.[0]?.id ?? "in";
+      const outId = bandNode.outputs?.[0]?.id ?? "out";
       bands = (bandNode.rules || []).map((r, ri) => {
-        const range = parseRange(r.in);
+        const range = parseRange(r[inId]);
         if (!range) return null;
-        return { id: `${key}_b${ri}`, min: range.min, max: range.max, letter: clean(r.out) };
+        return { id: `${key}_b${ri}`, min: range.min, max: range.max, letter: clean(r[outId]) };
       }).filter(Boolean);
     } else if (ac && (ac.low || ac.high)) {
       const t = typeof ac.threshold === "number" ? ac.threshold : 50;
@@ -4379,7 +4488,6 @@ function decompileJDMToVisualComponents(schemaStr) {
         { id: `${key}_hi`, min: t, max: 100, letter: ac.high || "" }
       ];
     }
-    const inputComposition = df ? "weighted_blend" : fm ? "single_source" : void 0;
     return {
       id: `axis_${key}`,
       axisCode: key.toUpperCase(),
@@ -4387,12 +4495,8 @@ function decompileJDMToVisualComponents(schemaStr) {
       dimensionKey: key,
       weight: typeof weights[key] === "number" ? weights[key] : 1,
       concernLabel: concernLabels[key] || defaultConcernLabel(key),
-      inputComposition,
-      source: !df ? makeSource(fm?.form, "form") || makeSource(fm?.vision, "vision") : void 0,
-      formSource: df ? makeSource(fm?.form, "form") : void 0,
-      visionSource: df ? makeSource(fm?.vision, "vision") : void 0,
-      formWeight: df ? Math.round(df.form * 100) : 100,
-      visionWeight: df ? Math.round(df.vision * 100) : 0,
+      inputs: (bd?.inputs || []).map((i2) => ({ ...i2, label: i2.source === VISION_SOURCE ? visionFieldLabel(i2.field) : i2.field })),
+      required: bd?.required || [],
       bands,
       ...ac && (ac.low || ac.high) ? {
         axisCodeLow: ac.low || "",
@@ -4457,6 +4561,8 @@ function decompileJDMToVisualComponents(schemaStr) {
     profileConfig,
     scoreRangeBands: bandsFromSchema(parsed.score_range_bands, DEFAULT_SCORE_RANGE_BANDS, "sr"),
     severityBands: bandsFromSchema(parsed.severity_bands, DEFAULT_SEVERITY_BANDS, "sv"),
+    sources: blend.sources,
+    convertedBlend: blend.converted,
     legacy
   };
 }
@@ -4491,49 +4597,50 @@ function useVisionFields() {
   );
 }
 var fieldCls = "w-full h-8 rounded-md bg-muted/40 border border-border px-2.5 text-foreground text-xs outline-none focus:border-ring disabled:opacity-50";
-var SourcePicker = ({ label, origin, onOriginChange, value, onChange, disabled }) => {
+var FieldPicker = ({ source, field: field2, onChange, disabled }) => {
   const visionFields = useVisionFields();
-  return /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { children: [
-    /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "flex items-center justify-between mb-1", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("label", { className: "block text-[10px] font-semibold text-muted-foreground", children: label }),
-      onOriginChange && /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "flex gap-1", children: ["form", "vision"].map((o) => /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
-        "button",
-        {
-          type: "button",
-          disabled,
-          onClick: () => onOriginChange(o),
-          className: `px-1.5 py-0.5 rounded text-[9px] font-semibold border ${origin === o ? "border-beak bg-beak/10 text-beak" : "border-border text-muted-foreground"}`,
-          children: o
-        },
-        o
-      )) })
-    ] }),
-    origin === "form" ? /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+  if (source === FORM_SOURCE) {
+    return /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
       import_shared11.DimensionSelect,
       {
-        value: value?.fieldCode || "",
+        value: field2,
         disabled,
-        onChange: (code, meta) => onChange(code ? { origin: "form", fieldCode: code, label: meta?.name || code } : void 0),
+        onChange: (code, meta) => onChange(code || "", meta?.name || code || ""),
         label: ""
       }
-    ) : /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)(
+    );
+  }
+  if (source === VISION_SOURCE) {
+    const known = visionFields.some((f) => f.code === field2);
+    return /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)(
       "select",
       {
         disabled,
-        value: value?.fieldCode || "",
+        value: field2,
         onChange: (e) => {
           const code = e.target.value;
-          const meta = visionFields.find((f) => f.code === code);
-          onChange(code ? { origin: "vision", fieldCode: code, label: meta?.label || code } : void 0);
+          onChange(code, visionFields.find((f) => f.code === code)?.label || code);
         },
         className: fieldCls,
         children: [
-          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("option", { value: "", children: "\u2014 pilih field CV (dari ref_skin_conditions) \u2014" }),
-          visionFields.map((f) => /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("option", { value: f.code, children: f.label }, f.code))
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("option", { value: "", children: "\u2014 pick a CV field (ref_skin_conditions) \u2014" }),
+          field2 && !known && /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("option", { value: field2, children: field2 }),
+          visionFields.map((f) => /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("option", { value: f.code, children: f.label }, `${f.code}:${f.label}`))
         ]
       }
-    )
-  ] });
+    );
+  }
+  return /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+    "input",
+    {
+      type: "text",
+      disabled,
+      value: field2,
+      placeholder: `${source} field, e.g. its signal name`,
+      onChange: (e) => onChange(e.target.value.trim(), e.target.value.trim()),
+      className: fieldCls + " font-mono"
+    }
+  );
 };
 var ClinicalDimensionCard = ({
   axis,
@@ -4650,7 +4757,7 @@ var ClinicalDimensionCard = ({
           }
         )
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("p", { className: "text-[10px] text-muted-foreground italic", children: "How this axis's number is computed (form/vision source, blend %) and turned into a letter (bands) is set in the Blending tab, not here." })
+      /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("p", { className: "text-[10px] text-muted-foreground italic", children: "How this axis's number is computed (its sources and their weights) and turned into a letter (bands) is set in the Blending tab, not here." })
     ] })
   ] });
 };
@@ -4659,6 +4766,7 @@ var ClinicalAxisCard = ClinicalDimensionCard;
 // src/score/components/tabs/BlendingTab.tsx
 var import_jsx_runtime13 = require("react/jsx-runtime");
 var fieldCls2 = "h-8 rounded-md bg-muted/40 border border-border px-2.5 text-foreground text-xs outline-none focus:border-ring disabled:opacity-50";
+var SOURCE_NAME = /^[a-z][a-z0-9_]*$/;
 var BlendingTab = ({
   rulesets,
   selectedRuleset,
@@ -4667,9 +4775,9 @@ var BlendingTab = ({
 }) => {
   const activeRuleset = selectedRuleset || rulesets[0] || null;
   const [axes, setAxes] = (0, import_react11.useState)([]);
-  const [profileConfig, setProfileConfig] = (0, import_react11.useState)(null);
-  const [scoreRangeBands, setScoreRangeBands] = (0, import_react11.useState)(null);
-  const [severityBands, setSeverityBands] = (0, import_react11.useState)(null);
+  const [sources, setSources] = (0, import_react11.useState)({});
+  const [loaded, setLoaded] = (0, import_react11.useState)(null);
+  const [newSource, setNewSource] = (0, import_react11.useState)("");
   const [isSaving, setIsSaving] = (0, import_react11.useState)(false);
   const [saveSuccess, setSaveSuccess] = (0, import_react11.useState)(false);
   const [saveError, setSaveError] = (0, import_react11.useState)(null);
@@ -4677,24 +4785,34 @@ var BlendingTab = ({
     if (activeRuleset && activeRuleset.schema) {
       try {
         const decompiled = decompileJDMToVisualComponents(activeRuleset.schema);
+        setLoaded(decompiled);
         setAxes(decompiled.axes);
-        setProfileConfig(decompiled.profileConfig);
-        setScoreRangeBands(decompiled.scoreRangeBands);
-        setSeverityBands(decompiled.severityBands);
+        setSources(decompiled.sources);
         setSaveError(null);
       } catch (err) {
         setSaveError("Could not read this ruleset: " + (err instanceof Error ? err.message : "invalid schema"));
       }
     }
   }, [activeRuleset]);
+  const problems = (0, import_react11.useMemo)(() => validateBlend(sources, axes), [sources, axes]);
+  const usedSources = (0, import_react11.useMemo)(() => new Set(axes.flatMap((a) => (a.inputs || []).map((i) => i.source))), [axes]);
+  const sourceNames = Object.keys(sources);
   const updateAxis = (id, patch) => setAxes((prev) => prev.map((a) => a.id === id ? { ...a, ...patch } : a));
+  const updateSource = (name, patch) => setSources((prev) => ({ ...prev, [name]: { ...prev[name], ...patch } }));
+  const addSource = () => {
+    const name = newSource.trim();
+    if (!SOURCE_NAME.test(name) || sources[name]) return;
+    setSources((prev) => ({ ...prev, [name]: { scale: [NaN, NaN], direction: "" } }));
+    setNewSource("");
+  };
+  const removeSource = (name) => setSources((prev) => Object.fromEntries(Object.entries(prev).filter(([n]) => n !== name)));
   const handleSave = async () => {
-    if (!activeRuleset || !profileConfig || !scoreRangeBands || !severityBands) return;
+    if (!activeRuleset || !loaded || problems.length > 0) return;
     setIsSaving(true);
     setSaveSuccess(false);
     setSaveError(null);
     try {
-      const updatedSchema = compileVisualToJDM(axes, profileConfig, scoreRangeBands, severityBands, activeRuleset.schema);
+      const updatedSchema = compileVisualToJDM(axes, loaded.profileConfig, loaded.scoreRangeBands, loaded.severityBands, activeRuleset.schema, sources);
       await onSaveRuleset({
         id: activeRuleset.id,
         code: activeRuleset.code,
@@ -4703,12 +4821,14 @@ var BlendingTab = ({
         brandId: activeRuleset.brandId,
         applicationId: activeRuleset.applicationId,
         status: activeRuleset.status,
+        // Core's update replaces the whole row, so leaving the version out reset it to 0.
+        version: activeRuleset.version,
         schema: updatedSchema
       });
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3e3);
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : "Failed to save blending weights");
+      setSaveError(err instanceof Error ? err.message : "Failed to save blending");
     } finally {
       setIsSaving(false);
     }
@@ -4754,12 +4874,94 @@ var BlendingTab = ({
           /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(import_lucide_react11.Check, { className: "h-3.5 w-3.5" }),
           "Saved"
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(import_shared12.Button, { variant: "primary", size: "sm", onClick: handleSave, isLoading: isSaving, children: isSaving ? "Saving\u2026" : "Save blending" })
+        /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(import_shared12.Button, { variant: "primary", size: "sm", onClick: handleSave, isLoading: isSaving, disabled: problems.length > 0, children: isSaving ? "Saving\u2026" : "Save blending" })
       ] })
     ] }),
-    saveError && /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "p-3 rounded-md border border-destructive/40 bg-destructive/10 text-xs text-destructive flex items-center gap-2", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(import_lucide_react11.AlertTriangle, { className: "h-4 w-4 shrink-0" }),
-      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { children: saveError })
+    saveError && /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "p-3 rounded-md border border-destructive/40 bg-destructive/10 text-xs text-destructive flex items-start gap-2", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(import_lucide_react11.AlertTriangle, { className: "h-4 w-4 shrink-0 mt-0.5" }),
+      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "break-words", children: saveError })
+    ] }),
+    loaded?.convertedBlend && /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "p-3 rounded-md border border-border bg-muted/30 text-[11px] text-muted-foreground flex items-start gap-2", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(import_lucide_react11.Info, { className: "h-4 w-4 shrink-0 mt-0.5" }),
+      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { children: "This ruleset uses the old form/vision blend. It is shown here converted to sources, the way the engine reads it today; saving stores it in the new format with the same scores." })
+    ] }),
+    problems.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "p-3 rounded-md border border-amber-500/40 bg-amber-500/10 text-[11px] text-amber-700 dark:text-amber-300 space-y-0.5", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "font-semibold flex items-center gap-1.5", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(import_lucide_react11.AlertTriangle, { className: "h-3.5 w-3.5" }),
+        "Fix before saving \u2014 the engine would refuse:"
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("ul", { className: "list-disc pl-5", children: problems.map((p) => /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("li", { children: p }, p)) })
+    ] }),
+    /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "rounded-lg border border-border bg-card p-4 space-y-3", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "flex items-center gap-1.5", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("h3", { className: "text-sm font-bold text-foreground", children: "Sources" }),
+        /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+          import_shared12.InfoTooltip,
+          {
+            content: "Each kind of signal a dimension can be scored from, and how to read its raw values: the scale they arrive on and whether higher means worse (concern) or better (health). The engine turns every input into 0-100 concern before blending.",
+            label: "About sources"
+          }
+        )
+      ] }),
+      sourceNames.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("p", { className: "text-[11px] text-muted-foreground italic", children: "No sources declared yet." }),
+      sourceNames.map((name) => {
+        const s = sources[name];
+        const scale = s.scale || [NaN, NaN];
+        const num = (v) => Number.isFinite(v) ? v : "";
+        return /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "flex flex-wrap items-center gap-2", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "w-24 truncate font-mono text-xs font-semibold text-foreground", children: name }),
+          /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("label", { className: "flex items-center gap-1 text-[10px] text-muted-foreground", children: [
+            "scale",
+            /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("input", { type: "number", value: num(scale[0]), onChange: (e) => updateSource(name, { scale: [e.target.value === "" ? NaN : Number(e.target.value), scale[1]] }), className: fieldCls2 + " w-20 text-center", "aria-label": `${name} scale minimum` }),
+            "\u2013",
+            /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("input", { type: "number", value: num(scale[1]), onChange: (e) => updateSource(name, { scale: [scale[0], e.target.value === "" ? NaN : Number(e.target.value)] }), className: fieldCls2 + " w-20 text-center", "aria-label": `${name} scale maximum` })
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("select", { value: s.direction || "", onChange: (e) => updateSource(name, { direction: e.target.value }), className: fieldCls2, "aria-label": `${name} direction`, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("option", { value: "", children: "\u2014 direction \u2014" }),
+            /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("option", { value: "concern", children: "concern (higher = worse)" }),
+            /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("option", { value: "health", children: "health (higher = better)" })
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+            "button",
+            {
+              type: "button",
+              onClick: () => removeSource(name),
+              disabled: usedSources.has(name),
+              title: usedSources.has(name) ? "Used by a dimension \u2014 remove it there first" : "Remove source",
+              className: "p-1 text-muted-foreground hover:text-destructive disabled:opacity-30 disabled:hover:text-muted-foreground",
+              children: /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(import_lucide_react11.Trash2, { className: "h-3.5 w-3.5" })
+            }
+          )
+        ] }, name);
+      }),
+      /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "flex items-center gap-2 pt-1", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+          "input",
+          {
+            type: "text",
+            value: newSource,
+            onChange: (e) => setNewSource(e.target.value.toLowerCase()),
+            onKeyDown: (e) => {
+              if (e.key === "Enter") addSource();
+            },
+            placeholder: "new source, e.g. device",
+            className: fieldCls2 + " w-48 font-mono"
+          }
+        ),
+        /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(
+          "button",
+          {
+            type: "button",
+            onClick: addSource,
+            disabled: !SOURCE_NAME.test(newSource.trim()) || !!sources[newSource.trim()],
+            className: "flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground border border-border rounded disabled:opacity-40",
+            children: [
+              /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(import_lucide_react11.Plus, { className: "h-3 w-3" }),
+              "Add source"
+            ]
+          }
+        )
+      ] })
     ] }),
     /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "rounded-lg border border-border bg-card p-4 space-y-1", children: [
       /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "flex items-center gap-1.5", children: [
@@ -4767,74 +4969,92 @@ var BlendingTab = ({
         /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
           import_shared12.InfoTooltip,
           {
-            content: "For each dimension, how much of its score comes from the questionnaire (form) vs. vision (camera analysis). Only applies once vision_signals is sent for that dimension \u2014 a form-only dimension with no matching vision_signals key ignores this and stays 100% form regardless of the slider.",
+            content: "For each dimension, which sources its score comes from and how much each counts. Weights must add up to 100%. When a source does not arrive (e.g. no photo), its weight is shared among the ones that did; a dimension missing a required source, or every source, is not scored.",
             label: "About blending"
           }
         )
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("p", { className: "text-[11px] text-muted-foreground", children: "e.g. set Sebum to 0% form / 100% vision to trust vision fully for that dimension." })
+      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("p", { className: "text-[11px] text-muted-foreground", children: "e.g. Sebum: form 30%, vision 50%, device 20%." })
     ] }),
     /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "rounded-lg border border-border bg-card divide-y divide-border", children: [
       axes.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("div", { className: "p-6 text-center text-xs text-muted-foreground italic", children: "This ruleset has no dimensions yet \u2014 add some in Skin Grading first." }),
       axes.map((axis) => {
-        const formW = axis.formWeight ?? 50;
-        const composition = axis.inputComposition || (axis.source ? "single_source" : axis.formSource || axis.visionSource ? "weighted_blend" : "single_source");
-        const singleOrigin = axis.source?.origin || "form";
+        const inputs = axis.inputs || [];
+        const required = axis.required || [];
         const bands = axis.bands || [];
+        const sum = inputs.reduce((s, i) => s + (typeof i.weight === "number" && Number.isFinite(i.weight) ? i.weight : 0), 0);
+        const sumOk = Math.abs(sum / 100 - 1) <= WEIGHT_SUM_TOLERANCE;
+        const free = sourceNames.filter((n) => !inputs.some((i) => i.source === n));
+        const setInputs = (next) => updateAxis(axis.id, { inputs: next, required: required.filter((r) => next.some((i) => i.source === r)) });
+        const updateInput = (idx, patch) => setInputs(inputs.map((i, j) => j === idx ? { ...i, ...patch } : i));
+        const addInput = () => free.length > 0 && setInputs([...inputs, { source: free[0], field: "", weight: void 0 }]);
+        const toggleRequired = (src) => updateAxis(axis.id, { required: required.includes(src) ? required.filter((r) => r !== src) : [...required, src] });
         const updateBand = (id, patch) => updateAxis(axis.id, { bands: bands.map((b) => b.id === id ? { ...b, ...patch } : b) });
         const addBand = () => updateAxis(axis.id, { bands: [...bands, { id: `b_${Date.now()}`, min: 0, max: 100, letter: "" }] });
         const removeBand = (id) => updateAxis(axis.id, { bands: bands.filter((b) => b.id !== id) });
         return /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "p-3.5 space-y-3", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "text-sm font-semibold text-foreground block", children: axis.name || axis.dimensionKey.toUpperCase() }),
-          /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("div", { className: "flex items-center gap-1.5 bg-muted/40 p-1 rounded-md border border-border w-fit", children: ["single_source", "weighted_blend"].map((c) => /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "flex items-center justify-between gap-2", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "text-sm font-semibold text-foreground", children: axis.name || axis.dimensionKey.toUpperCase() }),
+            inputs.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("span", { className: `text-[11px] font-semibold tabular-nums ${sumOk ? "text-muted-foreground" : "text-destructive"}`, children: [
+              Math.round(sum * 100) / 100,
+              "% ",
+              sumOk ? "" : "\u2014 must be 100%"
+            ] }) : /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "text-[11px] text-amber-700 dark:text-amber-300", children: "No inputs \u2014 this dimension is not scored" })
+          ] }),
+          inputs.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "space-y-1.5", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "grid grid-cols-[7rem_1fr_5rem_4.5rem_1.5rem] gap-2 text-[10px] font-semibold text-muted-foreground", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { children: "Source" }),
+              /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { children: "Field" }),
+              /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "text-center", children: "Weight %" }),
+              /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "text-center", children: "Required" }),
+              /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", {})
+            ] }),
+            inputs.map((inp, idx) => /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "grid grid-cols-[7rem_1fr_5rem_4.5rem_1.5rem] items-center gap-2", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+                "select",
+                {
+                  value: inp.source,
+                  onChange: (e) => updateInput(idx, { source: e.target.value, field: "", label: "" }),
+                  className: fieldCls2 + " font-mono",
+                  "aria-label": "Source",
+                  children: [inp.source, ...free].filter((n, i, a) => a.indexOf(n) === i).map((n) => /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("option", { value: n, children: [
+                    n,
+                    sources[n] ? "" : " (undeclared)"
+                  ] }, n))
+                }
+              ),
+              /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(FieldPicker, { source: inp.source, field: inp.field, onChange: (field2, label) => updateInput(idx, { field: field2, label }) }),
+              /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+                "input",
+                {
+                  type: "number",
+                  min: 0,
+                  max: 100,
+                  step: 1,
+                  value: typeof inp.weight === "number" && Number.isFinite(inp.weight) ? inp.weight : "",
+                  onChange: (e) => updateInput(idx, { weight: e.target.value === "" ? void 0 : Number(e.target.value) }),
+                  className: fieldCls2 + " text-center tabular-nums",
+                  "aria-label": `${inp.source} weight percent`
+                }
+              ),
+              /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("label", { className: "flex justify-center", children: /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("input", { type: "checkbox", checked: required.includes(inp.source), onChange: () => toggleRequired(inp.source), "aria-label": `${inp.source} required` }) }),
+              /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("button", { type: "button", onClick: () => setInputs(inputs.filter((_, j) => j !== idx)), className: "p-1 text-muted-foreground hover:text-destructive", "aria-label": `Remove ${inp.source}`, children: /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(import_lucide_react11.Trash2, { className: "h-3.5 w-3.5" }) })
+            ] }, `${inp.source}-${idx}`))
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(
             "button",
             {
               type: "button",
-              onClick: () => updateAxis(axis.id, { inputComposition: c }),
-              className: `px-2.5 py-1 rounded text-[11px] font-semibold transition-colors ${composition === c ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`,
-              children: c === "single_source" ? "Single source" : "Weighted blend"
-            },
-            c
-          )) }),
-          composition === "single_source" ? /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
-            SourcePicker,
-            {
-              label: "Sumber",
-              origin: singleOrigin,
-              onOriginChange: (o) => updateAxis(axis.id, { source: axis.source ? { ...axis.source, origin: o, fieldCode: "" } : { origin: o, fieldCode: "", label: "" } }),
-              value: axis.source,
-              onChange: (source) => updateAxis(axis.id, { source })
+              onClick: addInput,
+              disabled: free.length === 0,
+              title: free.length === 0 ? "Every declared source is already an input; declare another above" : void 0,
+              className: "flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground border border-border rounded disabled:opacity-40",
+              children: [
+                /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(import_lucide_react11.Plus, { className: "h-3 w-3" }),
+                "Add input"
+              ]
             }
-          ) : /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "space-y-2", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "flex items-center justify-between text-[11px]", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("span", { className: "text-foreground", children: [
-                "Form ",
-                formW,
-                "%"
-              ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("span", { className: "text-muted-foreground", children: [
-                "Vision ",
-                100 - formW,
-                "%"
-              ] })
-            ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
-              "input",
-              {
-                type: "range",
-                min: 0,
-                max: 100,
-                step: 5,
-                value: formW,
-                onChange: (e) => updateAxis(axis.id, { formWeight: Number(e.target.value) }),
-                className: "w-full h-1.5 rounded appearance-none cursor-pointer bg-muted accent-[#d97706]"
-              }
-            ),
-            /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "grid grid-cols-2 gap-2", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(SourcePicker, { label: "Form source", origin: "form", value: axis.formSource, onChange: (source) => updateAxis(axis.id, { formSource: source }) }),
-              /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(SourcePicker, { label: "Vision source", origin: "vision", value: axis.visionSource, onChange: (source) => updateAxis(axis.id, { visionSource: source }) })
-            ] })
-          ] }),
+          ),
           /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "pt-2 border-t border-border space-y-1.5", children: [
             /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "flex items-center gap-1.5", children: [
               /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("label", { className: "block text-[10px] font-semibold text-muted-foreground", children: "Bands (axis & threshold)" }),
@@ -4898,12 +5118,6 @@ function safetyFlagsFromSurveys(surveys, surveyCode) {
 var import_jsx_runtime14 = require("react/jsx-runtime");
 var card = "rounded-lg border border-border bg-card p-4";
 var sliderCls = "w-full h-1.5 rounded appearance-none cursor-pointer bg-muted accent-[#d97706]";
-var sourceLabel = {
-  form: "Form",
-  vision: "Vision",
-  blend: "Blend",
-  none: "No data"
-};
 var ScoreSimulatorTab = ({
   rulesets,
   selectedRuleset,
@@ -4919,7 +5133,7 @@ var ScoreSimulatorTab = ({
         ...Object.keys(s.dimension_weights || {}),
         ...Object.keys(s.concern_labels || {}),
         ...Object.keys(s.axis_codes || {}),
-        ...Object.keys(s.field_mapping || {})
+        ...Object.keys(readBlend(s).dims)
       ]);
       for (const node of s.nodes || []) {
         if (node?.type !== "decisionTableNode") continue;
@@ -4936,19 +5150,27 @@ var ScoreSimulatorTab = ({
       return [];
     }
   }, [activeRuleset]);
-  const fieldMapping = (0, import_react12.useMemo)(() => {
+  const blend = (0, import_react12.useMemo)(() => {
     try {
-      return JSON.parse(activeRuleset?.schema || "{}").field_mapping || {};
+      return readBlend(JSON.parse(activeRuleset?.schema || "{}"), rulesetDims);
     } catch {
-      return {};
+      return readBlend({});
     }
-  }, [activeRuleset]);
-  const ageAxisKeys = (0, import_react12.useMemo)(() => rulesetDims.filter((d) => fieldMapping[d]?.form === "age_over_30"), [rulesetDims, fieldMapping]);
-  const formDims = (0, import_react12.useMemo)(
-    () => rulesetDims.filter((d) => !ageAxisKeys.includes(d) && (fieldMapping[d]?.form || !fieldMapping[d]?.vision)),
-    [rulesetDims, fieldMapping, ageAxisKeys]
+  }, [activeRuleset, rulesetDims]);
+  const fieldOf = (0, import_react12.useCallback)(
+    (d, source) => blend.dims[d]?.inputs.find((i) => i.source === source)?.field,
+    [blend]
   );
-  const visionDims = (0, import_react12.useMemo)(() => rulesetDims.filter((d) => fieldMapping[d]?.vision), [rulesetDims, fieldMapping]);
+  const ageAxisKeys = (0, import_react12.useMemo)(() => rulesetDims.filter((d) => fieldOf(d, FORM_SOURCE) === AGE_FIELD), [rulesetDims, fieldOf]);
+  const formDims = (0, import_react12.useMemo)(
+    () => rulesetDims.filter((d) => !ageAxisKeys.includes(d) && !!fieldOf(d, FORM_SOURCE)),
+    [rulesetDims, fieldOf, ageAxisKeys]
+  );
+  const visionDims = (0, import_react12.useMemo)(() => rulesetDims.filter((d) => !!fieldOf(d, VISION_SOURCE)), [rulesetDims, fieldOf]);
+  const otherSources = (0, import_react12.useMemo)(
+    () => Array.from(new Set(Object.values(blend.dims).flatMap((d) => d.inputs.map((i) => i.source)))).filter((s) => s !== FORM_SOURCE && s !== VISION_SOURCE),
+    [blend]
+  );
   const [questionnaireValues, setQuestionnaireValues] = (0, import_shared13.usePersistentState)(
     "xg.scoreEngine.simulator.questionnaireValues",
     {}
@@ -5071,6 +5293,8 @@ var ScoreSimulatorTab = ({
   }, [runSimulation]);
   const result = simResponse?.result;
   const dimensions = result?.dimensions || {};
+  const breakdown = result?.dimension_breakdown || {};
+  const breakdownKeys = Array.from(/* @__PURE__ */ new Set([...Object.keys(dimensions), ...Object.keys(breakdown)]));
   const skinProfile = result?.skin_profile;
   const subClassification = result?.sub_classification || {};
   const warnings = result?.warnings || [];
@@ -5192,6 +5416,11 @@ var ScoreSimulatorTab = ({
           ] })
         ] }, dimKey)) })
       ] }),
+      otherSources.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: card + " text-[11px] text-muted-foreground", children: [
+        "The simulator cannot send ",
+        /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "font-mono", children: otherSources.join(", ") }),
+        " yet, so those inputs count as missing and their weight is shared among the sources above."
+      ] }),
       /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: card + " space-y-2", children: [
         /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("h3", { className: "text-sm font-bold text-foreground", children: "Safety flags" }),
         /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("div", { className: "grid grid-cols-2 gap-2 text-xs", children: Object.entries(selectedConditions).map(([key, isChecked]) => /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(
@@ -5279,36 +5508,39 @@ var ScoreSimulatorTab = ({
           ] }, k))
         ] })
       ] }),
-      Object.keys(dimensions).length > 0 && /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: card, children: [
+      breakdownKeys.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: card, children: [
         /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("h3", { className: "text-sm font-bold text-foreground mb-3", children: "Dimension breakdown" }),
-        /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("div", { className: "space-y-2", children: Object.entries(dimensions).map(([dimKey, d]) => /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(
-          "div",
-          {
-            className: "rounded-md border border-border bg-muted/20 p-2.5 flex items-center justify-between text-xs gap-2",
-            children: [
-              /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "min-w-0", children: [
-                /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("div", { className: "text-foreground font-semibold truncate", children: dimKey }),
-                /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "text-muted-foreground text-[10px]", children: [
-                  sourceLabel[d.source] || d.source,
-                  d.source === "blend" && d.weight ? ` (form ${Math.round(d.weight.form * 100)}% / vision ${Math.round(d.weight.vision * 100)}%)` : ""
-                ] })
-              ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "flex items-center gap-3 shrink-0 font-mono", children: [
-                /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("span", { className: "text-muted-foreground text-[10px]", title: "form_score", children: [
-                  "F ",
-                  d.form_score ?? "\u2014"
-                ] }),
-                /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("span", { className: "text-muted-foreground text-[10px]", title: "vision_score", children: [
-                  "V ",
-                  d.vision_score ?? "\u2014"
-                ] }),
-                /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "text-beak font-semibold", title: "final_score", children: d.final_score ?? "\u2014" }),
-                d.axis && /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "text-foreground font-semibold bg-card border border-border rounded px-1.5 py-0.5", children: d.axis })
+        /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("div", { className: "space-y-2", children: breakdownKeys.map((dimKey) => {
+          const d = dimensions[dimKey];
+          const b = breakdown[dimKey];
+          const contributions = Object.entries(b?.contributions || d?.contributions || {}).sort((x, y) => y[1].weight - x[1].weight);
+          const missing = b?.missing || d?.missing || [];
+          const scored = b ? b.scored : d?.scored !== false && d?.final_score !== null;
+          const finalScore = d?.final_score ?? b?.score;
+          return /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "rounded-md border border-border bg-muted/20 p-2.5 text-xs space-y-1.5", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "flex items-center justify-between gap-2", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("div", { className: "text-foreground font-semibold truncate", children: dimKey }),
+              /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "flex items-center gap-2 shrink-0 font-mono", children: [
+                scored ? /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "text-beak font-semibold", title: "final score (100 = healthy)", children: typeof finalScore === "number" ? Math.round(finalScore * 10) / 10 : "\u2014" }) : /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "text-muted-foreground text-[11px] font-sans", children: "Not scored" }),
+                d?.axis && /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "text-foreground font-semibold bg-card border border-border rounded px-1.5 py-0.5", children: d.axis })
               ] })
-            ]
-          },
-          dimKey
-        )) })
+            ] }),
+            contributions.map(([src, c]) => /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "flex items-center gap-2 text-[10px]", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "w-16 truncate font-mono text-muted-foreground", children: src }),
+              /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "h-1.5 flex-1 overflow-hidden rounded-full bg-muted", children: /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "block h-full rounded-full bg-beak", style: { width: `${Math.max(0, Math.min(1, c.weight)) * 100}%` } }) }),
+              /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("span", { className: "w-10 text-right font-mono text-muted-foreground", children: [
+                Math.round(c.weight * 1e3) / 10,
+                "%"
+              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "w-10 text-right font-mono text-foreground", children: Math.round(c.score * 10) / 10 })
+            ] }, src)),
+            missing.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "text-[10px] text-amber-600 dark:text-amber-400", children: [
+              "Missing: ",
+              missing.join(", ")
+            ] }),
+            !scored && (b?.reason || d?.reason) && /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("div", { className: "text-[10px] text-muted-foreground", children: b?.reason || d?.reason })
+          ] }, dimKey);
+        }) })
       ] })
     ] })
   ] });
@@ -6000,6 +6232,8 @@ var RulesetModal = ({
         brandId,
         applicationId,
         status,
+        // Core's update replaces the whole row, so leaving the version out reset it to 0.
+        ...editingRuleset ? { version: editingRuleset.version } : {},
         schema: withSetupFields(compileVisualToJDM(axes, profileConfig, scoreRangeBands, severityBands, editingRuleset?.schema))
       });
       onClose();

@@ -54,7 +54,12 @@ interface JDMDecisionModel {
     edges: JDMEdge[];
     /** Per-dimension rollup weight for the weighted-mean total_score. Keyed by dimensionKey. */
     dimension_weights?: Record<string, number>;
-    /** Per-dimension form-vs-vision blend, applied only when camera analysis is enabled. */
+    /** The input sources this ruleset blends, and how to read each one's raw values. */
+    sources?: Record<string, SourceSpec>;
+    /** Per dimension: which field of each source feeds it, and with what weight (summing to 1). */
+    dimension_inputs?: Record<string, DimensionInputs>;
+    /** @deprecated Legacy two-source blend, read only (core reads it as sources
+     *  form/vision when `sources` is absent). The editor saves `dimension_inputs`. */
     dimension_fusion?: Record<string, {
         form: number;
         vision: number;
@@ -80,15 +85,28 @@ interface JDMDecisionModel {
         low: string;
         high: string;
     }>;
-    /** Documents, per axis, which registered form dimension and/or vision field
-     *  its number actually comes from (e.g. pigmentation <- form "pigmentation"
-     *  + vision "score_darkspot"). Not read by the engine — this is the spec an
-     *  orchestrator reads to know how to build a /evaluate request's dimensions[]
-     *  and vision_signals from a raw vendor response and form answers. */
+    /** @deprecated Legacy two-source input mapping, read only (core reads it,
+     *  with dimension_fusion, when `sources` is absent). The editor saves
+     *  `dimension_inputs`. */
     field_mapping?: Record<string, {
         form?: string;
         vision?: string;
     }>;
+}
+/** How to read a source's raw values: `concern` = higher is worse, `health` = higher is better. */
+type SourceDirection = 'concern' | 'health';
+/** One input source of a ruleset: its value range and direction. Core
+ *  normalises every input to 0-100 concern from these before blending. */
+interface SourceSpec {
+    scale: [number, number];
+    direction: SourceDirection;
+}
+/** One dimension's inputs as core reads them: weights > 0, summing to 1. */
+interface DimensionInputs {
+    inputs: Record<string, string>;
+    weights: Record<string, number>;
+    /** Sources without which the dimension is not scored. */
+    required?: string[];
 }
 /** Defaults used when a ruleset carries no overrides. Health-oriented: the
  *  score climbs from 0 (critical) to 100 (optimal). */
@@ -104,18 +122,6 @@ interface VisualSeverityTier {
     severity: 'optimal' | 'mild' | 'moderate' | 'severe' | 'critical';
     trait: string;
 }
-/** Where one axis's number comes from at evaluate-time. Always a registered
- *  catalog entry — never free text — so the picker in the UI and the
- *  field_mapping this compiles to both stay meaningful: 'form' references a
- *  reference-service dimension code (Q1-Q6, or a DOB-derived one like
- *  age_over_30 — DOB is still fundamentally a questionnaire answer, just
- *  from a different form than Q1-Q6); 'vision' references a known CV output
- *  field (see KNOWN_VISION_FIELDS). */
-interface InputSource {
-    origin: 'form' | 'vision';
-    fieldCode: string;
-    label: string;
-}
 /** One health-oriented (100 = optimal) score range mapped to an axis letter.
  *  Bands must be ordered, non-overlapping, and cover 0-100 with no gaps —
  *  an axis with exactly 2 bands compiles to a plain axis_codes threshold;
@@ -127,6 +133,15 @@ interface ThresholdBand {
     max: number;
     letter: string;
 }
+/** One source feeding an axis. `weight` is a percentage (0-100); an axis's
+ *  weights must add up to 100. Left undefined when a legacy ruleset gave none,
+ *  so the gap shows instead of being filled in. */
+interface AxisInput {
+    source: string;
+    field: string;
+    label?: string;
+    weight?: number;
+}
 interface VisualAxisConfig {
     id: string;
     axisCode: string;
@@ -136,20 +151,14 @@ interface VisualAxisConfig {
     weight: number;
     /** Clinical concern name shown when this dimension is the dominant concern. */
     concernLabel?: string;
-    /** How this axis's one number is produced before banding. */
-    inputComposition?: 'single_source' | 'weighted_blend';
-    /** Used when inputComposition = 'single_source'. */
-    source?: InputSource;
-    /** Used when inputComposition = 'weighted_blend'. formWeight is 0-100;
-     *  vision gets the remainder. */
-    formWeight?: number;
-    formSource?: InputSource;
-    visionSource?: InputSource;
+    /** Where this axis's number comes from: one row per source. One row is a
+     *  single source; several are blended by their weights. */
+    inputs?: AxisInput[];
+    /** Sources without which this dimension is not scored. */
+    required?: string[];
     /** Ordered bands turning the composed number into a letter. 2 bands ->
      *  axis_codes; 3+ -> a decisionTableNode. */
     bands?: ThresholdBand[];
-    /** @deprecated superseded by formSource/visionSource + bands. */
-    visionWeight?: number;
     /** @deprecated superseded by `bands`. */
     axisCodeLow?: string;
     axisCodeHigh?: string;
@@ -188,18 +197,42 @@ interface RulesetSimulationRequest {
     age_years?: number;
     customer_condition?: Record<string, boolean>;
 }
+/** One source's part in a dimension score (health space, 100 = healthy);
+ *  `weight` is the weight applied after missing sources were re-shared. */
+interface SourceContribution {
+    score: number;
+    weight: number;
+}
 /** Mirrors the Go domain.DimensionBreakdown / SkinProfileV2 (stage2Score's
  *  shared output shape — identical for /evaluate and /simulate). */
 interface DimensionBreakdown {
-    source: 'form' | 'vision' | 'blend' | 'none';
-    form_score: number | null;
-    vision_score: number | null;
+    scored?: boolean;
+    contributions?: Record<string, SourceContribution>;
+    /** Sources this dimension maps that did not arrive. */
+    missing?: string[];
+    /** Why it was not scored. */
+    reason?: string;
+    final_score: number | null;
+    axis: string | null;
+    /** @deprecated two-source fields; use contributions. */
+    source?: 'form' | 'vision' | 'blend' | 'none';
+    /** @deprecated */
+    form_score?: number | null;
+    /** @deprecated */
+    vision_score?: number | null;
+    /** @deprecated */
     weight?: {
         form: number;
         vision: number;
     };
-    final_score: number | null;
-    axis: string | null;
+}
+/** The N-source breakdown every scoring response carries, per dimension. */
+interface DimensionBlend {
+    scored: boolean;
+    score?: number;
+    contributions: Record<string, SourceContribution>;
+    missing: string[];
+    reason?: string;
 }
 interface SkinProfileV2 {
     code: string;
@@ -215,6 +248,7 @@ interface RulesetSimulationResponse {
     result?: {
         total_score?: number;
         dimensions?: Record<string, DimensionBreakdown>;
+        dimension_breakdown?: Record<string, DimensionBlend>;
         skin_profile?: SkinProfileV2;
         sub_classification?: Record<string, unknown>;
         warnings?: string[];
@@ -303,12 +337,20 @@ declare function compileVisualToJDM(axes: VisualAxisConfig[], profileConfig?: Vi
  *  node with no axis_values output (Pore Severity writes to
  *  sub_classification, not a 4-letter code) that this editor has no way
  *  to represent yet. Without this, saving silently deletes it. */
-existingSchema?: string): string;
+existingSchema?: string, 
+/** The ruleset's sources. Omitted (e.g. the Skin Grading editor, which does
+ *  not edit them): the existing schema's, or its legacy pair when it is
+ *  being converted. */
+sources?: Record<string, SourceSpec>): string;
 interface DecompiledGrading {
     axes: VisualAxisConfig[];
     profileConfig: VisualProfileMappingConfig;
     scoreRangeBands: VisualBand[];
     severityBands: VisualBand[];
+    /** The ruleset's input sources (the legacy pair for a ruleset being converted). */
+    sources: Record<string, SourceSpec>;
+    /** true: the blend was read from legacy keys; saving rewrites it in the new shape. */
+    convertedBlend: boolean;
     /** True when the schema had content but carried none of the Phase-2 markers
      *  (dimension_weights / concern_labels / a skin_profile.* node). The editor
      *  shows best-effort defaults and a warning: saving rewrites it to the new

@@ -56,7 +56,12 @@ export interface JDMDecisionModel {
   edges: JDMEdge[];
   /** Per-dimension rollup weight for the weighted-mean total_score. Keyed by dimensionKey. */
   dimension_weights?: Record<string, number>;
-  /** Per-dimension form-vs-vision blend, applied only when camera analysis is enabled. */
+  /** The input sources this ruleset blends, and how to read each one's raw values. */
+  sources?: Record<string, SourceSpec>;
+  /** Per dimension: which field of each source feeds it, and with what weight (summing to 1). */
+  dimension_inputs?: Record<string, DimensionInputs>;
+  /** @deprecated Legacy two-source blend, read only (core reads it as sources
+   *  form/vision when `sources` is absent). The editor saves `dimension_inputs`. */
   dimension_fusion?: Record<string, { form: number; vision: number }>;
   /** Clinical concern name per dimension, surfaced when it is the dominant concern. */
   concern_labels?: Record<string, string>;
@@ -69,13 +74,49 @@ export interface JDMDecisionModel {
    *  ? high : low` instead of the Score-Range initial. Also written for any
    *  axis with exactly 2 bands (a >2-band axis instead gets a decisionTableNode). */
   axis_codes?: Record<string, { threshold: number; low: string; high: string }>;
-  /** Documents, per axis, which registered form dimension and/or vision field
-   *  its number actually comes from (e.g. pigmentation <- form "pigmentation"
-   *  + vision "score_darkspot"). Not read by the engine — this is the spec an
-   *  orchestrator reads to know how to build a /evaluate request's dimensions[]
-   *  and vision_signals from a raw vendor response and form answers. */
+  /** @deprecated Legacy two-source input mapping, read only (core reads it,
+   *  with dimension_fusion, when `sources` is absent). The editor saves
+   *  `dimension_inputs`. */
   field_mapping?: Record<string, { form?: string; vision?: string }>;
 }
+
+/** How to read a source's raw values: `concern` = higher is worse, `health` = higher is better. */
+export type SourceDirection = 'concern' | 'health';
+
+/** One input source of a ruleset: its value range and direction. Core
+ *  normalises every input to 0-100 concern from these before blending. */
+export interface SourceSpec {
+  scale: [number, number];
+  direction: SourceDirection;
+}
+
+/** One dimension's inputs as core reads them: weights > 0, summing to 1. */
+export interface DimensionInputs {
+  inputs: Record<string, string>;
+  weights: Record<string, number>;
+  /** Sources without which the dimension is not scored. */
+  required?: string[];
+}
+
+/** The two sources a legacy ruleset (field_mapping + dimension_fusion, no
+ *  `sources`) converts to without changing a score, as core specified them
+ *  (Core session, 2026-10-04): form arrives 0-100 in concern space; vision's
+ *  vendor fields are 0-100 in HEALTH space (legacy code inverted them before
+ *  blending; the new shape passes them raw, so the direction says so). A fact
+ *  about the legacy format, not a default for new sources. */
+export const LEGACY_SOURCES: Readonly<Record<'form' | 'vision', SourceSpec>> = {
+  form: { scale: [0, 100], direction: 'concern' },
+  vision: { scale: [0, 100], direction: 'health' },
+};
+
+/** The form field fed by date of birth rather than an answer; a legacy
+ *  field_mapping.form naming it is the one form mapping core actually read. */
+export const AGE_FIELD = 'age_over_30';
+
+/** The sources whose fields have a registered catalog to pick from. Any other
+ *  declared source (a device, a lab) names its fields directly. */
+export const FORM_SOURCE = 'form';
+export const VISION_SOURCE = 'vision';
 
 /** Defaults used when a ruleset carries no overrides. Health-oriented: the
  *  score climbs from 0 (critical) to 100 (optimal). */
@@ -112,7 +153,8 @@ export interface VisualSeverityTier {
  *  from a different form than Q1-Q6); 'vision' references a known CV output
  *  field (see KNOWN_VISION_FIELDS). */
 export interface InputSource {
-  origin: 'form' | 'vision';
+  /** The source's name in the ruleset's `sources`. */
+  origin: string;
   fieldCode: string;
   label: string;
 }
@@ -155,6 +197,16 @@ export const KNOWN_VISION_FIELDS: VisionFieldMeta[] = [
   { code: 'age_over_30', label: 'Age > 30 (from DOB)', description: 'Derived from date_of_birth on the identity questionnaire, not a Q1-Q6 question. 0 if <=30, 100 if >30.' },
 ];
 
+/** One source feeding an axis. `weight` is a percentage (0-100); an axis's
+ *  weights must add up to 100. Left undefined when a legacy ruleset gave none,
+ *  so the gap shows instead of being filled in. */
+export interface AxisInput {
+  source: string;
+  field: string;
+  label?: string;
+  weight?: number;
+}
+
 export interface VisualAxisConfig {
   id: string;
   axisCode: string;
@@ -165,21 +217,15 @@ export interface VisualAxisConfig {
   /** Clinical concern name shown when this dimension is the dominant concern. */
   concernLabel?: string;
 
-  /** How this axis's one number is produced before banding. */
-  inputComposition?: 'single_source' | 'weighted_blend';
-  /** Used when inputComposition = 'single_source'. */
-  source?: InputSource;
-  /** Used when inputComposition = 'weighted_blend'. formWeight is 0-100;
-   *  vision gets the remainder. */
-  formWeight?: number;
-  formSource?: InputSource;
-  visionSource?: InputSource;
+  /** Where this axis's number comes from: one row per source. One row is a
+   *  single source; several are blended by their weights. */
+  inputs?: AxisInput[];
+  /** Sources without which this dimension is not scored. */
+  required?: string[];
   /** Ordered bands turning the composed number into a letter. 2 bands ->
    *  axis_codes; 3+ -> a decisionTableNode. */
   bands?: ThresholdBand[];
 
-  /** @deprecated superseded by formSource/visionSource + bands. */
-  visionWeight?: number;
   /** @deprecated superseded by `bands`. */
   axisCodeLow?: string;
   axisCodeHigh?: string;
@@ -223,15 +269,41 @@ export interface RulesetSimulationRequest {
   customer_condition?: Record<string, boolean>;
 }
 
+/** One source's part in a dimension score (health space, 100 = healthy);
+ *  `weight` is the weight applied after missing sources were re-shared. */
+export interface SourceContribution {
+  score: number;
+  weight: number;
+}
+
 /** Mirrors the Go domain.DimensionBreakdown / SkinProfileV2 (stage2Score's
  *  shared output shape — identical for /evaluate and /simulate). */
 export interface DimensionBreakdown {
-  source: 'form' | 'vision' | 'blend' | 'none';
-  form_score: number | null;
-  vision_score: number | null;
-  weight?: { form: number; vision: number };
+  scored?: boolean;
+  contributions?: Record<string, SourceContribution>;
+  /** Sources this dimension maps that did not arrive. */
+  missing?: string[];
+  /** Why it was not scored. */
+  reason?: string;
   final_score: number | null;
   axis: string | null;
+  /** @deprecated two-source fields; use contributions. */
+  source?: 'form' | 'vision' | 'blend' | 'none';
+  /** @deprecated */
+  form_score?: number | null;
+  /** @deprecated */
+  vision_score?: number | null;
+  /** @deprecated */
+  weight?: { form: number; vision: number };
+}
+
+/** The N-source breakdown every scoring response carries, per dimension. */
+export interface DimensionBlend {
+  scored: boolean;
+  score?: number;
+  contributions: Record<string, SourceContribution>;
+  missing: string[];
+  reason?: string;
 }
 
 export interface SkinProfileV2 {
@@ -249,6 +321,7 @@ export interface RulesetSimulationResponse {
   result?: {
     total_score?: number;
     dimensions?: Record<string, DimensionBreakdown>;
+    dimension_breakdown?: Record<string, DimensionBlend>;
     skin_profile?: SkinProfileV2;
     sub_classification?: Record<string, unknown>;
     warnings?: string[];

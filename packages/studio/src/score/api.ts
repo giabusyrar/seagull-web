@@ -21,9 +21,13 @@ export async function listRulesets(): Promise<ScoreRuleset[] | null> {
   return Array.isArray(data.rulesets) ? data.rulesets : null;
 }
 
+/** The engine's error, with every problem it listed (e.g. a refused ruleset's blend: `{error, errors: [...]}`). */
 async function throwFromBody(res: Response, fallback: string): Promise<never> {
-  const errData = await res.json();
-  throw new Error(errData.error || fallback);
+  const errData = await res.json().catch(() => ({}));
+  const list: unknown[] = Array.isArray(errData?.errors) ? errData.errors : [];
+  const items = list.map((e) => (typeof e === 'string' ? e : (e as { message?: string })?.message || JSON.stringify(e)));
+  const head = errData?.error || fallback;
+  throw new Error(items.length ? `${head}: ${items.join('; ')}` : head);
 }
 
 /** Creates (no id) or updates a ruleset. Throws the engine's error message. */
