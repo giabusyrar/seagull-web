@@ -3,26 +3,26 @@ import { useMemo } from 'react';
 import { groupShades, type Selection } from '@/lib/photo';
 import { catalogOf, FLAG_TEXT, QC_ADVICE, type AnalyzeResult } from '@/lib/types/colour';
 import { ShadeSwatches } from './ShadeSwatches';
-import { TabShell, Tile, type TabState } from './TabShell';
+import { Section, TabShell, Tile, list, type TabState } from './TabShell';
 
 function ColourResult({ r, selection, onToggle, onClear, tryOnState }: {
   r: AnalyzeResult; selection: Selection; onToggle(c: string, id: string): void; onClear(): void; tryOnState: { loading: boolean; error?: string };
 }) {
   const groups = useMemo(() => groupShades(catalogOf(r)), [r]);
-  const q = r.quadrant ?? {};
-  const seasons = r.labels?.seasonEquivalents ?? [];
-  const advice = (r.qualityFailed ?? []).map((c) => QC_ADVICE[c] ?? c);
+  const q = (r.quadrant && typeof r.quadrant === 'object' ? r.quadrant : {}) as NonNullable<AnalyzeResult['quadrant']>;
+  const seasons = list<string>(r.labels?.seasonEquivalents).map(String);
+  const flags = list<string>(r.flags).map(String);
+  const advice = list<string>(r.qualityFailed).map((c) => QC_ADVICE[String(c)] ?? String(c));
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Kuadran warna</div>
+      <Section title="Kuadran warna">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-base font-bold">{q.displayName || q.technicalName || '—'}</span>
           {q.code && <span className="font-mono text-xs text-zinc-500">{q.code}</span>}
           {q.provisional && <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-semibold text-amber-800">Hasil sementara</span>}
         </div>
         {!q.displayName && q.technicalName && <p className="text-xs text-zinc-500">Nama untuk konsumen belum ditentukan brand; yang tampil adalah nama teknis.</p>}
-      </div>
+      </Section>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <Tile label="Value" value={r.labels?.value} />
         <Tile label="Chroma" value={r.labels?.chroma} />
@@ -32,8 +32,8 @@ function ColourResult({ r, selection, onToggle, onClear, tryOnState }: {
       <p className="text-xs text-zinc-600">
         Padanan season{r.labels?.seasonsProvisional ? ' (sementara)' : ''}: <span className="font-medium text-zinc-900">{seasons.length ? seasons.join(', ') : '—'}</span>
       </p>
-      {(r.flags ?? []).length > 0 && (
-        <ul className="list-disc pl-4 text-xs text-zinc-600">{(r.flags ?? []).map((f) => <li key={f}>{FLAG_TEXT[f] ?? f}</li>)}</ul>
+      {flags.length > 0 && (
+        <ul className="list-disc pl-4 text-xs text-zinc-600">{flags.map((f) => <li key={f}>{FLAG_TEXT[f] ?? f}</li>)}</ul>
       )}
       {advice.length > 0 && (
         <div className="rounded border border-amber-200 bg-amber-50 p-3 text-xs">

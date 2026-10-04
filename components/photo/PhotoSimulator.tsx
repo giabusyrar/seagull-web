@@ -1,9 +1,9 @@
 'use client';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useBrand } from '@/lib/brand';
 import { useBlobUrl } from '@/lib/blob';
 import { call } from '@/lib/http';
-import { analyzeColour, faceArchitecture, faceHead, skinAnalyze, toggleShade, type BuiltRequest, type Selection } from '@/lib/photo';
+import { analyzeColour, faceArchitecture, faceHead, skinAnalyze, toggleShade, type Brand, type BuiltRequest, type Selection } from '@/lib/photo';
 import { PhotoInput, type YesNo } from './PhotoInput';
 import { PhotoStage } from './PhotoStage';
 import { ColourTab } from './ColourTab';
@@ -35,9 +35,12 @@ export function PhotoSimulator() {
   const [tab, setTab] = useState<TabId>('warna');
   const runId = useRef(0);
   const runAbort = useRef<AbortController | null>(null);
+  const [analyzed, setAnalyzed] = useState<Brand | null>(null);
   const tryOn = useTryOn(front);
 
   const stopRun = () => { runId.current += 1; runAbort.current?.abort(); runAbort.current = null; };
+  // Leaving the page aborts whatever is still in flight.
+  useEffect(() => () => { runId.current += 1; runAbort.current?.abort(); }, []);
 
   const analyze = async () => {
     if (!front) return;
@@ -47,7 +50,7 @@ export function PhotoSimulator() {
     runAbort.current = ac;
     const b = { brandId: brand.brandId, applicationId: brand.applicationId };
     const views = { front, left, right };
-    setStep('result'); setTab('warna'); setSelection({}); tryOn.reset(); setGlbUrl(null);
+    setAnalyzed(b); setStep('result'); setTab('warna'); setSelection({}); tryOn.reset(); setGlbUrl(null);
     setColour(LOADING); setFace(LOADING); setSkin(LOADING); setHead(LOADING);
 
     // Each request sets only its own state; a later run or "Foto ulang" makes it stale.
@@ -75,7 +78,7 @@ export function PhotoSimulator() {
     stopRun(); tryOn.reset(); setGlbUrl(null); setSelection({});
     setColour(IDLE); setFace(IDLE); setSkin(IDLE); setHead(IDLE);
     setFront(null); setLeft(null); setRight(null); setHijab(''); setHair('');
-    setStep('input');
+    setAnalyzed(null); setStep('input');
   };
 
   const pick = (category: string, shadeId: string) => {
@@ -85,18 +88,26 @@ export function PhotoSimulator() {
   };
   const clearShades = () => { setSelection({}); tryOn.request([]); };
 
+  const brandReady = !!brand.brandId.trim() && !!brand.applicationId.trim();
   if (step === 'input' || !front) {
     return (
       <PhotoInput front={front} left={left} right={right} setFront={setFront} setLeft={setLeft} setRight={setRight}
         hijab={hijab} hair={hair} setHijab={setHijab} setHair={setHair}
-        brandReady={!!brand.brandId.trim() && !!brand.applicationId.trim()} onAnalyze={analyze} />
+        brandReady={brandReady} onAnalyze={analyze} />
     );
   }
 
   const states: Record<TabId, TabState> = { warna: colour, wajah: face, kulit: skin };
+  const brandChanged = !!analyzed && (analyzed.brandId !== brand.brandId || analyzed.applicationId !== brand.applicationId);
   return (
     <section className="flex flex-col gap-3">
-      <h1 className="text-lg font-semibold">2. Hasil <span className="text-xs font-normal text-zinc-500">{brand.brandId} / {brand.applicationId}</span></h1>
+      <h1 className="text-lg font-semibold">2. Hasil <span className="text-xs font-normal text-zinc-500">{analyzed?.brandId} / {analyzed?.applicationId}</span></h1>
+      {brandChanged && (
+        <div className="flex flex-wrap items-center gap-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          <span>Brand berubah ({brand.brandId || '—'} / {brand.applicationId || '—'}); hasil di bawah masih untuk {analyzed?.brandId} / {analyzed?.applicationId}. Klik Foto ulang atau Analisis ulang.</span>
+          <button type="button" disabled={!brandReady} onClick={analyze} className="rounded bg-zinc-900 px-2 py-0.5 font-semibold text-white disabled:bg-zinc-300">Analisis ulang</button>
+        </div>
+      )}
       <div className="grid gap-4 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
         <PhotoStage photo={front} tryOnUrl={tryOn.url} head={head} glbUrl={glbUrl} onRetake={retake} />
         <div className="flex min-w-0 flex-col gap-3">
