@@ -17,7 +17,9 @@ export default function ConversationPage() {
   const [wsState, setWsState] = useState<'closed' | 'connecting' | 'open'>('closed');
   const ws = useRef<WebSocket | null>(null);
 
+  const gen = useRef(0);
   const detach = () => {
+    gen.current++;
     const old = ws.current; if (!old) return;
     old.onopen = old.onclose = old.onmessage = null;
     old.close(); ws.current = null; setWsState('closed');
@@ -46,7 +48,10 @@ export default function ConversationPage() {
   };
   const connect = async () => {
     if (!session) return;
+    detach();
+    const g = gen.current;
     const r = await call({ url: svcPath('conv', `/conversation/sessions/${session.id}/ws-ticket`), init: { method: 'POST', headers: owner() } });
+    if (g !== gen.current) return;
     setLast(r);
     const ticket = (r.json as { ticket?: string } | undefined)?.ticket;
     if (!r.ok || !ticket) return;

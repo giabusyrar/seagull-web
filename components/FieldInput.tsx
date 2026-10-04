@@ -6,22 +6,34 @@ function Webcam({ onShot }: { onShot: (f: File) => void }) {
   const video = useRef<HTMLVideoElement>(null);
   const [on, setOn] = useState(false);
   const [err, setErr] = useState('');
+  const streamRef = useRef<MediaStream | null>(null);
+  const mounted = useRef(true);
   const stop = () => {
-    (video.current?.srcObject as MediaStream | null)?.getTracks().forEach((t) => t.stop());
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
     if (video.current) video.current.srcObject = null;
     setOn(false);
   };
-  useEffect(() => () => {
-    const v = video.current;
-    (v?.srcObject as MediaStream | null)?.getTracks().forEach((t) => t.stop());
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    };
   }, []);
   const start = async () => {
     let s: MediaStream | undefined;
     try {
       s = await navigator.mediaDevices.getUserMedia({ video: true });
+      if (!mounted.current) { s.getTracks().forEach((t) => t.stop()); return; }
+      streamRef.current = s;
       if (video.current) { video.current.srcObject = s; await video.current.play(); }
       setOn(true); setErr('');
-    } catch (e) { s?.getTracks().forEach((t) => t.stop()); setErr((e as Error).message); }
+    } catch (e) {
+      s?.getTracks().forEach((t) => t.stop()); streamRef.current = null;
+      if (mounted.current) setErr((e as Error).message);
+    }
   };
   const shoot = () => {
     const v = video.current; if (!v) return;
