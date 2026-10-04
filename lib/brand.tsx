@@ -1,5 +1,5 @@
 'use client';
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Brand } from './endpoint';
 
 type Ctx = Brand & { setBrandId(v: string): void; setApplicationId(v: string): void };
@@ -13,10 +13,17 @@ function load(): Brand {
 
 export function BrandProvider({ children }: { children: ReactNode }) {
   const [b, setB] = useState<Brand>({ brandId: '', applicationId: '' });
-  useEffect(() => { const saved = load(); queueMicrotask(() => setB(saved)); }, []);
-  useEffect(() => { try { localStorage.setItem(KEY, JSON.stringify(b)); } catch {} }, [b]);
+  const cur = useRef<Brand>(b);
+  // Load only; never write here, so a double-invoked mount effect cannot clobber saved state.
+  useEffect(() => { const saved = load(); queueMicrotask(() => { cur.current = saved; setB(saved); }); }, []);
+  // Persist only on real user changes.
+  const update = (patch: Partial<Brand>) => {
+    const next = { ...cur.current, ...patch };
+    cur.current = next; setB(next);
+    try { localStorage.setItem(KEY, JSON.stringify(next)); } catch {}
+  };
   return (
-    <BrandCtx.Provider value={{ ...b, setBrandId: (brandId) => setB((p) => ({ ...p, brandId })), setApplicationId: (applicationId) => setB((p) => ({ ...p, applicationId })) }}>
+    <BrandCtx.Provider value={{ ...b, setBrandId: (brandId) => update({ brandId }), setApplicationId: (applicationId) => update({ applicationId }) }}>
       {children}
     </BrandCtx.Provider>
   );

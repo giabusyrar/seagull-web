@@ -1,29 +1,40 @@
 'use client';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Field, FieldValue } from '@/lib/endpoint';
 
 function Webcam({ onShot }: { onShot: (f: File) => void }) {
   const video = useRef<HTMLVideoElement>(null);
   const [on, setOn] = useState(false);
   const [err, setErr] = useState('');
+  const stop = () => {
+    (video.current?.srcObject as MediaStream | null)?.getTracks().forEach((t) => t.stop());
+    if (video.current) video.current.srcObject = null;
+    setOn(false);
+  };
+  useEffect(() => () => {
+    const v = video.current;
+    (v?.srcObject as MediaStream | null)?.getTracks().forEach((t) => t.stop());
+  }, []);
   const start = async () => {
+    let s: MediaStream | undefined;
     try {
-      const s = await navigator.mediaDevices.getUserMedia({ video: true });
+      s = await navigator.mediaDevices.getUserMedia({ video: true });
       if (video.current) { video.current.srcObject = s; await video.current.play(); }
       setOn(true); setErr('');
-    } catch (e) { setErr((e as Error).message); }
+    } catch (e) { s?.getTracks().forEach((t) => t.stop()); setErr((e as Error).message); }
   };
   const shoot = () => {
     const v = video.current; if (!v) return;
     const c = document.createElement('canvas'); c.width = v.videoWidth; c.height = v.videoHeight;
     c.getContext('2d')?.drawImage(v, 0, 0);
     c.toBlob((b) => b && onShot(new File([b], 'webcam.jpg', { type: 'image/jpeg' })), 'image/jpeg', 0.92);
-    (v.srcObject as MediaStream | null)?.getTracks().forEach((t) => t.stop()); setOn(false);
+    stop();
   };
   return (
     <span className="inline-flex items-center gap-1">
       <video ref={video} className={on ? 'h-24 rounded' : 'hidden'} muted playsInline />
       <button type="button" className="rounded border px-2 text-xs" onClick={on ? shoot : start}>{on ? 'Capture' : 'Webcam'}</button>
+      {on && <button type="button" className="rounded border px-2 text-xs" onClick={stop}>Cancel</button>}
       {err && <span className="text-xs text-red-700">{err}</span>}
     </span>
   );

@@ -1,5 +1,5 @@
 'use client';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { call, type CallResult } from '@/lib/http';
 import { svcPath } from '@/lib/services';
 import { useBrand } from '@/lib/brand';
@@ -17,6 +17,13 @@ export default function ConversationPage() {
   const [wsState, setWsState] = useState<'closed' | 'connecting' | 'open'>('closed');
   const ws = useRef<WebSocket | null>(null);
 
+  const detach = () => {
+    const old = ws.current; if (!old) return;
+    old.onopen = old.onclose = old.onmessage = null;
+    old.close(); ws.current = null; setWsState('closed');
+  };
+  useEffect(() => () => detach(), []);
+
   const owner = () => ({ 'X-Session-Owner': session?.owner ?? '' });
   const push = (e: WsEvent) => setEvents((p) => [...p, e]);
 
@@ -24,12 +31,12 @@ export default function ConversationPage() {
     const r = await call({ url: svcPath('conv', '/conversation/sessions'), init: { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ brand_id: brand.brandId, application_id: brand.applicationId, survey_code: surveyCode, customer_id: customerId }) } });
     setLast(r);
     const j = r.json as { session_id?: string; owner_token?: string } | undefined;
-    if (r.ok && j?.session_id && j.owner_token) { setSession({ id: j.session_id, owner: j.owner_token }); setEvents([]); }
+    if (r.ok && j?.session_id && j.owner_token) { detach(); setSession({ id: j.session_id, owner: j.owner_token }); setEvents([]); }
   };
   const get = async () => session && setLast(await call({ url: svcPath('conv', `/conversation/sessions/${session.id}`), init: { method: 'GET', headers: owner() } }));
   const del = async () => {
     if (!session) return;
-    ws.current?.close();
+    detach();
     setLast(await call({ url: svcPath('conv', `/conversation/sessions/${session.id}`), init: { method: 'DELETE', headers: owner() } }));
     setSession(null);
   };
