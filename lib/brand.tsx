@@ -7,7 +7,7 @@ const BrandCtx = createContext<Ctx | null>(null);
 const KEY = 'sim.brand';
 
 function load(): Brand {
-  try { const v = JSON.parse(localStorage.getItem(KEY) ?? ''); if (v && typeof v.brandId === 'string') return v; } catch {}
+  try { const v = JSON.parse(localStorage.getItem(KEY) ?? ''); if (v && typeof v.brandId === 'string' && typeof v.applicationId === 'string') return { brandId: v.brandId, applicationId: v.applicationId }; } catch {}
   return { brandId: '', applicationId: '' };
 }
 
@@ -15,6 +15,7 @@ export function BrandProvider({ children }: { children: ReactNode }) {
   const [b, setB] = useState<Brand>({ brandId: '', applicationId: '' });
   const cur = useRef<Brand>(b);
   // Load only; never write here, so a double-invoked mount effect cannot clobber saved state.
+  // queueMicrotask defers setState out of the effect body (react-hooks/set-state-in-effect lint rule).
   useEffect(() => { const saved = load(); queueMicrotask(() => { cur.current = saved; setB(saved); }); }, []);
   // Persist only on real user changes.
   const update = (patch: Partial<Brand>) => {

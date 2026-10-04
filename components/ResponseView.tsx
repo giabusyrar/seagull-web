@@ -22,6 +22,7 @@ export function ResponseView({ result }: { result: CallResult }) {
         <span className="ml-auto flex gap-1">{tabs.map((t) => <button key={t} onClick={() => setTab(t)} className={`rounded px-1.5 ${tab === t ? 'bg-zinc-200' : ''}`}>{t}</button>)}</span>
       </div>
       <div className="max-h-[32rem] overflow-auto p-2 text-xs">
+        {result.hint && <p className="mb-1 text-amber-700">{result.hint}</p>}
         {result.networkError && <p className="text-red-700">{result.networkError}</p>}
         {tab === 'json' && <pre>{JSON.stringify(result.json, null, 2)}</pre>}
         {tab === 'text' && <pre className="whitespace-pre-wrap">{result.text}</pre>}

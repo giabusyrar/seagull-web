@@ -3,15 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack -p 3100",
+    "dev": "next dev --turbopack -H 127.0.0.1 -p 3100",
     "build": "next build",
-    "start": "next start -p 3100",
+    "start": "next start -H 127.0.0.1 -p 3100",
     "lint": "eslint",
     "test": "vitest run",
-    "sdk:refresh": "bash scripts/pack-sdk.sh && npm install ./vendor/gateway-experience-beauty-sdk-0.2.0.tgz"
+    "sdk:refresh": "bash scripts/pack-sdk.sh && npm install ./vendor/beauty-sdk.tgz"
   },
   "dependencies": {
-    "@gateway-experience/beauty-sdk": "file:vendor/gateway-experience-beauty-sdk-0.2.0.tgz",
+    "@gateway-experience/beauty-sdk": "file:vendor/beauty-sdk.tgz",
     "@google/model-viewer": "^4.3.1",
     "next": "16.3.8",
     "react": "19.2.8",

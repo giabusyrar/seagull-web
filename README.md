@@ -5,7 +5,7 @@ Standalone tool that calls every Seagull service directly — no gateway, no API
 ```bash
 npm install
 cp .env.example .env.local   # only if a service is not on its default localhost port
-npm run dev                  # http://localhost:3100
+npm run dev                  # http://127.0.0.1:3100
 ```
 
 Each `/svc/<service>/*` path is rewritten server-side to that service's URL
@@ -22,13 +22,24 @@ mocked; a service that is down shows red in the top bar.
 Adding an endpoint: append an `EndpointDef` to `lib/endpoints/*.ts`; the group
 page renders it. `npm test` checks every definition builds.
 
+## Running notes
+
+- The server binds to 127.0.0.1 only.
+- With `npm run build && npm start`, changing any `SIM_*` or `NEXT_PUBLIC_*` value needs a rebuild;
+  `npm run dev` only needs a restart.
+- A down service shows as the real status 500 (the Next dev proxy's own error) plus an amber
+  "unreachable" hint; the top-bar pill is marked unreachable but keeps the status number.
+
 ## SDK screen
 
 `/sdk` runs the built `@gateway-experience/beauty-sdk` (vendored tarball in
 `vendor/`, packed from `seagull-web/packages/beauty-sdk/dist`) through its own
 client and proxy (`/api/beauty`). `/svc/sdkgw` rewrites emulate gateway routing,
 and the API key is a placeholder the services ignore. After rebuilding the SDK,
-run `npm run sdk:refresh`.
+run `npm run sdk:refresh` (needs bash, i.e. Git Bash on Windows; honours `SDK_DIR` for the SDK
+location, default `../seagull-web/packages/beauty-sdk`). The SDK proxy forwards only
+content-type, content-disposition and cache-control, and reports 502 `gateway_unreachable` when the
+target is down. It reaches its own `/svc/sdkgw` via `SIM_SELF_URL` (default `http://127.0.0.1:3100`).
 
 ## Notes
 

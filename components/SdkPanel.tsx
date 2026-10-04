@@ -34,11 +34,17 @@ export function SdkPanel({ def }: { def: SdkOpDef }) {
   const viaDirect = async (): Promise<CallResult | null> => {
     const d = DIRECT.get(def.directId);
     if (!d) { setError(`no direct endpoint ${def.directId}`); return null; }
-    return call(buildRequest(d, values, brand));
+    try {
+      return await call(buildRequest(d, values, brand));
+    } catch (e) {
+      return { ok: false, status: 0, ms: 0, url: `direct ${def.directId}`, headers: [], kind: 'empty', networkError: e instanceof Error ? e.message : String(e) };
+    }
   };
   const run = async (which: 'sdk' | 'direct' | 'both') => {
     setError('');
-    if (!brand.brandId || !brand.applicationId) { setError('pick a brand and application in the top bar'); return; }
+    // Direct calls to brand:'none' endpoints need no brand; the SDK path always does.
+    const brandless = which === 'direct' && DIRECT.get(def.directId)?.brand === 'none';
+    if (!brandless && (!brand.brandId || !brand.applicationId)) { setError('pick a brand and application in the top bar'); return; }
     setBusy(true);
     try {
       const [s, d] = await Promise.all([which !== 'direct' ? viaSdk() : null, which !== 'sdk' ? viaDirect() : null]);

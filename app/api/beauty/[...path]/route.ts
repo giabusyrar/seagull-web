@@ -10,7 +10,9 @@ async function handle(req: Request, ctx: Ctx): Promise<Response> {
   const brandId = req.headers.get(SIM_BRAND_HEADER) ?? '';
   const applicationId = req.headers.get(SIM_APP_HEADER) ?? '';
   if (!brandId || !applicationId) return Response.json({ detail: { code: 'pick_brand_and_application' } }, { status: 400 });
-  const proxy = createBeautyProxy({ gatewayUrl: `${new URL(req.url).origin}/svc/sdkgw`, apiKey: PLACEHOLDER_API_KEY, brandId, applicationId });
+  // Fixed self-origin: req.url's Host is client-controlled, so deriving the target from it would let a caller aim the proxy elsewhere.
+  const selfUrl = process.env.SIM_SELF_URL ?? `http://127.0.0.1:${process.env.PORT ?? 3100}`;
+  const proxy = createBeautyProxy({ gatewayUrl: `${selfUrl}/svc/sdkgw`, apiKey: PLACEHOLDER_API_KEY, brandId, applicationId });
   return req.method === 'POST' ? proxy.POST(req, ctx) : proxy.GET(req, ctx);
 }
 
