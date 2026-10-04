@@ -23,7 +23,7 @@ every model at once. Now they do not.
 
 1. Find which repo owns the table. Run `AutoMigrate` lists in both repos:
    - Seagull-gateway: `apps/gateway-engine/cmd/server/main.go`, `apps/gateway-engine/api/index.go`
-   - Seagull-core: `apps/core-engine/cmd/server/main.go`, `apps/reference-service/cmd/server/main.go`
+   - Seagull-core: `apps/core-engine/cmd/server/main.go`, `apps/services/reference/cmd/server/main.go`
 2. If the table is owned by the other repo, raise it there. Do not add the column
    from your side because `AutoMigrate` will happily let you.
 3. If the change crosses both, land the additive migration first, deploy both,
