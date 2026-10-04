@@ -3,12 +3,10 @@ import type { CallResult } from '@/lib/http';
 import { CLASSIFICATION_STATUS_LABEL, TRAIT_STATUS_LABEL, errorEntries, type FaceArchitectureResult, type Measurement } from '@/lib/types/face';
 import { TabShell, Tile, dash, num, type TabState } from './TabShell';
 
-const fmtValue = (m: Measurement) => {
-  const f = (v: unknown) => num(v, 3);
-  if (Array.isArray(m.value)) return m.value.map(f).join(', ');
-  return f(m.value);
-};
-const fmtBand = (b: Measurement['band']) => (Array.isArray(b) ? `${b[0] ?? '…'} – ${b[1] ?? '…'}` : '—');
+// Values and band edges are a number, or a list of numbers for list-shaped measurements.
+const fmt = (v: unknown): string => (Array.isArray(v) ? v.map(fmt).join(', ') : v === null || v === undefined ? '…' : num(v, 3));
+const fmtValue = (m: Measurement) => (m.value === null || m.value === undefined ? '—' : fmt(m.value));
+const fmtBand = (b: unknown) => (Array.isArray(b) && b.length === 2 ? `${fmt(b[0])} – ${fmt(b[1])}` : '—');
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -85,7 +83,10 @@ function Rejection({ result }: { result: CallResult }) {
   return (
     <ul className="list-disc pl-4">
       {entries.map((e, i) => (
-        <li key={i}><span className="font-mono">{dash(e.code ?? e.gate)}</span>{e.reason ? `: ${String(e.reason)}` : ''}</li>
+        <li key={i}>
+          <span className="font-mono">{dash(e.code ?? e.gate)}</span>
+          {Object.entries(e).filter(([k]) => k !== 'code').map(([k, v]) => ` · ${k}: ${typeof v === 'object' ? JSON.stringify(v) : String(v)}`).join('')}
+        </li>
       ))}
     </ul>
   );
