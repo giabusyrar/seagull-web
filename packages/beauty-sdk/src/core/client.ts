@@ -1,5 +1,6 @@
 import type { BeautyClientConfig, VisionAnalysisResponse, VisionAnalysisOptions } from './types';
 import type { AssessmentEvaluateRequest, AssessmentEvaluateResponse } from './assessment-types';
+import { evaluateAssessment, type AssessmentEvaluateInput } from './evaluate-assessment';
 
 export class FormSubClient {
   constructor(private client: BeautyClient) {}
@@ -93,6 +94,14 @@ export class AssessmentsSubClient {
   }
 }
 
+/**
+ * @deprecated The legacy gateway client. New code should use
+ * `createBeautyClient` from `@gateway-experience/beauty-sdk/client`, which
+ * goes through a brand proxy in the browser. For assessment evaluation,
+ * which that client does not cover yet, use `evaluateAssessment` or
+ * `gatewayAssessmentEvaluator` from this module. Kept, unchanged in
+ * behaviour, for existing integrations.
+ */
 export class BeautyClient {
   public config: BeautyClientConfig;
 
@@ -145,52 +154,9 @@ export class BeautyClient {
     return response.json();
   }
 
-  /**
-   * Evaluate one survey and store the result as a customer assessment.
-   *
-   * core-engine takes the survey code from the path: its handler reads :code
-   * and looks the survey up with it, so a call without one finds nothing. The
-   * gateway's own /api/v1/assessments/evaluate is being retired.
-   */
-  async evaluateAssessment(
-    surveyCode: string,
-    request: Omit<AssessmentEvaluateRequest, 'brand_id' | 'application_id'> & {
-      brand_id?: string;
-      application_id?: string;
-    }
-  ): Promise<AssessmentEvaluateResponse> {
-    if (!surveyCode) {
-      throw new Error('evaluateAssessment needs a survey code: core-engine looks the survey up by it.');
-    }
-    const payload: AssessmentEvaluateRequest = {
-      ...request,
-      brand_id: request.brand_id || this.config.brandId,
-      application_id: request.application_id || this.config.applicationId,
-    };
-
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-    if (this.config.apiKey) {
-      headers['X-API-Key'] = this.config.apiKey;
-    }
-    if (this.config.token) {
-      headers['Authorization'] = `Bearer ${this.config.token}`;
-    }
-
-    const url = `${this.config.gatewayUrl}/core/form-engine/survey/${encodeURIComponent(surveyCode)}/evaluate`;
-    const response = await fetch(url, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      const errBody = await response.text();
-      throw new Error(`Assessment evaluation failed (${response.status}): ${errBody}`);
-    }
-
-    return response.json();
+  /** Evaluate one survey and store the result as a customer assessment (see evaluateAssessment). */
+  async evaluateAssessment(surveyCode: string, request: AssessmentEvaluateInput): Promise<AssessmentEvaluateResponse> {
+    return evaluateAssessment(this.config, surveyCode, request);
   }
 
   /**
