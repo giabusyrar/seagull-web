@@ -24,7 +24,7 @@ repointed paths; it did not untangle code.
 | `deploy/apisix/`, `scripts/` | **Seagull-gateway** (same paths) |
 | `packages/beauty-sdk/src/contracts/` | **Seagull-gateway** `packages/contracts/` (now a published npm package) |
 | `apps/core-engine/` | **Seagull-core** `apps/core-engine/` |
-| `apps/reference-service/` | **Seagull-core** `apps/reference-service/` |
+| `apps/reference-service/` | **Seagull-core** `apps/services/reference/` |
 | `apps/services/vision-ai-worker/` | **Seagull-core** `apps/vision-ai-worker/` |
 | `apps/services/tryon-engine/` | **Seagull-core** `apps/tryon-engine/` |
 | `apps/web/` | **Seagull-web** `apps/web/` |

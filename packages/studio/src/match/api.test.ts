@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { conflictsApi, fetchShadeAsset, listReferenceIngredients, productsApi, runMatch, shadesApi } from './api';
+import { ColourApiError, colourTryOn, conflictsApi, fetchColourCatalog, listReferenceIngredients, productsApi, runMatch, shadesApi } from './api';
 
 const routes = { reference: (r: string) => `/api/reference/${r}` };
 
@@ -50,10 +50,40 @@ describe('match api', () => {
     expect(await runMatch({}, fake({ error: 'x' }, 500))).toBeNull();
   });
 
-  it('reads a shade asset', async () => {
-    const f = fake({ asset: { colorMapUrl: 'u' } });
-    expect(await fetchShadeAsset('a1', f)).toEqual({ colorMapUrl: 'u' });
-    expect(f).toHaveBeenCalledWith('/core/match-engine/api/matching/shade-assets/a1');
+  it('reads the colour catalog through the colour collection', async () => {
+    const shade = { shadeId: 's1', productId: 'p1', productName: 'P', shadeName: 'Ruby', hexColor: '#aa0000', hueName: 'red', status: '', colourSource: 'swatch', mode: '' };
+    const f = fake({ catalog: { lip: [shade] }, configVersion: 'v1' });
+    expect(await fetchColourCatalog(f)).toEqual({ lip: [shade] });
+    expect(f).toHaveBeenCalledWith('/core/colour-engine/catalog');
+  });
+
+  it('posts the photo and every shade id as multipart to /tryon and returns the PNG', async () => {
+    const png = new Blob([new Uint8Array([137, 80, 78, 71])], { type: 'image/png' });
+    const f = vi.fn<typeof fetch>(async () => new Response(png, { status: 200, headers: { 'Content-Type': 'image/png' } }));
+    const photo = new File([new Uint8Array([1, 2, 3])], 'face.jpg', { type: 'image/jpeg' });
+
+    const out = await colourTryOn(photo, ['lip-1', '', 'blush-2'], f);
+
+    expect(out.type).toBe('image/png');
+    expect(out.size).toBe(4);
+    const [url, init] = f.mock.calls[0];
+    expect(url).toBe('/core/colour-engine/tryon');
+    expect(init?.method).toBe('POST');
+    const body = init?.body as FormData;
+    expect(body).toBeInstanceOf(FormData);
+    expect((body.get('image') as File).name).toBe('face.jpg');
+    expect(body.getAll('shadeIds')).toEqual(['lip-1', 'blush-2']);
+    // The browser sets the multipart boundary; a manual Content-Type would break it.
+    expect(init?.headers).toBeUndefined();
+  });
+
+  it("throws the engine's error message from a failed colour call", async () => {
+    const err = await colourTryOn(new Blob(['x']), ['s1'], fake({ error: 'no face detected', code: 'no_face_detected' }, 422)).catch((e) => e);
+    expect(err).toBeInstanceOf(ColourApiError);
+    expect(err).toMatchObject({ status: 422, code: 'no_face_detected', message: 'no face detected' });
+
+    const plain = vi.fn<typeof fetch>(async () => new Response('bad gateway', { status: 502 }));
+    await expect(fetchColourCatalog(plain)).rejects.toMatchObject({ status: 502, code: '', message: 'bad gateway' });
   });
 
   it('normalises reference ingredients from either response shape', async () => {

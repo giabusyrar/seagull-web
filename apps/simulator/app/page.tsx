@@ -1,5 +1,5 @@
-import { PhotoSimulator } from '@/components/photo/PhotoSimulator';
+import { Simulator } from '@/components/Simulator';
 
 export default function Home() {
-  return <PhotoSimulator />;
+  return <Simulator />;
 }

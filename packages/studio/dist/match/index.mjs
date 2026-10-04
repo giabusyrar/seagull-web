@@ -2,8 +2,8 @@
 "use client";
 
 // src/match/components/MatchManager.tsx
-import { useState as useState4, useEffect as useEffect4 } from "react";
-import { Sparkles as Sparkles2, ShieldAlert as ShieldAlert3, Boxes as Boxes3, Play as Play2, Palette as Palette2 } from "lucide-react";
+import { useState as useState5, useEffect as useEffect5 } from "react";
+import { Sparkles as Sparkles2, ShieldAlert as ShieldAlert3, Boxes as Boxes3, Play as Play2, Palette as Palette2, Wand2 as Wand22 } from "lucide-react";
 import { PageHeader, TabNav, ConfirmDialog, usePersistentState } from "@gateway-experience/shared";
 
 // src/match/components/tabs/ConflictMatrixTab.tsx
@@ -369,15 +369,9 @@ var ProductGroupsTab = ({
 };
 
 // src/match/components/tabs/ShadesTab.tsx
-import { Pencil as Pencil3, Trash2 as Trash23, CheckCircle2 as CheckCircle22, Clock, XCircle as XCircle2, Loader2 } from "lucide-react";
+import { Pencil as Pencil3, Trash2 as Trash23 } from "lucide-react";
 import { SearchFilterBar as SearchFilterBar3, DataTable as DataTable3, Button as Button3 } from "@gateway-experience/shared";
 import { jsx as jsx3, jsxs as jsxs3 } from "react/jsx-runtime";
-var STATUS_ICON = {
-  pending: /* @__PURE__ */ jsx3(Clock, { className: "h-3.5 w-3.5 text-muted-foreground" }),
-  processing: /* @__PURE__ */ jsx3(Loader2, { className: "h-3.5 w-3.5 text-amber-400 animate-spin" }),
-  ready: /* @__PURE__ */ jsx3(CheckCircle22, { className: "h-3.5 w-3.5 text-emerald-400" }),
-  failed: /* @__PURE__ */ jsx3(XCircle2, { className: "h-3.5 w-3.5 text-rose-400" })
-};
 var ShadesTab = ({
   shades,
   searchQuery,
@@ -407,18 +401,6 @@ var ShadesTab = ({
       key: "region",
       header: "Applies To",
       render: (s) => /* @__PURE__ */ jsx3("span", { className: "font-mono text-[10px] uppercase text-muted-foreground", children: s.region })
-    },
-    {
-      key: "extractionStatus",
-      header: "Try-On Status",
-      render: (s) => /* @__PURE__ */ jsxs3("div", { className: "flex items-center gap-1.5", children: [
-        STATUS_ICON[s.extractionStatus],
-        /* @__PURE__ */ jsx3("span", { className: "text-[11px] capitalize", children: s.extractionStatus }),
-        s.extractionStatus === "failed" && s.failureReason && /* @__PURE__ */ jsxs3("span", { className: "text-[10px] text-rose-400 truncate max-w-[160px]", title: s.failureReason, children: [
-          "\u2014 ",
-          s.failureReason
-        ] })
-      ] })
     },
     {
       key: "actions",
@@ -739,10 +721,10 @@ var MatchSimulatorTab = ({
   ] });
 };
 
-// src/match/components/modals/ConflictRuleModal.tsx
-import { useState, useEffect } from "react";
-import { ShieldAlert as ShieldAlert2, Loader2 as Loader22 } from "lucide-react";
-import { Modal, useHostRoutes } from "@gateway-experience/shared";
+// src/match/components/tabs/PhotoTryOnTab.tsx
+import { useCallback, useEffect, useRef, useState } from "react";
+import { AlertTriangle as AlertTriangle2, ImagePlus, Loader2, RefreshCw, Wand2, X } from "lucide-react";
+import { Button as Button4, EmptyState as EmptyState2 } from "@gateway-experience/shared";
 
 // src/core/collection-resolver.ts
 function getCollectionPrefix(key) {
@@ -816,14 +798,232 @@ async function runMatch(payload, doFetch = fetch) {
   const res = await sendJson(doFetch, ep("/api/matching/match"), "POST", payload);
   return res.ok ? await res.json() : null;
 }
+var colourEp = (path) => resolveDynamicEndpoint("colour", path);
+var ColourApiError = class extends Error {
+  constructor(status, code, message) {
+    super(message);
+    this.status = status;
+    this.code = code;
+    this.name = "ColourApiError";
+  }
+};
+async function colourError(res) {
+  const text = await res.text();
+  try {
+    const j = JSON.parse(text);
+    return new ColourApiError(res.status, String(j.code ?? ""), String(j.error || j.message || `HTTP ${res.status}`));
+  } catch {
+    return new ColourApiError(res.status, "", text || `HTTP ${res.status}`);
+  }
+}
+async function fetchColourCatalog(doFetch = fetch) {
+  const res = await doFetch(colourEp("/catalog"));
+  if (!res.ok) throw await colourError(res);
+  const data = await res.json();
+  return data.catalog ?? {};
+}
+async function colourTryOn(image, shadeIds, doFetch = fetch) {
+  const fd = new FormData();
+  fd.append("image", image);
+  shadeIds.filter(Boolean).forEach((id) => fd.append("shadeIds", id));
+  const res = await doFetch(colourEp("/tryon"), { method: "POST", body: fd });
+  if (!res.ok) throw await colourError(res);
+  return res.blob();
+}
 async function listReferenceIngredients(routes, doFetch = fetch) {
   const data = await (await doFetch(routes.reference("ingredients"))).json();
   const raw = Array.isArray(data.ingredients) ? data.ingredients : Array.isArray(data) ? data : [];
   return raw.map((i) => ({ code: i.code || i.name, name: i.name }));
 }
 
+// src/match/components/tabs/PhotoTryOnTab.tsx
+import { Fragment as Fragment2, jsx as jsx5, jsxs as jsxs5 } from "react/jsx-runtime";
+var errorMessage = (e) => e instanceof Error && e.message ? e.message : String(e);
+function useObjectUrl(blob) {
+  const [url, setUrl] = useState(null);
+  useEffect(() => {
+    if (!blob) {
+      setUrl(null);
+      return;
+    }
+    const u = URL.createObjectURL(blob);
+    setUrl(u);
+    return () => URL.revokeObjectURL(u);
+  }, [blob]);
+  return url;
+}
+var PhotoTryOnTab = () => {
+  const [catalog, setCatalog] = useState(null);
+  const [catalogLoading, setCatalogLoading] = useState(true);
+  const [catalogError, setCatalogError] = useState(null);
+  const [photo, setPhoto] = useState(null);
+  const [selected, setSelected] = useState({});
+  const [result, setResult] = useState(null);
+  const [rendering, setRendering] = useState(false);
+  const [renderError, setRenderError] = useState(null);
+  const requestId = useRef(0);
+  const photoUrl = useObjectUrl(photo);
+  const resultUrl = useObjectUrl(result);
+  const loadCatalog = useCallback(() => {
+    setCatalogLoading(true);
+    setCatalogError(null);
+    fetchColourCatalog().then(setCatalog).catch((e) => setCatalogError(errorMessage(e))).finally(() => setCatalogLoading(false));
+  }, []);
+  useEffect(() => {
+    loadCatalog();
+  }, [loadCatalog]);
+  const resetResult = () => {
+    requestId.current += 1;
+    setResult(null);
+    setRendering(false);
+    setRenderError(null);
+  };
+  const choosePhoto = (file) => {
+    resetResult();
+    setPhoto(file);
+  };
+  const toggleShade = (category, shadeId) => {
+    resetResult();
+    setSelected((prev) => {
+      const next = { ...prev };
+      if (next[category] === shadeId) delete next[category];
+      else next[category] = shadeId;
+      return next;
+    });
+  };
+  const shadeIds = Object.values(selected);
+  const render = async () => {
+    if (!photo || shadeIds.length === 0) return;
+    const id = ++requestId.current;
+    setRendering(true);
+    setRenderError(null);
+    setResult(null);
+    try {
+      const png = await colourTryOn(photo, shadeIds);
+      if (id === requestId.current) setResult(png);
+    } catch (e) {
+      if (id === requestId.current) setRenderError(errorMessage(e));
+    } finally {
+      if (id === requestId.current) setRendering(false);
+    }
+  };
+  const categories = Object.entries(catalog ?? {}).filter(([, shades]) => Array.isArray(shades) && shades.length > 0);
+  return /* @__PURE__ */ jsxs5("div", { className: "grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-4 sm:gap-6", children: [
+    /* @__PURE__ */ jsxs5("div", { className: "space-y-4", children: [
+      /* @__PURE__ */ jsxs5("div", { className: "bg-card border border-border rounded-xl p-4 space-y-3", children: [
+        /* @__PURE__ */ jsx5("h3", { className: "text-xs font-bold uppercase tracking-wider text-muted-foreground", children: "1. Face photo" }),
+        /* @__PURE__ */ jsxs5("div", { className: "flex items-center gap-2", children: [
+          /* @__PURE__ */ jsxs5("label", { className: "flex items-center gap-1.5 px-3 py-2 rounded border border-border bg-secondary/40 hover:border-primary/60 text-xs font-semibold cursor-pointer", children: [
+            /* @__PURE__ */ jsx5(ImagePlus, { className: "h-3.5 w-3.5" }),
+            /* @__PURE__ */ jsx5("span", { children: photo ? "Change photo" : "Choose photo" }),
+            /* @__PURE__ */ jsx5(
+              "input",
+              {
+                type: "file",
+                accept: "image/jpeg,image/png",
+                className: "hidden",
+                onChange: (e) => {
+                  choosePhoto(e.target.files?.[0] ?? null);
+                  e.target.value = "";
+                }
+              }
+            )
+          ] }),
+          photo && /* @__PURE__ */ jsxs5(Fragment2, { children: [
+            /* @__PURE__ */ jsx5("span", { className: "text-[11px] text-muted-foreground truncate max-w-[180px]", title: photo.name, children: photo.name }),
+            /* @__PURE__ */ jsx5(Button4, { variant: "ghost", size: "icon-xs", onClick: () => choosePhoto(null), title: "Remove photo", children: /* @__PURE__ */ jsx5(X, { className: "h-3.5 w-3.5" }) })
+          ] })
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxs5("div", { className: "bg-card border border-border rounded-xl p-4 space-y-3", children: [
+        /* @__PURE__ */ jsxs5("div", { className: "flex items-center justify-between", children: [
+          /* @__PURE__ */ jsx5("h3", { className: "text-xs font-bold uppercase tracking-wider text-muted-foreground", children: "2. Shades (one per category)" }),
+          shadeIds.length > 0 && /* @__PURE__ */ jsx5(
+            "button",
+            {
+              type: "button",
+              onClick: () => {
+                resetResult();
+                setSelected({});
+              },
+              className: "text-[11px] text-muted-foreground hover:text-foreground cursor-pointer",
+              children: "Clear"
+            }
+          )
+        ] }),
+        catalogLoading && /* @__PURE__ */ jsxs5("p", { className: "flex items-center gap-1.5 text-xs text-muted-foreground", children: [
+          /* @__PURE__ */ jsx5(Loader2, { className: "h-3.5 w-3.5 animate-spin" }),
+          " Loading the try-on catalog..."
+        ] }),
+        !catalogLoading && catalogError && /* @__PURE__ */ jsxs5("div", { className: "flex items-start justify-between gap-2 rounded border border-destructive/40 bg-destructive/10 px-3 py-2", children: [
+          /* @__PURE__ */ jsxs5("p", { className: "text-xs text-destructive", children: [
+            "Could not load the catalog: ",
+            catalogError
+          ] }),
+          /* @__PURE__ */ jsx5(Button4, { variant: "ghost", size: "icon-xs", onClick: loadCatalog, title: "Retry", children: /* @__PURE__ */ jsx5(RefreshCw, { className: "h-3.5 w-3.5" }) })
+        ] }),
+        !catalogLoading && !catalogError && categories.length === 0 && /* @__PURE__ */ jsx5("p", { className: "text-xs text-muted-foreground", children: "The colour engine's catalog has no shades to try." }),
+        categories.map(([category, shades]) => /* @__PURE__ */ jsxs5("div", { className: "space-y-1.5", children: [
+          /* @__PURE__ */ jsx5("p", { className: "text-[11px] font-semibold capitalize text-foreground", children: category }),
+          /* @__PURE__ */ jsx5("div", { className: "flex flex-wrap gap-2", children: shades.map((s) => {
+            const isSelected = selected[category] === s.shadeId;
+            return /* @__PURE__ */ jsxs5(
+              "button",
+              {
+                type: "button",
+                "aria-pressed": isSelected,
+                onClick: () => toggleShade(category, s.shadeId),
+                title: `${s.productName} \u2014 ${s.shadeName} (${s.hexColor})`,
+                className: `flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-semibold transition cursor-pointer ${isSelected ? "border-primary ring-2 ring-primary/40" : "border-border hover:border-primary/60"}`,
+                children: [
+                  /* @__PURE__ */ jsx5("span", { className: "h-4 w-4 rounded-full border border-black/10 shrink-0", style: { backgroundColor: s.hexColor } }),
+                  /* @__PURE__ */ jsx5("span", { children: s.shadeName })
+                ]
+              },
+              s.shadeId
+            );
+          }) })
+        ] }, category))
+      ] }),
+      /* @__PURE__ */ jsxs5(Button4, { onClick: render, disabled: !photo || shadeIds.length === 0 || rendering, className: "w-full", children: [
+        rendering ? /* @__PURE__ */ jsx5(Loader2, { className: "h-4 w-4 animate-spin" }) : /* @__PURE__ */ jsx5(Wand2, { className: "h-4 w-4" }),
+        /* @__PURE__ */ jsx5("span", { children: rendering ? "Rendering..." : "Render try-on" })
+      ] })
+    ] }),
+    /* @__PURE__ */ jsx5("div", { className: "bg-card border border-border rounded-xl p-4 space-y-3", children: !photoUrl ? /* @__PURE__ */ jsx5(
+      EmptyState2,
+      {
+        icon: /* @__PURE__ */ jsx5(ImagePlus, { className: "h-6 w-6" }),
+        title: "No photo yet",
+        description: "Choose a face photo and the shades to try; the colour engine renders the look onto it."
+      }
+    ) : /* @__PURE__ */ jsxs5("div", { className: "grid grid-cols-2 gap-3", children: [
+      /* @__PURE__ */ jsxs5("figure", { className: "space-y-1.5", children: [
+        /* @__PURE__ */ jsx5("figcaption", { className: "text-[11px] font-semibold uppercase tracking-wider text-muted-foreground", children: "Before" }),
+        /* @__PURE__ */ jsx5("img", { src: photoUrl, alt: "Original photo", className: "w-full rounded-lg border border-border object-contain bg-black/40" })
+      ] }),
+      /* @__PURE__ */ jsxs5("figure", { className: "space-y-1.5", children: [
+        /* @__PURE__ */ jsx5("figcaption", { className: "text-[11px] font-semibold uppercase tracking-wider text-muted-foreground", children: "After" }),
+        resultUrl ? /* @__PURE__ */ jsx5("img", { src: resultUrl, alt: "Photo with the selected shades rendered", className: "w-full rounded-lg border border-border object-contain bg-black/40" }) : /* @__PURE__ */ jsx5("div", { className: "flex aspect-[3/4] items-center justify-center rounded-lg border border-dashed border-border p-3 text-center text-xs text-muted-foreground", children: rendering ? /* @__PURE__ */ jsxs5("span", { className: "flex items-center gap-1.5", children: [
+          /* @__PURE__ */ jsx5(Loader2, { className: "h-4 w-4 animate-spin" }),
+          " Rendering..."
+        ] }) : renderError ? /* @__PURE__ */ jsxs5("span", { className: "flex flex-col items-center gap-1.5 text-destructive", children: [
+          /* @__PURE__ */ jsx5(AlertTriangle2, { className: "h-4 w-4" }),
+          /* @__PURE__ */ jsxs5("span", { children: [
+            "Try-on failed: ",
+            renderError
+          ] })
+        ] }) : shadeIds.length === 0 ? "Pick at least one shade." : 'Press "Render try-on".' })
+      ] })
+    ] }) })
+  ] });
+};
+
 // src/match/components/modals/ConflictRuleModal.tsx
-import { jsx as jsx5, jsxs as jsxs5 } from "react/jsx-runtime";
+import { useState as useState2, useEffect as useEffect2 } from "react";
+import { ShieldAlert as ShieldAlert2, Loader2 as Loader22 } from "lucide-react";
+import { Modal, useHostRoutes } from "@gateway-experience/shared";
+import { jsx as jsx6, jsxs as jsxs6 } from "react/jsx-runtime";
 var ConflictRuleModal = ({
   isOpen,
   onClose,
@@ -831,20 +1031,20 @@ var ConflictRuleModal = ({
   editingConflict
 }) => {
   const hostRoutes = useHostRoutes();
-  const [confA, setConfA] = useState("");
-  const [confB, setConfB] = useState("");
-  const [confType, setConfType] = useState("over_exfoliation");
-  const [confAction, setConfAction] = useState("split_am_pm");
-  const [confWarning, setConfWarning] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [ingredients, setIngredients] = useState([]);
-  useEffect(() => {
+  const [confA, setConfA] = useState2("");
+  const [confB, setConfB] = useState2("");
+  const [confType, setConfType] = useState2("over_exfoliation");
+  const [confAction, setConfAction] = useState2("split_am_pm");
+  const [confWarning, setConfWarning] = useState2("");
+  const [isSubmitting, setIsSubmitting] = useState2(false);
+  const [ingredients, setIngredients] = useState2([]);
+  useEffect2(() => {
     listReferenceIngredients(hostRoutes).then((list2) => {
       if (list2.length > 0) setIngredients(list2);
     }).catch(() => {
     });
   }, [isOpen, hostRoutes]);
-  useEffect(() => {
+  useEffect2(() => {
     if (editingConflict) {
       setConfA(editingConflict.ingredientA);
       setConfB(editingConflict.ingredientB);
@@ -878,21 +1078,21 @@ var ConflictRuleModal = ({
       setIsSubmitting(false);
     }
   };
-  return /* @__PURE__ */ jsx5(
+  return /* @__PURE__ */ jsx6(
     Modal,
     {
       isOpen,
       onClose,
       size: "md",
-      icon: /* @__PURE__ */ jsx5(ShieldAlert2, { className: "h-4 w-4 text-rose-400" }),
+      icon: /* @__PURE__ */ jsx6(ShieldAlert2, { className: "h-4 w-4 text-rose-400" }),
       title: editingConflict ? "Edit Conflict Rule" : "New Ingredient Conflict",
       isLoading: isSubmitting,
       loadingText: isSubmitting ? editingConflict ? "Updating Conflict Rule..." : "Saving Conflict Rule..." : void 0,
-      children: /* @__PURE__ */ jsxs5("form", { onSubmit: handleSubmit, className: "space-y-4 text-xs", children: [
-        /* @__PURE__ */ jsxs5("div", { className: "grid grid-cols-2 gap-3", children: [
-          /* @__PURE__ */ jsxs5("div", { className: "space-y-1", children: [
-            /* @__PURE__ */ jsx5("label", { className: "text-muted-foreground", children: "Primary Ingredient (A):" }),
-            /* @__PURE__ */ jsx5(
+      children: /* @__PURE__ */ jsxs6("form", { onSubmit: handleSubmit, className: "space-y-4 text-xs", children: [
+        /* @__PURE__ */ jsxs6("div", { className: "grid grid-cols-2 gap-3", children: [
+          /* @__PURE__ */ jsxs6("div", { className: "space-y-1", children: [
+            /* @__PURE__ */ jsx6("label", { className: "text-muted-foreground", children: "Primary Ingredient (A):" }),
+            /* @__PURE__ */ jsx6(
               "input",
               {
                 type: "text",
@@ -905,9 +1105,9 @@ var ConflictRuleModal = ({
               }
             )
           ] }),
-          /* @__PURE__ */ jsxs5("div", { className: "space-y-1", children: [
-            /* @__PURE__ */ jsx5("label", { className: "text-muted-foreground", children: "Conflicting Ingredient (B):" }),
-            /* @__PURE__ */ jsx5(
+          /* @__PURE__ */ jsxs6("div", { className: "space-y-1", children: [
+            /* @__PURE__ */ jsx6("label", { className: "text-muted-foreground", children: "Conflicting Ingredient (B):" }),
+            /* @__PURE__ */ jsx6(
               "input",
               {
                 type: "text",
@@ -920,46 +1120,46 @@ var ConflictRuleModal = ({
               }
             )
           ] }),
-          /* @__PURE__ */ jsx5("datalist", { id: "conflict-ing-list", children: ingredients.map((ing) => /* @__PURE__ */ jsx5("option", { value: ing.name }, ing.code)) })
+          /* @__PURE__ */ jsx6("datalist", { id: "conflict-ing-list", children: ingredients.map((ing) => /* @__PURE__ */ jsx6("option", { value: ing.name }, ing.code)) })
         ] }),
-        /* @__PURE__ */ jsxs5("div", { className: "grid grid-cols-2 gap-3", children: [
-          /* @__PURE__ */ jsxs5("div", { className: "space-y-1", children: [
-            /* @__PURE__ */ jsx5("label", { className: "text-muted-foreground", children: "Conflict Type:" }),
-            /* @__PURE__ */ jsxs5(
+        /* @__PURE__ */ jsxs6("div", { className: "grid grid-cols-2 gap-3", children: [
+          /* @__PURE__ */ jsxs6("div", { className: "space-y-1", children: [
+            /* @__PURE__ */ jsx6("label", { className: "text-muted-foreground", children: "Conflict Type:" }),
+            /* @__PURE__ */ jsxs6(
               "select",
               {
                 value: confType,
                 onChange: (e) => setConfType(e.target.value),
                 className: "w-full bg-muted/40 border border-border rounded px-3 py-2 text-foreground font-mono",
                 children: [
-                  /* @__PURE__ */ jsx5("option", { value: "incompatible", children: "Strictly Incompatible" }),
-                  /* @__PURE__ */ jsx5("option", { value: "over_exfoliation", children: "Over-exfoliation Risk" }),
-                  /* @__PURE__ */ jsx5("option", { value: "pH_clash", children: "pH Neutralization Clash" }),
-                  /* @__PURE__ */ jsx5("option", { value: "barrier_irritation", children: "Barrier Irritation Risk" })
+                  /* @__PURE__ */ jsx6("option", { value: "incompatible", children: "Strictly Incompatible" }),
+                  /* @__PURE__ */ jsx6("option", { value: "over_exfoliation", children: "Over-exfoliation Risk" }),
+                  /* @__PURE__ */ jsx6("option", { value: "pH_clash", children: "pH Neutralization Clash" }),
+                  /* @__PURE__ */ jsx6("option", { value: "barrier_irritation", children: "Barrier Irritation Risk" })
                 ]
               }
             )
           ] }),
-          /* @__PURE__ */ jsxs5("div", { className: "space-y-1", children: [
-            /* @__PURE__ */ jsx5("label", { className: "text-muted-foreground", children: "Resolution Protocol:" }),
-            /* @__PURE__ */ jsxs5(
+          /* @__PURE__ */ jsxs6("div", { className: "space-y-1", children: [
+            /* @__PURE__ */ jsx6("label", { className: "text-muted-foreground", children: "Resolution Protocol:" }),
+            /* @__PURE__ */ jsxs6(
               "select",
               {
                 value: confAction,
                 onChange: (e) => setConfAction(e.target.value),
                 className: "w-full bg-muted/40 border border-border rounded px-3 py-2 text-foreground font-mono",
                 children: [
-                  /* @__PURE__ */ jsx5("option", { value: "split_am_pm", children: "Split Routine (AM vs PM)" }),
-                  /* @__PURE__ */ jsx5("option", { value: "alternate_days", children: "Alternate Use Days" }),
-                  /* @__PURE__ */ jsx5("option", { value: "strict_block", children: "Strict Product Exclusion" })
+                  /* @__PURE__ */ jsx6("option", { value: "split_am_pm", children: "Split Routine (AM vs PM)" }),
+                  /* @__PURE__ */ jsx6("option", { value: "alternate_days", children: "Alternate Use Days" }),
+                  /* @__PURE__ */ jsx6("option", { value: "strict_block", children: "Strict Product Exclusion" })
                 ]
               }
             )
           ] })
         ] }),
-        /* @__PURE__ */ jsxs5("div", { className: "space-y-1", children: [
-          /* @__PURE__ */ jsx5("label", { className: "text-muted-foreground", children: "Clinical Warning Message:" }),
-          /* @__PURE__ */ jsx5(
+        /* @__PURE__ */ jsxs6("div", { className: "space-y-1", children: [
+          /* @__PURE__ */ jsx6("label", { className: "text-muted-foreground", children: "Clinical Warning Message:" }),
+          /* @__PURE__ */ jsx6(
             "textarea",
             {
               rows: 2,
@@ -970,15 +1170,15 @@ var ConflictRuleModal = ({
             }
           )
         ] }),
-        /* @__PURE__ */ jsx5("div", { className: "flex justify-end pt-2", children: /* @__PURE__ */ jsxs5(
+        /* @__PURE__ */ jsx6("div", { className: "flex justify-end pt-2", children: /* @__PURE__ */ jsxs6(
           "button",
           {
             type: "submit",
             disabled: isSubmitting,
             className: "px-4 py-2 bg-rose-600 hover:bg-rose-500 text-foreground font-bold rounded disabled:opacity-50 cursor-pointer flex items-center gap-1.5",
             children: [
-              isSubmitting ? /* @__PURE__ */ jsx5(Loader22, { className: "h-3.5 w-3.5 animate-spin" }) : null,
-              /* @__PURE__ */ jsx5("span", { children: isSubmitting ? editingConflict ? "Updating..." : "Saving..." : editingConflict ? "Update Rule" : "Save Rule" })
+              isSubmitting ? /* @__PURE__ */ jsx6(Loader22, { className: "h-3.5 w-3.5 animate-spin" }) : null,
+              /* @__PURE__ */ jsx6("span", { children: isSubmitting ? editingConflict ? "Updating..." : "Saving..." : editingConflict ? "Update Rule" : "Save Rule" })
             ]
           }
         ) })
@@ -988,10 +1188,10 @@ var ConflictRuleModal = ({
 };
 
 // src/match/components/modals/ProductGroupModal.tsx
-import { useState as useState2, useEffect as useEffect2, useMemo } from "react";
-import { Boxes as Boxes2, Loader2 as Loader23, X } from "lucide-react";
+import { useState as useState3, useEffect as useEffect3, useMemo } from "react";
+import { Boxes as Boxes2, Loader2 as Loader23, X as X2 } from "lucide-react";
 import { Modal as Modal2, SearchableSelect, InfoTooltip } from "@gateway-experience/shared";
-import { jsx as jsx6, jsxs as jsxs6 } from "react/jsx-runtime";
+import { jsx as jsx7, jsxs as jsxs7 } from "react/jsx-runtime";
 var BRAND_OPTIONS = [
   { value: "wardah", label: "Wardah Beauty" },
   { value: "kahf", label: "Kahf Men Care" },
@@ -1005,25 +1205,25 @@ var ProductGroupModal = ({
   editingGroup,
   defaultBrand
 }) => {
-  const [brandId, setBrandId] = useState2(defaultBrand && defaultBrand !== "*" ? defaultBrand : "wardah");
-  const [applicationId, setApplicationId] = useState2("*");
-  const [name, setName] = useState2("");
-  const [code, setCode] = useState2("");
-  const [description, setDescription] = useState2("");
-  const [productIds, setProductIds] = useState2([]);
-  const [categories, setCategories] = useState2([]);
-  const [categoryDraft, setCategoryDraft] = useState2("");
-  const [isActive, setIsActive] = useState2(true);
-  const [isSubmitting, setIsSubmitting] = useState2(false);
-  const [products, setProducts] = useState2([]);
-  useEffect2(() => {
+  const [brandId, setBrandId] = useState3(defaultBrand && defaultBrand !== "*" ? defaultBrand : "wardah");
+  const [applicationId, setApplicationId] = useState3("*");
+  const [name, setName] = useState3("");
+  const [code, setCode] = useState3("");
+  const [description, setDescription] = useState3("");
+  const [productIds, setProductIds] = useState3([]);
+  const [categories, setCategories] = useState3([]);
+  const [categoryDraft, setCategoryDraft] = useState3("");
+  const [isActive, setIsActive] = useState3(true);
+  const [isSubmitting, setIsSubmitting] = useState3(false);
+  const [products, setProducts] = useState3([]);
+  useEffect3(() => {
     if (!isOpen) return;
     productsApi.listForBrand(brandId).then((list2) => {
       if (list2) setProducts(list2);
     }).catch(() => {
     });
   }, [isOpen, brandId]);
-  useEffect2(() => {
+  useEffect3(() => {
     if (editingGroup) {
       setBrandId(editingGroup.brandId);
       setApplicationId(editingGroup.applicationId || "*");
@@ -1080,34 +1280,34 @@ var ProductGroupModal = ({
       setIsSubmitting(false);
     }
   };
-  return /* @__PURE__ */ jsx6(
+  return /* @__PURE__ */ jsx7(
     Modal2,
     {
       isOpen,
       onClose,
       size: "lg",
-      icon: /* @__PURE__ */ jsx6(Boxes2, { className: "h-4 w-4 text-primary" }),
+      icon: /* @__PURE__ */ jsx7(Boxes2, { className: "h-4 w-4 text-primary" }),
       title: editingGroup ? "Edit Product Group" : "New Product Group",
       isLoading: isSubmitting,
       loadingText: isSubmitting ? editingGroup ? "Updating Product Group..." : "Saving Product Group..." : void 0,
-      children: /* @__PURE__ */ jsxs6("form", { onSubmit: handleSubmit, className: "space-y-4 text-xs", children: [
-        /* @__PURE__ */ jsxs6("div", { className: "grid grid-cols-2 gap-3", children: [
-          /* @__PURE__ */ jsxs6("div", { className: "space-y-1", children: [
-            /* @__PURE__ */ jsx6("label", { className: "text-[#888888]", children: "Brand:" }),
-            /* @__PURE__ */ jsx6(
+      children: /* @__PURE__ */ jsxs7("form", { onSubmit: handleSubmit, className: "space-y-4 text-xs", children: [
+        /* @__PURE__ */ jsxs7("div", { className: "grid grid-cols-2 gap-3", children: [
+          /* @__PURE__ */ jsxs7("div", { className: "space-y-1", children: [
+            /* @__PURE__ */ jsx7("label", { className: "text-[#888888]", children: "Brand:" }),
+            /* @__PURE__ */ jsx7(
               "select",
               {
                 value: brandId,
                 onChange: (e) => setBrandId(e.target.value),
                 disabled: !!editingGroup,
                 className: "w-full bg-[#161616] border border-[#333333] rounded px-3 py-2 text-white font-mono disabled:opacity-60",
-                children: BRAND_OPTIONS.map((b) => /* @__PURE__ */ jsx6("option", { value: b.value, children: b.label }, b.value))
+                children: BRAND_OPTIONS.map((b) => /* @__PURE__ */ jsx7("option", { value: b.value, children: b.label }, b.value))
               }
             )
           ] }),
-          /* @__PURE__ */ jsxs6("div", { className: "space-y-1", children: [
-            /* @__PURE__ */ jsx6("label", { className: "text-[#888888]", children: "Group Name:" }),
-            /* @__PURE__ */ jsx6(
+          /* @__PURE__ */ jsxs7("div", { className: "space-y-1", children: [
+            /* @__PURE__ */ jsx7("label", { className: "text-[#888888]", children: "Group Name:" }),
+            /* @__PURE__ */ jsx7(
               "input",
               {
                 type: "text",
@@ -1120,10 +1320,10 @@ var ProductGroupModal = ({
             )
           ] })
         ] }),
-        /* @__PURE__ */ jsxs6("div", { className: "grid grid-cols-2 gap-3", children: [
-          /* @__PURE__ */ jsxs6("div", { className: "space-y-1", children: [
-            /* @__PURE__ */ jsx6("label", { className: "text-[#888888]", children: "Group Code:" }),
-            /* @__PURE__ */ jsx6(
+        /* @__PURE__ */ jsxs7("div", { className: "grid grid-cols-2 gap-3", children: [
+          /* @__PURE__ */ jsxs7("div", { className: "space-y-1", children: [
+            /* @__PURE__ */ jsx7("label", { className: "text-[#888888]", children: "Group Code:" }),
+            /* @__PURE__ */ jsx7(
               "input",
               {
                 type: "text",
@@ -1134,10 +1334,10 @@ var ProductGroupModal = ({
               }
             )
           ] }),
-          /* @__PURE__ */ jsxs6("div", { className: "space-y-1", children: [
-            /* @__PURE__ */ jsx6("label", { className: "text-[#888888] flex items-center justify-between", children: /* @__PURE__ */ jsx6("span", { children: "Status:" }) }),
-            /* @__PURE__ */ jsxs6("label", { className: "flex items-center gap-2 bg-[#161616] border border-[#333333] rounded px-3 py-2 cursor-pointer", children: [
-              /* @__PURE__ */ jsx6(
+          /* @__PURE__ */ jsxs7("div", { className: "space-y-1", children: [
+            /* @__PURE__ */ jsx7("label", { className: "text-[#888888] flex items-center justify-between", children: /* @__PURE__ */ jsx7("span", { children: "Status:" }) }),
+            /* @__PURE__ */ jsxs7("label", { className: "flex items-center gap-2 bg-[#161616] border border-[#333333] rounded px-3 py-2 cursor-pointer", children: [
+              /* @__PURE__ */ jsx7(
                 "input",
                 {
                   type: "checkbox",
@@ -1146,13 +1346,13 @@ var ProductGroupModal = ({
                   className: "accent-primary"
                 }
               ),
-              /* @__PURE__ */ jsx6("span", { className: "text-white", children: "Active in matching engine" })
+              /* @__PURE__ */ jsx7("span", { className: "text-white", children: "Active in matching engine" })
             ] })
           ] })
         ] }),
-        /* @__PURE__ */ jsxs6("div", { className: "space-y-1", children: [
-          /* @__PURE__ */ jsx6("label", { className: "text-[#888888]", children: "Campaign Description:" }),
-          /* @__PURE__ */ jsx6(
+        /* @__PURE__ */ jsxs7("div", { className: "space-y-1", children: [
+          /* @__PURE__ */ jsx7("label", { className: "text-[#888888]", children: "Campaign Description:" }),
+          /* @__PURE__ */ jsx7(
             "textarea",
             {
               rows: 2,
@@ -1163,9 +1363,9 @@ var ProductGroupModal = ({
             }
           )
         ] }),
-        /* @__PURE__ */ jsxs6("div", { className: "space-y-1", children: [
-          /* @__PURE__ */ jsx6("label", { className: "text-[#888888]", children: "Products in Group:" }),
-          /* @__PURE__ */ jsx6(
+        /* @__PURE__ */ jsxs7("div", { className: "space-y-1", children: [
+          /* @__PURE__ */ jsx7("label", { className: "text-[#888888]", children: "Products in Group:" }),
+          /* @__PURE__ */ jsx7(
             SearchableSelect,
             {
               multiple: true,
@@ -1177,31 +1377,31 @@ var ProductGroupModal = ({
             }
           )
         ] }),
-        /* @__PURE__ */ jsxs6("div", { className: "space-y-1", children: [
-          /* @__PURE__ */ jsxs6("div", { className: "flex items-center gap-1.5", children: [
-            /* @__PURE__ */ jsx6("label", { className: "text-[#888888]", children: "Categories in Group:" }),
-            /* @__PURE__ */ jsx6(InfoTooltip, { content: "Every product in each listed category is included in the group.", label: "About Categories in Group" })
+        /* @__PURE__ */ jsxs7("div", { className: "space-y-1", children: [
+          /* @__PURE__ */ jsxs7("div", { className: "flex items-center gap-1.5", children: [
+            /* @__PURE__ */ jsx7("label", { className: "text-[#888888]", children: "Categories in Group:" }),
+            /* @__PURE__ */ jsx7(InfoTooltip, { content: "Every product in each listed category is included in the group.", label: "About Categories in Group" })
           ] }),
-          /* @__PURE__ */ jsx6("div", { className: "flex flex-wrap items-center gap-1.5 mb-1.5", children: categories.map((c) => /* @__PURE__ */ jsxs6(
+          /* @__PURE__ */ jsx7("div", { className: "flex flex-wrap items-center gap-1.5 mb-1.5", children: categories.map((c) => /* @__PURE__ */ jsxs7(
             "span",
             {
               className: "flex items-center gap-1 bg-amber-500/15 text-amber-400 font-mono px-2 py-0.5 rounded text-[10px] uppercase border border-amber-500/30 font-bold",
               children: [
                 c,
-                /* @__PURE__ */ jsx6(
+                /* @__PURE__ */ jsx7(
                   "button",
                   {
                     type: "button",
                     onClick: () => setCategories((prev) => prev.filter((x) => x !== c)),
                     className: "hover:text-white cursor-pointer",
-                    children: /* @__PURE__ */ jsx6(X, { className: "h-3 w-3" })
+                    children: /* @__PURE__ */ jsx7(X2, { className: "h-3 w-3" })
                   }
                 )
               ]
             },
             c
           )) }),
-          /* @__PURE__ */ jsx6(
+          /* @__PURE__ */ jsx7(
             "input",
             {
               type: "text",
@@ -1218,17 +1418,17 @@ var ProductGroupModal = ({
               className: "w-full bg-[#161616] border border-[#333333] rounded px-3 py-2 text-white"
             }
           ),
-          /* @__PURE__ */ jsx6("datalist", { id: "product-group-category-list", children: availableCategories.map((c) => /* @__PURE__ */ jsx6("option", { value: c }, c)) })
+          /* @__PURE__ */ jsx7("datalist", { id: "product-group-category-list", children: availableCategories.map((c) => /* @__PURE__ */ jsx7("option", { value: c }, c)) })
         ] }),
-        /* @__PURE__ */ jsx6("div", { className: "flex justify-end pt-2", children: /* @__PURE__ */ jsxs6(
+        /* @__PURE__ */ jsx7("div", { className: "flex justify-end pt-2", children: /* @__PURE__ */ jsxs7(
           "button",
           {
             type: "submit",
             disabled: isSubmitting,
             className: "px-4 py-2 bg-primary hover:opacity-90 text-primary-foreground font-bold rounded disabled:opacity-50 cursor-pointer flex items-center gap-1.5",
             children: [
-              isSubmitting ? /* @__PURE__ */ jsx6(Loader23, { className: "h-3.5 w-3.5 animate-spin" }) : null,
-              /* @__PURE__ */ jsx6("span", { children: isSubmitting ? editingGroup ? "Updating..." : "Saving..." : editingGroup ? "Update Group" : "Save Group" })
+              isSubmitting ? /* @__PURE__ */ jsx7(Loader23, { className: "h-3.5 w-3.5 animate-spin" }) : null,
+              /* @__PURE__ */ jsx7("span", { children: isSubmitting ? editingGroup ? "Updating..." : "Saving..." : editingGroup ? "Update Group" : "Save Group" })
             ]
           }
         ) })
@@ -1238,27 +1438,24 @@ var ProductGroupModal = ({
 };
 
 // src/match/components/modals/ShadeModal.tsx
-import { useState as useState3, useEffect as useEffect3 } from "react";
+import { useState as useState4, useEffect as useEffect4 } from "react";
 import { Palette, Loader2 as Loader24 } from "lucide-react";
-import { Modal as Modal3, InfoTooltip as InfoTooltip2 } from "@gateway-experience/shared";
-import { jsx as jsx7, jsxs as jsxs7 } from "react/jsx-runtime";
+import { Modal as Modal3 } from "@gateway-experience/shared";
+import { jsx as jsx8, jsxs as jsxs8 } from "react/jsx-runtime";
 var ShadeModal = ({ isOpen, onClose, onSave, editingShade, productId }) => {
-  const [name, setName] = useState3("");
-  const [hexColor, setHexColor] = useState3("#C41E3A");
-  const [region, setRegion] = useState3("lip");
-  const [referencePhotoUrl, setReferencePhotoUrl] = useState3("");
-  const [isSubmitting, setIsSubmitting] = useState3(false);
-  useEffect3(() => {
+  const [name, setName] = useState4("");
+  const [hexColor, setHexColor] = useState4("#C41E3A");
+  const [region, setRegion] = useState4("lip");
+  const [isSubmitting, setIsSubmitting] = useState4(false);
+  useEffect4(() => {
     if (editingShade) {
       setName(editingShade.name);
       setHexColor(editingShade.hexColor);
       setRegion(editingShade.region);
-      setReferencePhotoUrl(editingShade.referencePhotoUrl || "");
     } else {
       setName("");
       setHexColor("#C41E3A");
       setRegion("lip");
-      setReferencePhotoUrl("");
     }
   }, [editingShade, isOpen]);
   const handleSubmit = async (e) => {
@@ -1271,29 +1468,28 @@ var ShadeModal = ({ isOpen, onClose, onSave, editingShade, productId }) => {
         productId,
         name: name.trim(),
         hexColor: hexColor.trim(),
-        region,
-        referencePhotoUrl: referencePhotoUrl.trim()
+        region
       });
       onClose();
     } finally {
       setIsSubmitting(false);
     }
   };
-  return /* @__PURE__ */ jsx7(
+  return /* @__PURE__ */ jsx8(
     Modal3,
     {
       isOpen,
       onClose,
       size: "md",
-      icon: /* @__PURE__ */ jsx7(Palette, { className: "h-4 w-4 text-primary" }),
+      icon: /* @__PURE__ */ jsx8(Palette, { className: "h-4 w-4 text-primary" }),
       title: editingShade ? "Edit Shade" : "New Shade",
       isLoading: isSubmitting,
       loadingText: isSubmitting ? editingShade ? "Updating Shade..." : "Saving Shade..." : void 0,
-      children: /* @__PURE__ */ jsxs7("form", { onSubmit: handleSubmit, className: "space-y-4 text-xs", children: [
-        /* @__PURE__ */ jsxs7("div", { className: "grid grid-cols-2 gap-3", children: [
-          /* @__PURE__ */ jsxs7("div", { className: "space-y-1", children: [
-            /* @__PURE__ */ jsx7("label", { className: "text-[#888888]", children: "Shade Name:" }),
-            /* @__PURE__ */ jsx7(
+      children: /* @__PURE__ */ jsxs8("form", { onSubmit: handleSubmit, className: "space-y-4 text-xs", children: [
+        /* @__PURE__ */ jsxs8("div", { className: "grid grid-cols-2 gap-3", children: [
+          /* @__PURE__ */ jsxs8("div", { className: "space-y-1", children: [
+            /* @__PURE__ */ jsx8("label", { className: "text-[#888888]", children: "Shade Name:" }),
+            /* @__PURE__ */ jsx8(
               "input",
               {
                 type: "text",
@@ -1305,10 +1501,10 @@ var ShadeModal = ({ isOpen, onClose, onSave, editingShade, productId }) => {
               }
             )
           ] }),
-          /* @__PURE__ */ jsxs7("div", { className: "space-y-1", children: [
-            /* @__PURE__ */ jsx7("label", { className: "text-[#888888]", children: "Exact Color:" }),
-            /* @__PURE__ */ jsxs7("div", { className: "flex items-center gap-2", children: [
-              /* @__PURE__ */ jsx7(
+          /* @__PURE__ */ jsxs8("div", { className: "space-y-1", children: [
+            /* @__PURE__ */ jsx8("label", { className: "text-[#888888]", children: "Exact Color:" }),
+            /* @__PURE__ */ jsxs8("div", { className: "flex items-center gap-2", children: [
+              /* @__PURE__ */ jsx8(
                 "input",
                 {
                   type: "color",
@@ -1317,7 +1513,7 @@ var ShadeModal = ({ isOpen, onClose, onSave, editingShade, productId }) => {
                   className: "h-9 w-9 rounded border border-[#333333] bg-transparent cursor-pointer"
                 }
               ),
-              /* @__PURE__ */ jsx7(
+              /* @__PURE__ */ jsx8(
                 "input",
                 {
                   type: "text",
@@ -1331,49 +1527,32 @@ var ShadeModal = ({ isOpen, onClose, onSave, editingShade, productId }) => {
             ] })
           ] })
         ] }),
-        /* @__PURE__ */ jsxs7("div", { className: "space-y-1", children: [
-          /* @__PURE__ */ jsx7("label", { className: "text-[#888888]", children: "Applies To:" }),
-          /* @__PURE__ */ jsxs7(
+        /* @__PURE__ */ jsxs8("div", { className: "space-y-1", children: [
+          /* @__PURE__ */ jsx8("label", { className: "text-[#888888]", children: "Applies To:" }),
+          /* @__PURE__ */ jsxs8(
             "select",
             {
               value: region,
               onChange: (e) => setRegion(e.target.value),
               className: "w-full bg-[#161616] border border-[#333333] rounded px-3 py-2 text-white font-mono",
               children: [
-                /* @__PURE__ */ jsx7("option", { value: "lip", children: "Lips" }),
-                /* @__PURE__ */ jsx7("option", { value: "eye", children: "Eyes" }),
-                /* @__PURE__ */ jsx7("option", { value: "cheek", children: "Cheeks" }),
-                /* @__PURE__ */ jsx7("option", { value: "skin", children: "Skin / Foundation" })
+                /* @__PURE__ */ jsx8("option", { value: "lip", children: "Lips" }),
+                /* @__PURE__ */ jsx8("option", { value: "eye", children: "Eyes" }),
+                /* @__PURE__ */ jsx8("option", { value: "cheek", children: "Cheeks" }),
+                /* @__PURE__ */ jsx8("option", { value: "skin", children: "Skin / Foundation" })
               ]
             }
           )
         ] }),
-        /* @__PURE__ */ jsxs7("div", { className: "space-y-1", children: [
-          /* @__PURE__ */ jsxs7("div", { className: "flex items-center gap-1.5", children: [
-            /* @__PURE__ */ jsx7("label", { className: "text-[#888888]", children: "Reference Photo URL:" }),
-            /* @__PURE__ */ jsx7(InfoTooltip2, { content: "A face photo used to generate the realistic shade texture.", label: "About Reference Photo URL" })
-          ] }),
-          /* @__PURE__ */ jsx7(
-            "input",
-            {
-              type: "url",
-              required: true,
-              placeholder: "https://...",
-              value: referencePhotoUrl,
-              onChange: (e) => setReferencePhotoUrl(e.target.value),
-              className: "w-full bg-[#161616] border border-[#333333] rounded px-3 py-2 text-white"
-            }
-          )
-        ] }),
-        /* @__PURE__ */ jsx7("div", { className: "flex justify-end pt-2", children: /* @__PURE__ */ jsxs7(
+        /* @__PURE__ */ jsx8("div", { className: "flex justify-end pt-2", children: /* @__PURE__ */ jsxs8(
           "button",
           {
             type: "submit",
             disabled: isSubmitting,
             className: "px-4 py-2 bg-primary hover:opacity-90 text-primary-foreground font-bold rounded disabled:opacity-50 cursor-pointer flex items-center gap-1.5",
             children: [
-              isSubmitting ? /* @__PURE__ */ jsx7(Loader24, { className: "h-3.5 w-3.5 animate-spin" }) : null,
-              /* @__PURE__ */ jsx7("span", { children: isSubmitting ? editingShade ? "Updating..." : "Saving..." : editingShade ? "Update Shade" : "Save Shade & Start Extraction" })
+              isSubmitting ? /* @__PURE__ */ jsx8(Loader24, { className: "h-3.5 w-3.5 animate-spin" }) : null,
+              /* @__PURE__ */ jsx8("span", { children: isSubmitting ? editingShade ? "Updating..." : "Saving..." : editingShade ? "Update Shade" : "Save Shade" })
             ]
           }
         ) })
@@ -1383,13 +1562,13 @@ var ShadeModal = ({ isOpen, onClose, onSave, editingShade, productId }) => {
 };
 
 // src/match/components/MatchManager.tsx
-import { jsx as jsx8, jsxs as jsxs8 } from "react/jsx-runtime";
+import { jsx as jsx9, jsxs as jsxs9 } from "react/jsx-runtime";
 var MatchManager = () => {
   const [activeTab, setActiveTab] = usePersistentState("xg.matchEngine.activeTab", "conflicts");
-  const [searchQuery, setSearchQuery] = useState4("");
-  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState4(false);
-  const [activeFilters, setActiveFilters] = useState4({});
-  const [deleteConfirm, setDeleteConfirm] = useState4({
+  const [searchQuery, setSearchQuery] = useState5("");
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState5(false);
+  const [activeFilters, setActiveFilters] = useState5({});
+  const [deleteConfirm, setDeleteConfirm] = useState5({
     isOpen: false,
     title: "",
     message: "",
@@ -1398,17 +1577,17 @@ var MatchManager = () => {
   });
   const [selectedBrand, setSelectedBrand] = usePersistentState("xg.matchEngine.brand", "*");
   const [selectedApp, setSelectedApp] = usePersistentState("xg.matchEngine.application", "*");
-  const [conflicts, setConflicts] = useState4([]);
-  const [productGroups, setProductGroups] = useState4([]);
-  const [products, setProducts] = useState4([]);
-  const [shades, setShades] = useState4([]);
-  const [shadeProductId, setShadeProductId] = useState4("");
-  const [isConflictModalOpen, setIsConflictModalOpen] = useState4(false);
-  const [isGroupModalOpen, setIsGroupModalOpen] = useState4(false);
-  const [isShadeModalOpen, setIsShadeModalOpen] = useState4(false);
-  const [editingConflict, setEditingConflict] = useState4(null);
-  const [editingGroup, setEditingGroup] = useState4(null);
-  const [editingShade, setEditingShade] = useState4(null);
+  const [conflicts, setConflicts] = useState5([]);
+  const [productGroups, setProductGroups] = useState5([]);
+  const [products, setProducts] = useState5([]);
+  const [shades, setShades] = useState5([]);
+  const [shadeProductId, setShadeProductId] = useState5("");
+  const [isConflictModalOpen, setIsConflictModalOpen] = useState5(false);
+  const [isGroupModalOpen, setIsGroupModalOpen] = useState5(false);
+  const [isShadeModalOpen, setIsShadeModalOpen] = useState5(false);
+  const [editingConflict, setEditingConflict] = useState5(null);
+  const [editingGroup, setEditingGroup] = useState5(null);
+  const [editingShade, setEditingShade] = useState5(null);
   const [simBrand, setSimBrand] = usePersistentState("xg.matchEngine.simulator.brand", "*");
   const [simSkinType, setSimSkinType] = usePersistentState("xg.matchEngine.simulator.skinType", "OSPT");
   const [simSebum, setSimSebum] = usePersistentState("xg.matchEngine.simulator.sebum", 75);
@@ -1416,7 +1595,7 @@ var MatchManager = () => {
   const [simSensitivity, setSimSensitivity] = usePersistentState("xg.matchEngine.simulator.sensitivity", 65);
   const [simPregnant, setSimPregnant] = usePersistentState("xg.matchEngine.simulator.pregnant", false);
   const [simRetinol, setSimRetinol] = usePersistentState("xg.matchEngine.simulator.retinol", true);
-  const [isSimulating, setIsSimulating] = useState4(false);
+  const [isSimulating, setIsSimulating] = useState5(false);
   const [simResult, setSimResult] = usePersistentState("xg.matchEngine.simulator.result", null);
   const loadData = () => {
     conflictsApi.list().then((list2) => {
@@ -1445,17 +1624,18 @@ var MatchManager = () => {
     }).catch(() => {
     });
   };
-  useEffect4(() => {
+  useEffect5(() => {
     loadData();
   }, []);
-  useEffect4(() => {
+  useEffect5(() => {
     loadShades(shadeProductId);
   }, [shadeProductId]);
   const matchTabs = [
-    { id: "conflicts", label: "Contraindication Matrix", icon: /* @__PURE__ */ jsx8(ShieldAlert3, { className: "h-4 w-4 text-rose-400" }), badge: conflicts.length },
-    { id: "groups", label: "Product Groups", icon: /* @__PURE__ */ jsx8(Boxes3, { className: "h-4 w-4 text-amber-400" }), badge: productGroups.length },
-    { id: "shades", label: "Shades", icon: /* @__PURE__ */ jsx8(Palette2, { className: "h-4 w-4 text-rose-400" }), badge: shades.length },
-    { id: "simulator", label: "Match Simulator", icon: /* @__PURE__ */ jsx8(Play2, { className: "h-4 w-4 text-emerald-400" }) }
+    { id: "conflicts", label: "Contraindication Matrix", icon: /* @__PURE__ */ jsx9(ShieldAlert3, { className: "h-4 w-4 text-rose-400" }), badge: conflicts.length },
+    { id: "groups", label: "Product Groups", icon: /* @__PURE__ */ jsx9(Boxes3, { className: "h-4 w-4 text-amber-400" }), badge: productGroups.length },
+    { id: "shades", label: "Shades", icon: /* @__PURE__ */ jsx9(Palette2, { className: "h-4 w-4 text-rose-400" }), badge: shades.length },
+    { id: "tryon", label: "Photo Try-On", icon: /* @__PURE__ */ jsx9(Wand22, { className: "h-4 w-4 text-purple-400" }) },
+    { id: "simulator", label: "Match Simulator", icon: /* @__PURE__ */ jsx9(Play2, { className: "h-4 w-4 text-emerald-400" }) }
   ];
   const handleSaveConflict = async (data) => {
     if (editingConflict) {
@@ -1542,13 +1722,11 @@ var MatchManager = () => {
     } else {
       const newShade = {
         id: `shade-${Date.now()}`,
-        extractionStatus: "pending",
         ...data
       };
       setShades((prev) => [newShade, ...prev]);
       try {
         await shadesApi.create(newShade);
-        setTimeout(() => loadShades(shadeProductId), 1e3);
       } catch {
       }
     }
@@ -1594,18 +1772,18 @@ var MatchManager = () => {
       setIsSimulating(false);
     }
   };
-  return /* @__PURE__ */ jsxs8("div", { className: "flex-1 min-w-0 h-full overflow-y-auto bg-background text-foreground font-sans flex flex-col select-none", children: [
-    /* @__PURE__ */ jsx8(
+  return /* @__PURE__ */ jsxs9("div", { className: "flex-1 min-w-0 h-full overflow-y-auto bg-background text-foreground font-sans flex flex-col select-none", children: [
+    /* @__PURE__ */ jsx9(
       PageHeader,
       {
-        icon: /* @__PURE__ */ jsx8(Sparkles2, { className: "h-5 w-5 text-beak" }),
+        icon: /* @__PURE__ */ jsx9(Sparkles2, { className: "h-5 w-5 text-beak" }),
         breadcrumbs: [
           { label: "Workbench", href: "/" },
           { label: "Core Engines" },
           { label: "Match Engine" }
         ],
         title: "Clinical Product Matcher & Routine Generator",
-        children: /* @__PURE__ */ jsx8(
+        children: /* @__PURE__ */ jsx9(
           TabNav,
           {
             tabs: matchTabs,
@@ -1615,8 +1793,8 @@ var MatchManager = () => {
         )
       }
     ),
-    /* @__PURE__ */ jsxs8("main", { className: "flex-1 p-4 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl w-full mx-auto", children: [
-      activeTab === "conflicts" && /* @__PURE__ */ jsx8(
+    /* @__PURE__ */ jsxs9("main", { className: "flex-1 p-4 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl w-full mx-auto", children: [
+      activeTab === "conflicts" && /* @__PURE__ */ jsx9(
         ConflictMatrixTab,
         {
           conflicts,
@@ -1637,7 +1815,7 @@ var MatchManager = () => {
           setSelectedApp
         }
       ),
-      activeTab === "groups" && /* @__PURE__ */ jsx8(
+      activeTab === "groups" && /* @__PURE__ */ jsx9(
         ProductGroupsTab,
         {
           groups: productGroups,
@@ -1658,23 +1836,23 @@ var MatchManager = () => {
           setSelectedApp
         }
       ),
-      activeTab === "shades" && /* @__PURE__ */ jsxs8("div", { className: "space-y-4", children: [
-        /* @__PURE__ */ jsxs8("div", { className: "flex items-center gap-2 bg-secondary/40 border border-border rounded-lg px-3 py-2 w-fit", children: [
-          /* @__PURE__ */ jsx8("label", { className: "text-xs font-semibold text-muted-foreground", children: "Product:" }),
-          /* @__PURE__ */ jsxs8(
+      activeTab === "shades" && /* @__PURE__ */ jsxs9("div", { className: "space-y-4", children: [
+        /* @__PURE__ */ jsxs9("div", { className: "flex items-center gap-2 bg-secondary/40 border border-border rounded-lg px-3 py-2 w-fit", children: [
+          /* @__PURE__ */ jsx9("label", { className: "text-xs font-semibold text-muted-foreground", children: "Product:" }),
+          /* @__PURE__ */ jsxs9(
             "select",
             {
               value: shadeProductId,
               onChange: (e) => setShadeProductId(e.target.value),
               className: "bg-transparent text-xs font-bold text-foreground outline-none cursor-pointer",
               children: [
-                products.length === 0 && /* @__PURE__ */ jsx8("option", { value: "", children: "No products found" }),
-                products.map((p) => /* @__PURE__ */ jsx8("option", { value: p.id, children: p.name }, p.id))
+                products.length === 0 && /* @__PURE__ */ jsx9("option", { value: "", children: "No products found" }),
+                products.map((p) => /* @__PURE__ */ jsx9("option", { value: p.id, children: p.name }, p.id))
               ]
             }
           )
         ] }),
-        /* @__PURE__ */ jsx8(
+        /* @__PURE__ */ jsx9(
           ShadesTab,
           {
             shades,
@@ -1692,7 +1870,8 @@ var MatchManager = () => {
           }
         )
       ] }),
-      activeTab === "simulator" && /* @__PURE__ */ jsx8(
+      activeTab === "tryon" && /* @__PURE__ */ jsx9(PhotoTryOnTab, {}),
+      activeTab === "simulator" && /* @__PURE__ */ jsx9(
         MatchSimulatorTab,
         {
           simBrand,
@@ -1715,7 +1894,7 @@ var MatchManager = () => {
         }
       )
     ] }),
-    /* @__PURE__ */ jsx8(
+    /* @__PURE__ */ jsx9(
       ConflictRuleModal,
       {
         isOpen: isConflictModalOpen,
@@ -1724,7 +1903,7 @@ var MatchManager = () => {
         editingConflict
       }
     ),
-    /* @__PURE__ */ jsx8(
+    /* @__PURE__ */ jsx9(
       ProductGroupModal,
       {
         isOpen: isGroupModalOpen,
@@ -1734,7 +1913,7 @@ var MatchManager = () => {
         defaultBrand: selectedBrand
       }
     ),
-    /* @__PURE__ */ jsx8(
+    /* @__PURE__ */ jsx9(
       ShadeModal,
       {
         isOpen: isShadeModalOpen,
@@ -1744,7 +1923,7 @@ var MatchManager = () => {
         productId: shadeProductId
       }
     ),
-    /* @__PURE__ */ jsx8(
+    /* @__PURE__ */ jsx9(
       ConfirmDialog,
       {
         isOpen: deleteConfirm.isOpen,

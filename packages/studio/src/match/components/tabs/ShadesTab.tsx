@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Pencil, Trash2, CheckCircle2, Clock, XCircle, Loader2 } from 'lucide-react';
+import { Pencil, Trash2 } from 'lucide-react';
 import { SearchFilterBar, DataTable, Button, type ColumnDef } from '@gateway-experience/shared';
 import type { Shade } from '../../types';
 
@@ -13,13 +13,6 @@ interface ShadesTabProps {
   onOpenEditModal: (s: Shade) => void;
   onDeleteShade: (id: string) => void;
 }
-
-const STATUS_ICON: Record<Shade['extractionStatus'], React.ReactNode> = {
-  pending: <Clock className="h-3.5 w-3.5 text-muted-foreground" />,
-  processing: <Loader2 className="h-3.5 w-3.5 text-amber-400 animate-spin" />,
-  ready: <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />,
-  failed: <XCircle className="h-3.5 w-3.5 text-rose-400" />,
-};
 
 export const ShadesTab: React.FC<ShadesTabProps> = ({
   shades,
@@ -53,21 +46,6 @@ export const ShadesTab: React.FC<ShadesTabProps> = ({
       key: 'region',
       header: 'Applies To',
       render: (s) => <span className="font-mono text-[10px] uppercase text-muted-foreground">{s.region}</span>,
-    },
-    {
-      key: 'extractionStatus',
-      header: 'Try-On Status',
-      render: (s) => (
-        <div className="flex items-center gap-1.5">
-          {STATUS_ICON[s.extractionStatus]}
-          <span className="text-[11px] capitalize">{s.extractionStatus}</span>
-          {s.extractionStatus === 'failed' && s.failureReason && (
-            <span className="text-[10px] text-rose-400 truncate max-w-[160px]" title={s.failureReason}>
-              — {s.failureReason}
-            </span>
-          )}
-        </div>
-      ),
     },
     {
       key: 'actions',

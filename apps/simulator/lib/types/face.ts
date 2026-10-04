@@ -1,3 +1,4 @@
+import type { Bilingual } from '../i18n';
 // Face-architecture response shapes, ported loosely from seagull-web
 // features/colour/face/faceTypes.ts. Fields may be missing.
 
@@ -24,12 +25,14 @@ export interface FaceArchitectureResult {
   traits?: Record<string, Trait>;
 }
 
-export const CLASSIFICATION_STATUS_LABEL: Record<string, string> = {
-  single: 'Satu bentuk', blend: 'Campuran', insufficient_evidence: 'Bukti belum cukup', unavailable: 'Tidak tersedia',
+export const CLASSIFICATION_STATUS_LABEL: Bilingual = {
+  en: { single: 'Single shape', blend: 'Blend', insufficient_evidence: 'Not enough evidence', unavailable: 'Unavailable' },
+  id: { single: 'Satu bentuk', blend: 'Campuran', insufficient_evidence: 'Bukti belum cukup', unavailable: 'Tidak tersedia' },
 };
 
-export const TRAIT_STATUS_LABEL: Record<string, string> = {
-  assessed: 'Terbaca', not_assessable: 'Tidak bisa dinilai', unavailable: 'Tidak tersedia',
+export const TRAIT_STATUS_LABEL: Bilingual = {
+  en: { assessed: 'Assessed', not_assessable: 'Not assessable', unavailable: 'Unavailable' },
+  id: { assessed: 'Terbaca', not_assessable: 'Tidak bisa dinilai', unavailable: 'Tidak tersedia' },
 };
 
 /** Rejection details: core sends `detail` as one object or a list (one per failed gate). */

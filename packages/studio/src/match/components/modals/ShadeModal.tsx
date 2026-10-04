@@ -2,13 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { Palette, Loader2 } from 'lucide-react';
-import { Modal, InfoTooltip } from '@gateway-experience/shared';
+import { Modal } from '@gateway-experience/shared';
 import type { Shade } from '../../types';
 
 interface ShadeModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: Omit<Shade, 'id' | 'extractionStatus' | 'assetId'> & { id?: string }) => Promise<void>;
+  onSave: (data: Omit<Shade, 'id'> & { id?: string }) => Promise<void>;
   editingShade: Shade | null;
   productId: string;
 }
@@ -17,7 +17,6 @@ export const ShadeModal: React.FC<ShadeModalProps> = ({ isOpen, onClose, onSave,
   const [name, setName] = useState('');
   const [hexColor, setHexColor] = useState('#C41E3A');
   const [region, setRegion] = useState<Shade['region']>('lip');
-  const [referencePhotoUrl, setReferencePhotoUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -25,12 +24,10 @@ export const ShadeModal: React.FC<ShadeModalProps> = ({ isOpen, onClose, onSave,
       setName(editingShade.name);
       setHexColor(editingShade.hexColor);
       setRegion(editingShade.region);
-      setReferencePhotoUrl(editingShade.referencePhotoUrl || '');
     } else {
       setName('');
       setHexColor('#C41E3A');
       setRegion('lip');
-      setReferencePhotoUrl('');
     }
   }, [editingShade, isOpen]);
 
@@ -46,7 +43,6 @@ export const ShadeModal: React.FC<ShadeModalProps> = ({ isOpen, onClose, onSave,
         name: name.trim(),
         hexColor: hexColor.trim(),
         region,
-        referencePhotoUrl: referencePhotoUrl.trim(),
       });
       onClose();
     } finally {
@@ -112,21 +108,6 @@ export const ShadeModal: React.FC<ShadeModalProps> = ({ isOpen, onClose, onSave,
           </select>
         </div>
 
-        <div className="space-y-1">
-          <div className="flex items-center gap-1.5">
-            <label className="text-[#888888]">Reference Photo URL:</label>
-            <InfoTooltip content="A face photo used to generate the realistic shade texture." label="About Reference Photo URL" />
-          </div>
-          <input
-            type="url"
-            required
-            placeholder="https://..."
-            value={referencePhotoUrl}
-            onChange={(e) => setReferencePhotoUrl(e.target.value)}
-            className="w-full bg-[#161616] border border-[#333333] rounded px-3 py-2 text-white"
-          />
-        </div>
-
         <div className="flex justify-end pt-2">
           <button
             type="submit"
@@ -134,7 +115,7 @@ export const ShadeModal: React.FC<ShadeModalProps> = ({ isOpen, onClose, onSave,
             className="px-4 py-2 bg-primary hover:opacity-90 text-primary-foreground font-bold rounded disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
           >
             {isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-            <span>{isSubmitting ? (editingShade ? 'Updating...' : 'Saving...') : (editingShade ? 'Update Shade' : 'Save Shade & Start Extraction')}</span>
+            <span>{isSubmitting ? (editingShade ? 'Updating...' : 'Saving...') : (editingShade ? 'Update Shade' : 'Save Shade')}</span>
           </button>
         </div>
       </form>

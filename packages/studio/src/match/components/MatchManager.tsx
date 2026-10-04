@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Sparkles, ShieldAlert, Boxes, Play, Building, Smartphone, Palette } from 'lucide-react';
+import { Sparkles, ShieldAlert, Boxes, Play, Building, Smartphone, Palette, Wand2 } from 'lucide-react';
 import { PageHeader, TabNav, ConfirmDialog, usePersistentState, type TabItem } from '@gateway-experience/shared';
 import type { ConflictMatrixRule, ProductGroup, ProductCatalogItem, Shade, ClinicalMatchResult } from '../types';
 
@@ -9,6 +9,7 @@ import { ConflictMatrixTab } from './tabs/ConflictMatrixTab';
 import { ProductGroupsTab } from './tabs/ProductGroupsTab';
 import { ShadesTab } from './tabs/ShadesTab';
 import { MatchSimulatorTab } from './tabs/MatchSimulatorTab';
+import { PhotoTryOnTab } from './tabs/PhotoTryOnTab';
 
 import { ConflictRuleModal } from './modals/ConflictRuleModal';
 import { ProductGroupModal } from './modals/ProductGroupModal';
@@ -16,7 +17,7 @@ import { ShadeModal } from './modals/ShadeModal';
 import { conflictsApi, productGroupsApi, productsApi, runMatch, shadesApi } from '../api';
 
 export const MatchManager: React.FC = () => {
-  const [activeTab, setActiveTab] = usePersistentState<'conflicts' | 'groups' | 'shades' | 'simulator'>('xg.matchEngine.activeTab', 'conflicts');
+  const [activeTab, setActiveTab] = usePersistentState<'conflicts' | 'groups' | 'shades' | 'tryon' | 'simulator'>('xg.matchEngine.activeTab', 'conflicts');
   const [searchQuery, setSearchQuery] = useState('');
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [activeFilters, setActiveFilters] = useState<Record<string, any>>({});
@@ -120,6 +121,7 @@ export const MatchManager: React.FC = () => {
     { id: 'conflicts', label: 'Contraindication Matrix', icon: <ShieldAlert className="h-4 w-4 text-rose-400" />, badge: conflicts.length },
     { id: 'groups', label: 'Product Groups', icon: <Boxes className="h-4 w-4 text-amber-400" />, badge: productGroups.length },
     { id: 'shades', label: 'Shades', icon: <Palette className="h-4 w-4 text-rose-400" />, badge: shades.length },
+    { id: 'tryon', label: 'Photo Try-On', icon: <Wand2 className="h-4 w-4 text-purple-400" /> },
     { id: 'simulator', label: 'Match Simulator', icon: <Play className="h-4 w-4 text-emerald-400" /> },
   ];
 
@@ -205,16 +207,11 @@ export const MatchManager: React.FC = () => {
     } else {
       const newShade: Shade = {
         id: `shade-${Date.now()}`,
-        extractionStatus: 'pending',
         ...data,
       };
       setShades((prev) => [newShade, ...prev]);
       try {
         await shadesApi.create(newShade);
-        // Re-fetch shortly after so the real ExtractionStatus (set by the
-        // backend once tryon-engine is triggered) replaces the optimistic
-        // "pending" placeholder above.
-        setTimeout(() => loadShades(shadeProductId), 1000);
       } catch {}
     }
   };
@@ -357,6 +354,8 @@ export const MatchManager: React.FC = () => {
             />
           </div>
         )}
+
+        {activeTab === 'tryon' && <PhotoTryOnTab />}
 
         {activeTab === 'simulator' && (
           <MatchSimulatorTab

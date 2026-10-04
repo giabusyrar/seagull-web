@@ -2,6 +2,7 @@
 // core-engine through the /svc/core rewrite; components run them via call().
 import { svcPath } from './services';
 import { CATEGORY_LABEL, type Catalog, type CatalogShade } from './types/colour';
+import { DEFAULT_LANG, type Lang } from './i18n';
 
 export interface Brand { brandId: string; applicationId: string }
 export interface BuiltRequest { url: string; init: RequestInit }
@@ -58,6 +59,7 @@ export function tryOn(photo: File, shadeIds: string[]): BuiltRequest {
 export interface ShadeCategory { category: string; label: string; shades: CatalogShade[] }
 export interface ShadeGroup { id: string; label: string; categories: ShadeCategory[] }
 
+const OTHER_LABEL: Record<Lang, string> = { en: 'Other', id: 'Lainnya' };
 const GROUPS: { id: string; label: string; categories: string[] }[] = [
   { id: 'complexion', label: 'Complexion', categories: ['complexion'] },
   { id: 'lip', label: 'Lip', categories: ['lip'] },
@@ -65,16 +67,16 @@ const GROUPS: { id: string; label: string; categories: string[] }[] = [
   { id: 'blush', label: 'Blush', categories: ['blush'] },
 ];
 
-/** Catalog categories in the try-on order of seagull-web; unknown ones go under "Lainnya". */
-export function groupShades(catalog: Catalog | undefined | null): ShadeGroup[] {
+/** Catalog categories in the try-on order of seagull-web; unknown ones go under "Other". */
+export function groupShades(catalog: Catalog | undefined | null, lang: Lang = DEFAULT_LANG): ShadeGroup[] {
   const byCat = new Map(Object.entries(catalog ?? {}).filter(([, s]) => Array.isArray(s) && s.length > 0));
-  const cat = (c: string): ShadeCategory => ({ category: c, label: CATEGORY_LABEL[c] ?? c, shades: byCat.get(c) ?? [] });
+  const cat = (c: string): ShadeCategory => ({ category: c, label: CATEGORY_LABEL[lang][c] ?? c, shades: byCat.get(c) ?? [] });
   const out: ShadeGroup[] = GROUPS
     .map((g) => ({ id: g.id, label: g.label, categories: g.categories.filter((c) => byCat.has(c)).map(cat) }))
     .filter((g) => g.categories.length > 0);
   const known = new Set(GROUPS.flatMap((g) => g.categories));
   const other = [...byCat.keys()].filter((c) => !known.has(c)).sort();
-  if (other.length) out.push({ id: 'other', label: 'Lainnya', categories: other.map(cat) });
+  if (other.length) out.push({ id: 'other', label: OTHER_LABEL[lang], categories: other.map(cat) });
   return out;
 }
 

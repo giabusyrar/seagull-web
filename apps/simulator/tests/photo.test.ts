@@ -90,9 +90,12 @@ describe('tryOn', () => {
 const shade = (id: string) => ({ shadeId: id, productId: 'p', productName: 'P', shadeName: id, hexColor: '#aa0000', hueName: '', status: '' as const, colourSource: 'cube' as const, mode: '' });
 
 describe('groupShades', () => {
-  it('orders Complexion, Lip, Eye, Blush, Lainnya and skips empty categories', () => {
-    const groups = groupShades({ zzz: [shade('z')], blush: [shade('b')], lip: [shade('l')], brow: [shade('br')], eyeshadow: [shade('e')], complexion: [shade('c')], mascara: [] });
-    expect(groups.map((g) => g.label)).toEqual(['Complexion', 'Lip', 'Eye', 'Blush', 'Lainnya']);
+  it('orders Complexion, Lip, Eye, Blush, Other and skips empty categories', () => {
+    const catalog = { zzz: [shade('z')], blush: [shade('b')], lip: [shade('l')], brow: [shade('br')], eyeshadow: [shade('e')], complexion: [shade('c')], mascara: [] };
+    const groups = groupShades(catalog);
+    expect(groups.map((g) => g.label)).toEqual(['Complexion', 'Lip', 'Eye', 'Blush', 'Other']);
+    expect(groupShades(catalog, 'id').map((g) => g.label).at(-1)).toBe('Lainnya');
+    expect(groupShades(catalog, 'id')[1].categories[0].label).toBe('Lipstik');
     expect(groups[2].categories.map((c) => c.category)).toEqual(['eyeshadow', 'brow']);
     expect(groups[4].categories).toEqual([{ category: 'zzz', label: 'zzz', shades: [shade('z')] }]);
   });

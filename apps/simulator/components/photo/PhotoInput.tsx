@@ -2,49 +2,78 @@
 /* eslint-disable @next/next/no-img-element -- blob/object URLs, not optimisable */
 import { CameraCapture } from '@/components/CameraCapture';
 import { useFileSrc } from '@/lib/blob';
+import { btnPrimary, btnSecondary, cardPad, eyebrow, segItem, segTrack } from '@/components/ui';
+import { useLang } from '@/lib/i18n';
 
 export type YesNo = 'yes' | 'no' | '';
 
-function PickButtons({ onChange }: { onChange: (f: File | null) => void }) {
+function UploadButton({ onChange }: { onChange: (f: File | null) => void }) {
+  const { t } = useLang();
   return (
-    <>
-      <label className="cursor-pointer rounded border border-zinc-300 px-2 py-0.5 text-xs hover:bg-zinc-100">
-        Pilih file
-        <input type="file" accept="image/jpeg,image/png" className="hidden" onChange={(e) => { onChange(e.target.files?.[0] ?? null); e.target.value = ''; }} />
-      </label>
-      <CameraCapture onShot={onChange} />
-    </>
+    <label className={`${btnSecondary} cursor-pointer`}>
+      {t('Upload photo', 'Unggah foto')}
+      <input type="file" accept="image/jpeg,image/png" className="hidden" onChange={(e) => { onChange(e.target.files?.[0] ?? null); e.target.value = ''; }} />
+    </label>
+  );
+}
+
+function FaceGlyph({ className = '' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 48 48" fill="none" className={className} aria-hidden>
+      <rect x="5" y="5" width="38" height="38" rx="12" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 3" />
+      <ellipse cx="24" cy="23" rx="8" ry="10" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M14 40c2.5-4.5 6-6.5 10-6.5s7.5 2 10 6.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
   );
 }
 
 /** Left column before there is a front photo: the one required shot. */
 export function FrontPicker({ onChange }: { onChange: (f: File | null) => void }) {
+  const { t } = useLang();
   return (
-    <div className="flex flex-col gap-3">
-      <div className="text-sm font-medium">Foto depan (wajib)</div>
-      <div className="flex aspect-[3/4] items-center justify-center rounded bg-zinc-100 text-xs text-zinc-500">Foto wajah lurus ke kamera</div>
-      <div className="flex flex-wrap items-center gap-2"><PickButtons onChange={onChange} /></div>
+    <div className="flex flex-col gap-4">
+      <div className="flex items-baseline justify-between">
+        <span className="text-sm font-semibold">{t('Front photo', 'Foto depan')}</span>
+        <span className="text-[11px] font-medium text-zinc-500">{t('required', 'wajib')}</span>
+      </div>
+      <div className="flex aspect-[4/5] flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-zinc-300 bg-gradient-to-b from-zinc-50 to-zinc-100/60 px-6 text-center">
+        <FaceGlyph className="h-14 w-14 text-zinc-400" />
+        <div>
+          <p className="text-sm font-medium text-zinc-700">{t('Face the camera straight on', 'Wajah lurus ke kamera')}</p>
+          <p className="mt-0.5 text-xs text-zinc-500">{t('Take one with the camera or upload a JPEG/PNG.', 'Ambil dengan kamera atau unggah JPEG/PNG.')}</p>
+        </div>
+        <div className="mt-1 flex flex-wrap items-start justify-center gap-2">
+          <CameraCapture onShot={onChange} primary />
+          <UploadButton onChange={onChange} />
+        </div>
+      </div>
     </div>
   );
 }
 
 type Side = 'left' | 'right';
-const SIDE_LABEL: Record<Side, string> = { left: 'Kiri ¾', right: 'Kanan ¾' };
+const SIDE_LABEL: Record<Side, [string, string]> = { left: ['Left ¾', 'Kiri ¾'], right: ['Right ¾', 'Kanan ¾'] };
 // From the person's own point of view, as the face worker's view gate expects (seagull-web SideShots).
-const SIDE_HINT: Record<Side, string> = { left: 'Menoleh ke kirimu', right: 'Menoleh ke kananmu' };
+const SIDE_HINT: Record<Side, [string, string]> = { left: ['Turn to your left', 'Menoleh ke kirimu'], right: ['Turn to your right', 'Menoleh ke kananmu'] };
 
 function SideSlot({ side, file, onChange, disabled }: { side: Side; file: File | null; onChange: (f: File | null) => void; disabled?: boolean }) {
   const src = useFileSrc(file);
+  const { t } = useLang();
+  const label = t(...SIDE_LABEL[side]);
   return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex aspect-[3/4] items-center justify-center overflow-hidden rounded border border-dashed border-zinc-300 bg-zinc-50 text-center text-[11px] text-zinc-500">
-        {file ? <img ref={src} alt={`Foto ${SIDE_LABEL[side]}`} className="h-full w-full object-cover" />
-          : <span><span className="block font-semibold text-zinc-700">{SIDE_LABEL[side]}</span>{SIDE_HINT[side]}</span>}
+    <div className="flex flex-col gap-2">
+      <div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-xl border border-dashed border-zinc-300 bg-zinc-50 text-center text-[11px] text-zinc-500">
+        {file ? <img ref={src} alt={`${t('Photo', 'Foto')} ${label}`} className="h-full w-full object-cover" />
+          : <span className="px-2"><span className="block text-xs font-semibold text-zinc-700">{label}</span>{t(...SIDE_HINT[side])}</span>}
+        {file && !disabled && (
+          <button type="button" onClick={() => onChange(null)} aria-label={`${t('Remove photo', 'Hapus foto')} ${label}`}
+            className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-white/90 text-xs text-zinc-700 shadow-sm hover:bg-white">✕</button>
+        )}
       </div>
-      {!disabled && (
-        <div className="flex flex-wrap items-center gap-2">
-          <PickButtons onChange={onChange} />
-          {file && <button type="button" className="text-xs text-zinc-500 underline" onClick={() => onChange(null)}>Hapus</button>}
+      {!disabled && !file && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <CameraCapture onShot={onChange} />
+          <UploadButton onChange={onChange} />
         </div>
       )}
     </div>
@@ -55,30 +84,31 @@ function SideSlot({ side, file, onChange, disabled }: { side: Side; file: File |
 export function SideShots({ left, right, setLeft, setRight, disabled }: {
   left: File | null; right: File | null; setLeft(f: File | null): void; setRight(f: File | null): void; disabled?: boolean;
 }) {
+  const { t } = useLang();
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-2.5 border-t border-zinc-100 pt-4">
       <div className="flex items-baseline justify-between gap-2">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Foto samping (opsional)</span>
-        <span className="text-[11px] text-zinc-500">{disabled ? 'Foto ulang untuk mengganti' : 'untuk kepala 3D yang lebih akurat'}</span>
+        <span className={eyebrow}>{t('Side photos · optional', 'Foto samping · opsional')}</span>
+        <span className="text-[11px] text-zinc-500">{disabled ? t('Retake to change', 'Foto ulang untuk mengganti') : t('for a more accurate 3D head', 'untuk kepala 3D lebih akurat')}</span>
       </div>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-3">
         <SideSlot side="left" file={left} onChange={setLeft} disabled={disabled} />
         <SideSlot side="right" file={right} onChange={setRight} disabled={disabled} />
       </div>
-      {!disabled && <p className="text-[11px] text-zinc-500">Wajah menoleh sebagian (tiga perempat), bukan profil penuh; cahaya dan jarak sama dengan foto depan.</p>}
+      {!disabled && <p className="text-[11px] leading-relaxed text-zinc-500">{t('Face turned part-way (three-quarter), not full profile; same light and distance as the front photo.', 'Wajah menoleh sebagian (tiga perempat), bukan profil penuh; cahaya dan jarak sama dengan foto depan.')}</p>}
     </div>
   );
 }
 
 function YesNoField({ label, value, onChange }: { label: string; value: YesNo; onChange: (v: YesNo) => void }) {
+  const { t } = useLang();
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-      <span>{label}</span>
-      <div className="flex gap-1 rounded border border-zinc-200 bg-zinc-50 p-1">
+    <div className="flex flex-wrap items-center justify-between gap-3 py-2.5 text-sm">
+      <span className="text-zinc-700">{label}</span>
+      <div className={segTrack} role="radiogroup" aria-label={label}>
         {(['yes', 'no'] as const).map((v) => (
-          <button key={v} type="button" onClick={() => onChange(v)}
-            className={`rounded px-4 py-1 text-xs font-semibold ${value === v ? 'bg-zinc-900 text-white' : 'text-zinc-600 hover:text-zinc-900'}`}>
-            {v === 'yes' ? 'Ya' : 'Tidak'}
+          <button key={v} type="button" role="radio" aria-checked={value === v} onClick={() => onChange(v)} className={`${segItem(value === v)} min-w-14`}>
+            {v === 'yes' ? t('Yes', 'Ya') : t('No', 'Tidak')}
           </button>
         ))}
       </div>
@@ -86,16 +116,30 @@ function YesNoField({ label, value, onChange }: { label: string; value: YesNo; o
   );
 }
 
-/** Right column before there is a front photo. */
-export function HowItWorks() {
+const TIPS: { title: [string, string]; body: [string, string] }[] = [
+  { title: ['Even light', 'Cahaya merata'], body: ['Face the light; avoid harsh shadows and backlight.', 'Hadap sumber cahaya; hindari bayangan keras dan cahaya dari belakang.'] },
+  { title: ['Face uncovered', 'Wajah terbuka'], body: ['No glasses; hair off the forehead and cheeks.', 'Tanpa kacamata; rambut tidak menutupi dahi dan pipi.'] },
+  { title: ['Neutral expression', 'Ekspresi netral'], body: ['Eyes open, mouth closed, head level.', 'Mata terbuka, mulut tertutup, kepala tegak.'] },
+  { title: ['No filters', 'Tanpa filter'], body: ['The camera’s own photo, no beauty mode or colour edits.', 'Foto asli kamera, tanpa beauty mode atau edit warna.'] },
+];
+
+/** Photo guidance, beside the picker before there is a front photo. */
+export function PhotoTips() {
+  const { t } = useLang();
   return (
-    <div className="flex flex-col gap-2 rounded border border-zinc-200 p-4 text-sm">
-      <p className="font-semibold">Cara kerjanya</p>
-      <ol className="list-decimal space-y-1 pl-5 text-xs text-zinc-600">
-        <li>Ambil atau unggah foto depan (kiri). Foto samping kiri/kanan opsional.</li>
-        <li>Jawab dua pertanyaan, lalu Analisis: warna, wajah, kulit dan kepala 3D sekaligus.</li>
-        <li>Lihat hasil per tab; foto bisa dilihat dalam 2D atau 3D.</li>
-      </ol>
+    <div className={cardPad}>
+      <p className={eyebrow}>{t('Photo tips', 'Tips foto')}</p>
+      <ul className="mt-4 grid gap-x-6 gap-y-3 sm:grid-cols-2">
+        {TIPS.map((tip) => (
+          <li key={tip.title[0]} className="flex gap-3">
+            <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-[11px] font-bold text-emerald-600 ring-1 ring-inset ring-emerald-200">✓</span>
+            <span className="flex flex-col gap-0.5">
+              <span className="text-sm font-medium">{t(...tip.title)}</span>
+              <span className="text-xs leading-relaxed text-zinc-500">{t(...tip.body)}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -104,17 +148,22 @@ export function HowItWorks() {
 export function Questions({ hijab, hair, setHijab, setHair, brandReady, onAnalyze }: {
   hijab: YesNo; hair: YesNo; setHijab(v: YesNo): void; setHair(v: YesNo): void; brandReady: boolean; onAnalyze(): void;
 }) {
-  const missing = [!hijab && 'jawaban hijab', !hair && 'jawaban rambut', !brandReady && 'brand dan aplikasi (atas)'].filter(Boolean);
+  const { t } = useLang();
+  const missing = [!hijab && t('the head-covering answer', 'jawaban hijab'), !hair && t('the hair answer', 'jawaban rambut'), !brandReady && t('brand and application (top)', 'brand dan aplikasi (atas)')].filter(Boolean);
   return (
-    <div className="flex flex-col gap-4 rounded border border-zinc-200 p-4">
-      <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Sebelum analisis</div>
-      <YesNoField label="Memakai hijab atau penutup kepala?" value={hijab} onChange={setHijab} />
-      <YesNoField label="Rambut terlihat di foto?" value={hair} onChange={setHair} />
-      <button type="button" disabled={missing.length > 0} onClick={onAnalyze}
-        className="w-full rounded bg-zinc-900 px-5 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-zinc-300">
-        Analisis
+    <div className={`${cardPad} flex flex-col gap-4`}>
+      <div>
+        <p className={eyebrow}>{t('Before analysing', 'Sebelum analisis')}</p>
+        <p className="mt-1 text-sm text-zinc-500">{t('These two answers go to the colour analysis with the photo.', 'Dua jawaban ini dikirim bersama foto ke analisis warna.')}</p>
+      </div>
+      <div className="divide-y divide-zinc-100">
+        <YesNoField label={t('Wearing a hijab or head covering?', 'Memakai hijab atau penutup kepala?')} value={hijab} onChange={setHijab} />
+        <YesNoField label={t('Is hair visible in the photo?', 'Rambut terlihat di foto?')} value={hair} onChange={setHair} />
+      </div>
+      <button type="button" disabled={missing.length > 0} onClick={onAnalyze} className={`${btnPrimary} w-full rounded-full py-2.5`}>
+        {t('Analyse now', 'Analisis sekarang')}
       </button>
-      {missing.length > 0 && <span className="text-xs text-zinc-500">Belum lengkap: {missing.join(', ')}</span>}
+      {missing.length > 0 && <span className="text-center text-xs text-zinc-500">{t('Still needed', 'Belum lengkap')}: {missing.join(', ')}</span>}
     </div>
   );
 }

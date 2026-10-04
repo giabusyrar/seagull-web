@@ -61,12 +61,29 @@ export interface Shade {
   name: string;
   hexColor: string;
   region: 'lip' | 'eye' | 'cheek' | 'skin';
-  referencePhotoUrl?: string;
-  extractionStatus: 'pending' | 'processing' | 'ready' | 'failed';
-  failureReason?: string;
-  assetId?: string;
   createdAt?: string;
+  updatedAt?: string;
 }
+
+/**
+ * One shade of the colour engine's try-on catalog (core-engine
+ * CatalogShadeOut). `status` is empty when no analysis ran, as for the
+ * catalog-only GET; `mode` is the engine's render style.
+ */
+export interface ColourCatalogShade {
+  shadeId: string;
+  productId: string;
+  productName: string;
+  shadeName: string;
+  hexColor: string;
+  hueName: string;
+  status: string;
+  colourSource: string;
+  mode: string;
+}
+
+/** GET /catalog's `catalog`: shades keyed by category (lip, blush, ...). */
+export type ColourCatalog = Record<string, ColourCatalogShade[]>;
 
 export interface ProductMatchItem {
   id: string;
