@@ -26,6 +26,7 @@ import type {
   UnifiedAssessmentResponse,
   AssessmentPayload,
 } from '@gateway-experience/studio/orchestrator';
+import { runPipelineSimulation } from './api';
 
 interface PersonaPreset {
   id: string;
@@ -131,16 +132,8 @@ export function PipelineSimulatorView() {
         },
       };
 
-      const res = await fetch('/api/orchestrator/pipeline', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        setPipelineResult(data);
-      }
+      const data = await runPipelineSimulation(payload);
+      if (data) setPipelineResult(data);
     } catch (err) {
       console.error('Pipeline simulation failed:', err);
     } finally {

@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Search, LogOut, PanelLeft, LayoutGrid } from 'lucide-react';
 import { Breadcrumb } from '@gateway-experience/shared';
+import { logout } from '@/lib/auth-client';
 
 export interface ApiClientHeaderProps {
   isAiOpen?: boolean;
@@ -31,7 +32,7 @@ export const ApiClientHeader: React.FC<ApiClientHeaderProps> = ({
   };
 
   const handleLogout = async () => {
-    await fetch('/api/auth/login', { method: 'DELETE' });
+    await logout();
     window.location.href = '/login';
   };
 

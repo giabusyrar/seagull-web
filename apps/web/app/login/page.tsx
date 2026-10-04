@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { login } from '@/lib/auth-client';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -18,17 +19,9 @@ export default function LoginPage() {
     setError('');
 
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ username, password }),
-      });
+      const data = await login(username, password);
 
-      const data = await res.json();
-
-      if (res.ok && data.success) {
+      if (data.ok && data.success) {
         if (data.token) {
           localStorage.setItem('falcon_session_token', data.token);
         }

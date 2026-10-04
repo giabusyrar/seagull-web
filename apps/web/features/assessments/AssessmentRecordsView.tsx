@@ -13,6 +13,7 @@ import {
   ApplicationSelect,
   type ColumnDef,
 } from '@gateway-experience/shared';
+import { listAssessments } from './api';
 
 /**
  * Customer assessments, read from core-engine
@@ -78,18 +79,7 @@ export function AssessmentRecordsView() {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams({ brand_id: brandId, application_id: applicationId, limit: '100' });
-      const path = customerId.trim()
-        ? `/core/assessments/customers/${encodeURIComponent(customerId.trim())}`
-        : '/core/assessments/history';
-      const res = await fetch(`${path}?${params}`, { cache: 'no-store' });
-      const body = await res.json().catch(() => null);
-      if (!res.ok) {
-        setAssessments([]);
-        setError(body?.error || `Could not read assessments (HTTP ${res.status}).`);
-        return;
-      }
-      setAssessments(Array.isArray(body?.assessments) ? body.assessments : []);
+      setAssessments(await listAssessments<AssessmentRecord>({ brandId, applicationId, customerId }));
     } catch (err) {
       setAssessments([]);
       setError(err instanceof Error ? err.message : 'Could not reach core-engine.');

@@ -3,16 +3,16 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ApiClientApp } from '@/features/api-client';
+import { checkSession } from '@/lib/auth-client';
 
 export default function RootPage() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const router = useRouter();
 
   useEffect(() => {
-    fetch('/api/auth/login')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.authenticated) {
+    checkSession()
+      .then((authenticated) => {
+        if (authenticated) {
           setIsAuthenticated(true);
         } else {
           setIsAuthenticated(false);
