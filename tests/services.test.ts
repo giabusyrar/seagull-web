@@ -1,5 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { SERVICES, serviceRewrites } from '@/lib/services';
+import { SERVICES, serviceRewrites, sdkGatewayRewrites } from '@/lib/services';
+
+describe('sdkGatewayRewrites', () => {
+  it('routes core and reference like the gateway', () => {
+    expect(sdkGatewayRewrites({})).toEqual([
+      { source: '/svc/sdkgw/core/:path*', destination: 'http://localhost:8082/core/:path*' },
+      { source: '/svc/sdkgw/reference/:path*', destination: 'http://localhost:8086/reference/:path*' },
+    ]);
+  });
+  it('honours env overrides', () => {
+    expect(sdkGatewayRewrites({ SIM_CORE_URL: 'http://vps:1/' })[0].destination).toBe('http://vps:1/core/:path*');
+  });
+});
 
 describe('serviceRewrites', () => {
   it('uses localhost defaults', () => {

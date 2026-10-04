@@ -22,7 +22,11 @@ export async function call(req: BuiltRequest, fetchImpl: typeof fetch = fetch): 
     const msg = e instanceof Error ? e.message : String(e);
     return { ok: false, status: 0, ms: Math.round(performance.now() - t0), url: req.url, headers: [], kind: 'empty', networkError: `service at ${req.url} unreachable: ${msg}` };
   }
-  const base = { ok: r.ok, status: r.status, url: req.url, headers: [...r.headers.entries()] as [string, string][] };
+  return readResponse(r, req.url, t0);
+}
+
+export async function readResponse(r: Response, url: string, t0: number): Promise<CallResult> {
+  const base = { ok: r.ok, status: r.status, url, headers: [...r.headers.entries()] as [string, string][] };
   const kind = r.status === 204 ? 'empty' : classify(r.headers.get('content-type'));
   if (kind === 'empty') return { ...base, ms: Math.round(performance.now() - t0), kind };
   try {
@@ -39,6 +43,6 @@ export async function call(req: BuiltRequest, fetchImpl: typeof fetch = fetch): 
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     const ms = Math.round(performance.now() - t0);
-    return { ok: false, status: r.status, ms, url: req.url, headers: [...r.headers.entries()] as [string, string][], kind: 'empty', networkError: `service at ${req.url} unreachable: ${msg}` };
+    return { ok: false, status: r.status, ms, url, headers: [...r.headers.entries()] as [string, string][], kind: 'empty', networkError: `service at ${url} unreachable: ${msg}` };
   }
 }
