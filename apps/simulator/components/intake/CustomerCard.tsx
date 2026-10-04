@@ -6,9 +6,9 @@ import { cardPad, eyebrow, field } from '@/components/ui';
 type Pii = 'fullName' | 'email' | 'phoneNumber' | 'dateOfBirth';
 
 /**
- * The simulated customer: personal details only, no customer id. Advisor
- * sessions carry them in a dry run; form and photo scoring still submit under
- * the fixed test id until core has dry-run. Kept in this browser between reloads.
+ * The simulated customer: personal details only, no customer id. Every
+ * engine call is a dry run, so they are used for this run and stored nowhere
+ * but this browser, which keeps them between reloads.
  */
 export function CustomerCard({ who, setWho }: { who: Respondent; setWho(r: Respondent): void }) {
   const { t } = useLang();
@@ -22,8 +22,8 @@ export function CustomerCard({ who, setWho }: { who: Respondent; setWho(r: Respo
     <div className={`${cardPad} flex flex-col gap-3`}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <span className={eyebrow}>{t('Customer', 'Pelanggan')}</span>
-        <span className="text-[11px] text-amber-700">
-          {t('Advisor sessions run as dry-run (nothing saved); form and photo scoring are still saved until core supports dry-run.', 'Sesi advisor berjalan dry-run (tidak disimpan); penilaian form dan foto masih tersimpan sampai core mendukung dry-run.')}
+        <span className="text-[11px] text-emerald-700">
+          {t('Every run is a dry run: nothing is saved to the database.', 'Setiap run adalah dry run: tidak ada yang disimpan ke database.')}
         </span>
       </div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

@@ -16,15 +16,29 @@ export interface SurveyRow {
   schema?: string;
 }
 
-/** Who the evaluation is stored for, and what they agreed to. */
+/**
+ * The simulated customer: personal details and consent only. There is no
+ * customer id: every simulator call is a dry run (see lib/http), and core
+ * needs an id only for what it stores.
+ */
 export interface Respondent {
-  customerId: string;
   fullName?: string;
   email?: string;
   phoneNumber?: string;
   dateOfBirth?: string;
   consentDataProcessing: boolean;
   consentMarketing: boolean;
+}
+
+/** The customer's personal details in the engines' field names; empty ones are left out. */
+export function piiFields(who: Respondent): Record<string, string> {
+  const f: Record<string, string | undefined> = {
+    full_name: who.fullName?.trim(),
+    email: who.email?.trim(),
+    phone_number: who.phoneNumber?.trim(),
+    date_of_birth: who.dateOfBirth,
+  };
+  return Object.fromEntries(Object.entries(f).filter((e): e is [string, string] => !!e[1]));
 }
 
 const scope = (b: Brand) => `brand_id=${encodeURIComponent(b.brandId)}&application_id=${encodeURIComponent(b.applicationId)}`;
@@ -57,7 +71,7 @@ export function evaluateSurvey(code: string, brand: Brand, data: Record<string, 
     init: {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ brand_id: brand.brandId, application_id: brand.applicationId, customer_id: who.customerId, data }),
+      body: JSON.stringify({ brand_id: brand.brandId, application_id: brand.applicationId, ...piiFields(who), data }),
     },
   };
 }
@@ -67,11 +81,7 @@ export function evaluateSurveyWithPhoto(code: string, brand: Brand, data: Record
   const fd = new FormData();
   fd.append('brand_id', brand.brandId);
   fd.append('application_id', brand.applicationId);
-  fd.append('customer_id', who.customerId);
-  if (who.fullName) fd.append('full_name', who.fullName);
-  if (who.email) fd.append('email', who.email);
-  if (who.phoneNumber) fd.append('phone_number', who.phoneNumber);
-  if (who.dateOfBirth) fd.append('date_of_birth', who.dateOfBirth);
+  for (const [k, v] of Object.entries(piiFields(who))) fd.append(k, v);
   fd.append('consent_data_processing', who.consentDataProcessing ? 'true' : 'false');
   fd.append('consent_marketing', who.consentMarketing ? 'true' : 'false');
   fd.append('data', JSON.stringify(data));

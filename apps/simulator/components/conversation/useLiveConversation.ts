@@ -4,7 +4,7 @@ import { usePersistentState } from '@gateway-experience/shared';
 import { call, type CallResult } from '@/lib/http';
 import type { Brand } from '@/lib/photo';
 import {
-  CONVERSATION_WS_BASE, INITIAL_LIVE, actionMessage, answersSupported, cancelPhoto, needsCustomerId, refusal, createSession, deleteSession, reduceLive, uploadPhoto, viewMessage, wsTicket, wsUrl,
+  CONVERSATION_WS_BASE, INITIAL_LIVE, actionMessage, answersSupported, cancelPhoto, refusal, createSession, deleteSession, reduceLive, uploadPhoto, viewMessage, wsTicket, wsUrl,
   type Action, type ConvSession, type LiveState, type View,
 } from '@/lib/conversation';
 import type { Respondent } from '@/lib/form';
@@ -126,20 +126,15 @@ export function useLiveConversation() {
   }, [apply, detach, setLive, setSession, stopMic]);
   useEffect(() => { connectRef.current = connect; }, [connect]);
 
-  /**
-   * Starts a dry-run session for the customer. An engine that predates
-   * dry-run refuses it without a customer id; it then gets the fixed test id
-   * and the run is saved, which the panel shows (state.dry_run is absent).
-   */
-  const start = useCallback(async (brand: Brand, surveyCode: string, who: Respondent, legacyCustomerId: string) => {
+  /** Starts a dry-run session for the customer (see createSession). */
+  const start = useCallback(async (brand: Brand, surveyCode: string, who: Respondent) => {
     detach();
     if (session) {
       // The old session is gone either way; never leave it saved as resumable.
       void call(deleteSession(session));
       setSession(null);
     }
-    let r = await call(createSession(brand, surveyCode, who));
-    if (needsCustomerId(r.json, r.status)) r = await call(createSession(brand, surveyCode, who, legacyCustomerId));
+    const r = await call(createSession(brand, surveyCode, who));
     setLastHttp(r);
     const j = r.json as { session_id?: string; owner_token?: string } | undefined;
     if (!r.ok || !j?.session_id || !j.owner_token) {

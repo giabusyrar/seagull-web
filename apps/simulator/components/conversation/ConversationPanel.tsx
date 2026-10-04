@@ -2,7 +2,7 @@
 import { useEffect, useRef } from 'react';
 import { usePersistentState } from '@gateway-experience/shared';
 import { photoRequested } from '@/lib/conversation';
-import { TEST_RESPONDENT, useIntake } from '@/lib/intake';
+import { useIntake } from '@/lib/intake';
 import { useLang } from '@/lib/i18n';
 import type { Brand } from '@/lib/photo';
 import { btnPrimary, btnPrimarySm, card, field } from '@/components/ui';
@@ -26,7 +26,7 @@ export function ConversationPanel({ brand, code, canStart, onGoPhoto }: {
 
   const resumable = !!c.session && (!c.session.survey || c.session.survey === code);
   const canPlay = resumable || canStart;
-  const play = () => (resumable && c.session ? c.connect(c.session) : c.start(brand, code, who, TEST_RESPONDENT.customerId));
+  const play = () => (resumable && c.session ? c.connect(c.session) : c.start(brand, code, who));
   const send = () => { if (c.sendText(draft)) setDraft(''); };
   const wantsPhoto = conn === 'ready' && photoRequested(live);
 

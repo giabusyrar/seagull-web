@@ -1,11 +1,11 @@
 import { beforeEach, describe, it, expect } from 'vitest';
-import { INITIAL_LIVE, activeFlowSurveys, setClock, transcriptJson, transcriptText, answerAsText, answersSupported, createSession, needsCustomerId, actionMessage, viewMessage, photoRequested, reduceLive, refusal, uploadPhoto, wsTicket, wsUrl } from '@/lib/conversation';
+import { INITIAL_LIVE, activeFlowSurveys, setClock, transcriptJson, transcriptText, answerAsText, answersSupported, createSession, actionMessage, viewMessage, photoRequested, reduceLive, refusal, uploadPhoto, wsTicket, wsUrl } from '@/lib/conversation';
 import { base64ToPcm16, bytesToBase64, floatToPcm16, pcm16ToFloat, rateOf } from '@/lib/audio';
 
 const s = { id: 'sess1', owner: 'own1' };
 
 describe('conversation requests', () => {
-  const who = { customerId: 'ignored', fullName: ' Sim ', email: '', dateOfBirth: '1990-01-02', consentDataProcessing: false, consentMarketing: false };
+  const who = { fullName: ' Sim ', email: '', dateOfBirth: '1990-01-02', consentDataProcessing: false, consentMarketing: false };
   it('creates a dry-run session with the customer’s details and no customer id', () => {
     const { url, init } = createSession({ brandId: 'WARDAH', applicationId: 'skinverse' }, 'q1', who);
     expect(url).toBe('/svc/conv/conversation/sessions');
@@ -13,14 +13,6 @@ describe('conversation requests', () => {
       brand_id: 'WARDAH', application_id: 'skinverse', survey_code: 'q1', dry_run: true,
       customer: { full_name: 'Sim', date_of_birth: '1990-01-02', consent_data_processing: false, consent_marketing: false },
     });
-  });
-
-  it('adds the legacy customer id only when asked, for an engine without dry-run', () => {
-    const { init } = createSession({ brandId: 'W', applicationId: 'a' }, 'q1', who, 'sim-customer');
-    expect(JSON.parse(init.body as string).customer_id).toBe('sim-customer');
-    expect(needsCustomerId({ detail: [{ type: 'missing', loc: ['body', 'customer_id'] }] }, 422)).toBe(true);
-    expect(needsCustomerId({ detail: [{ type: 'missing', loc: ['body', 'survey_code'] }] }, 422)).toBe(false);
-    expect(needsCustomerId({ detail: 'conversation flow not found' }, 404)).toBe(false);
   });
 
   it('builds view and action notes, leaving out empty fields', () => {

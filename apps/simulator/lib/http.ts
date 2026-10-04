@@ -1,4 +1,5 @@
 import type { BuiltRequest } from './photo';
+import { svcPath } from './services';
 
 export type BodyKindOut = 'json' | 'image' | 'glb' | 'text' | 'empty';
 export interface CallResult { ok: boolean; status: number; ms: number; url: string; headers: [string, string][]; kind: BodyKindOut; json?: unknown; text?: string; blobUrl?: string; size?: number; networkError?: string; hint?: string }
@@ -13,7 +14,24 @@ export function classify(ct: string | null): BodyKindOut {
 
 const blobUrl = (b: Blob) => (typeof URL.createObjectURL === 'function' ? URL.createObjectURL(b) : undefined);
 
-export async function call(req: BuiltRequest, fetchImpl: typeof fetch = fetch): Promise<CallResult> {
+/**
+ * Every core-engine call the simulator makes is a dry run: core stores
+ * nothing, answers with `dry_run: true`, and refuses (400
+ * DRY_RUN_UNSUPPORTED) a write it cannot run without storing. Added here, at
+ * the one place requests leave, so no builder can forget it.
+ */
+export const DRY_RUN_HEADER = 'X-Dry-Run';
+const CORE_PREFIX = svcPath('core', '/');
+
+export function withDryRun(req: BuiltRequest): BuiltRequest {
+  if (!req.url.startsWith(CORE_PREFIX)) return req;
+  const headers = new Headers(req.init.headers);
+  headers.set(DRY_RUN_HEADER, 'true');
+  return { ...req, init: { ...req.init, headers } };
+}
+
+export async function call(request: BuiltRequest, fetchImpl: typeof fetch = fetch): Promise<CallResult> {
+  const req = withDryRun(request);
   const t0 = performance.now();
   let r: Response;
   try {

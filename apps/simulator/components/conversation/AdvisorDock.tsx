@@ -53,7 +53,7 @@ export function AdvisorDock({ onGoPhoto, onOpenChange }: { onGoPhoto(): void; on
               {t('Advisor assistant', 'Asisten advisor')}
               {conv.session && Object.keys(live.progress).length > 0 && (live.progress.dryRun
                 ? <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700">{t('Dry run · not saved', 'Dry run · tidak disimpan')}</span>
-                : <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700" title={t('This engine predates dry-run; the session was opened under the test customer id.', 'Engine ini belum mendukung dry-run; sesi dibuka dengan id pelanggan uji.')}>{t('Saved to database', 'Tersimpan di database')}</span>)}
+                : <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700" title={t('The engine did not confirm a dry run for this session.', 'Engine tidak mengonfirmasi dry-run untuk sesi ini.')}>{t('Not confirmed as dry run', 'Dry-run belum terkonfirmasi')}</span>)}
             </span>
             <div className="relative flex items-center gap-1">
               <button type="button" className={btnGhost} disabled={!hasTranscript} onClick={() => setMenu((v) => !v)} aria-expanded={menu}>

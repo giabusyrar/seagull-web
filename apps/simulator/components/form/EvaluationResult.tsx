@@ -1,5 +1,6 @@
 'use client';
 import type { EvaluationOutput, GradingTier } from '@/lib/types/form';
+import { dimensionRows } from '@/lib/breakdown';
 import { card, eyebrow } from '@/components/ui';
 import { useLang } from '@/lib/i18n';
 import { Pill, Section, dash, humanize, list, num, severityTone } from '@/components/photo/TabShell';
@@ -11,7 +12,7 @@ import { Pill, Section, dash, humanize, list, num, severityTone } from '@/compon
  */
 export function EvaluationResult({ r }: { r: EvaluationOutput }) {
   const { t } = useLang();
-  const dims = Object.entries(r.dimension_scores && typeof r.dimension_scores === 'object' ? r.dimension_scores : {});
+  const dims = dimensionRows(r);
   const tiers = new Map(list<GradingTier>(r.skin_grading_tiers).filter((t) => typeof t === 'object').map((t) => [t.dimension_key ?? '', t]));
   const conditions = Object.entries(r.customer_condition && typeof r.customer_condition === 'object' ? r.customer_condition : {}).filter(([, v]) => v === true);
   const subs = Object.entries(r.sub_classification && typeof r.sub_classification === 'object' ? r.sub_classification : {});
@@ -19,6 +20,11 @@ export function EvaluationResult({ r }: { r: EvaluationOutput }) {
   const answers = list<{ question?: string; answer?: unknown; score?: number }>(r.answer_list).filter((a) => typeof a === 'object');
   const profile = r.skin_profile ?? {};
   const axes = Object.entries(profile.axis_values && typeof profile.axis_values === 'object' ? profile.axis_values : {});
+
+  const warnings = list<{ code?: string; message?: string }>(r.warnings).filter((w) => typeof w === 'object');
+  // Each unscored dimension already says so on its card; the rest are listed above the scores.
+  const shown = warnings.filter((w) => w.code !== 'DIMENSION_NOT_SCORED');
+  const partialProfile = warnings.some((w) => w.code === 'PROFILE_INCOMPLETE');
 
   if (r.error) return <p className="rounded-xl border border-red-200 bg-red-50 p-4 text-xs text-red-900">{r.error}</p>;
 
@@ -29,6 +35,7 @@ export function EvaluationResult({ r }: { r: EvaluationOutput }) {
           <span className={eyebrow}>{t('Skin profile', 'Profil kulit')}</span>
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-2xl font-semibold tracking-tight">{profile.code || '—'}</span>
+            {partialProfile && <Pill className="bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-200">{t('Partial — some axes not scored', 'Sebagian — beberapa sumbu tidak dinilai')}</Pill>}
             {profile.name && <span className="text-sm text-zinc-500">{profile.name}</span>}
           </div>
           {axes.length > 0 && (
@@ -37,6 +44,12 @@ export function EvaluationResult({ r }: { r: EvaluationOutput }) {
             </div>
           )}
           {profile.description && <p className="max-w-prose text-xs leading-relaxed text-zinc-500">{profile.description}</p>}
+          {(r.ruleset_code || r.dry_run) && (
+            <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-zinc-500">
+              {r.ruleset_code && <span>{t('Scored by ruleset', 'Dinilai dengan ruleset')} <code className="font-mono text-zinc-700">{r.ruleset_code}</code></span>}
+              {r.dry_run && <Pill className="bg-emerald-50 text-emerald-700">{t('Dry run · not saved', 'Dry run · tidak disimpan')}</Pill>}
+            </div>
+          )}
         </div>
         <div className="flex shrink-0 flex-col items-start rounded-xl bg-white px-4 py-3 ring-1 ring-zinc-200 sm:items-end">
           <span className={eyebrow}>{t('Total score', 'Skor total')}</span>
@@ -44,16 +57,42 @@ export function EvaluationResult({ r }: { r: EvaluationOutput }) {
         </div>
       </div>
 
+      {shown.length > 0 && (
+        <ul className="flex flex-col gap-1 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] text-amber-900">
+          {shown.map((w, i) => <li key={`${w.code}-${i}`}><span className="font-mono">{w.code}</span>{w.message ? ` — ${w.message}` : ''}</li>)}
+        </ul>
+      )}
+
       <Section title={t('Dimensions', 'Dimensi')} aside={<span className="text-[11px] text-zinc-400">{dims.length}</span>}>
         {dims.length === 0 ? <p className="text-xs text-zinc-500">—</p> : (
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-            {dims.map(([k, v]) => {
-              const tier = tiers.get(k);
+            {dims.map((d) => {
+              const tier = tiers.get(d.key);
               return (
-                <div key={k} className={`${card} flex flex-col gap-2 p-3.5`}>
-                  <span className="truncate text-xs font-medium text-zinc-600">{humanize(k)}</span>
-                  <span className="text-2xl font-semibold tabular-nums tracking-tight">{num(v)}</span>
-                  {tier?.grade_name && <Pill className={`self-start ${severityTone(tier.severity)}`}>{tier.grade_name}</Pill>}
+                <div key={d.key} className={`${card} flex flex-col gap-2 p-3.5 ${d.scored ? '' : 'bg-zinc-50'}`}>
+                  <span className="truncate text-xs font-medium text-zinc-600">{humanize(d.key)}</span>
+                  {d.scored
+                    ? <span className="text-2xl font-semibold tabular-nums tracking-tight">{num(d.score)}</span>
+                    : <span className="text-sm font-medium text-zinc-500">{t('Not scored', 'Tidak dinilai')}</span>}
+                  {d.scored && tier?.grade_name && <Pill className={`self-start ${severityTone(tier.severity)}`}>{tier.grade_name}</Pill>}
+                  {d.contributions.length > 0 && (
+                    <ul className="flex flex-col gap-1 border-t border-zinc-100 pt-2 text-[11px]">
+                      {d.contributions.map(([src, c]) => (
+                        <li key={src} className="flex items-center gap-2">
+                          <span className="w-14 truncate text-zinc-500">{humanize(src)}</span>
+                          <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-100">
+                            <span className="block h-full rounded-full bg-zinc-700" style={{ width: `${Math.max(0, Math.min(1, c.weight ?? 0)) * 100}%` }} />
+                          </span>
+                          <span className="w-9 text-right tabular-nums text-zinc-500">{typeof c.weight === 'number' ? `${Math.round(c.weight * 100)}%` : '—'}</span>
+                          <span className="w-9 text-right font-medium tabular-nums">{num(c.score)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {d.missing.length > 0 && (
+                    <span className="text-[11px] text-amber-700">{t('Missing', 'Tidak ada')}: {d.missing.map(humanize).join(', ')}</span>
+                  )}
+                  {!d.scored && d.reason && <span className="text-[11px] text-zinc-500">{d.reason}</span>}
                 </div>
               );
             })}

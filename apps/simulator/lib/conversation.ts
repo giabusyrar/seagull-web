@@ -3,7 +3,7 @@
 // events its live WebSocket sends.
 import { svcPath } from './services';
 import type { Brand, BuiltRequest } from './photo';
-import type { Respondent } from './form';
+import { piiFields, type Respondent } from './form';
 
 /**
  * Where the browser opens the live socket. Next's rewrites carry HTTP only,
@@ -17,26 +17,19 @@ export interface ConvSession { id: string; owner: string; survey?: string }
 
 const owner = (s: ConvSession) => ({ 'X-Session-Owner': s.owner });
 
-/** The customer's details as the engine takes them; empty fields are left out. */
-export function customerBody(who: Respondent): Record<string, unknown> {
-  const c: Record<string, unknown> = {
-    full_name: who.fullName?.trim(),
-    email: who.email?.trim(),
-    phone_number: who.phoneNumber?.trim(),
-    date_of_birth: who.dateOfBirth,
-    consent_data_processing: who.consentDataProcessing,
-    consent_marketing: who.consentMarketing,
-  };
-  return Object.fromEntries(Object.entries(c).filter(([, v]) => v !== undefined && v !== ''));
-}
+/** The customer as the conversation engine takes them: details and consent. */
+export const customerBody = (who: Respondent) => ({
+  ...piiFields(who),
+  consent_data_processing: who.consentDataProcessing,
+  consent_marketing: who.consentMarketing,
+});
 
 /**
  * A dry-run session: the engine saves nothing and tells core not to either,
- * so no customer id is needed. `legacyCustomerId` is only for an engine that
- * predates dry-run and refuses a session without one (see needsCustomerId);
- * such a run IS saved, and its `state` carries no `dry_run` to say otherwise.
+ * so no customer id is sent. An engine that predates dry-run refuses it
+ * (customer_id missing) rather than storing anything.
  */
-export function createSession(brand: Brand, surveyCode: string, who: Respondent, legacyCustomerId?: string): BuiltRequest {
+export function createSession(brand: Brand, surveyCode: string, who: Respondent): BuiltRequest {
   return {
     url: svcPath('conv', '/conversation/sessions'),
     init: {
@@ -45,20 +38,11 @@ export function createSession(brand: Brand, surveyCode: string, who: Respondent,
       body: JSON.stringify({
         brand_id: brand.brandId, application_id: brand.applicationId, survey_code: surveyCode,
         dry_run: true, customer: customerBody(who),
-        ...(legacyCustomerId ? { customer_id: legacyCustomerId } : {}),
       }),
     },
   };
 }
 
-/** Whether a refused session create is an engine without dry-run asking for customer_id. */
-export function needsCustomerId(json: unknown, status: number): boolean {
-  const d = (json as { detail?: unknown })?.detail;
-  return status === 422 && Array.isArray(d) && d.some((x) => {
-    const e = x as { type?: string; loc?: unknown };
-    return e?.type === 'missing' && Array.isArray(e.loc) && e.loc[e.loc.length - 1] === 'customer_id';
-  });
-}
 
 /** The scope's conversation flows (core-engine): a survey can be held as a conversation only when it has an active one. */
 export function listFlows(brand: Brand): BuiltRequest {
