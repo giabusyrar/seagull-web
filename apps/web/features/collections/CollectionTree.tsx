@@ -24,6 +24,7 @@ import {
   extractInstruction,
   type Instruction,
 } from '@atlaskit/pragmatic-drag-and-drop-hitbox/tree-item';
+import { subtreeRouteCount } from './group-tree';
 
 function HealthDot({ status }: { status: Collection['status'] }) {
   const color =
@@ -1238,7 +1239,8 @@ export const CollectionTree: React.FC<CollectionTreeProps> = ({
           group={group}
           colId={col.id}
           allGroups={allGroups}
-          routeCount={groupRoutes.length}
+          // The whole subtree: a folder holding only subfolders (Core Engine's Vision Engine) is not empty.
+          routeCount={subtreeRouteCount(group.id, allGroups, allRoutes)}
           isCore={isCore}
           isCollapsed={isGroupCollapsed}
           isSearching={query.length > 0}
