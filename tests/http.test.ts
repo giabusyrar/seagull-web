@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { call, classify } from '@/lib/http';
+import { call, classify, readResponse } from '@/lib/http';
+
+describe('readResponse', () => {
+  it('classifies an existing Response', async () => {
+    const r = await readResponse(new Response('{"a":1}', { status: 201, headers: { 'content-type': 'application/json' } }), 'sdk colour.catalog', performance.now());
+    expect(r).toMatchObject({ ok: true, status: 201, kind: 'json', json: { a: 1 }, url: 'sdk colour.catalog' });
+  });
+});
 
 const res = (body: BodyInit | null, status: number, type?: string) =>
   new Response(body, { status, headers: type ? { 'content-type': type } : {} });

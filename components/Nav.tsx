@@ -21,6 +21,10 @@ export function Nav() {
         <div className="mb-1 text-xs font-semibold uppercase text-zinc-500">Conversation</div>
         {item('/conversation', 'Session + chat')}
       </div>
+      <div>
+        <div className="mb-1 text-xs font-semibold uppercase text-zinc-500">SDK</div>
+        {item('/sdk', 'beauty-sdk')}
+      </div>
     </nav>
   );
 }

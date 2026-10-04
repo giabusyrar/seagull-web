@@ -7,9 +7,11 @@
     "build": "next build",
     "start": "next start -p 3100",
     "lint": "eslint",
-    "test": "vitest run"
+    "test": "vitest run",
+    "sdk:refresh": "bash scripts/pack-sdk.sh && npm install ./vendor/gateway-experience-beauty-sdk-0.2.0.tgz"
   },
   "dependencies": {
+    "@gateway-experience/beauty-sdk": "file:vendor/gateway-experience-beauty-sdk-0.2.0.tgz",
     "@google/model-viewer": "^4.3.1",
     "next": "16.3.8",
     "react": "19.2.8",
