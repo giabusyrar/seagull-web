@@ -308,16 +308,12 @@ type PipelineSettings = Omit<OrchestratorPipelineConfig, 'vision' | 'matching'> 
     vision: Omit<OrchestratorPipelineConfig['vision'], 'serviceUrl'>;
     matching: Omit<OrchestratorPipelineConfig['matching'], 'serviceUrl'>;
 };
-declare const DEFAULT_MODEL_SERVER_URL = "http://127.0.0.1:8096";
-declare const MODEL_DISPATCH_PATH = "/api/v1/models/dispatch-capabilities";
 
 /** Deployment values the pipeline reads from its environment. */
 interface PipelineEnv {
-    /** worker-models origin; DEFAULT_MODEL_SERVER_URL when absent. */
-    modelServerUrl?: string;
     /** Match engine origin; when absent the payload's baseUrl is used. */
     matchEngineUrl?: string;
-    /** Sent to the model server. Server-side only. */
+    /** Sent to a capability dispatch service a configOverride names. Server-side only. */
     gatewayApiKey?: string;
 }
 /**
@@ -347,4 +343,4 @@ interface PipelineDeps {
 declare function resolvePipelineConfig(payload: AssessmentPayload, settings: PipelineSettings, env: PipelineEnv): OrchestratorPipelineConfig;
 declare function executeAssessmentPipeline(payload: AssessmentPayload, deps: PipelineDeps): Promise<UnifiedAssessmentResponse>;
 
-export { type AssessmentPayload, type CapabilityDispatchResult, DEFAULT_MODEL_SERVER_URL, DEFAULT_PIPELINE_SETTINGS, type DbSkinConditionRecord, MODEL_DISPATCH_PATH, type OrchestratorPipelineConfig, type PipelineClients, type PipelineDeps, type PipelineEnv, type PipelineExecutionStrategy, type PipelineSettings, type UnifiedAssessmentResponse, type VisionCapabilityInfo, dispatchPyTorchCapabilities, executeAssessmentPipeline, fetchSkinConditionsFromDb, fuseDimensionScores, invalidateSkinConditionCache, pipelineEnvFromProcess, resolvePipelineConfig, resolveRequiredCapabilities, resolveRequiredCapabilitiesFromDb };
+export { type AssessmentPayload, type CapabilityDispatchResult, DEFAULT_PIPELINE_SETTINGS, type DbSkinConditionRecord, type OrchestratorPipelineConfig, type PipelineClients, type PipelineDeps, type PipelineEnv, type PipelineExecutionStrategy, type PipelineSettings, type UnifiedAssessmentResponse, type VisionCapabilityInfo, dispatchPyTorchCapabilities, executeAssessmentPipeline, fetchSkinConditionsFromDb, fuseDimensionScores, invalidateSkinConditionCache, pipelineEnvFromProcess, resolvePipelineConfig, resolveRequiredCapabilities, resolveRequiredCapabilitiesFromDb };

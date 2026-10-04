@@ -60,7 +60,7 @@ describe('dispatchPyTorchCapabilities', () => {
   it('refuses to answer without a model server, instead of standing in for one', async () => {
     const r = await dispatchPyTorchCapabilities({ serviceUrl: '', timeoutMs: 100, capabilities: CAPS });
     expect(r.telemetry).toEqual({});
-    expect(r.error).toMatch(/MODEL_SERVER_URL/);
+    expect(r.error).toMatch(/model registry/);
   });
 
   it('asks nothing when no capability was requested', async () => {

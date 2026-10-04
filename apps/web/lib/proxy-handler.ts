@@ -1,9 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import {
-  getGatewayEngineUrl,
-  getGatewayProxyUrl,
-  getModelServerUrl,
-} from '@/lib/config/services';
+import { getGatewayEngineUrl, getGatewayProxyUrl } from '@/lib/config/services';
 
 // core-engine's own mounts. It is reached only through the gateway data plane
 // as /core/<module>/..., never directly; see the branch that answers these.
@@ -67,18 +63,6 @@ export async function handleApiProxy(
     } else if (cleanPath.startsWith('api/') && REFERENCE_ENTITIES.has(cleanPath.replace(/^api\//, '').split('/')[0])) {
       const subPath = cleanPath.replace(/^api\//, '');
       targetUrl = `${getGatewayProxyUrl()}/reference/${subPath}${search}`;
-      if (dataPlaneKey) headers['x-api-key'] = dataPlaneKey;
-    } else if (cleanPath.startsWith('api/vision-worker/')) {
-      // Model registry: upload, download, activation, dispatch. These live on
-      // worker-models (:8096), not the skin worker — Seagull-core moved them
-      // there; the /api/v1/models/* routes and bodies are unchanged. The
-      // client-side prefix still reads "vision-worker" so saved links keep
-      // working; only the service it resolves to changed.
-      // Deployed, the model server sits behind the data plane like everything
-      // else, so the key travels with the request. Attached only when it is
-      // set, and a client-supplied one still wins in the header loop below.
-      const subPath = cleanPath.replace(/^api\/vision-worker\//, '');
-      targetUrl = `${getModelServerUrl()}/api/v1/${subPath}${search}`;
       if (dataPlaneKey) headers['x-api-key'] = dataPlaneKey;
     } else if (DIRECT_CORE_ENGINE_PATH.test(cleanPath)) {
       // These used to go straight to a local core-engine. There is no direct

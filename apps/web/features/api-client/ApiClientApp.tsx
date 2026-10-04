@@ -16,7 +16,6 @@ import { FormManager } from '@gateway-experience/studio/form';
 import { ScoreManager } from '@gateway-experience/studio/score';
 import { MatchManager } from '@gateway-experience/studio/match';
 import { ReferenceManager } from '@gateway-experience/studio/reference';
-import { VisionEngineView } from '@/features/vision';
 import { TryOnEngineView } from '@/features/colour';
 import { PipelineSimulatorView } from '@/features/orchestrator/PipelineSimulatorView';
 import { AssessmentRecordsView } from '@/features/assessments';
@@ -383,18 +382,6 @@ export function ApiClientApp() {
     }
   };
 
-  const handleOpenVision = () => {
-    setActiveRoute(null);
-    const existing = tabs.find((t) => t.type === 'vision');
-    if (existing) {
-      setActiveTabId(existing.id);
-    } else {
-      const id = 'tab-vision';
-      setTabs((prev) => [...prev, { id, title: 'Vision Engine', type: 'vision' }]);
-      setActiveTabId(id);
-    }
-  };
-
   const handleOpenTryOn = () => {
     setActiveRoute(null);
     const existing = tabs.find((t) => t.type === 'tryon');
@@ -402,7 +389,7 @@ export function ApiClientApp() {
       setActiveTabId(existing.id);
     } else {
       const id = 'tab-tryon';
-      setTabs((prev) => [...prev, { id, title: 'Try-On Engine', type: 'tryon' }]);
+      setTabs((prev) => [...prev, { id, title: 'Vision Engine', type: 'tryon' }]);
       setActiveTabId(id);
     }
   };
@@ -776,7 +763,6 @@ export function ApiClientApp() {
           onOpenForms={handleOpenForms}
           onOpenScoring={handleOpenScoring}
           onOpenMatching={handleOpenMatching}
-          onOpenVision={handleOpenVision}
           onOpenTryOn={handleOpenTryOn}
           onOpenAssessments={handleOpenAssessments}
           onOpenApplications={handleOpenApplications}
@@ -921,8 +907,6 @@ export function ApiClientApp() {
                 <ScoreManager />
               ) : tab.type === 'matching' ? (
                 <MatchManager />
-              ) : tab.type === 'vision' ? (
-                <VisionEngineView />
               ) : tab.type === 'tryon' ? (
                 <TryOnEngineView />
               ) : tab.type === 'pipeline' ? (

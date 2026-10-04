@@ -61,13 +61,3 @@ export type PipelineSettings = Omit<OrchestratorPipelineConfig, 'vision' | 'matc
   vision: Omit<OrchestratorPipelineConfig['vision'], 'serviceUrl'>;
   matching: Omit<OrchestratorPipelineConfig['matching'], 'serviceUrl'>;
 };
-
-// Where worker-models listens in local development (Seagull-core
-// docs/PORTS.md). Deployments set MODEL_SERVER_URL instead.
-export const DEFAULT_MODEL_SERVER_URL = 'http://127.0.0.1:8096';
-
-// Capability dispatch lives on worker-models (the model server). It was
-// addressed as /api/v1/dispatch-capabilities on the skin worker, which that
-// worker has never served — the call 404'd unless a configOverride supplied
-// the whole URL.
-export const MODEL_DISPATCH_PATH = '/api/v1/models/dispatch-capabilities';

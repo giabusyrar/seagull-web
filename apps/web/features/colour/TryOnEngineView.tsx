@@ -6,8 +6,9 @@ import { PageHeader } from '@gateway-experience/shared';
 import { ColourStudioView } from './ColourStudioView';
 
 /**
- * The colour analysis + photo try-on studio as a Core Engines tab of the API
- * Workbench (localhost:3000, next to Form, Score, Matching and Vision). It is
+ * The colour analysis + photo try-on studio as the Vision Engine tab of the
+ * API Workbench (localhost:3000, next to Form, Score and Matching; it took the
+ * name when the old Vision Engine page was removed, 2026-10-05). It is
  * the same view as the standalone page /colour-analysis, which stays for
  * full-screen and phone-width testing.
  */
@@ -16,8 +17,8 @@ export function TryOnEngineView() {
     <div className="flex-1 min-w-0 h-full overflow-hidden bg-background text-foreground flex flex-col">
       <PageHeader
         icon={<Palette className="h-5 w-5 text-primary" />}
-        breadcrumbs={[{ label: 'Workbench', href: '/' }, { label: 'Core Engines' }, { label: 'Try-On Engine' }]}
-        title="Try-On Engine"
+        breadcrumbs={[{ label: 'Workbench', href: '/' }, { label: 'Core Engines' }, { label: 'Vision Engine' }]}
+        title="Vision Engine"
         description="Personal colour analysis (WCPA) and photo makeup try-on. The same view runs full screen at /colour-analysis."
       >
         <Link

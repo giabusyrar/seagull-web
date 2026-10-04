@@ -71,7 +71,7 @@ var empty = (error, capabilities = []) => ({
 async function dispatchPyTorchCapabilities(params) {
   const { serviceUrl, timeoutMs, capabilities, images, apiKey } = params;
   if (!capabilities || capabilities.length === 0) return empty();
-  if (!serviceUrl) return empty("No model server configured (MODEL_SERVER_URL).", capabilities);
+  if (!serviceUrl) return empty("No capability dispatch service: the model registry (worker-models) was retired; a configOverride must name one.", capabilities);
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs || 3e3);
@@ -244,13 +244,10 @@ var DEFAULT_PIPELINE_SETTINGS = {
     timeoutMs: 5e3
   }
 };
-var DEFAULT_MODEL_SERVER_URL = "http://127.0.0.1:8096";
-var MODEL_DISPATCH_PATH = "/api/v1/models/dispatch-capabilities";
 
 // src/orchestrator/pipeline-executor.ts
 function pipelineEnvFromProcess() {
   return {
-    modelServerUrl: process.env.MODEL_SERVER_URL,
     matchEngineUrl: process.env.MATCH_ENGINE_URL,
     gatewayApiKey: process.env.GATEWAY_API_KEY
   };
@@ -270,7 +267,11 @@ function resolvePipelineConfig(payload, settings, env) {
     executionStrategy: payload.configOverride?.executionStrategy || settings.executionStrategy,
     vision: {
       ...settings.vision,
-      serviceUrl: payload.configOverride?.vision?.serviceUrl || `${env.modelServerUrl || DEFAULT_MODEL_SERVER_URL}${MODEL_DISPATCH_PATH}`
+      // worker-models, which served capability dispatch, was retired with
+      // the model registry (Seagull-core, 2026-10-03). Only a configOverride
+      // can name a dispatch service now; without one the vision stage reports
+      // that nothing was dispatched, and why.
+      serviceUrl: payload.configOverride?.vision?.serviceUrl || ""
     },
     matching: {
       ...settings.matching,
@@ -463,9 +464,7 @@ async function executeAssessmentPipeline(payload, deps) {
   };
 }
 
-exports.DEFAULT_MODEL_SERVER_URL = DEFAULT_MODEL_SERVER_URL;
 exports.DEFAULT_PIPELINE_SETTINGS = DEFAULT_PIPELINE_SETTINGS;
-exports.MODEL_DISPATCH_PATH = MODEL_DISPATCH_PATH;
 exports.dispatchPyTorchCapabilities = dispatchPyTorchCapabilities;
 exports.executeAssessmentPipeline = executeAssessmentPipeline;
 exports.fetchSkinConditionsFromDb = fetchSkinConditionsFromDb;

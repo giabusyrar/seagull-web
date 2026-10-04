@@ -28,6 +28,42 @@ import type { ApiClientRequest, ResponseData, Collection, Route, RouteGroup, Env
 import { SidebarHeader } from './SidebarHeader';
 import { CollectionTree } from '@/features/collections';
 
+type ReferenceItem = { entity: string; label: string; icon: React.ComponentType<{ className?: string }> };
+type ReferenceGroup = { id: string; label: string; icon: React.ComponentType<{ className?: string }>; items: ReferenceItem[] };
+
+// Reference Data, grouped by what each type describes. `entity` is the reference route slug
+// (/reference/[entity], REFERENCE_ENTITY_CONFIGS).
+const REFERENCE_GROUPS: ReferenceGroup[] = [
+  {
+    id: 'catalogue',
+    label: 'Catalogue',
+    icon: Package,
+    items: [
+      { entity: 'brands', label: 'Brands', icon: Tag },
+      { entity: 'products', label: 'Products', icon: Package },
+      { entity: 'categories', label: 'Categories', icon: LayoutGrid },
+      { entity: 'textures', label: 'Textures', icon: Droplet },
+      { entity: 'ingredients', label: 'Active Ingredients', icon: Sparkles },
+    ],
+  },
+  {
+    id: 'skin-science',
+    label: 'Skin Science',
+    icon: Target,
+    items: [
+      { entity: 'dimensions', label: 'Dimensions', icon: Target },
+      { entity: 'skin-conditions', label: 'Skin Conditions', icon: ShieldAlert },
+      { entity: 'severity-tier-groups', label: 'Severity Tier Groups', icon: ShieldAlert },
+    ],
+  },
+  {
+    id: 'customer-safety',
+    label: 'Customer Safety',
+    icon: ShieldAlert,
+    items: [{ entity: 'conditions', label: 'Customer Conditions', icon: Tag }],
+  },
+];
+
 export interface HistoryItem {
   id: string;
   request: ApiClientRequest;
@@ -66,7 +102,6 @@ export interface SidebarProps {
   onOpenForms?: () => void;
   onOpenScoring?: () => void;
   onOpenMatching?: () => void;
-  onOpenVision?: () => void;
   onOpenTryOn?: () => void;
   onOpenAssessments?: () => void;
   onOpenApplications?: () => void;
@@ -106,7 +141,6 @@ export const ApiClientSidebar: React.FC<SidebarProps> = ({
   onOpenForms,
   onOpenScoring,
   onOpenMatching,
-  onOpenVision,
   onOpenTryOn,
   onOpenAssessments,
   onOpenApplications,
@@ -121,6 +155,7 @@ export const ApiClientSidebar: React.FC<SidebarProps> = ({
   const [isCoreEnginesOpen, setIsCoreEnginesOpen] = useState(false);
   const [isMasterDataOpen, setIsMasterDataOpen] = useState(false);
   const [isReferenceOpen, setIsReferenceOpen] = useState(false);
+  const [closedReferenceGroups, setClosedReferenceGroups] = useState<Record<string, boolean>>({});
 
   const [searchQuery, setSearchQuery] = useState('');
   const isSearching = searchQuery.trim().length > 0;
@@ -197,25 +232,13 @@ export const ApiClientSidebar: React.FC<SidebarProps> = ({
 
           <button
             type="button"
-            onClick={onOpenVision}
+            onClick={onOpenTryOn}
             className="p-1.5 hover:bg-sidebar-accent hover:text-sidebar-foreground rounded-md text-muted-foreground transition cursor-pointer relative group"
             title="Vision Engine"
           >
-            <Sparkles className="h-4 w-4" />
-            <span className="absolute left-12 bg-popover text-popover-foreground text-[10px] font-medium px-2 py-1 rounded border border-border shadow-xs opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-50">
-              Vision Engine
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={onOpenTryOn}
-            className="p-1.5 hover:bg-sidebar-accent hover:text-sidebar-foreground rounded-md text-muted-foreground transition cursor-pointer relative group"
-            title="Try-On Engine"
-          >
             <Palette className="h-4 w-4" />
             <span className="absolute left-12 bg-popover text-popover-foreground text-[10px] font-medium px-2 py-1 rounded border border-border shadow-xs opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-50">
-              Try-On Engine
+              Vision Engine
             </span>
           </button>
 
@@ -472,23 +495,7 @@ export const ApiClientSidebar: React.FC<SidebarProps> = ({
                   <ExternalLink className="h-3 w-3 text-muted-foreground group-hover:text-foreground shrink-0 opacity-0 group-hover:opacity-100 transition" />
                 </button>
 
-                {/* Vision Engine */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    onOpenVision?.();
-                    if (isMobileOpen && onCloseMobile) onCloseMobile();
-                  }}
-                  className="w-full flex items-center justify-between px-2.5 py-1.5 bg-card hover:bg-sidebar-accent border border-sidebar-border hover:border-sidebar-ring/40 rounded-md text-left transition group cursor-pointer shadow-2xs"
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Sparkles className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground shrink-0" />
-                    <span className="text-xs font-medium text-foreground truncate" title="Vision Engine">Vision Engine</span>
-                  </div>
-                  <ExternalLink className="h-3 w-3 text-muted-foreground group-hover:text-foreground shrink-0 opacity-0 group-hover:opacity-100 transition" />
-                </button>
-
-                {/* Try-On Engine: WCPA colour analysis + photo makeup try-on */}
+                {/* Vision Engine (was Try-On Engine): WCPA colour analysis + photo makeup try-on */}
                 <button
                   type="button"
                   onClick={() => {
@@ -499,7 +506,7 @@ export const ApiClientSidebar: React.FC<SidebarProps> = ({
                 >
                   <div className="flex items-center gap-2 min-w-0">
                     <Palette className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground shrink-0" />
-                    <span className="text-xs font-medium text-foreground truncate" title="Try-On Engine">Try-On Engine</span>
+                    <span className="text-xs font-medium text-foreground truncate" title="Vision Engine">Vision Engine</span>
                   </div>
                   <ExternalLink className="h-3 w-3 text-muted-foreground group-hover:text-foreground shrink-0 opacity-0 group-hover:opacity-100 transition" />
                 </button>
@@ -571,150 +578,49 @@ export const ApiClientSidebar: React.FC<SidebarProps> = ({
             </div>
 
             {showReference && (
-              <div className="px-2 pt-1 space-y-1">
-                {/* Brand */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    onOpenReference?.('brands');
-                    if (isMobileOpen && onCloseMobile) onCloseMobile();
-                  }}
-                  className="w-full flex items-center justify-between px-2.5 py-1.5 bg-card hover:bg-sidebar-accent border border-sidebar-border hover:border-sidebar-ring/40 rounded-md text-left transition group cursor-pointer shadow-2xs"
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Tag className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground shrink-0" />
-                    <span className="text-xs font-medium text-foreground truncate" title="Brands">Brands</span>
-                  </div>
-                  <ExternalLink className="h-3 w-3 text-muted-foreground group-hover:text-foreground shrink-0 opacity-0 group-hover:opacity-100 transition" />
-                </button>
-
-                {/* Product */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    onOpenReference?.('products');
-                    if (isMobileOpen && onCloseMobile) onCloseMobile();
-                  }}
-                  className="w-full flex items-center justify-between px-2.5 py-1.5 bg-card hover:bg-sidebar-accent border border-sidebar-border hover:border-sidebar-ring/40 rounded-md text-left transition group cursor-pointer shadow-2xs"
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Package className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground shrink-0" />
-                    <span className="text-xs font-medium text-foreground truncate" title="Products">Products</span>
-                  </div>
-                  <ExternalLink className="h-3 w-3 text-muted-foreground group-hover:text-foreground shrink-0 opacity-0 group-hover:opacity-100 transition" />
-                </button>
-
-                {/* Category */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    onOpenReference?.('categories');
-                    if (isMobileOpen && onCloseMobile) onCloseMobile();
-                  }}
-                  className="w-full flex items-center justify-between px-2.5 py-1.5 bg-card hover:bg-sidebar-accent border border-sidebar-border hover:border-sidebar-ring/40 rounded-md text-left transition group cursor-pointer shadow-2xs"
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <LayoutGrid className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground shrink-0" />
-                    <span className="text-xs font-medium text-foreground truncate" title="Categories">Categories</span>
-                  </div>
-                  <ExternalLink className="h-3 w-3 text-muted-foreground group-hover:text-foreground shrink-0 opacity-0 group-hover:opacity-100 transition" />
-                </button>
-
-                {/* Texture */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    onOpenReference?.('textures');
-                    if (isMobileOpen && onCloseMobile) onCloseMobile();
-                  }}
-                  className="w-full flex items-center justify-between px-2.5 py-1.5 bg-card hover:bg-sidebar-accent border border-sidebar-border hover:border-sidebar-ring/40 rounded-md text-left transition group cursor-pointer shadow-2xs"
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Droplet className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground shrink-0" />
-                    <span className="text-xs font-medium text-foreground truncate" title="Textures">Textures</span>
-                  </div>
-                  <ExternalLink className="h-3 w-3 text-muted-foreground group-hover:text-foreground shrink-0 opacity-0 group-hover:opacity-100 transition" />
-                </button>
-
-                {/* Dimensions */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    onOpenReference?.('dimensions');
-                    if (isMobileOpen && onCloseMobile) onCloseMobile();
-                  }}
-                  className="w-full flex items-center justify-between px-2.5 py-1.5 bg-card hover:bg-sidebar-accent border border-sidebar-border hover:border-sidebar-ring/40 rounded-md text-left transition group cursor-pointer shadow-2xs"
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Target className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground shrink-0" />
-                    <span className="text-xs font-medium text-foreground truncate" title="Dimensions">Dimensions</span>
-                  </div>
-                  <ExternalLink className="h-3 w-3 text-muted-foreground group-hover:text-foreground shrink-0 opacity-0 group-hover:opacity-100 transition" />
-                </button>
-
-                {/* Customer Conditions */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    onOpenReference?.('conditions');
-                    if (isMobileOpen && onCloseMobile) onCloseMobile();
-                  }}
-                  className="w-full flex items-center justify-between px-2.5 py-1.5 bg-card hover:bg-sidebar-accent border border-sidebar-border hover:border-sidebar-ring/40 rounded-md text-left transition group cursor-pointer shadow-2xs"
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Tag className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground shrink-0" />
-                    <span className="text-xs font-medium text-foreground truncate" title="Customer Conditions">Customer Conditions</span>
-                  </div>
-                  <ExternalLink className="h-3 w-3 text-muted-foreground group-hover:text-foreground shrink-0 opacity-0 group-hover:opacity-100 transition" />
-                </button>
-
-                {/* Skin Conditions & Capabilities */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    onOpenReference?.('skin-conditions');
-                    if (isMobileOpen && onCloseMobile) onCloseMobile();
-                  }}
-                  className="w-full flex items-center justify-between px-2.5 py-1.5 bg-card hover:bg-sidebar-accent border border-sidebar-border hover:border-sidebar-ring/40 rounded-md text-left transition group cursor-pointer shadow-2xs"
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <ShieldAlert className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground shrink-0" />
-                    <span className="text-xs font-medium text-foreground truncate" title="Skin Conditions">Skin Conditions</span>
-                  </div>
-                  <ExternalLink className="h-3 w-3 text-muted-foreground group-hover:text-foreground shrink-0 opacity-0 group-hover:opacity-100 transition" />
-                </button>
-
-                {/* Active Ingredients */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    onOpenReference?.('ingredients');
-                    if (isMobileOpen && onCloseMobile) onCloseMobile();
-                  }}
-                  className="w-full flex items-center justify-between px-2.5 py-1.5 bg-card hover:bg-sidebar-accent border border-sidebar-border hover:border-sidebar-ring/40 rounded-md text-left transition group cursor-pointer shadow-2xs"
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Sparkles className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground shrink-0" />
-                    <span className="text-xs font-medium text-foreground truncate" title="Active Ingredients">Active Ingredients</span>
-                  </div>
-                  <ExternalLink className="h-3 w-3 text-muted-foreground group-hover:text-foreground shrink-0 opacity-0 group-hover:opacity-100 transition" />
-                </button>
-
-                {/* Severity Tier Groups */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    onOpenReference?.('severity-tier-groups');
-                    if (isMobileOpen && onCloseMobile) onCloseMobile();
-                  }}
-                  className="w-full flex items-center justify-between px-2.5 py-1.5 bg-card hover:bg-sidebar-accent border border-sidebar-border hover:border-sidebar-ring/40 rounded-md text-left transition group cursor-pointer shadow-2xs"
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <ShieldAlert className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground shrink-0" />
-                    <span className="text-xs font-medium text-foreground truncate" title="Severity Tier Groups">Severity Tier Groups</span>
-                  </div>
-                  <ExternalLink className="h-3 w-3 text-muted-foreground group-hover:text-foreground shrink-0 opacity-0 group-hover:opacity-100 transition" />
-                </button>
+              <div className="px-2 pt-1 space-y-2">
+                {REFERENCE_GROUPS.map((group) => {
+                  const GroupIcon = group.icon;
+                  const groupOpen = isSearching || !closedReferenceGroups[group.id];
+                  return (
+                    <div key={group.id}>
+                      <button
+                        type="button"
+                        onClick={() => setClosedReferenceGroups((prev) => ({ ...prev, [group.id]: !prev[group.id] }))}
+                        aria-expanded={groupOpen}
+                        className="w-full flex items-center gap-1.5 px-1.5 py-1 hover:bg-sidebar-accent rounded-md text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground transition cursor-pointer"
+                      >
+                        {groupOpen ? <ChevronDown className="h-3 w-3 shrink-0" /> : <ChevronRight className="h-3 w-3 shrink-0" />}
+                        <GroupIcon className="h-3 w-3 shrink-0" />
+                        <span className="truncate">{group.label}</span>
+                      </button>
+                      {groupOpen && (
+                        <div className="pl-3 pt-1 space-y-1">
+                          {group.items.map((item) => {
+                            const ItemIcon = item.icon;
+                            return (
+                              <button
+                                key={item.entity}
+                                type="button"
+                                onClick={() => {
+                                  onOpenReference?.(item.entity);
+                                  if (isMobileOpen && onCloseMobile) onCloseMobile();
+                                }}
+                                className="w-full flex items-center justify-between px-2.5 py-1.5 bg-card hover:bg-sidebar-accent border border-sidebar-border hover:border-sidebar-ring/40 rounded-md text-left transition group cursor-pointer shadow-2xs"
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <ItemIcon className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground shrink-0" />
+                                  <span className="text-xs font-medium text-foreground truncate" title={item.label}>{item.label}</span>
+                                </div>
+                                <ExternalLink className="h-3 w-3 text-muted-foreground group-hover:text-foreground shrink-0 opacity-0 group-hover:opacity-100 transition" />
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

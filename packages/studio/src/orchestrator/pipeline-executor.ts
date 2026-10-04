@@ -5,19 +5,15 @@ import { dispatchPyTorchCapabilities } from './pytorch-client';
 import { fuseDimensionScores } from './score-fusion';
 import { fetchRegimens, DEFAULT_MATCH_ENGINE_PATH } from './match-client';
 import {
-  DEFAULT_MODEL_SERVER_URL,
   DEFAULT_PIPELINE_SETTINGS,
-  MODEL_DISPATCH_PATH,
   type PipelineSettings,
 } from './pipeline-defaults';
 
 /** Deployment values the pipeline reads from its environment. */
 export interface PipelineEnv {
-  /** worker-models origin; DEFAULT_MODEL_SERVER_URL when absent. */
-  modelServerUrl?: string;
   /** Match engine origin; when absent the payload's baseUrl is used. */
   matchEngineUrl?: string;
-  /** Sent to the model server. Server-side only. */
+  /** Sent to a capability dispatch service a configOverride names. Server-side only. */
   gatewayApiKey?: string;
 }
 
@@ -27,7 +23,6 @@ export interface PipelineEnv {
  */
 export function pipelineEnvFromProcess(): PipelineEnv {
   return {
-    modelServerUrl: process.env.MODEL_SERVER_URL,
     matchEngineUrl: process.env.MATCH_ENGINE_URL,
     gatewayApiKey: process.env.GATEWAY_API_KEY,
   };
@@ -74,9 +69,11 @@ export function resolvePipelineConfig(
     executionStrategy: payload.configOverride?.executionStrategy || settings.executionStrategy,
     vision: {
       ...settings.vision,
-      serviceUrl:
-        payload.configOverride?.vision?.serviceUrl ||
-        `${env.modelServerUrl || DEFAULT_MODEL_SERVER_URL}${MODEL_DISPATCH_PATH}`,
+      // worker-models, which served capability dispatch, was retired with
+      // the model registry (Seagull-core, 2026-10-03). Only a configOverride
+      // can name a dispatch service now; without one the vision stage reports
+      // that nothing was dispatched, and why.
+      serviceUrl: payload.configOverride?.vision?.serviceUrl || '',
     },
     matching: {
       ...settings.matching,

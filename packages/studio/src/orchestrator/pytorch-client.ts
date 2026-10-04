@@ -58,7 +58,7 @@ export async function dispatchPyTorchCapabilities(params: {
   const { serviceUrl, timeoutMs, capabilities, images, apiKey } = params;
 
   if (!capabilities || capabilities.length === 0) return empty();
-  if (!serviceUrl) return empty('No model server configured (MODEL_SERVER_URL).', capabilities);
+  if (!serviceUrl) return empty('No capability dispatch service: the model registry (worker-models) was retired; a configOverride must name one.', capabilities);
 
   try {
     const controller = new AbortController();

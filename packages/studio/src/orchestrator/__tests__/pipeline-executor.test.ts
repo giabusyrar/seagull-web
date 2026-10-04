@@ -25,7 +25,7 @@ import { fetchRegimens } from '../match-client';
 import { executeAssessmentPipeline } from '../pipeline-executor';
 import { DEFAULT_PIPELINE_SETTINGS } from '../pipeline-defaults';
 
-const ENV_KEYS = ['MODEL_SERVER_URL', 'MATCH_ENGINE_URL', 'GATEWAY_API_KEY'] as const;
+const ENV_KEYS = ['MATCH_ENGINE_URL', 'GATEWAY_API_KEY'] as const;
 const savedEnv: Record<string, string | undefined> = {};
 
 beforeEach(() => {
@@ -49,12 +49,9 @@ const routes = { skinConditions: '/api/skin-conditions' };
 describe('executeAssessmentPipeline (default config)', () => {
   it('falls back to the default brand, application and service URLs', async () => {
     await executeAssessmentPipeline(basePayload, { routes });
+    // No dispatch service by default: the model registry was retired.
     expect(dispatchPyTorchCapabilities).toHaveBeenCalledWith(
-      expect.objectContaining({
-        serviceUrl: 'http://127.0.0.1:8096/api/v1/models/dispatch-capabilities',
-        timeoutMs: 3000,
-        apiKey: undefined,
-      }),
+      expect.objectContaining({ serviceUrl: '', timeoutMs: 3000, apiKey: undefined }),
     );
     expect(fetchRegimens).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -67,13 +64,10 @@ describe('executeAssessmentPipeline (default config)', () => {
   });
 
   it('reads service URLs and the API key from the environment', async () => {
-    process.env.MODEL_SERVER_URL = 'http://models';
     process.env.MATCH_ENGINE_URL = 'http://match';
     process.env.GATEWAY_API_KEY = 'k';
     await executeAssessmentPipeline({ ...basePayload, brandId: 'b', applicationId: 'a' }, { routes });
-    expect(dispatchPyTorchCapabilities).toHaveBeenCalledWith(
-      expect.objectContaining({ serviceUrl: 'http://models/api/v1/models/dispatch-capabilities', apiKey: 'k' }),
-    );
+    expect(dispatchPyTorchCapabilities).toHaveBeenCalledWith(expect.objectContaining({ apiKey: 'k' }));
     expect(fetchRegimens).toHaveBeenCalledWith(
       expect.objectContaining({ url: 'http://match/core/match-engine/evaluate', brandId: 'b', applicationId: 'a' }),
     );
@@ -127,14 +121,12 @@ describe('executeAssessmentPipeline (default config)', () => {
 
 describe('executeAssessmentPipeline (injected dependencies)', () => {
   it('uses injected env instead of process.env', async () => {
-    process.env.MODEL_SERVER_URL = 'http://from-process';
+    process.env.MATCH_ENGINE_URL = 'http://from-process';
     await executeAssessmentPipeline(basePayload, {
       routes,
-      env: { modelServerUrl: 'http://injected', matchEngineUrl: 'http://m', gatewayApiKey: 'x' },
+      env: { matchEngineUrl: 'http://m', gatewayApiKey: 'x' },
     });
-    expect(dispatchPyTorchCapabilities).toHaveBeenCalledWith(
-      expect.objectContaining({ serviceUrl: 'http://injected/api/v1/models/dispatch-capabilities', apiKey: 'x' }),
-    );
+    expect(dispatchPyTorchCapabilities).toHaveBeenCalledWith(expect.objectContaining({ apiKey: 'x' }));
     expect(fetchRegimens).toHaveBeenCalledWith(expect.objectContaining({ url: 'http://m/core/match-engine/evaluate' }));
   });
 
