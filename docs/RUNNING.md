@@ -29,7 +29,7 @@ in, and each feature needs whichever service it calls.
 ```bash
 cp apps/web/.env.example apps/web/.env.local   # then fill in the two secrets
 npm install
-npm run dev                                    # :3000
+npm run dev                                    # web :3000 + simulator :3200 (npm run dev:web for web only)
 ```
 
 `ENCRYPTION_KEY` must be the same value the gateway uses, and `REDIS_URL` the
