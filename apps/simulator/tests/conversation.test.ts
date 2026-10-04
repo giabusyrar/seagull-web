@@ -1,14 +1,32 @@
-import { describe, it, expect } from 'vitest';
-import { INITIAL_LIVE, activeFlowSurveys, answerAsText, answersSupported, createSession, photoRequested, reduceLive, refusal, uploadPhoto, wsTicket, wsUrl } from '@/lib/conversation';
+import { beforeEach, describe, it, expect } from 'vitest';
+import { INITIAL_LIVE, activeFlowSurveys, setClock, transcriptJson, transcriptText, answerAsText, answersSupported, createSession, needsCustomerId, actionMessage, viewMessage, photoRequested, reduceLive, refusal, uploadPhoto, wsTicket, wsUrl } from '@/lib/conversation';
 import { base64ToPcm16, bytesToBase64, floatToPcm16, pcm16ToFloat, rateOf } from '@/lib/audio';
 
 const s = { id: 'sess1', owner: 'own1' };
 
 describe('conversation requests', () => {
-  it('creates a session with the scope, survey and customer', () => {
-    const { url, init } = createSession({ brandId: 'WARDAH', applicationId: 'skinverse' }, 'q1', 'sim-customer');
+  const who = { customerId: 'ignored', fullName: ' Sim ', email: '', dateOfBirth: '1990-01-02', consentDataProcessing: false, consentMarketing: false };
+  it('creates a dry-run session with the customer’s details and no customer id', () => {
+    const { url, init } = createSession({ brandId: 'WARDAH', applicationId: 'skinverse' }, 'q1', who);
     expect(url).toBe('/svc/conv/conversation/sessions');
-    expect(JSON.parse(init.body as string)).toEqual({ brand_id: 'WARDAH', application_id: 'skinverse', survey_code: 'q1', customer_id: 'sim-customer' });
+    expect(JSON.parse(init.body as string)).toEqual({
+      brand_id: 'WARDAH', application_id: 'skinverse', survey_code: 'q1', dry_run: true,
+      customer: { full_name: 'Sim', date_of_birth: '1990-01-02', consent_data_processing: false, consent_marketing: false },
+    });
+  });
+
+  it('adds the legacy customer id only when asked, for an engine without dry-run', () => {
+    const { init } = createSession({ brandId: 'W', applicationId: 'a' }, 'q1', who, 'sim-customer');
+    expect(JSON.parse(init.body as string).customer_id).toBe('sim-customer');
+    expect(needsCustomerId({ detail: [{ type: 'missing', loc: ['body', 'customer_id'] }] }, 422)).toBe(true);
+    expect(needsCustomerId({ detail: [{ type: 'missing', loc: ['body', 'survey_code'] }] }, 422)).toBe(false);
+    expect(needsCustomerId({ detail: 'conversation flow not found' }, 404)).toBe(false);
+  });
+
+  it('builds view and action notes, leaving out empty fields', () => {
+    expect(JSON.parse(JSON.stringify(viewMessage({ screen: 'questionnaire', question: 'Q1' })))).toEqual({ type: 'view', screen: 'questionnaire', question: 'Q1' });
+    expect(JSON.parse(JSON.stringify(viewMessage({ screen: 'photo' })))).toEqual({ type: 'view', screen: 'photo' });
+    expect(actionMessage('skip_questionnaire')).toEqual({ type: 'action', action: 'skip_questionnaire' });
   });
 
   it('sends the owner token on session calls and the raw photo body', () => {
@@ -26,13 +44,14 @@ describe('conversation requests', () => {
 });
 
 describe('reduceLive', () => {
+  beforeEach(() => setClock(() => 1000));
   it('replaces a partial turn in place and keeps order', () => {
     let st = reduceLive(INITIAL_LIVE, { type: 'transcript', speaker: 'Advisor', id: 'a1', text: 'Hal', final: false });
     st = reduceLive(st, { type: 'transcript', speaker: 'Customer', id: 'c1', text: 'Hi', final: true });
     st = reduceLive(st, { type: 'transcript', speaker: 'Advisor', id: 'a1', text: 'Halo!', final: true });
     expect(st.turns).toEqual([
-      { id: 'a1', speaker: 'Advisor', text: 'Halo!', final: true },
-      { id: 'c1', speaker: 'Customer', text: 'Hi', final: true },
+      { id: 'a1', speaker: 'Advisor', text: 'Halo!', final: true, at: 1000 },
+      { id: 'c1', speaker: 'Customer', text: 'Hi', final: true, at: 1000 },
     ]);
   });
 
@@ -116,5 +135,43 @@ describe('answer sync', () => {
   it('words the fallback message in the UI language', () => {
     expect(answerAsText('Q1', 'a, b', 'en')).toBe('(Filled in on the form) Q1: a, b');
     expect(answerAsText('Q1', 'a, b', 'id')).toBe('(Saya isi di form) Q1: a, b');
+  });
+});
+
+describe('transcript export', () => {
+  const meta = { sessionId: 's1', survey: 'q1', brandId: 'WARDAH', applicationId: 'skinverse', customer: 'Sim Tester', persona: 'Kak Gia' };
+  const state = (() => {
+    setClock(() => Date.UTC(2026, 9, 4, 12, 0, 0));
+    let st = reduceLive(INITIAL_LIVE, { type: 'transcript', speaker: 'Customer', id: 'c1', text: 'Halo', final: true });
+    st = reduceLive(st, { type: 'transcript', speaker: 'Advisor', id: 'a1', text: 'Hai', final: false });
+    st = reduceLive(st, { type: 'transcript', speaker: 'Advisor', id: 'a2', text: 'Siap', final: true });
+    return st;
+  })();
+
+  it('writes final turns with names and times, skipping partials', () => {
+    const txt = transcriptText(state, meta);
+    expect(txt).toContain('Session: s1');
+    expect(txt).toContain('[2026-10-04T12:00:00.000Z] Sim Tester: Halo');
+    expect(txt).toContain('Kak Gia: Siap');
+    expect(txt).not.toContain('Hai');
+  });
+
+  it('exports JSON with turns, answers and results', () => {
+    const j = JSON.parse(transcriptJson(state, meta));
+    expect(j.turns).toEqual([
+      { speaker: 'Customer', text: 'Halo', at: '2026-10-04T12:00:00.000Z' },
+      { speaker: 'Advisor', text: 'Siap', at: '2026-10-04T12:00:00.000Z' },
+    ]);
+    expect(j.customer).toBe('Sim Tester');
+    expect(j.answers).toBeNull();
+  });
+});
+
+describe('dry-run and memory state', () => {
+  it('reads dry_run, view and remembered answers; absent on older engines', () => {
+    const st = reduceLive(INITIAL_LIVE, { type: 'state', state: { dry_run: true, view: { screen: 'photo' }, remembered: false, remembered_answers: { Q1: 'a' } } });
+    expect(st.progress).toMatchObject({ dryRun: true, view: { screen: 'photo' }, remembered: false, rememberedAnswers: { Q1: 'a' } });
+    const old = reduceLive(INITIAL_LIVE, { type: 'state', state: { phase: 'intake' } });
+    expect(old.progress.dryRun).toBeUndefined();
   });
 });

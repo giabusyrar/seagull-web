@@ -3,6 +3,7 @@
 // events its live WebSocket sends.
 import { svcPath } from './services';
 import type { Brand, BuiltRequest } from './photo';
+import type { Respondent } from './form';
 
 /**
  * Where the browser opens the live socket. Next's rewrites carry HTTP only,
@@ -16,15 +17,47 @@ export interface ConvSession { id: string; owner: string; survey?: string }
 
 const owner = (s: ConvSession) => ({ 'X-Session-Owner': s.owner });
 
-export function createSession(brand: Brand, surveyCode: string, customerId: string): BuiltRequest {
+/** The customer's details as the engine takes them; empty fields are left out. */
+export function customerBody(who: Respondent): Record<string, unknown> {
+  const c: Record<string, unknown> = {
+    full_name: who.fullName?.trim(),
+    email: who.email?.trim(),
+    phone_number: who.phoneNumber?.trim(),
+    date_of_birth: who.dateOfBirth,
+    consent_data_processing: who.consentDataProcessing,
+    consent_marketing: who.consentMarketing,
+  };
+  return Object.fromEntries(Object.entries(c).filter(([, v]) => v !== undefined && v !== ''));
+}
+
+/**
+ * A dry-run session: the engine saves nothing and tells core not to either,
+ * so no customer id is needed. `legacyCustomerId` is only for an engine that
+ * predates dry-run and refuses a session without one (see needsCustomerId);
+ * such a run IS saved, and its `state` carries no `dry_run` to say otherwise.
+ */
+export function createSession(brand: Brand, surveyCode: string, who: Respondent, legacyCustomerId?: string): BuiltRequest {
   return {
     url: svcPath('conv', '/conversation/sessions'),
     init: {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ brand_id: brand.brandId, application_id: brand.applicationId, survey_code: surveyCode, customer_id: customerId }),
+      body: JSON.stringify({
+        brand_id: brand.brandId, application_id: brand.applicationId, survey_code: surveyCode,
+        dry_run: true, customer: customerBody(who),
+        ...(legacyCustomerId ? { customer_id: legacyCustomerId } : {}),
+      }),
     },
   };
+}
+
+/** Whether a refused session create is an engine without dry-run asking for customer_id. */
+export function needsCustomerId(json: unknown, status: number): boolean {
+  const d = (json as { detail?: unknown })?.detail;
+  return status === 422 && Array.isArray(d) && d.some((x) => {
+    const e = x as { type?: string; loc?: unknown };
+    return e?.type === 'missing' && Array.isArray(e.loc) && e.loc[e.loc.length - 1] === 'customer_id';
+  });
 }
 
 /** The scope's conversation flows (core-engine): a survey can be held as a conversation only when it has an active one. */
@@ -74,7 +107,8 @@ export function wsUrl(base: string, sessionId: string, ticket: string): string {
 // ---- live events -----------------------------------------------------------
 
 export type Speaker = 'Customer' | 'Advisor';
-export interface Turn { id: string; speaker: Speaker; text: string; final: boolean }
+/** `at`: when the turn first appeared (ms since epoch), for the recorded transcript. */
+export interface Turn { id: string; speaker: Speaker; text: string; final: boolean; at?: number }
 export interface ToolCall { id: string; name: string; phase: string; durationMs?: number }
 export interface ProgressState {
   phase?: string;
@@ -84,6 +118,13 @@ export interface ProgressState {
   results?: string[];
   /** Answers the engine holds, by question name; only from engines that send them (see answersSupported). */
   answers?: Record<string, unknown>;
+  /** true: nothing from this session is saved. Absent: an engine that predates dry-run, so it is saved. */
+  dryRun?: boolean;
+  /** The customer's current view as the engine recorded it. */
+  view?: Record<string, unknown>;
+  /** A returning customer the engine remembers (never in a dry run), and their last answers to offer as suggestions. */
+  remembered?: boolean;
+  rememberedAnswers?: Record<string, unknown>;
 }
 
 export interface LiveState {
@@ -100,6 +141,10 @@ export interface LiveState {
 export const INITIAL_LIVE: LiveState = { turns: [], tools: [], progress: {}, results: {}, errors: [], fatal: false };
 
 const str = (v: unknown) => (typeof v === 'string' ? v : '');
+const obj = (v: unknown) => (v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : undefined);
+/** Overridable clock, for tests. */
+export let now = () => Date.now();
+export const setClock = (fn: () => number) => { now = fn; };
 
 /**
  * Folds one server message into the view state. Transcripts arrive as
@@ -120,15 +165,19 @@ export function reduceLive(state: LiveState, msg: Record<string, unknown>): Live
           visibleTotal: typeof s.visible_total === 'number' ? s.visible_total : undefined,
           photo: str(s.photo) || undefined,
           results: Array.isArray(s.results) ? s.results.map(String) : undefined,
-          answers: s.answers && typeof s.answers === 'object' && !Array.isArray(s.answers) ? (s.answers as Record<string, unknown>) : undefined,
+          answers: obj(s.answers),
+          dryRun: typeof s.dry_run === 'boolean' ? s.dry_run : undefined,
+          view: obj(s.view),
+          remembered: typeof s.remembered === 'boolean' ? s.remembered : undefined,
+          rememberedAnswers: obj(s.remembered_answers),
         },
       };
     }
     case 'transcript': {
       const speaker: Speaker = msg.speaker === 'Customer' ? 'Customer' : 'Advisor';
       const id = str(msg.id) || `${speaker}-${state.turns.length}`;
-      const turn: Turn = { id, speaker, text: str(msg.text), final: msg.final !== false };
       const i = state.turns.findIndex((t) => t.id === id);
+      const turn: Turn = { id, speaker, text: str(msg.text), final: msg.final !== false, at: i < 0 ? now() : state.turns[i].at };
       if (!turn.text && i < 0) return state;
       const turns = i < 0 ? [...state.turns, turn] : state.turns.map((t, j) => (j === i ? turn : t));
       return { ...state, turns };
@@ -170,8 +219,45 @@ export function photoRequested(state: LiveState): boolean {
  */
 export const answersSupported = (state: LiveState) => state.progress.answers !== undefined;
 
+/** What the customer is looking at; the engine turns it into an unspoken note for the advisor. */
+export interface View { screen: Screen; question?: string; detail?: string }
+/** The simulator's screens as the advisor hears them, one per step. */
+export type Screen = 'customer' | 'questionnaire' | 'photo' | 'results';
+/** What the customer just did, as the advisor hears it. */
+export type Action = 'continue_to_photo' | 'skip_questionnaire' | 'photo_analysed';
+
+export const viewMessage = (v: View) => ({ type: 'view', ...v });
+export const actionMessage = (action: Action, question?: string, detail?: string) => ({ type: 'action', action, ...(question ? { question } : {}), ...(detail ? { detail } : {}) });
+
 /** The customer message that tells an older engine about a form edit. */
 export function answerAsText(questionTitle: string, display: string, lang: 'en' | 'id'): string {
   return lang === 'id' ? `(Saya isi di form) ${questionTitle}: ${display}` : `(Filled in on the form) ${questionTitle}: ${display}`;
+}
+
+export interface TranscriptMeta { sessionId?: string; survey?: string; brandId: string; applicationId: string; customer?: string; persona?: string }
+
+/** The conversation as plain text: one line per turn, oldest first. */
+export function transcriptText(state: LiveState, meta: TranscriptMeta): string {
+  const head = [
+    `Session: ${meta.sessionId ?? '-'}`,
+    `Form: ${meta.survey ?? '-'}  Brand: ${meta.brandId || '-'} / ${meta.applicationId || '-'}`,
+    meta.customer ? `Customer: ${meta.customer}` : '',
+    meta.persona ? `Advisor: ${meta.persona}` : '',
+  ].filter(Boolean);
+  const lines = state.turns
+    .filter((t) => t.final && t.text)
+    .map((t) => `[${t.at ? new Date(t.at).toISOString() : '-'}] ${t.speaker === 'Customer' ? meta.customer || 'Customer' : meta.persona || 'Advisor'}: ${t.text}`);
+  return `${[...head, '', ...lines].join('\n')}\n`;
+}
+
+/** The conversation as JSON: turns, the answers and which results arrived. */
+export function transcriptJson(state: LiveState, meta: TranscriptMeta): string {
+  return JSON.stringify({
+    ...meta,
+    exportedAt: new Date(now()).toISOString(),
+    turns: state.turns.filter((t) => t.final && t.text).map(({ speaker, text, at }) => ({ speaker, text, at: at ? new Date(at).toISOString() : null })),
+    answers: state.progress.answers ?? null,
+    results: state.results,
+  }, null, 2);
 }
 

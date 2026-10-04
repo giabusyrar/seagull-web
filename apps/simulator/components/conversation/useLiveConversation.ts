@@ -4,9 +4,10 @@ import { usePersistentState } from '@gateway-experience/shared';
 import { call, type CallResult } from '@/lib/http';
 import type { Brand } from '@/lib/photo';
 import {
-  CONVERSATION_WS_BASE, INITIAL_LIVE, answersSupported, cancelPhoto, refusal, createSession, deleteSession, reduceLive, uploadPhoto, wsTicket, wsUrl,
-  type ConvSession, type LiveState,
+  CONVERSATION_WS_BASE, INITIAL_LIVE, actionMessage, answersSupported, cancelPhoto, needsCustomerId, refusal, createSession, deleteSession, reduceLive, uploadPhoto, viewMessage, wsTicket, wsUrl,
+  type Action, type ConvSession, type LiveState, type View,
 } from '@/lib/conversation';
+import type { Respondent } from '@/lib/form';
 import { MicStream, Player } from './audio-io';
 import { useLang } from '@/lib/i18n';
 
@@ -32,6 +33,11 @@ export function useLiveConversation() {
   const mic = useRef<MicStream | null>(null);
   const player = useRef<Player | null>(null);
   const gen = useRef(0);
+  /** null: not tried on this connection; false: the engine does not know `view`/`action`, so stop sending them. */
+  const notesSupported = useRef<boolean | null>(null);
+  const lastNoteAt = useRef(0);
+  /** The customer's current view, re-sent on every connect so a new socket knows where they are. */
+  const view = useRef<View | null>(null);
   const liveRef = useRef(live);
   const connectRef = useRef<((s: ConvSession) => Promise<void>) | null>(null);
   /** Where in the transcript the current connection resumed, or null for a fresh session. */
@@ -39,7 +45,10 @@ export function useLiveConversation() {
   useEffect(() => { liveRef.current = live; }, [live]);
 
   const apply = useCallback((msg: Record<string, unknown>) => {
-    if (msg.type === 'ready') setConn('ready');
+    if (msg.type === 'ready') {
+      setConn('ready');
+      if (view.current) sendNote(viewMessage(view.current));
+    }
     setLive((s) => reduceLive(s, msg));
   }, [setLive]);
 
@@ -87,6 +96,7 @@ export function useLiveConversation() {
     player.current = new Player(setSpeaking);
     const sock = new WebSocket(wsUrl(CONVERSATION_WS_BASE, s.id, ticket));
     ws.current = sock;
+    notesSupported.current = null;
     // Gemini ends long live connections (go_away); the engine then asks for a reconnect and closes.
     let reconnectAsked = false;
     sock.onclose = (e) => {
@@ -106,19 +116,30 @@ export function useLiveConversation() {
       }
       if (msg.type === 'interrupted') { player.current?.interrupt(); return; }
       if (msg.type === 'reconnect') { reconnectAsked = true; return; }
+      // An engine without `view`/`action` answers them with this error; that is not the customer's problem.
+      if (msg.type === 'error' && msg.message === 'Unknown message type.' && Date.now() - lastNoteAt.current < 3000) {
+        notesSupported.current = false;
+        return;
+      }
       apply(msg);
     };
   }, [apply, detach, setLive, setSession, stopMic]);
   useEffect(() => { connectRef.current = connect; }, [connect]);
 
-  const start = useCallback(async (brand: Brand, surveyCode: string, customerId: string) => {
+  /**
+   * Starts a dry-run session for the customer. An engine that predates
+   * dry-run refuses it without a customer id; it then gets the fixed test id
+   * and the run is saved, which the panel shows (state.dry_run is absent).
+   */
+  const start = useCallback(async (brand: Brand, surveyCode: string, who: Respondent, legacyCustomerId: string) => {
     detach();
     if (session) {
       // The old session is gone either way; never leave it saved as resumable.
       void call(deleteSession(session));
       setSession(null);
     }
-    const r = await call(createSession(brand, surveyCode, customerId));
+    let r = await call(createSession(brand, surveyCode, who));
+    if (needsCustomerId(r.json, r.status)) r = await call(createSession(brand, surveyCode, who, legacyCustomerId));
     setLastHttp(r);
     const j = r.json as { session_id?: string; owner_token?: string } | undefined;
     if (!r.ok || !j?.session_id || !j.owner_token) {
@@ -163,6 +184,17 @@ export function useLiveConversation() {
     return true;
   }, []);
 
+  /**
+   * What the customer is looking at (sendView) and what they just did
+   * (sendAction): unspoken notes the advisor follows. The view is kept and
+   * re-sent on each connect; the engine drops an identical repeat.
+   */
+  const sendView = useCallback((v: View) => {
+    view.current = v;
+    return sendNote(viewMessage(v));
+  }, []);
+  const sendAction = useCallback((action: Action, question?: string, detail?: string) => sendNote(actionMessage(action, question, detail)), []);
+
   const sendText = useCallback((text: string) => {
     const t = text.trim();
     if (!t || ws.current?.readyState !== WebSocket.OPEN) return false;
@@ -206,5 +238,13 @@ export function useLiveConversation() {
     if (s) setLastHttp(await call(deleteSession(s)));
   }, [detach, session, setLive, setSession]);
 
-  return { session, live, conn, resumeIndex, lastHttp, micOn, level, speaking, start, connect, pause, end, sendText, sendAnswer, toggleMic, sendPhoto, declinePhoto, reset };
+  return { session, live, conn, resumeIndex, lastHttp, micOn, level, speaking, start, connect, pause, end, sendText, sendAnswer, sendView, sendAction, toggleMic, sendPhoto, declinePhoto, reset };
+
+  function sendNote(msg: Record<string, unknown>) {
+    const sock = ws.current;
+    if (!sock || sock.readyState !== WebSocket.OPEN || notesSupported.current === false) return false;
+    lastNoteAt.current = Date.now();
+    sock.send(JSON.stringify(msg));
+    return true;
+  }
 }

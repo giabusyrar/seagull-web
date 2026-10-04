@@ -1,19 +1,21 @@
 'use client';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { usePersistentState } from '@gateway-experience/shared';
 import { useBrand } from '@/lib/brand';
 import { useLang } from '@/lib/i18n';
 import { IntakeProvider, useIntake } from '@/lib/intake';
 import type { EvaluationOutput } from '@/lib/types/form';
 import { IntakeStep } from './intake/IntakeStep';
+import { CustomerStep } from './intake/CustomerStep';
+import { AdvisorDock } from './conversation/AdvisorDock';
 import { PhotoSimulator, type ExtraTab, type PhotoPhase } from './photo/PhotoSimulator';
 import { TabShell } from './photo/TabShell';
 import { EvaluationResult } from './form/EvaluationResult';
 import { MatchResult, type MatchOutput } from './conversation/parts';
 import { useSurveys } from './form/useSurveys';
 
-type View = 'intake' | 'photo';
-type StepId = 'intake' | 'photo' | 'results';
+type View = 'customer' | 'intake' | 'photo';
+type StepId = 'customer' | 'intake' | 'photo' | 'results';
 
 function Stepper({ steps, at, onPick }: { steps: { id: StepId; label: string; enabled: boolean }[]; at: number; onPick(id: StepId): void }) {
   return (
@@ -37,23 +39,33 @@ function Flow() {
   const brand = useBrand();
   const intake = useIntake();
   const surveys = useSurveys(brand);
-  const [view, setView] = usePersistentState<View>('sim.view', 'intake');
+  const [view, setView] = usePersistentState<View>('sim.view', 'customer');
   const [phase, setPhase] = useState<PhotoPhase>('capture');
+  const [dockOpen, setDockOpen] = useState(false);
   // No forms for this brand/application: the questionnaire step does not apply. Only a
   // settled answer counts, and the user's chosen step is left alone so a brand with
   // forms gets its questionnaire back.
   const noForms = surveys.ready && !surveys.loading && !surveys.error && surveys.rows.length === 0;
   const hasForms = !noForms;
-  const effectiveView: View = hasForms ? view : 'photo';
+  const effectiveView: View = !hasForms && view === 'intake' ? 'photo' : view;
+  const named = !!intake.who.fullName?.trim();
 
-  const step: StepId = effectiveView === 'intake' ? 'intake' : phase === 'result' ? 'results' : 'photo';
+  const step: StepId = effectiveView === 'customer' ? 'customer' : effectiveView === 'intake' ? 'intake' : phase === 'result' ? 'results' : 'photo';
   const steps = [
-    ...(hasForms ? [{ id: 'intake' as const, label: t('Questionnaire', 'Kuesioner'), enabled: true }] : []),
-    { id: 'photo' as const, label: t('Photo', 'Foto'), enabled: true },
+    { id: 'customer' as const, label: t('Customer', 'Pelanggan'), enabled: true },
+    ...(hasForms ? [{ id: 'intake' as const, label: t('Questionnaire', 'Kuesioner'), enabled: named }] : []),
+    { id: 'photo' as const, label: t('Photo', 'Foto'), enabled: named },
     { id: 'results' as const, label: t('Results', 'Hasil'), enabled: phase === 'result' },
   ];
-  const pick = (id: StepId) => setView(id === 'intake' ? 'intake' : 'photo');
+  const pick = (id: StepId) => setView(id === 'customer' ? 'customer' : id === 'intake' ? 'intake' : 'photo');
   const onPhase = useCallback((p: PhotoPhase) => setPhase(p), []);
+  const { sendView, sendAction } = intake.conv;
+  // The advisor follows the customer through the steps; the questionnaire reports its own open question.
+  useEffect(() => { if (step !== 'intake') sendView({ screen: step }); }, [step, sendView]);
+  const onAnalyze = useCallback(async (front: File, b: typeof brand) => {
+    sendAction('photo_analysed');
+    await intake.submitWithPhoto(front, b);
+  }, [intake, sendAction]);
 
   // Results from the questionnaire: the advisor's submission, else the form's own evaluation.
   const convScore = intake.conv.live.results.score as EvaluationOutput | undefined;
@@ -84,15 +96,19 @@ function Flow() {
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className={`flex flex-col gap-6 transition-[padding] ${dockOpen ? 'lg:pr-[420px]' : ''}`}>
+      <AdvisorDock onGoPhoto={() => setView('photo')} onOpenChange={setDockOpen} />
       <Stepper steps={steps} at={steps.findIndex((s) => s.id === step)} onPick={pick} />
+      <div hidden={effectiveView !== 'customer'}>
+        <CustomerStep onContinue={() => setView(hasForms ? 'intake' : 'photo')} />
+      </div>
       {hasForms && (
         <div hidden={effectiveView !== 'intake'}>
-          <IntakeStep onContinue={() => setView('photo')} onSkip={() => setView('photo')} />
+          <IntakeStep active={effectiveView === 'intake'} onContinue={() => setView('photo')} onSkip={() => setView('photo')} />
         </div>
       )}
       <div hidden={effectiveView !== 'photo'}>
-        <PhotoSimulator onPhase={onPhase} onAnalyze={intake.submitWithPhoto} before={[assessment]} after={[recommendation]} />
+        <PhotoSimulator onPhase={onPhase} onAnalyze={onAnalyze} before={[assessment]} after={[recommendation]} />
       </div>
     </div>
   );

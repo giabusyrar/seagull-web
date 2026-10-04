@@ -40,7 +40,8 @@ function useIntakeState() {
     if (!code || !data || Object.keys(data).length === 0) return;
     setEvaluation({ loading: true });
     try {
-      setEvaluation({ loading: false, result: await call(evaluateSurvey(code, brand, data, who)) });
+      // The customer has no id of their own in the simulator: always the fixed test id.
+      setEvaluation({ loading: false, result: await call(evaluateSurvey(code, brand, data, { ...who, customerId: TEST_RESPONDENT.customerId })) });
     } catch (e) {
       setEvaluation({ loading: false, error: e instanceof Error ? e.message : String(e) });
     }
