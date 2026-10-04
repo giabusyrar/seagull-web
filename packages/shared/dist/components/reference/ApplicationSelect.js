@@ -3,13 +3,17 @@ import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useState, useEffect, useMemo } from 'react';
 import { SearchableSelect } from '../SearchableSelect';
 import { extractReferenceList } from './extractReferenceList';
+import { NO_REFERENCE_SOURCE_PLACEHOLDER, useReferenceDataSource } from './ReferenceDataProvider';
 export const ApplicationSelect = ({ value, onChange, includeUniversal = true, label = 'Application Scope', placeholder = 'Select Application...', disabled = false, className = '', }) => {
     const [applications, setApplications] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
+    const source = useReferenceDataSource();
     useEffect(() => {
+        if (!source)
+            return;
         setIsLoading(true);
-        fetch('/api/applications')
-            .then((res) => res.json())
+        source
+            .applications()
             .then((data) => {
             const list = extractReferenceList(data, 'applications');
             if (list.length > 0) {
@@ -18,7 +22,7 @@ export const ApplicationSelect = ({ value, onChange, includeUniversal = true, la
         })
             .catch(() => { })
             .finally(() => setIsLoading(false));
-    }, []);
+    }, [source]);
     const options = useMemo(() => {
         const list = [];
         if (includeUniversal) {
@@ -33,5 +37,5 @@ export const ApplicationSelect = ({ value, onChange, includeUniversal = true, la
         });
         return list;
     }, [applications, includeUniversal]);
-    return (_jsxs("div", { className: `space-y-1 ${className}`, children: [label && (_jsx("label", { className: "block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5", children: label })), _jsx(SearchableSelect, { options: options, value: value, onChange: onChange, disabled: disabled || isLoading, placeholder: isLoading ? 'Loading applications...' : placeholder, searchPlaceholder: "Search applications..." })] }));
+    return (_jsxs("div", { className: `space-y-1 ${className}`, children: [label && (_jsx("label", { className: "block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5", children: label })), _jsx(SearchableSelect, { options: options, value: value, onChange: onChange, disabled: disabled || isLoading, placeholder: !source ? NO_REFERENCE_SOURCE_PLACEHOLDER : isLoading ? 'Loading applications...' : placeholder, searchPlaceholder: "Search applications..." })] }));
 };

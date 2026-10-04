@@ -5,6 +5,7 @@ import "survey-core/survey-core.css";
 import "./survey-xg-theme.css";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ToastProvider } from "@/components/ui/toast";
+import { HostProviders } from "@/components/HostProviders";
 
 const interSans = Inter({
   variable: "--font-sans",
@@ -33,7 +34,9 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <ToastProvider>
-          <TooltipProvider>{children}</TooltipProvider>
+          <TooltipProvider>
+            <HostProviders>{children}</HostProviders>
+          </TooltipProvider>
         </ToastProvider>
       </body>
     </html>

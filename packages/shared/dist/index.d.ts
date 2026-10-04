@@ -108,6 +108,7 @@ export { KeyValueTable, type KeyValueTableProps, type KeyValueItem } from './com
 export { StatusBadge, type StatusBadgeProps } from './components/StatusBadge';
 export { SeverityBadge, type SeverityBadgeProps } from './components/SeverityBadge';
 export { ScoreRangeInput, type ScoreRangeInputProps } from './components/ScoreRangeInput';
+export { ReferenceDataProvider, useReferenceDataSource, type ReferenceDataSource, } from './components/reference/ReferenceDataProvider';
 export { BrandSelect, type BrandSelectProps } from './components/reference/BrandSelect';
 export { ApplicationSelect, type ApplicationSelectProps } from './components/reference/ApplicationSelect';
 export { StatusSelect, type StatusSelectProps } from './components/reference/StatusSelect';

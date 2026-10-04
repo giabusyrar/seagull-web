@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { SearchableSelect, type SelectOption } from '../SearchableSelect';
 import { extractReferenceList } from './extractReferenceList';
+import { NO_REFERENCE_SOURCE_PLACEHOLDER, useReferenceDataSource } from './ReferenceDataProvider';
 
 export interface ApplicationSelectProps {
   value: string;
@@ -26,10 +27,13 @@ export const ApplicationSelect: React.FC<ApplicationSelectProps> = ({
   const [applications, setApplications] = useState<Array<{ key: string; name: string }>>([]);
   const [isLoading, setIsLoading] = useState(false);
 
+  const source = useReferenceDataSource();
+
   useEffect(() => {
+    if (!source) return;
     setIsLoading(true);
-    fetch('/api/applications')
-      .then((res) => res.json())
+    source
+      .applications()
       .then((data) => {
         const list = extractReferenceList(data, 'applications');
         if (list.length > 0) {
@@ -38,7 +42,7 @@ export const ApplicationSelect: React.FC<ApplicationSelectProps> = ({
       })
       .catch(() => {})
       .finally(() => setIsLoading(false));
-  }, []);
+  }, [source]);
 
   const options: SelectOption[] = useMemo(() => {
     const list: SelectOption[] = [];
@@ -67,7 +71,7 @@ export const ApplicationSelect: React.FC<ApplicationSelectProps> = ({
         value={value}
         onChange={onChange}
         disabled={disabled || isLoading}
-        placeholder={isLoading ? 'Loading applications...' : placeholder}
+        placeholder={!source ? NO_REFERENCE_SOURCE_PLACEHOLDER : isLoading ? 'Loading applications...' : placeholder}
         searchPlaceholder="Search applications..."
       />
     </div>

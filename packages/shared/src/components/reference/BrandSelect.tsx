@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { SearchableSelect, type SelectOption } from '../SearchableSelect';
 import { extractReferenceList } from './extractReferenceList';
+import { NO_REFERENCE_SOURCE_PLACEHOLDER, useReferenceDataSource } from './ReferenceDataProvider';
 
 export interface BrandSelectProps {
   value: string;
@@ -26,10 +27,13 @@ export const BrandSelect: React.FC<BrandSelectProps> = ({
   const [brands, setBrands] = useState<Array<{ code: string; name: string }>>([]);
   const [isLoading, setIsLoading] = useState(false);
 
+  const source = useReferenceDataSource();
+
   useEffect(() => {
+    if (!source) return;
     setIsLoading(true);
-    fetch('/api/brands')
-      .then((res) => res.json())
+    source
+      .brands()
       .then((data) => {
         const list = extractReferenceList(data, 'brands');
         if (list.length > 0) {
@@ -38,7 +42,7 @@ export const BrandSelect: React.FC<BrandSelectProps> = ({
       })
       .catch(() => {})
       .finally(() => setIsLoading(false));
-  }, []);
+  }, [source]);
 
   const options: SelectOption[] = useMemo(() => {
     const list: SelectOption[] = [];
@@ -67,7 +71,7 @@ export const BrandSelect: React.FC<BrandSelectProps> = ({
         value={value}
         onChange={onChange}
         disabled={disabled || isLoading}
-        placeholder={isLoading ? 'Loading brands...' : placeholder}
+        placeholder={!source ? NO_REFERENCE_SOURCE_PLACEHOLDER : isLoading ? 'Loading brands...' : placeholder}
         searchPlaceholder="Search brands..."
       />
     </div>

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { SearchableSelect, type SelectOption } from '../SearchableSelect';
 import { extractReferenceList } from './extractReferenceList';
+import { NO_REFERENCE_SOURCE_PLACEHOLDER, useReferenceDataSource } from './ReferenceDataProvider';
 
 export interface DimensionSelectProps {
   value: string;
@@ -31,10 +32,13 @@ export const DimensionSelect: React.FC<DimensionSelectProps> = ({
   ]);
   const [isLoading, setIsLoading] = useState(false);
 
+  const source = useReferenceDataSource();
+
   useEffect(() => {
+    if (!source) return;
     setIsLoading(true);
-    fetch('/api/dimensions')
-      .then((res) => res.json())
+    source
+      .dimensions()
       .then((data) => {
         const list = extractReferenceList(data, 'dimensions');
         if (list.length > 0) {
@@ -43,7 +47,7 @@ export const DimensionSelect: React.FC<DimensionSelectProps> = ({
       })
       .catch(() => {})
       .finally(() => setIsLoading(false));
-  }, []);
+  }, [source]);
 
   const options: SelectOption[] = useMemo(() => {
     // If the currently saved value isn't in the fetched catalog (e.g. its
@@ -79,7 +83,7 @@ export const DimensionSelect: React.FC<DimensionSelectProps> = ({
         value={value}
         onChange={handleChange}
         disabled={disabled || isLoading}
-        placeholder={isLoading ? 'Loading dimensions...' : placeholder}
+        placeholder={!source ? NO_REFERENCE_SOURCE_PLACEHOLDER : isLoading ? 'Loading dimensions...' : placeholder}
         searchPlaceholder="Search dimensions..."
       />
     </div>
