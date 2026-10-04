@@ -13,8 +13,8 @@ export function ResponseView({ result }: { result: CallResult }) {
   const [tab, setTab] = useState(tabs[0]);
   const colour = result.status === 0 ? 'bg-red-600' : result.ok ? 'bg-emerald-600' : 'bg-amber-600';
   return (
-    <div className="mt-3 rounded border">
-      <div className="flex items-center gap-2 border-b px-2 py-1 text-xs">
+    <div className="mt-3 overflow-hidden rounded-xl border border-zinc-200 bg-white">
+      <div className="flex items-center gap-2 border-b border-zinc-100 bg-zinc-50 px-3 py-1.5 text-xs">
         <span className={`rounded px-1.5 py-0.5 font-semibold text-white ${colour}`}>{result.status || 'ERR'}</span>
         <span>{result.ms} ms</span>
         {result.size !== undefined && <span>{Math.round(result.size / 1024)} KB</span>}

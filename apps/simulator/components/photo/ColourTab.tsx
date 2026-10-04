@@ -3,53 +3,60 @@ import { useMemo } from 'react';
 import { groupShades, type Selection } from '@/lib/photo';
 import { catalogOf, FLAG_TEXT, QC_ADVICE, type AnalyzeResult } from '@/lib/types/colour';
 import { ShadeSwatches } from './ShadeSwatches';
-import { Section, TabShell, Tile, list, type TabState } from './TabShell';
+import { card, eyebrow } from '@/components/ui';
+import { useLang } from '@/lib/i18n';
+import { Pill, Section, TabShell, Tile, list, type TabState } from './TabShell';
 
-function ColourResult({ r, selection, onToggle, onClear, tryOnState }: {
-  r: AnalyzeResult; selection: Selection; onToggle(c: string, id: string): void; onClear(): void; tryOnState: { loading: boolean; error?: string };
+/** The colour analysis; with `tryOn` it also offers the shade picker that drives the photo's try-on. */
+export function ColourResult({ r, tryOn }: {
+  r: AnalyzeResult;
+  tryOn?: { selection: Selection; onToggle(c: string, id: string): void; onClear(): void; state: { loading: boolean; error?: string } };
 }) {
-  const groups = useMemo(() => groupShades(catalogOf(r)), [r]);
+  const { lang, t } = useLang();
+  const groups = useMemo(() => groupShades(catalogOf(r), lang), [r, lang]);
   const q = (r.quadrant && typeof r.quadrant === 'object' ? r.quadrant : {}) as NonNullable<AnalyzeResult['quadrant']>;
   const seasons = list<string>(r.labels?.seasonEquivalents).map(String);
   const flags = list<string>(r.flags).map(String);
-  const advice = list<string>(r.qualityFailed).map((c) => QC_ADVICE[String(c)] ?? String(c));
+  const advice = list<string>(r.qualityFailed).map((c) => QC_ADVICE[lang][String(c)] ?? String(c));
   return (
-    <div className="flex flex-col gap-4">
-      <Section title="Kuadran warna">
+    <div className="flex flex-col gap-6">
+      <div className={`${card} flex flex-col gap-2 bg-gradient-to-br from-white to-zinc-50 p-5`}>
+        <span className={eyebrow}>{t('Colour quadrant', 'Kuadran warna')}</span>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-base font-bold">{q.displayName || q.technicalName || '—'}</span>
-          {q.code && <span className="font-mono text-xs text-zinc-500">{q.code}</span>}
-          {q.provisional && <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-semibold text-amber-800">Hasil sementara</span>}
+          <span className="text-2xl font-semibold tracking-tight">{q.displayName || q.technicalName || '—'}</span>
+          {q.code && <span className="rounded-md bg-zinc-100 px-1.5 py-0.5 font-mono text-[11px] text-zinc-500">{q.code}</span>}
+          {q.provisional && <Pill className="bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-200">{t('Provisional', 'Hasil sementara')}</Pill>}
         </div>
-        {!q.displayName && q.technicalName && <p className="text-xs text-zinc-500">Nama untuk konsumen belum ditentukan brand; yang tampil adalah nama teknis.</p>}
-      </Section>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {!q.displayName && q.technicalName && <p className="text-xs text-zinc-500">{t('The brand has not set a consumer name yet; this is the technical name.', 'Nama untuk konsumen belum ditentukan brand; yang tampil adalah nama teknis.')}</p>}
+        <p className="text-xs text-zinc-600">
+          {t('Season equivalents', 'Padanan season')}{r.labels?.seasonsProvisional ? ` (${t('provisional', 'sementara')})` : ''}: <span className="font-medium text-zinc-900">{seasons.length ? seasons.join(', ') : '—'}</span>
+        </p>
+      </div>
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
         <Tile label="Value" value={r.labels?.value} />
         <Tile label="Chroma" value={r.labels?.chroma} />
         <Tile label="Undertone" value={r.labels?.undertone} />
         <Tile label="Foundation" value={r.foundationBand} />
       </div>
-      <p className="text-xs text-zinc-600">
-        Padanan season{r.labels?.seasonsProvisional ? ' (sementara)' : ''}: <span className="font-medium text-zinc-900">{seasons.length ? seasons.join(', ') : '—'}</span>
-      </p>
       {flags.length > 0 && (
-        <ul className="list-disc pl-4 text-xs text-zinc-600">{flags.map((f) => <li key={f}>{FLAG_TEXT[f] ?? f}</li>)}</ul>
+        <ul className="flex flex-col gap-1 rounded-xl bg-zinc-50 p-3.5 text-xs text-zinc-600">{flags.map((f) => <li key={f}>• {FLAG_TEXT[lang][f] ?? f}</li>)}</ul>
       )}
       {advice.length > 0 && (
-        <div className="rounded border border-amber-200 bg-amber-50 p-3 text-xs">
-          <p className="font-semibold">Untuk hasil lebih akurat, foto ulang dengan:</p>
-          <ul className="list-disc pl-4 text-zinc-700">{advice.map((a) => <li key={a}>{a}</li>)}</ul>
+        <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3.5 text-xs">
+          <p className="font-semibold text-amber-900">{t('For a more accurate result, retake the photo:', 'Untuk hasil lebih akurat, foto ulang dengan:')}</p>
+          <ul className="mt-1 list-disc pl-4 text-zinc-700">{advice.map((a) => <li key={a}>{a}</li>)}</ul>
         </div>
       )}
-      <div className="border-t border-zinc-200 pt-3">
-        <div className="mb-2 text-sm font-semibold">Coba shade</div>
-        <ShadeSwatches groups={groups} selection={selection} onToggle={onToggle} onClear={onClear} tryOnState={tryOnState} />
-      </div>
+      {tryOn && (
+        <Section title={t('Try a shade', 'Coba shade')}>
+          <ShadeSwatches groups={groups} selection={tryOn.selection} onToggle={tryOn.onToggle} onClear={tryOn.onClear} tryOnState={tryOn.state} />
+        </Section>
+      )}
     </div>
   );
 }
 
 export function ColourTab(props: { state: TabState; selection: Selection; onToggle(c: string, id: string): void; onClear(): void; tryOnState: { loading: boolean; error?: string } }) {
-  const { state, ...rest } = props;
-  return <TabShell state={state}>{(json) => <ColourResult r={(json ?? {}) as AnalyzeResult} {...rest} />}</TabShell>;
+  const { state, selection, onToggle, onClear, tryOnState } = props;
+  return <TabShell state={state}>{(json) => <ColourResult r={(json ?? {}) as AnalyzeResult} tryOn={{ selection, onToggle, onClear, state: tryOnState }} />}</TabShell>;
 }

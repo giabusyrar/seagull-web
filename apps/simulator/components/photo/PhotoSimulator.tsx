@@ -1,38 +1,54 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useBrand } from '@/lib/brand';
+import { usePhotos } from '@/lib/photos';
+import { useLang } from '@/lib/i18n';
+import { usePersistentState } from '@gateway-experience/shared';
 import { useBlobUrl } from '@/lib/blob';
 import { call } from '@/lib/http';
 import { analyzeColour, faceArchitecture, faceHead, skinAnalyze, toggleShade, type Brand, type BuiltRequest, type Selection } from '@/lib/photo';
-import { FrontPicker, HowItWorks, Questions, SideShots, type YesNo } from './PhotoInput';
+import { FrontPicker, PhotoTips, Questions, SideShots, type YesNo } from './PhotoInput';
 import { PhotoStage } from './PhotoStage';
 import { ColourTab } from './ColourTab';
 import { FaceTab } from './FaceTab';
 import { SkinTab } from './SkinTab';
 import { IDLE, type TabState } from './TabShell';
 import { useTryOn } from './useTryOn';
+import { btnPrimarySm, card, cardPad } from '@/components/ui';
 
-type TabId = 'warna' | 'wajah' | 'kulit';
-const TABS: { id: TabId; label: string }[] = [{ id: 'warna', label: 'Warna' }, { id: 'wajah', label: 'Wajah' }, { id: 'kulit', label: 'Kulit' }];
+export type PhotoPhase = 'capture' | 'questions' | 'result';
+
+/** A results tab supplied by the flow (assessment, recommendation), shown beside the photo tabs. */
+export interface ExtraTab { id: string; label: string; state: 'idle' | 'loading' | 'ok' | 'error'; render(): ReactNode }
+
 const LOADING: TabState = { loading: true };
+const stateOf = (s: TabState): ExtraTab['state'] => (s.loading ? 'loading' : s.error || (s.result && !s.result.ok) ? 'error' : s.result ? 'ok' : 'idle');
+const DOT: Record<ExtraTab['state'], string> = { loading: 'bg-zinc-400 animate-pulse', error: 'bg-red-500', ok: 'bg-emerald-500', idle: 'bg-zinc-200' };
 
-const dot = (s: TabState) => (s.loading ? 'bg-zinc-400 animate-pulse' : s.error || (s.result && !s.result.ok) ? 'bg-red-500' : s.result ? 'bg-emerald-500' : 'bg-zinc-200');
-
-export function PhotoSimulator() {
+/**
+ * Steps 2 and 3: the photo (front required, sides optional), two questions,
+ * then the combined results. `onAnalyze` lets the flow submit the
+ * questionnaire with the same photo; `before`/`after` add its result tabs.
+ */
+export function PhotoSimulator({ onPhase, onAnalyze, before = [], after = [] }: {
+  onPhase?(p: PhotoPhase): void;
+  onAnalyze?(front: File, brand: Brand): void;
+  before?: ExtraTab[];
+  after?: ExtraTab[];
+}) {
+  const { t } = useLang();
   const brand = useBrand();
   const [step, setStep] = useState<'input' | 'result'>('input');
-  const [front, setFront] = useState<File | null>(null);
-  const [left, setLeft] = useState<File | null>(null);
-  const [right, setRight] = useState<File | null>(null);
-  const [hijab, setHijab] = useState<YesNo>('');
-  const [hair, setHair] = useState<YesNo>('');
+  const { front, left, right, setFront, setLeft, setRight } = usePhotos();
+  const [hijab, setHijab] = usePersistentState<YesNo>('sim.photo.hijab', '');
+  const [hair, setHair] = usePersistentState<YesNo>('sim.photo.hair', '');
   const [colour, setColour] = useState<TabState>(IDLE);
   const [face, setFace] = useState<TabState>(IDLE);
   const [skin, setSkin] = useState<TabState>(IDLE);
   const [head, setHead] = useState<TabState>(IDLE);
   const [glbUrl, setGlbUrl] = useBlobUrl();
   const [selection, setSelection] = useState<Selection>({});
-  const [tab, setTab] = useState<TabId>('warna');
+  const [tab, setTab] = useState<string>('colour');
   const runId = useRef(0);
   const runAbort = useRef<AbortController | null>(null);
   const [analyzed, setAnalyzed] = useState<Brand | null>(null);
@@ -42,6 +58,9 @@ export function PhotoSimulator() {
   // Leaving the page aborts whatever is still in flight.
   useEffect(() => () => { runId.current += 1; runAbort.current?.abort(); }, []);
 
+  const current: PhotoPhase = !front ? 'capture' : step === 'result' ? 'result' : 'questions';
+  useEffect(() => { onPhase?.(current); }, [current, onPhase]);
+
   const analyze = async () => {
     if (!front) return;
     stopRun();
@@ -50,10 +69,11 @@ export function PhotoSimulator() {
     runAbort.current = ac;
     const b = { brandId: brand.brandId, applicationId: brand.applicationId };
     const views = { front, left, right };
-    setAnalyzed(b); setStep('result'); setTab('warna'); setSelection({}); tryOn.reset(); setGlbUrl(null);
+    setAnalyzed(b); setStep('result'); setTab(before[0]?.id ?? 'colour'); setSelection({}); tryOn.reset(); setGlbUrl(null);
     setColour(LOADING); setFace(LOADING); setSkin(LOADING); setHead(LOADING);
+    onAnalyze?.(front, b);
 
-    // Each request sets only its own state; a later run or "Foto ulang" makes it stale.
+    // Each request sets only its own state; a later run or a retake makes it stale.
     const run = async (build: () => BuiltRequest, set: (s: TabState) => void, onOk?: (u?: string) => void) => {
       let st: TabState;
       try {
@@ -89,70 +109,57 @@ export function PhotoSimulator() {
   const clearShades = () => { setSelection({}); tryOn.request([]); };
 
   const brandReady = !!brand.brandId.trim() && !!brand.applicationId.trim();
-  const states: Record<TabId, TabState> = { warna: colour, wajah: face, kulit: skin };
   const brandChanged = !!analyzed && (analyzed.brandId !== brand.brandId || analyzed.applicationId !== brand.applicationId);
-  const current: Step = !front ? 'capture' : step === 'result' ? 'result' : 'questions';
+  const photoTabs: ExtraTab[] = [
+    { id: 'colour', label: t('Colour', 'Warna'), state: stateOf(colour), render: () => <ColourTab state={colour} selection={selection} onToggle={pick} onClear={clearShades} tryOnState={{ loading: tryOn.loading, error: tryOn.error }} /> },
+    { id: 'face', label: t('Face', 'Wajah'), state: stateOf(face), render: () => <FaceTab state={face} /> },
+    { id: 'skin', label: t('Skin', 'Kulit'), state: stateOf(skin), render: () => <SkinTab state={skin} /> },
+  ];
+  const tabs = [...before, ...photoTabs, ...after];
+  const active = tabs.find((x) => x.id === tab) ?? tabs[0];
 
-  // Same left/right layout as seagull-web's studio: photo on the left, questions or results on the right.
+  // Photo on the left; questions or results on the right (seagull-web's studio layout).
   return (
-    <section className="mx-auto flex w-full max-w-6xl flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-lg font-semibold">Foto{current === 'result' && <span className="ml-2 text-xs font-normal text-zinc-500">{analyzed?.brandId} / {analyzed?.applicationId}</span>}</h1>
-        <Stepper step={current} />
+    <section className="flex w-full flex-col gap-5">
+      <div>
+        <h1 className="text-xl font-semibold tracking-tight">{current === 'result' ? t('Results', 'Hasil') : t('Photo', 'Foto')}</h1>
+        <p className="mt-0.5 text-sm text-zinc-500">
+          {current === 'result'
+            ? <>{t('For', 'Untuk')} <span className="font-medium text-zinc-700">{analyzed?.brandId} / {analyzed?.applicationId}</span></>
+            : t('Colour, face, skin and a 3D head from one photo.', 'Warna, wajah, kulit dan kepala 3D dari satu foto.')}
+        </p>
       </div>
       {current === 'result' && brandChanged && (
-        <div className="flex flex-wrap items-center gap-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-          <span>Brand berubah ({brand.brandId || '—'} / {brand.applicationId || '—'}); hasil di bawah masih untuk {analyzed?.brandId} / {analyzed?.applicationId}. Klik Foto ulang atau Analisis ulang.</span>
-          <button type="button" disabled={!brandReady} onClick={analyze} className="rounded bg-zinc-900 px-2 py-0.5 font-semibold text-white disabled:bg-zinc-300">Analisis ulang</button>
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">
+          <span>{t('The brand changed', 'Brand berubah')} ({brand.brandId || '—'} / {brand.applicationId || '—'}); {t('the results below are still for', 'hasil di bawah masih untuk')} {analyzed?.brandId} / {analyzed?.applicationId}.</span>
+          <button type="button" disabled={!brandReady} onClick={analyze} className={btnPrimarySm}>{t('Analyse again', 'Analisis ulang')}</button>
         </div>
       )}
-      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-        <div className="flex flex-col gap-3 rounded border border-zinc-200 p-3 lg:sticky lg:top-4">
-          {front ? (
-            <>
-              <PhotoStage photo={front} tryOnUrl={tryOn.url} head={head} glbUrl={glbUrl} onRetake={retake} canShow3d={current === 'result'} />
-              <SideShots left={left} right={right} setLeft={setLeft} setRight={setRight} disabled={current === 'result'} />
-            </>
-          ) : <FrontPicker onChange={setFront} />}
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(320px,400px)_minmax(0,1fr)]">
+        <div className={`${cardPad} flex flex-col gap-4 lg:sticky lg:top-20`}>
+          {front
+            ? <PhotoStage photo={front} tryOnUrl={tryOn.url} head={head} glbUrl={glbUrl} onRetake={retake} canShow3d={current === 'result'} />
+            : <FrontPicker onChange={setFront} />}
+          <SideShots left={left} right={right} setLeft={setLeft} setRight={setRight} disabled={current === 'result'} />
         </div>
-        <div className="flex min-w-0 flex-col gap-3">
-          {current === 'capture' && <HowItWorks />}
+        <div className="flex min-w-0 flex-col gap-4">
+          {current === 'capture' && <PhotoTips />}
           {current === 'questions' && <Questions hijab={hijab} hair={hair} setHijab={setHijab} setHair={setHair} brandReady={brandReady} onAnalyze={analyze} />}
           {current === 'result' && (
-            <>
-              <div className="flex gap-1 border-b border-zinc-200">
-                {TABS.map((t) => (
-                  <button key={t.id} type="button" onClick={() => setTab(t.id)}
-                    className={`-mb-px flex items-center gap-1.5 border-b-2 px-3 py-1.5 text-sm ${tab === t.id ? 'border-zinc-900 font-semibold' : 'border-transparent text-zinc-500 hover:text-zinc-900'}`}>
-                    <span className={`h-2 w-2 rounded-full ${dot(states[t.id])}`} />{t.label}
+            <div className={`${card} overflow-hidden`}>
+              <div role="tablist" aria-label={t('Results', 'Hasil')} className="flex gap-1 overflow-x-auto border-b border-zinc-100 bg-zinc-50/60 p-1.5">
+                {tabs.map((x) => (
+                  <button key={x.id} type="button" role="tab" aria-selected={active.id === x.id} onClick={() => setTab(x.id)}
+                    className={`flex flex-1 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm transition-colors ${active.id === x.id ? 'bg-white font-semibold text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-900'}`}>
+                    <span className={`h-2 w-2 rounded-full ${DOT[x.state]}`} />{x.label}
                   </button>
                 ))}
               </div>
-              {tab === 'warna' && <ColourTab state={colour} selection={selection} onToggle={pick} onClear={clearShades} tryOnState={{ loading: tryOn.loading, error: tryOn.error }} />}
-              {tab === 'wajah' && <FaceTab state={face} />}
-              {tab === 'kulit' && <SkinTab state={skin} />}
-            </>
+              <div className="p-5">{active.render()}</div>
+            </div>
           )}
         </div>
       </div>
     </section>
-  );
-}
-
-type Step = 'capture' | 'questions' | 'result';
-const STEPS: [Step, string][] = [['capture', 'Foto'], ['questions', 'Analisis'], ['result', 'Hasil']];
-
-function Stepper({ step }: { step: Step }) {
-  const at = STEPS.findIndex(([s]) => s === step);
-  return (
-    <ol className="flex items-center gap-2 text-[11px] font-semibold">
-      {STEPS.map(([s, label], i) => (
-        <li key={s} className="flex items-center gap-2">
-          <span className={`flex h-5 w-5 items-center justify-center rounded-full border text-[10px] ${i <= at ? 'border-zinc-900 bg-zinc-900 text-white' : 'border-zinc-200 text-zinc-500'}`}>{i + 1}</span>
-          <span className={i === at ? '' : 'text-zinc-500'}>{label}</span>
-          {i < STEPS.length - 1 && <span className="h-px w-4 bg-zinc-200" />}
-        </li>
-      ))}
-    </ol>
   );
 }

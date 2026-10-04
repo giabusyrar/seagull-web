@@ -24,8 +24,15 @@ export function HealthPills() {
         const h = state[s.id];
         const st = h?.status;
         const ok = st !== undefined && st >= 200 && st < 300;
-        const cls = st === undefined ? 'bg-zinc-200 text-zinc-600' : ok ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800';
-        return <span key={s.id} title={`${s.label}: ${st === undefined ? 'checking' : h?.down ? `unreachable (HTTP ${st})` : `HTTP ${st}`}`} className={`rounded px-2 py-0.5 text-xs font-medium ${cls}`}>{s.label} {st === undefined ? '…' : ok ? '●' : h?.down ? `✕ ${st || ''}`.trim() : st || '✕'}</span>;
+        const dotCls = st === undefined ? 'bg-zinc-300 animate-pulse' : ok ? 'bg-emerald-500' : 'bg-red-500';
+        const detail = st === undefined ? '' : ok ? '' : h?.down ? `${st || ''}`.trim() : String(st || '');
+        return (
+          <span key={s.id} title={`${s.label}: ${st === undefined ? 'checking' : h?.down ? `unreachable (HTTP ${st})` : `HTTP ${st}`}`}
+            className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium ${ok || st === undefined ? 'border-zinc-200 text-zinc-600' : 'border-red-200 bg-red-50 text-red-700'}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${dotCls}`} />
+            {s.label}{detail && <span className="font-mono">{detail}</span>}
+          </span>
+        );
       })}
     </div>
   );

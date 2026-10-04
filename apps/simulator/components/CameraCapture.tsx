@@ -1,9 +1,12 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
+import { btnPrimarySm, btnSecondary } from './ui';
+import { useLang } from '@/lib/i18n';
 
 /** Webcam snapshot as a JPEG File. No face-quality check; the backend judges the photo. */
-export function CameraCapture({ onShot }: { onShot: (f: File) => void }) {
+export function CameraCapture({ onShot, primary }: { onShot: (f: File) => void; primary?: boolean }) {
   const video = useRef<HTMLVideoElement>(null);
+  const { t } = useLang();
   const [on, setOn] = useState(false);
   const [err, setErr] = useState('');
   const streamRef = useRef<MediaStream | null>(null);
@@ -43,11 +46,13 @@ export function CameraCapture({ onShot }: { onShot: (f: File) => void }) {
     stop();
   };
   return (
-    <span className="inline-flex flex-wrap items-center gap-1">
-      <video ref={video} className={on ? 'h-32 rounded' : 'hidden'} muted playsInline />
-      <button type="button" className="rounded border border-zinc-300 px-2 py-0.5 text-xs hover:bg-zinc-100" onClick={on ? shoot : start}>{on ? 'Ambil foto' : 'Kamera'}</button>
-      {on && <button type="button" className="rounded border border-zinc-300 px-2 py-0.5 text-xs hover:bg-zinc-100" onClick={stop}>Batal</button>}
-      {err && <span className="text-xs text-red-700">{err}</span>}
+    <span className={`inline-flex flex-col items-center gap-2 ${on ? 'w-full' : ''}`}>
+      <video ref={video} className={on ? 'w-full max-w-xs rounded-xl bg-black' : 'hidden'} muted playsInline />
+      <span className="inline-flex gap-1.5">
+        <button type="button" className={primary || on ? btnPrimarySm : btnSecondary} onClick={on ? shoot : start}>{on ? t('Take photo', 'Ambil foto') : t('Camera', 'Kamera')}</button>
+        {on && <button type="button" className={btnSecondary} onClick={stop}>{t('Cancel', 'Batal')}</button>}
+      </span>
+      {err && <span className="max-w-xs text-center text-xs text-red-700">{err}</span>}
     </span>
   );
 }
