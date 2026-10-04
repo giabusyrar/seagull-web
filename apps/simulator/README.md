@@ -1,13 +1,19 @@
-# seagull-simulator
+# simulator (`apps/simulator`)
+
+Moved here from the standalone `seagull-simulator` repo (history kept via `git subtree`).
 
 One-page photo simulator for Seagull, calling core-engine and reference-service
 directly — no gateway, no API key.
 
+From the seagull-web root:
+
 ```bash
 npm install
-cp .env.example .env.local   # only if core or reference is not on its default localhost port
-npm run dev                  # http://127.0.0.1:3100
+cp apps/simulator/.env.example apps/simulator/.env.local   # only if core or reference is not on its default localhost port
+npm run dev:simulator        # http://127.0.0.1:3200
 ```
+
+Inside `apps/simulator`, `npm test` runs its unit tests.
 
 `/svc/core/*` and `/svc/ref/*` are rewritten server-side to `SIM_CORE_URL` and
 `SIM_REFERENCE_URL` (defaults in `.env.example`), so the browser never hits CORS.
@@ -15,8 +21,9 @@ npm run dev                  # http://127.0.0.1:3100
 ## The page
 
 1. Pick a brand and application in the top bar (from reference-service).
-2. Upload a front photo (or take one with the camera), optionally left/right ¾
-   photos, answer the hijab and hair questions, press **Analisis**.
+2. Same left/right layout as the web studio: the photo on the left (front, then
+   optional Kiri/Kanan ¾ side shots), questions and results on the right. Upload
+   or take the front photo, answer the hijab and hair questions, press **Analisis**.
 3. Four core-engine requests run in parallel: colour analyze, face architecture,
    the 3D head (GLB) and skin analysis. Each tab (Warna, Wajah, Kulit) shows its
    own loading state, its real error (status and body), and a "lihat JSON" toggle.

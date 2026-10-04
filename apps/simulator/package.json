@@ -1,11 +1,11 @@
 {
-  "name": "seagull-simulator",
+  "name": "@gateway-experience/simulator",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack -H 127.0.0.1 -p 3100",
+    "dev": "next dev --turbopack -H 127.0.0.1 -p 3200",
     "build": "next build",
-    "start": "next start -H 127.0.0.1 -p 3100",
+    "start": "next start -H 127.0.0.1 -p 3200",
     "lint": "eslint",
     "test": "vitest run"
   },

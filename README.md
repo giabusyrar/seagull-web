@@ -8,6 +8,7 @@ monorepo; see [docs/SPLIT.md](docs/SPLIT.md) for what moved where.
 | Path | Port | What it is |
 |------|------|------------|
 | `apps/web/` | 3000 | Next.js 16 dashboard. Proxies `/core/*` to the gateway data plane. |
+| `apps/simulator/` | 3200 | One-page photo simulator calling core-engine and reference-service directly (no gateway). `npm run dev:simulator`. See [apps/simulator/README.md](apps/simulator/README.md). |
 | `packages/beauty-sdk/` | — | `@gateway-experience/beauty-sdk` — studio UI, hooks and the API client. |
 | `packages/shared/` | — | `@gateway-experience/shared` — shared UI primitives and utilities. |
 
