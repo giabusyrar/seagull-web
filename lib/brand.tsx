@@ -1,6 +1,6 @@
 'use client';
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import type { Brand } from './endpoint';
+import type { Brand } from './photo';
 
 type Ctx = Brand & { setBrandId(v: string): void; setApplicationId(v: string): void };
 const BrandCtx = createContext<Ctx | null>(null);

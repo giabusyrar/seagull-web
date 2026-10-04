@@ -3,8 +3,8 @@ import { call, classify, readResponse } from '@/lib/http';
 
 describe('readResponse', () => {
   it('classifies an existing Response', async () => {
-    const r = await readResponse(new Response('{"a":1}', { status: 201, headers: { 'content-type': 'application/json' } }), 'sdk colour.catalog', performance.now());
-    expect(r).toMatchObject({ ok: true, status: 201, kind: 'json', json: { a: 1 }, url: 'sdk colour.catalog' });
+    const r = await readResponse(new Response('{"a":1}', { status: 201, headers: { 'content-type': 'application/json' } }), '/svc/core/core/colour-engine/catalog', performance.now());
+    expect(r).toMatchObject({ ok: true, status: 201, kind: 'json', json: { a: 1 }, url: '/svc/core/core/colour-engine/catalog' });
   });
 });
 
@@ -62,17 +62,13 @@ describe('call', () => {
 
 describe('readResponse hints', () => {
   it('flags the dev-proxy 500 for /svc/ as unreachable but keeps the status', async () => {
-    const r = await readResponse(res('Internal Server Error', 500, 'text/plain'), '/svc/tryon/health', performance.now());
+    const r = await readResponse(res('Internal Server Error', 500, 'text/plain'), '/svc/ref/health', performance.now());
     expect(r.status).toBe(500);
-    expect(r.hint).toContain('/svc/tryon/health looks unreachable');
+    expect(r.hint).toContain('/svc/ref/health looks unreachable');
   });
   it('also flags it when the proxy sends no content-type', async () => {
     const r = await readResponse(new Response(new Blob(['Internal Server Error']), { status: 500 }), '/svc/core/health', performance.now());
     expect(r.hint).toContain('looks unreachable');
-  });
-  it('flags a 502 gateway_unreachable from the SDK proxy', async () => {
-    const r = await readResponse(res('{"detail":{"code":"gateway_unreachable"}}', 502, 'application/json'), 'sdk reference.brands', performance.now());
-    expect(r).toMatchObject({ status: 502, hint: 'SDK proxy could not reach the service behind /svc/sdkgw' });
   });
   it('gives a normal 500 JSON no hint', async () => {
     const r = await readResponse(res('{"error":"boom"}', 500, 'application/json'), '/svc/core/health', performance.now());

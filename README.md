@@ -1,45 +1,37 @@
 # seagull-simulator
 
-Standalone tool that calls every Seagull service directly — no gateway, no API key.
+One-page photo simulator for Seagull, calling core-engine and reference-service
+directly — no gateway, no API key.
 
 ```bash
 npm install
-cp .env.example .env.local   # only if a service is not on its default localhost port
+cp .env.example .env.local   # only if core or reference is not on its default localhost port
 npm run dev                  # http://127.0.0.1:3100
 ```
 
-Each `/svc/<service>/*` path is rewritten server-side to that service's URL
-(`SIM_*_URL`, defaults in `.env.example`), so the browser never hits CORS.
-The conversation WebSocket goes straight to `NEXT_PUBLIC_SIM_CONVERSATION_WS`.
+`/svc/core/*` and `/svc/ref/*` are rewritten server-side to `SIM_CORE_URL` and
+`SIM_REFERENCE_URL` (defaults in `.env.example`), so the browser never hits CORS.
 
-Screens: Core (form, score, match, vision, colour, face architecture,
-assessments, conversation flows), Reference, Conversation (session + text chat),
-and the colour, face, skin and try-on workers.
+## The page
 
-Every response is shown as returned — status, timing, headers, body. Nothing is
-mocked; a service that is down shows red in the top bar.
+1. Pick a brand and application in the top bar (from reference-service).
+2. Upload a front photo (or take one with the camera), optionally left/right ¾
+   photos, answer the hijab and hair questions, press **Analisis**.
+3. Four core-engine requests run in parallel: colour analyze, face architecture,
+   the 3D head (GLB) and skin analysis. Each tab (Warna, Wajah, Kulit) shows its
+   own loading state, its real error (status and body), and a "lihat JSON" toggle.
+4. In Warna, pick shades (one per category) to render a try-on on the photo.
 
-Adding an endpoint: append an `EndpointDef` to `lib/endpoints/*.ts`; the group
-page renders it. `npm test` checks every definition builds.
+Nothing is mocked; a service that is down shows red in the top bar. Request
+builders live in `lib/photo.ts` (unit-tested in `tests/photo.test.ts`).
 
 ## Running notes
 
 - The server binds to 127.0.0.1 only.
-- With `npm run build && npm start`, changing any `SIM_*` or `NEXT_PUBLIC_*` value needs a rebuild;
+- With `npm run build && npm start`, changing any `SIM_*` value needs a rebuild;
   `npm run dev` only needs a restart.
 - A down service shows as the real status 500 (the Next dev proxy's own error) plus an amber
   "unreachable" hint; the top-bar pill is marked unreachable but keeps the status number.
-
-## SDK screen
-
-`/sdk` runs the built `@gateway-experience/beauty-sdk` (vendored tarball in
-`vendor/`, packed from `seagull-web/packages/beauty-sdk/dist`) through its own
-client and proxy (`/api/beauty`). `/svc/sdkgw` rewrites emulate gateway routing,
-and the API key is a placeholder the services ignore. After rebuilding the SDK,
-run `npm run sdk:refresh` (needs bash, i.e. Git Bash on Windows; honours `SDK_DIR` for the SDK
-location, default `../seagull-web/packages/beauty-sdk`). The SDK proxy forwards only
-content-type, content-disposition and cache-control, and reports 502 `gateway_unreachable` when the
-target is down. It reaches its own `/svc/sdkgw` via `SIM_SELF_URL` (default `http://127.0.0.1:3100`).
 
 ## Notes
 
