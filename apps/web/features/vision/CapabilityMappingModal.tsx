@@ -11,6 +11,8 @@ import {
   InfoTooltip,
   type ChipGroup,
   type SelectOption,
+  readPersisted,
+  writePersisted,
 } from '@gateway-experience/shared';
 import type { SkinConditionOption } from './useVisionModels';
 import { FACIAL_ZONE_OPTIONS } from './ApplicableZonesModal';
@@ -37,21 +39,13 @@ interface SkinConditionPreset {
 const PRESETS_STORAGE_KEY = 'vision-capability-condition-presets';
 
 function loadPresets(): SkinConditionPreset[] {
-  try {
-    const raw = window.localStorage.getItem(PRESETS_STORAGE_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+  const parsed = readPersisted<unknown>(PRESETS_STORAGE_KEY);
+  return Array.isArray(parsed) ? parsed : [];
 }
 
+// Storage unavailable: presets just won't persist this session.
 function savePresets(presets: SkinConditionPreset[]) {
-  try {
-    window.localStorage.setItem(PRESETS_STORAGE_KEY, JSON.stringify(presets));
-  } catch {
-    // localStorage unavailable — presets just won't persist this session
-  }
+  writePersisted(PRESETS_STORAGE_KEY, presets);
 }
 
 const UNGROUPED_DIMENSION = '__ungrouped__';

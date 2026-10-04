@@ -44,6 +44,36 @@ export function writePersisted(key: string, value: unknown): void {
   }
 }
 
+/**
+ * A value stored as a bare string rather than JSON, for keys whose saved
+ * format predates readPersisted (e.g. an id written with setItem(key, id)).
+ * Reading such a key with readPersisted would fail to parse it.
+ */
+export function readPersistedString(key: string): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+/** Stores a bare string; null removes the key. Same failure rule as writePersisted. */
+export function writePersistedString(key: string, value: string | null): void {
+  if (typeof window === 'undefined') return;
+  try {
+    if (value === null) window.localStorage.removeItem(key);
+    else window.localStorage.setItem(key, value);
+  } catch (e) {
+    console.warn(`Could not persist "${key}"; dropping the saved copy`, e);
+    try {
+      window.localStorage.removeItem(key);
+    } catch {
+      // storage unavailable altogether — nothing saved, nothing stale
+    }
+  }
+}
+
 const noopSubscribe = () => () => {};
 
 /**

@@ -131,4 +131,12 @@ export { DimensionSelect, type DimensionSelectProps } from './components/referen
 export { SeveritySelect, type SeveritySelectProps } from './components/reference/SeveritySelect';
 export { cn } from './utils';
 
-export { usePersistentState, readPersisted, writePersisted, saveBlob, loadBlob } from './persistent-state';
+export {
+  usePersistentState,
+  readPersisted,
+  writePersisted,
+  readPersistedString,
+  writePersistedString,
+  saveBlob,
+  loadBlob,
+} from './persistent-state';

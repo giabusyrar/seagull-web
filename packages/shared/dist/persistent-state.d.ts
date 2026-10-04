@@ -18,6 +18,14 @@ export declare function readPersisted<T>(key: string): T | undefined;
  */
 export declare function writePersisted(key: string, value: unknown): void;
 /**
+ * A value stored as a bare string rather than JSON, for keys whose saved
+ * format predates readPersisted (e.g. an id written with setItem(key, id)).
+ * Reading such a key with readPersisted would fail to parse it.
+ */
+export declare function readPersistedString(key: string): string | null;
+/** Stores a bare string; null removes the key. Same failure rule as writePersisted. */
+export declare function writePersistedString(key: string, value: string | null): void;
+/**
  * useState that survives a reload. `key` null disables persistence (plain
  * useState), and changing `key` loads that key's value — use it to scope a
  * draft to, say, one route or one questionnaire.

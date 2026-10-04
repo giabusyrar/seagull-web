@@ -11,7 +11,9 @@ import {
   ConfirmDialog,
   BrandSelect as BrandSelect2,
   ApplicationSelect as ApplicationSelect2,
-  InfoTooltip as InfoTooltip2
+  InfoTooltip as InfoTooltip2,
+  readPersisted as readPersisted2,
+  writePersisted
 } from "@gateway-experience/shared";
 
 // src/form/components/tabs/QuestionnairesTab.tsx
@@ -2075,14 +2077,8 @@ var QuestionnaireModal = ({
 import { jsx as jsx4, jsxs as jsxs4 } from "react/jsx-runtime";
 var TENANT_KEY = "xg.formEngine.tenant";
 var readTenant = () => {
-  try {
-    const raw = localStorage.getItem(TENANT_KEY);
-    if (raw) {
-      const t = JSON.parse(raw);
-      if (t?.brandId && t?.applicationId) return t;
-    }
-  } catch {
-  }
+  const t = readPersisted2(TENANT_KEY);
+  if (t?.brandId && t?.applicationId) return t;
   return { brandId: "wardah", applicationId: "skinverse" };
 };
 var FormManager = () => {
@@ -2105,10 +2101,7 @@ var FormManager = () => {
   };
   useEffect3(() => {
     loadData();
-    try {
-      localStorage.setItem(TENANT_KEY, JSON.stringify({ brandId, applicationId }));
-    } catch {
-    }
+    writePersisted(TENANT_KEY, { brandId, applicationId });
   }, [brandId, applicationId]);
   useEffect3(() => {
     if (questionnaires.length === 0) return;

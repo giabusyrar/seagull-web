@@ -22,7 +22,13 @@ import { PipelineSimulatorView } from '@/features/orchestrator/PipelineSimulator
 import { AssessmentRecordsView } from '@/features/assessments';
 import { ApplicationsView } from '@/features/applications/ApplicationsView';
 
-import { ConfirmDialog } from '@gateway-experience/shared';
+import {
+  ConfirmDialog,
+  readPersisted,
+  readPersistedString,
+  writePersisted,
+  writePersistedString,
+} from '@gateway-experience/shared';
 import { useToast } from '@/components/ui/toast';
 import type {
   ApiClientRequest,
@@ -55,12 +61,7 @@ interface PersistedWorkspace {
 }
 
 function loadWorkspace(): PersistedWorkspace | null {
-  try {
-    const raw = localStorage.getItem(WORKSPACE_STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as PersistedWorkspace) : null;
-  } catch {
-    return null;
-  }
+  return readPersisted<PersistedWorkspace>(WORKSPACE_STORAGE_KEY) || null;
 }
 
 /**
@@ -236,11 +237,7 @@ export function ApiClientApp() {
       openRouteIds: openRoutes.map((r) => r.id),
       activeRouteId: activeRoute?.id || null,
     };
-    try {
-      localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify(workspace));
-    } catch (e) {
-      console.error('Failed to persist API client workspace', e);
-    }
+    writePersisted(WORKSPACE_STORAGE_KEY, workspace);
   }, [workspaceRestored, pendingRestore, tabs, activeTabId, openRoutes, activeRoute]);
 
   // Starts empty and is restored by the effect below once environments load.
@@ -250,18 +247,13 @@ export function ApiClientApp() {
 
   const handleSelectEnv = useCallback((id: string) => {
     setSelectedEnvId(id);
-    if (typeof window !== 'undefined') {
-      if (id) {
-        localStorage.setItem(ACTIVE_ENV_STORAGE_KEY, id);
-      } else {
-        localStorage.removeItem(ACTIVE_ENV_STORAGE_KEY);
-      }
-    }
+    // Stored as the bare id (not JSON), as it always has been.
+    writePersistedString(ACTIVE_ENV_STORAGE_KEY, id || null);
   }, []);
 
   useEffect(() => {
     if (environments.length > 0) {
-      const savedId = typeof window !== 'undefined' ? localStorage.getItem(ACTIVE_ENV_STORAGE_KEY) : null;
+      const savedId = readPersistedString(ACTIVE_ENV_STORAGE_KEY);
       const savedEnvExists = savedId && environments.some((e) => e.id === savedId);
       if (savedEnvExists && savedId !== selectedEnvId) {
         setSelectedEnvId(savedId);

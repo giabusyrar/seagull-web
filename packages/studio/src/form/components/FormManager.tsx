@@ -11,18 +11,15 @@ import {
   ApplicationSelect,
   InfoTooltip,
   type TabItem,
+  readPersisted,
+  writePersisted,
 } from '@gateway-experience/shared';
 import type { QuestionnaireItem } from '../types';
 
 const TENANT_KEY = 'xg.formEngine.tenant';
 const readTenant = (): { brandId: string; applicationId: string } => {
-  try {
-    const raw = localStorage.getItem(TENANT_KEY);
-    if (raw) {
-      const t = JSON.parse(raw);
-      if (t?.brandId && t?.applicationId) return t;
-    }
-  } catch {}
+  const t = readPersisted<{ brandId?: string; applicationId?: string } | null>(TENANT_KEY);
+  if (t?.brandId && t?.applicationId) return t as { brandId: string; applicationId: string };
   return { brandId: 'wardah', applicationId: 'skinverse' };
 };
 
@@ -74,9 +71,7 @@ export const FormManager: React.FC = () => {
 
   useEffect(() => {
     loadData();
-    try {
-      localStorage.setItem(TENANT_KEY, JSON.stringify({ brandId, applicationId }));
-    } catch {}
+    writePersisted(TENANT_KEY, { brandId, applicationId });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [brandId, applicationId]);
 

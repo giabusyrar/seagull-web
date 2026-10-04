@@ -3487,14 +3487,8 @@ var QuestionnaireModal = ({
 var import_jsx_runtime9 = require("react/jsx-runtime");
 var TENANT_KEY = "xg.formEngine.tenant";
 var readTenant = () => {
-  try {
-    const raw = localStorage.getItem(TENANT_KEY);
-    if (raw) {
-      const t = JSON.parse(raw);
-      if (t?.brandId && t?.applicationId) return t;
-    }
-  } catch {
-  }
+  const t = (0, import_shared9.readPersisted)(TENANT_KEY);
+  if (t?.brandId && t?.applicationId) return t;
   return { brandId: "wardah", applicationId: "skinverse" };
 };
 var FormManager = () => {
@@ -3517,10 +3511,7 @@ var FormManager = () => {
   };
   (0, import_react7.useEffect)(() => {
     loadData();
-    try {
-      localStorage.setItem(TENANT_KEY, JSON.stringify({ brandId, applicationId }));
-    } catch {
-    }
+    (0, import_shared9.writePersisted)(TENANT_KEY, { brandId, applicationId });
   }, [brandId, applicationId]);
   (0, import_react7.useEffect)(() => {
     if (questionnaires.length === 0) return;
