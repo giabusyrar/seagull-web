@@ -8,18 +8,20 @@ import { ErrorBox, type TabState } from './TabShell';
 const GlbViewer = dynamic(() => import('@/components/GlbViewer').then((m) => m.GlbViewer), { ssr: false });
 
 /** The photo (or its latest try-on render) in 2D, the head GLB in 3D. */
-export function PhotoStage({ photo, tryOnUrl, head, glbUrl, onRetake }: {
-  photo: File; tryOnUrl: string | null; head: TabState; glbUrl: string | null; onRetake(): void;
+export function PhotoStage({ photo, tryOnUrl, head, glbUrl, onRetake, canShow3d }: {
+  photo: File; tryOnUrl: string | null; head: TabState; glbUrl: string | null; onRetake(): void; canShow3d: boolean;
 }) {
-  const [view, setView] = useState<'2d' | '3d'>('2d');
+  const [picked, setView] = useState<'2d' | '3d'>('2d');
+  const view = canShow3d ? picked : '2d';
   const src = useFileSrc(photo);
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-2">
         <div className="flex gap-1 rounded border border-zinc-200 bg-zinc-50 p-1">
           {(['2d', '3d'] as const).map((v) => (
-            <button key={v} type="button" onClick={() => setView(v)}
-              className={`rounded px-3 py-1 text-xs font-semibold ${view === v ? 'bg-zinc-900 text-white' : 'text-zinc-600 hover:text-zinc-900'}`}>
+            <button key={v} type="button" onClick={() => setView(v)} disabled={v === '3d' && !canShow3d}
+              title={v === '3d' && !canShow3d ? 'Tersedia setelah Analisis' : undefined}
+              className={`rounded px-3 py-1 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40 ${view === v ? 'bg-zinc-900 text-white' : 'text-zinc-600 hover:text-zinc-900'}`}>
               {v.toUpperCase()}{v === '3d' && head.loading ? ' …' : ''}
             </button>
           ))}

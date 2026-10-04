@@ -4,7 +4,7 @@ import { useBrand } from '@/lib/brand';
 import { useBlobUrl } from '@/lib/blob';
 import { call } from '@/lib/http';
 import { analyzeColour, faceArchitecture, faceHead, skinAnalyze, toggleShade, type Brand, type BuiltRequest, type Selection } from '@/lib/photo';
-import { PhotoInput, type YesNo } from './PhotoInput';
+import { FrontPicker, HowItWorks, Questions, SideShots, type YesNo } from './PhotoInput';
 import { PhotoStage } from './PhotoStage';
 import { ColourTab } from './ColourTab';
 import { FaceTab } from './FaceTab';
@@ -89,41 +89,70 @@ export function PhotoSimulator() {
   const clearShades = () => { setSelection({}); tryOn.request([]); };
 
   const brandReady = !!brand.brandId.trim() && !!brand.applicationId.trim();
-  if (step === 'input' || !front) {
-    return (
-      <PhotoInput front={front} left={left} right={right} setFront={setFront} setLeft={setLeft} setRight={setRight}
-        hijab={hijab} hair={hair} setHijab={setHijab} setHair={setHair}
-        brandReady={brandReady} onAnalyze={analyze} />
-    );
-  }
-
   const states: Record<TabId, TabState> = { warna: colour, wajah: face, kulit: skin };
   const brandChanged = !!analyzed && (analyzed.brandId !== brand.brandId || analyzed.applicationId !== brand.applicationId);
+  const current: Step = !front ? 'capture' : step === 'result' ? 'result' : 'questions';
+
+  // Same left/right layout as seagull-web's studio: photo on the left, questions or results on the right.
   return (
-    <section className="flex flex-col gap-3">
-      <h1 className="text-lg font-semibold">2. Hasil <span className="text-xs font-normal text-zinc-500">{analyzed?.brandId} / {analyzed?.applicationId}</span></h1>
-      {brandChanged && (
+    <section className="mx-auto flex w-full max-w-6xl flex-col gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-lg font-semibold">Foto{current === 'result' && <span className="ml-2 text-xs font-normal text-zinc-500">{analyzed?.brandId} / {analyzed?.applicationId}</span>}</h1>
+        <Stepper step={current} />
+      </div>
+      {current === 'result' && brandChanged && (
         <div className="flex flex-wrap items-center gap-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
           <span>Brand berubah ({brand.brandId || '—'} / {brand.applicationId || '—'}); hasil di bawah masih untuk {analyzed?.brandId} / {analyzed?.applicationId}. Klik Foto ulang atau Analisis ulang.</span>
           <button type="button" disabled={!brandReady} onClick={analyze} className="rounded bg-zinc-900 px-2 py-0.5 font-semibold text-white disabled:bg-zinc-300">Analisis ulang</button>
         </div>
       )}
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-        <PhotoStage photo={front} tryOnUrl={tryOn.url} head={head} glbUrl={glbUrl} onRetake={retake} />
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+        <div className="flex flex-col gap-3 rounded border border-zinc-200 p-3 lg:sticky lg:top-4">
+          {front ? (
+            <>
+              <PhotoStage photo={front} tryOnUrl={tryOn.url} head={head} glbUrl={glbUrl} onRetake={retake} canShow3d={current === 'result'} />
+              <SideShots left={left} right={right} setLeft={setLeft} setRight={setRight} disabled={current === 'result'} />
+            </>
+          ) : <FrontPicker onChange={setFront} />}
+        </div>
         <div className="flex min-w-0 flex-col gap-3">
-          <div className="flex gap-1 border-b border-zinc-200">
-            {TABS.map((t) => (
-              <button key={t.id} type="button" onClick={() => setTab(t.id)}
-                className={`-mb-px flex items-center gap-1.5 border-b-2 px-3 py-1.5 text-sm ${tab === t.id ? 'border-zinc-900 font-semibold' : 'border-transparent text-zinc-500 hover:text-zinc-900'}`}>
-                <span className={`h-2 w-2 rounded-full ${dot(states[t.id])}`} />{t.label}
-              </button>
-            ))}
-          </div>
-          {tab === 'warna' && <ColourTab state={colour} selection={selection} onToggle={pick} onClear={clearShades} tryOnState={{ loading: tryOn.loading, error: tryOn.error }} />}
-          {tab === 'wajah' && <FaceTab state={face} />}
-          {tab === 'kulit' && <SkinTab state={skin} />}
+          {current === 'capture' && <HowItWorks />}
+          {current === 'questions' && <Questions hijab={hijab} hair={hair} setHijab={setHijab} setHair={setHair} brandReady={brandReady} onAnalyze={analyze} />}
+          {current === 'result' && (
+            <>
+              <div className="flex gap-1 border-b border-zinc-200">
+                {TABS.map((t) => (
+                  <button key={t.id} type="button" onClick={() => setTab(t.id)}
+                    className={`-mb-px flex items-center gap-1.5 border-b-2 px-3 py-1.5 text-sm ${tab === t.id ? 'border-zinc-900 font-semibold' : 'border-transparent text-zinc-500 hover:text-zinc-900'}`}>
+                    <span className={`h-2 w-2 rounded-full ${dot(states[t.id])}`} />{t.label}
+                  </button>
+                ))}
+              </div>
+              {tab === 'warna' && <ColourTab state={colour} selection={selection} onToggle={pick} onClear={clearShades} tryOnState={{ loading: tryOn.loading, error: tryOn.error }} />}
+              {tab === 'wajah' && <FaceTab state={face} />}
+              {tab === 'kulit' && <SkinTab state={skin} />}
+            </>
+          )}
         </div>
       </div>
     </section>
+  );
+}
+
+type Step = 'capture' | 'questions' | 'result';
+const STEPS: [Step, string][] = [['capture', 'Foto'], ['questions', 'Analisis'], ['result', 'Hasil']];
+
+function Stepper({ step }: { step: Step }) {
+  const at = STEPS.findIndex(([s]) => s === step);
+  return (
+    <ol className="flex items-center gap-2 text-[11px] font-semibold">
+      {STEPS.map(([s, label], i) => (
+        <li key={s} className="flex items-center gap-2">
+          <span className={`flex h-5 w-5 items-center justify-center rounded-full border text-[10px] ${i <= at ? 'border-zinc-900 bg-zinc-900 text-white' : 'border-zinc-200 text-zinc-500'}`}>{i + 1}</span>
+          <span className={i === at ? '' : 'text-zinc-500'}>{label}</span>
+          {i < STEPS.length - 1 && <span className="h-px w-4 bg-zinc-200" />}
+        </li>
+      ))}
+    </ol>
   );
 }
