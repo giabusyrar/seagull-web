@@ -7,7 +7,7 @@ import { HeadViewer, NO_SIGMA_GREY, PRIOR_GREY, SIGMA_RAMP, type HeadShading, ty
 import { HEAD_VIEW_LABEL, headErrorText, type HeadReport, type HeadViewName } from './headTypes';
 import { useFaceHead } from './useFaceHead';
 
-type GetEndpoint = (key: 'vision', path: string) => string;
+type GetEndpoint = (key: 'face', path: string) => string;
 
 interface Props {
   front: File;

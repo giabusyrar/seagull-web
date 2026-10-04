@@ -1,5 +1,5 @@
 // The 3D head: a GLB from
-// POST /core/vision-engine/face-architecture/:brandId/:applicationId/head
+// POST /core/face-architecture/:brandId/:applicationId/head
 // (Seagull-core docs/superpowers/specs/2026-10-01-3d-head-fit-phase2-design.md).
 // Multipart "front" (required), "left", "right" (three-quarter views,
 // optional). asset.extras is the HeadReport below, whose source is the Go

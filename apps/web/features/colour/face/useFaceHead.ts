@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { readFaceApiError, type FaceApiError } from './faceTypes';
 import type { HeadViewName } from './headTypes';
 
-type GetEndpoint = (key: 'vision', path: string) => string;
+type GetEndpoint = (key: 'face', path: string) => string;
 
 // core-engine's own head timeout defaults to 30s (seagull-core
 // DefaultFaceHeadTimeout). A little more lets its error body arrive instead
@@ -22,7 +22,7 @@ const IDLE: State = { key: null, glb: null, loading: false, error: null };
 
 /**
  * One 3D head for one set of photos:
- * POST <vision collection>/face-architecture/:brandId/:applicationId/head,
+ * POST /core/face-architecture/:brandId/:applicationId/head,
  * multipart "front" plus optional "left" / "right", answered with a GLB.
  *
  * Called only when the 3D view is asked for. State is tagged with the photos
@@ -52,8 +52,8 @@ export function useFaceHead(views: Partial<Record<HeadViewName, File>>, getEndpo
       for (const [name, file] of Object.entries(views)) if (file) body.append(name, file, file.name);
 
       try {
-        const path = `/face-architecture/${encodeURIComponent(brandId)}/${encodeURIComponent(applicationId)}/head`;
-        const res = await fetch(getEndpoint('vision', path), { method: 'POST', body, signal: ctrl.signal });
+        const path = `/${encodeURIComponent(brandId)}/${encodeURIComponent(applicationId)}/head`;
+        const res = await fetch(getEndpoint('face', path), { method: 'POST', body, signal: ctrl.signal });
         if (ctrl.signal.aborted) return;
         if (!res.ok) {
           setState({ key, glb: null, loading: false, error: await readFaceApiError(res) });

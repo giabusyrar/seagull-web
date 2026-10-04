@@ -3,7 +3,7 @@
  * Parameterizes all frontend interactive studios, Try-On features, runners,
  * and simulators via dynamic collections registered in the API Gateway.
  */
-type CoreCollectionKey = 'form' | 'score' | 'match' | 'vision' | 'reference' | 'form-engine' | 'score-engine' | 'match-engine' | 'vision-engine' | 'reference-service' | 'colour' | 'colour-engine';
+type CoreCollectionKey = 'form' | 'score' | 'match' | 'vision' | 'reference' | 'form-engine' | 'score-engine' | 'match-engine' | 'vision-engine' | 'reference-service' | 'colour' | 'colour-engine' | 'face' | 'face-architecture';
 interface DynamicCollectionRoute {
     id?: string;
     name: string;

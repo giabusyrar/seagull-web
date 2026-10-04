@@ -1,7 +1,7 @@
 // Response shapes of the face-architecture endpoint
 // (seagull-core docs/FACE-ARCHITECTURE.md, internal/facearch).
 //
-// POST /core/vision-engine/face-architecture/:brandId/:applicationId
+// POST /core/face-architecture/:brandId/:applicationId
 // multipart field "image". Errors carry a "detail" object, or a list of
 // them when the ai-worker rejected the photo on several counts.
 

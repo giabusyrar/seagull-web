@@ -27,11 +27,11 @@ export function analyzeColour(photo: File, hijab: boolean, hairVisible: boolean)
 export function faceArchitecture(photo: File, brand: Brand): BuiltRequest {
   const fd = new FormData();
   fd.append('image', photo);
-  return post(`/core/vision-engine/face-architecture/${brandPath(brand)}`, fd);
+  return post(`/core/face-architecture/${brandPath(brand)}`, fd);
 }
 
 export function faceHead(views: Views, brand: Brand): BuiltRequest {
-  const path = `/core/vision-engine/face-architecture/${brandPath(brand)}/head`;
+  const path = `/core/face-architecture/${brandPath(brand)}/head`;
   const fd = new FormData();
   fd.append('front', views.front);
   if (views.left) fd.append('left', views.left);

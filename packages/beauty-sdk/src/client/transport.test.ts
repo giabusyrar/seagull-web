@@ -23,7 +23,7 @@ describe('createBeautyClient', () => {
     const c = createBeautyClient({ baseUrl: 'https://gw.test', apiKey: 'k', brandId: 'b', applicationId: 'a', fetch });
     await c.call('face.head', { body: new FormData() });
     const [url, init] = fetch.mock.calls[0];
-    expect(url).toBe('https://gw.test/core/vision-engine/face-architecture/b/a/head');
+    expect(url).toBe('https://gw.test/core/face-architecture/b/a/head');
     expect(new Headers(init.headers).get('x-api-key')).toBe('k');
   });
 

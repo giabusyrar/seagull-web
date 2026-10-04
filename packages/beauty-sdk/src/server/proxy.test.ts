@@ -20,7 +20,7 @@ describe('createBeautyProxy', () => {
     fd.set('front', new Blob([new Uint8Array([1])], { type: 'image/jpeg' }), 'f.jpg');
     const res = await POST(new Request('https://brand.test/api/beauty/face/head', { method: 'POST', body: fd }), ctx('face', 'head'));
     const [url, init] = fetch.mock.calls[0];
-    expect(url).toBe('https://gw.test/core/vision-engine/face-architecture/brd/app/head');
+    expect(url).toBe('https://gw.test/core/face-architecture/brd/app/head');
     expect(new Headers(init.headers).get('x-api-key')).toBe('secret');
     expect(init.body).toBeInstanceOf(ReadableStream);
     expect(init.duplex).toBe('half');

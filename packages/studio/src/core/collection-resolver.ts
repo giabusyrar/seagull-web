@@ -16,7 +16,9 @@ export type CoreCollectionKey =
   | 'vision-engine'
   | 'reference-service'
   | 'colour'
-  | 'colour-engine';
+  | 'colour-engine'
+  | 'face'
+  | 'face-architecture';
 
 export interface DynamicCollectionRoute {
   id?: string;
@@ -80,6 +82,10 @@ export function getCollectionPrefix(key: CoreCollectionKey): string {
     'reference-service': '/core/reference-service',
     colour: '/core/colour-engine',
     'colour-engine': '/core/colour-engine',
+    // Face architecture has its own path since 2026-10-05; the gateway no
+    // longer routes /core/vision-engine/face-architecture/*.
+    face: '/core/face-architecture',
+    'face-architecture': '/core/face-architecture',
   };
   return map[key] || `/core/${key}`;
 }

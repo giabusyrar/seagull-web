@@ -33,12 +33,12 @@ describe('analyzeColour', () => {
 describe('faceArchitecture', () => {
   it('puts brand and app in the path', () => {
     const { url, init } = faceArchitecture(front, brand);
-    expect(url).toBe('/svc/core/core/vision-engine/face-architecture/WARDAH/skinverse');
+    expect(url).toBe('/svc/core/core/face-architecture/WARDAH/skinverse');
     expect(init.method).toBe('POST');
     expect([...form(init).keys()]).toEqual(['image']);
   });
   it('encodes path segments', () => {
-    expect(faceArchitecture(front, { brandId: 'A B', applicationId: 'x/y' }).url).toBe('/svc/core/core/vision-engine/face-architecture/A%20B/x%2Fy');
+    expect(faceArchitecture(front, { brandId: 'A B', applicationId: 'x/y' }).url).toBe('/svc/core/core/face-architecture/A%20B/x%2Fy');
   });
   it('refuses an empty brand or app', () => {
     expect(() => faceArchitecture(front, { brandId: '', applicationId: 'skinverse' })).toThrow(/brand/);
@@ -49,7 +49,7 @@ describe('faceArchitecture', () => {
 describe('faceHead', () => {
   it('sends front only when no side photos', () => {
     const { url, init } = faceHead({ front }, brand);
-    expect(url).toBe('/svc/core/core/vision-engine/face-architecture/WARDAH/skinverse/head');
+    expect(url).toBe('/svc/core/core/face-architecture/WARDAH/skinverse/head');
     expect([...form(init).keys()]).toEqual(['front']);
   });
   it('adds left and right when present', () => {

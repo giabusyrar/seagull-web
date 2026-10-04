@@ -33,7 +33,11 @@ function getCollectionPrefix(key) {
     reference: "/core/reference-service",
     "reference-service": "/core/reference-service",
     colour: "/core/colour-engine",
-    "colour-engine": "/core/colour-engine"
+    "colour-engine": "/core/colour-engine",
+    // Face architecture has its own path since 2026-10-05; the gateway no
+    // longer routes /core/vision-engine/face-architecture/*.
+    face: "/core/face-architecture",
+    "face-architecture": "/core/face-architecture"
   };
   return map[key] || `/core/${key}`;
 }

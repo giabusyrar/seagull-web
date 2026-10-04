@@ -30,7 +30,7 @@ describe('operations', () => {
   });
 
   it('writes brand and application into the gateway path, encoded', () => {
-    expect(gatewayUrl(op('face.head'), {}, scope)).toBe('/core/vision-engine/face-architecture/brd-1/app%2F1/head');
+    expect(gatewayUrl(op('face.head'), {}, scope)).toBe('/core/face-architecture/brd-1/app%2F1/head');
   });
 
   it('writes the customer from the scope, never from the request', () => {

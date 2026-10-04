@@ -40,7 +40,7 @@ const FACE_PREFIX = 'xg.faceArchitect.';
  * Flow: photo (camera or upload) → two questions, optional side photos →
  * one "Analisis" that runs, in parallel, the colour analysis (POST
  * /core/colour-engine/analyze), face architecture (POST
- * /core/vision-engine/face-architecture/:brand/:app) and the 3D head (…/head).
+ * /core/face-architecture/:brand/:app) and the 3D head (…/head).
  * The right side switches between Warna (result + try-on, POST
  * /core/colour-engine/tryon) and Wajah (measurements, shape, guidance); the
  * photo side has a floating 2D/3D switch. "Langsung coba makeup" skips the
