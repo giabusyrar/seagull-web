@@ -54,4 +54,9 @@ describe('buildRequest', () => {
     expect(r.url).toContain('brand_id=makeover');
     expect(r.url).not.toContain('brand_id=wardah');
   });
+  it('declared but empty brand field falls back to context', () => {
+    const r = buildRequest(def({ brand: 'snake', fields: [{ name: 'brand_id', kind: 'text' }] }), { brand_id: '' }, brand);
+    expect(r.url).toContain('brand_id=wardah');
+    expect((r.url.match(/brand_id=/g) || []).length).toBe(1);
+  });
 });

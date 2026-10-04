@@ -38,7 +38,7 @@ export function buildRequest(def: EndpointDef, values: Record<string, FieldValue
   const fields = def.fields.filter((f) => !used.has(f.name) && !isEmpty(values[f.name]));
   const extra = Object.fromEntries(
     Object.entries(brandKeys(def.brand, brand))
-      .filter(([k]) => !used.has(k) && !def.fields.some((f) => f.name === k))
+      .filter(([k]) => !used.has(k) && !(def.fields.some((f) => f.name === k) && !isEmpty(values[k])))
       .map(([k, v]) => [k, !isEmpty(values[k]) ? String(values[k]) : v])
   );
   const headers: Record<string, string> = { ...(def.headers ?? {}) };
