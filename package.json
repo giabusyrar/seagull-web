@@ -8,7 +8,8 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm run dev --workspace=apps/web",
+    "dev": "concurrently -k -n web,sim -c blue,magenta \"npm:dev:web\" \"npm:dev:simulator\"",
+    "dev:web": "npm run dev --workspace=apps/web",
     "dev:simulator": "npm run dev --workspace=apps/simulator",
     "build:packages": "npm run build -w @gateway-experience/shared && npm run build -w @gateway-experience/beauty-sdk && npm run build -w @gateway-experience/studio",
     "build:web": "npm run build --workspace=apps/web",
@@ -21,6 +22,7 @@
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.0",
+    "concurrently": "^9.2.4",
     "typescript": "^5.0.0"
   }
 }

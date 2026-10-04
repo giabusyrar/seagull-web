@@ -10,7 +10,7 @@ From the seagull-web root:
 ```bash
 npm install
 cp apps/simulator/.env.example apps/simulator/.env.local   # only if core or reference is not on its default localhost port
-npm run dev:simulator        # http://127.0.0.1:3200
+npm run dev:simulator        # http://127.0.0.1:3200 (or npm run dev for web + simulator)
 ```
 
 Inside `apps/simulator`, `npm test` runs its unit tests.
