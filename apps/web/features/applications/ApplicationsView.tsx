@@ -25,17 +25,9 @@ import {
   type SelectOption,
 } from '@gateway-experience/shared';
 import { PipelineConfigModal } from './PipelineConfigModal';
+import { deleteApplication, listApplications, saveApplication, type ApplicationItem } from './api';
 
-export interface ApplicationItem {
-  id: string;
-  key: string;
-  name: string;
-  description?: string;
-  channelType?: string;
-  status?: string;
-  createdAt?: string | Date;
-  updatedAt?: string | Date;
-}
+export type { ApplicationItem };
 
 const CHANNEL_TYPE_OPTIONS: SelectOption[] = [
   { value: 'Mobile Web DTC', label: 'Mobile Web DTC', description: 'Direct-to-Consumer Digital Questionnaire & Assessment' },
@@ -79,12 +71,8 @@ export const ApplicationsView: React.FC = () => {
   const fetchApplications = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/reference/applications');
-      const data = await res.json();
-      const list = data.applications || data.data || data.items;
-      if (data.success && Array.isArray(list)) {
-        setApplications(list);
-      }
+      const list = await listApplications();
+      if (list) setApplications(list);
     } catch (err) {
       console.error('Failed to fetch applications', err);
     } finally {
@@ -119,7 +107,6 @@ export const ApplicationsView: React.FC = () => {
 
     setIsSubmitting(true);
     try {
-      const method = editingApp ? 'PUT' : 'POST';
       const payload = {
         key: formKey.trim().toLowerCase(),
         name: formName.trim(),
@@ -127,13 +114,7 @@ export const ApplicationsView: React.FC = () => {
         channelType: formChannelType,
       };
 
-      const res = await fetch('/api/reference/applications', {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (res.ok) {
+      if (await saveApplication(payload, !!editingApp)) {
         setIsModalOpen(false);
         fetchApplications();
       }
@@ -147,10 +128,7 @@ export const ApplicationsView: React.FC = () => {
   const handleDelete = async () => {
     if (!deleteConfirm.appKey) return;
     try {
-      const res = await fetch(`/api/reference/applications/${encodeURIComponent(deleteConfirm.appKey)}`, {
-        method: 'DELETE',
-      });
-      if (res.ok) {
+      if (await deleteApplication(deleteConfirm.appKey)) {
         setDeleteConfirm({ isOpen: false, appKey: '', appName: '' });
         fetchApplications();
       }

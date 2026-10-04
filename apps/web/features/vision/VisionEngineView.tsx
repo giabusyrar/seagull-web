@@ -10,19 +10,7 @@ import { VisionSimulator } from './simulator';
 import { ModelRegistryPanel } from './ModelRegistryPanel';
 import { ModelAssetsPanel } from './ModelAssetsPanel';
 import { useCoreCollection } from '@/lib/hooks/use-core-collection';
-
-// The vision config backend route (list/save) doesn't exist yet — guard
-// against parsing a non-JSON response (e.g. a plain-text 404) as JSON,
-// which throws a confusing SyntaxError instead of a clean "not available" state.
-async function safeJson(res: Response): Promise<any | null> {
-  const contentType = res.headers.get('content-type') || '';
-  if (!contentType.includes('application/json')) return null;
-  try {
-    return await res.json();
-  } catch {
-    return null;
-  }
-}
+import { listVisionConfigs, saveVisionConfig } from './api';
 
 export function VisionEngineView() {
   const { toastSuccess, toastError } = useToast();
@@ -54,18 +42,16 @@ export function VisionEngineView() {
     setIsLoadingSettings(true);
     setListError(null);
     try {
-      const endpoint = getEndpoint('vision', '/api/vision/config?list=true');
-      const res = await fetch(endpoint);
-      const json = await safeJson(res);
+      const { status, json } = await listVisionConfigs(getEndpoint);
       if (json?.success && Array.isArray(json.items)) {
         setSettingsList(json.items);
         return;
       }
       setSettingsList([]);
       setListError(
-        res.status === 404
+        status === 404
           ? 'Core-engine has no endpoint that lists vision configs, so this table cannot be filled. A config is readable one scope at a time; saving one from here still works.'
-          : `Vision configs could not be listed (HTTP ${res.status}).`,
+          : `Vision configs could not be listed (HTTP ${status}).`,
       );
     } catch (err) {
       console.error('Failed to load vision settings list:', err);
@@ -112,14 +98,7 @@ export function VisionEngineView() {
         },
       };
 
-      const endpoint = getEndpoint('vision', '/api/vision/config');
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await safeJson(res);
+      const data = await saveVisionConfig(getEndpoint, payload);
       if (data?.success) {
         toastSuccess('Vision Setting Saved', `Parameters for ${formData.brandId} / ${formData.applicationId} updated.`);
         fetchAllSettings();

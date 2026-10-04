@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '@gateway-experience/shared';
 import { Loader2 } from 'lucide-react';
+import { getPipelineConfig, savePipelineConfig } from './api';
 
 interface DimensionWeightItem {
   dimensionId: string;
@@ -49,10 +50,8 @@ export const PipelineConfigModal: React.FC<PipelineConfigModalProps> = ({
     setLoading(true);
     setStatusMessage(null);
     try {
-      const res = await fetch(`/api/pipeline-config?brandId=${encodeURIComponent(brandId)}&applicationId=${encodeURIComponent(applicationId)}`);
-      const data = await res.json();
-      if (data.success && data.config) {
-        const c = data.config;
+      const c = await getPipelineConfig(brandId, applicationId);
+      if (c) {
         setFormEnabled(c.formEnabled ?? true);
         setQuestionnaireCode(c.questionnaireCode || 'skinverse_longevity_v1');
         setVisionEnabled(c.visionEnabled ?? true);
@@ -82,28 +81,22 @@ export const PipelineConfigModal: React.FC<PipelineConfigModalProps> = ({
       const formWeight = formWeightPercent / 100;
       const visionWeight = (100 - formWeightPercent) / 100;
 
-      const res = await fetch('/api/pipeline-config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          brandId,
-          applicationId,
-          formEnabled,
-          questionnaireCode,
-          visionEnabled,
-          visionPipelineCode,
-          defaultFormWeight: formWeight,
-          defaultVisionWeight: visionWeight,
-          dimensionWeights: dimensionWeights.map((dw) => ({
-            dimensionId: dw.dimensionId,
-            formWeight: dw.formWeight,
-            visionWeight: dw.visionWeight,
-            isEnabled: dw.isEnabled,
-          })),
-        }),
+      const data = await savePipelineConfig({
+        brandId,
+        applicationId,
+        formEnabled,
+        questionnaireCode,
+        visionEnabled,
+        visionPipelineCode,
+        defaultFormWeight: formWeight,
+        defaultVisionWeight: visionWeight,
+        dimensionWeights: dimensionWeights.map((dw) => ({
+          dimensionId: dw.dimensionId,
+          formWeight: dw.formWeight,
+          visionWeight: dw.visionWeight,
+          isEnabled: dw.isEnabled,
+        })),
       });
-
-      const data = await res.json();
       if (data.success) {
         setStatusMessage('Pipeline configuration saved.');
         if (onSuccess) onSuccess();

@@ -11,6 +11,7 @@ import {
   type ChipOption,
 } from '@gateway-experience/shared';
 import type { VisionSettingItem } from './VisionSettingsTab';
+import { listReferenceApplications, listReferenceBrands } from './api';
 import { useVisionRegistry, toDimensionChipOptions, toSkinConditionChipGroups } from './useVisionRegistry';
 
 const FEATURE_OPTIONS: ChipOption[] = [
@@ -77,22 +78,14 @@ export const VisionSettingModal: React.FC<VisionSettingModalProps> = ({
     if (isOpen) {
       setLoading(true);
       Promise.all([
-        fetch('/api/reference/brands')
-          .then((res) => res.json())
-          .then((data) => {
-            const list = data?.brands || data?.items || data?.data;
-            if (list && Array.isArray(list)) {
-              setBrands(list);
-            }
+        listReferenceBrands()
+          .then((list) => {
+            if (list) setBrands(list);
           })
           .catch(() => {}),
-        fetch('/api/reference/applications')
-          .then((res) => res.json())
-          .then((data) => {
-            const list = data?.applications || data?.items || data?.data;
-            if (list && Array.isArray(list)) {
-              setApplications(list);
-            }
+        listReferenceApplications()
+          .then((list) => {
+            if (list) setApplications(list);
           })
           .catch(() => {}),
       ]).finally(() => setLoading(false));

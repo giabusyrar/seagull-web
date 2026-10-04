@@ -9,6 +9,7 @@ import { OutputDashboard } from './OutputDashboard';
 import { useToast } from '@/components/ui/toast';
 import { useCoreCollection } from '@/lib/hooks/use-core-collection';
 import { useVisionRegistry } from '../useVisionRegistry';
+import { analyzeImages } from '../api';
 
 interface VisionSimulatorProps {
   selectedBrand?: string;
@@ -24,23 +25,6 @@ const ANGLE_FIELD_NAME: Record<ImageAngle, string> = {
   LEFT: 'image_left',
   RIGHT: 'image_right',
 };
-
-// Turns a failed analyze response into a message the operator can act on.
-function describeAnalysisError(status: number, json: any): string {
-  if (status === 400) {
-    const reasons = (json?.invalidParameters || [])
-      .map((p: any) => `${p.field} "${p.value}": ${p.reason}`)
-      .join('; ');
-    return reasons || json?.message || 'Invalid analysis request';
-  }
-  if (status === 503) {
-    return 'Reference Data is unavailable. Check that reference-service is running, then try again.';
-  }
-  if (status === 502) {
-    return 'The vision AI worker is unavailable. Check that vision-ai-worker is running, then try again.';
-  }
-  return json?.message || 'Vision pipeline analysis failed';
-}
 
 export function VisionSimulator({
   selectedBrand = 'brand_wardah',
@@ -203,19 +187,7 @@ export function VisionSimulator({
     formData.append('skinConditions', selectedSkinConditions.join(','));
 
     try {
-      const endpoint = getEndpoint('vision', '/analyze-image');
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        body: formData,
-      });
-
-      const json = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        throw new Error(describeAnalysisError(res.status, json));
-      }
-
-      const parsedResult = json as VisionAnalysisResult;
+      const parsedResult = await analyzeImages(getEndpoint, formData);
       setResult(parsedResult);
 
       setSlots((prev) => ({
