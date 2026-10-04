@@ -43,3 +43,6 @@ next-env.d.ts
 
 # SDD workspace (never commit)
 .superpowers/
+
+# Claude Code worktrees
+.claude/
