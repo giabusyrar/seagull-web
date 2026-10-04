@@ -49,4 +49,9 @@ describe('buildRequest', () => {
     expect(r.url).toContain('brand_id=makeover');
     expect(r.url).not.toContain('brand_id=wardah');
   });
+  it('brand key override even when not a declared field', () => {
+    const r = buildRequest(def({ brand: 'snake', fields: [] }), { brand_id: 'makeover' }, brand);
+    expect(r.url).toContain('brand_id=makeover');
+    expect(r.url).not.toContain('brand_id=wardah');
+  });
 });

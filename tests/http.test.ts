@@ -8,6 +8,7 @@ describe('classify', () => {
   it.each([
     ['application/json; charset=utf-8', 'json'], ['image/png', 'image'], ['model/gltf-binary', 'glb'],
     ['text/plain', 'text'], [null, 'text'],
+    ['application/octet-stream', 'glb'], ['model/gltf-binary; charset=binary', 'glb'],
   ])('%s → %s', (ct, kind) => expect(classify(ct as string | null)).toBe(kind));
 });
 
@@ -33,5 +34,21 @@ describe('call', () => {
   it('network failure becomes networkError', async () => {
     const r = await call(req, async () => { throw new TypeError('fetch failed'); });
     expect(r).toMatchObject({ ok: false, status: 0, networkError: 'service at /svc/core/health unreachable: fetch failed' });
+  });
+  it('body read failure becomes networkError', async () => {
+    const r = await call(req, async () => ({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      text: async () => { throw new Error('body read failed'); },
+      blob: async () => { throw new Error('body read failed'); },
+    } as unknown as Response));
+    expect(r).toMatchObject({ ok: false, status: 200, networkError: 'service at /svc/core/health unreachable: body read failed' });
+  });
+  it('image/png blob response has size and blobUrl', async () => {
+    const pngBytes = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
+    const r = await call(req, async () => res(new Blob([pngBytes], { type: 'image/png' }), 200, 'image/png'));
+    expect(r).toMatchObject({ ok: true, status: 200, kind: 'image', size: 8 });
+    expect(r.blobUrl).toBeDefined();
   });
 });
