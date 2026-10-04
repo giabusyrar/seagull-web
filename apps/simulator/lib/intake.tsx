@@ -8,8 +8,8 @@ import { photoRequested } from './conversation';
 import type { Brand } from './photo';
 import { IDLE, type TabState } from '@/components/photo/TabShell';
 
-/** Who the simulator submits as by default: a test identity, named so it cannot pass for a real customer. */
-export const TEST_RESPONDENT: Respondent = { customerId: 'sim-customer', consentDataProcessing: false, consentMarketing: false };
+/** A new run's customer: no details yet, nothing consented to. */
+export const EMPTY_RESPONDENT: Respondent = { consentDataProcessing: false, consentMarketing: false };
 
 export const answersKey = (code: string) => `sim.form.answers.${code}`;
 
@@ -20,7 +20,7 @@ export const answersKey = (code: string) => `sim.form.answers.${code}`;
  */
 function useIntakeState() {
   const [code, setCode] = usePersistentState<string>('sim.intake.survey', '');
-  const [who, setWho] = usePersistentState<Respondent>('sim.form.respondent', TEST_RESPONDENT);
+  const [who, setWho] = usePersistentState<Respondent>('sim.form.respondent', EMPTY_RESPONDENT);
   const [evaluation, setEvaluation] = useState<TabState>(IDLE);
   const conv = useLiveConversation();
 

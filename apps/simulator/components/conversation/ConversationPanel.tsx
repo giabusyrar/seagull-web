@@ -13,11 +13,11 @@ import { Bubble, ProgressBar, ResumeDivider } from './parts';
  * chosen form, then the same button is the microphone; ⏸ pauses and keeps the
  * session. The advisor's photo request is answered on the Photo step.
  */
-export function ConversationPanel({ brand, code, customerId, canStart, onGoPhoto }: {
-  brand: Brand; code: string; customerId: string; canStart: boolean; onGoPhoto(): void;
+export function ConversationPanel({ brand, code, canStart, onGoPhoto }: {
+  brand: Brand; code: string; canStart: boolean; onGoPhoto(): void;
 }) {
   const { t } = useLang();
-  const { conv: c } = useIntake();
+  const { conv: c, who } = useIntake();
   const { live, conn } = c;
   const [draft, setDraft] = usePersistentState<string>('sim.conv.draft', '');
   const scroller = useRef<HTMLDivElement>(null);
@@ -26,7 +26,7 @@ export function ConversationPanel({ brand, code, customerId, canStart, onGoPhoto
 
   const resumable = !!c.session && (!c.session.survey || c.session.survey === code);
   const canPlay = resumable || canStart;
-  const play = () => (resumable && c.session ? c.connect(c.session) : c.start(brand, code, customerId));
+  const play = () => (resumable && c.session ? c.connect(c.session) : c.start(brand, code, who));
   const send = () => { if (c.sendText(draft)) setDraft(''); };
   const wantsPhoto = conn === 'ready' && photoRequested(live);
 

@@ -13,11 +13,13 @@ import { answerAsText } from '@/lib/conversation';
 import { surveySchema, type SurveyRow } from '@/lib/form';
 import { useSurveys } from '@/components/form/useSurveys';
 import { useFlowSurveys } from '@/components/conversation/useFlowSurveys';
-import { ConversationPanel } from '@/components/conversation/ConversationPanel';
 import { btnGhost, btnPrimary, btnSecondary, card, cardPad, eyebrow, field } from '@/components/ui';
 
 /** Debounce for telling the advisor about a form edit, so ticking several boxes sends one answer. */
 const SYNC_DELAY_MS = 1200;
+
+/** Which question is open, so a reload reopens it. */
+const openKey = (code: string) => `sim.intake.open.${code}`;
 
 /** Required questions still empty: what stands between the form and the next step. */
 function missingRequired(m: Model): number {
@@ -47,16 +49,16 @@ function SurveyPicker({ rows, value, onChange, loading, error, ready, flowCodes 
  * the advisor records come back into the form (with an engine that reports
  * them, see lib/conversation answersSupported).
  */
-export function IntakeStep({ onContinue, onSkip }: { onContinue(): void; onSkip(): void }) {
+/** `active`: this step is on screen, so the advisor is told which question is open. */
+export function IntakeStep({ active, onContinue, onSkip }: { active: boolean; onContinue(): void; onSkip(): void }) {
   const { t, lang } = useLang();
   const brand = useBrand();
   const intake = useIntake();
-  const { code, setCode, who, setWho, conv } = intake;
+  const { code, setCode, conv } = intake;
   const surveys = useSurveys(brand);
   const flows = useFlowSurveys(brand);
   const row = surveys.rows.find((r) => r.code === code);
   const schema = useMemo(() => surveySchema(row), [row]);
-  const hasFlow = !!code && (flows.codes ? flows.codes.has(code) : true);
   const [missing, setMissing] = useState(0);
   const applying = useRef(false);
   const pending = useRef(new Map<string, ReturnType<typeof setTimeout>>());
@@ -70,14 +72,36 @@ export function IntakeStep({ onContinue, onSkip }: { onContinue(): void; onSkip(
     m.locale = lang;
     m.showCompleteButton = false;
     m.showCompletedPage = false;
+    // One question at a time; the advisor follows the open one (see the view effect below).
+    m.questionsOnPageMode = 'questionPerPage';
+    m.showProgressBar = true;
+    m.progressBarLocation = 'top';
     // Yes/No as radio: the toggle switch throws on re-render in survey-core 3.x (as in studio's QuestionnaireRunner).
     m.getAllQuestions().forEach((q) => { if (q.getType() === 'boolean') (q as { renderAs: string }).renderAs = 'radio'; });
     const saved = readPersisted<Record<string, unknown>>(answersKey(code));
     if (saved) m.data = saved;
+    const at = readPersisted<string>(openKey(code));
+    if (at && m.getQuestionByName(at)?.isVisible) m.currentElementName = at;
     return m;
   }, [schema, code, lang]);
 
-  const { sendAnswer } = conv;
+  const { sendAnswer, sendView, sendAction } = conv;
+
+  // The open question: remembered for a reload, and while this step is on screen the advisor
+  // is told about it (on arrival, and each time another question opens).
+  useEffect(() => {
+    if (!survey) return;
+    const tell = () => { if (active) sendView({ screen: 'questionnaire', question: survey.currentElementName || undefined }); };
+    tell();
+    const onOpen = (sender: Model) => {
+      const name = sender.currentElementName;
+      if (name) writePersisted(openKey(code), name);
+      tell();
+    };
+    survey.onCurrentPageChanged.add(onOpen);
+    return () => survey.onCurrentPageChanged.remove(onOpen);
+  }, [survey, code, active, sendView]);
+  useEffect(() => { if (active && !survey) sendView({ screen: 'questionnaire' }); }, [active, survey, sendView]);
   // Save every change; tell the advisor about the customer's own edits.
   useEffect(() => {
     if (!survey) return;
@@ -131,8 +155,17 @@ export function IntakeStep({ onContinue, onSkip }: { onContinue(): void; onSkip(
     if (!survey || !engineAnswers) return;
     applying.current = true;
     try {
+      let answeredOpen = false;
       for (const [k, v] of Object.entries(engineAnswers)) {
-        if (JSON.stringify(survey.getValue(k)) !== JSON.stringify(v)) survey.setValue(k, v);
+        if (JSON.stringify(survey.getValue(k)) !== JSON.stringify(v)) {
+          survey.setValue(k, v);
+          if (k === survey.currentElementName) answeredOpen = true;
+        }
+      }
+      // The advisor answered what is on screen: follow it to the next open question.
+      if (answeredOpen) {
+        const next = survey.getAllQuestions().find((q) => q.isVisible && q.isEmpty());
+        if (next) survey.currentElementName = next.name;
       }
     } finally {
       applying.current = false;
@@ -166,30 +199,19 @@ export function IntakeStep({ onContinue, onSkip }: { onContinue(): void; onSkip(
       ) : !schema ? (
         <p className="rounded-xl border border-red-200 bg-red-50 p-4 text-xs text-red-900">{t('The form schema could not be read.', 'Skema form tidak bisa dibaca.')} ({row.code})</p>
       ) : (
-        <div className={`grid items-start gap-5 ${hasFlow ? 'lg:grid-cols-[minmax(0,1fr)_minmax(340px,420px)]' : ''}`}>
-          <div className={`${card} overflow-hidden p-2`}>
-            {survey && <Survey key={`${code}-${lang}`} model={survey} />}
-          </div>
-          {hasFlow && (
-            <div className="lg:sticky lg:top-20">
-              <ConversationPanel brand={{ brandId: brand.brandId, applicationId: brand.applicationId }} code={code} customerId={who.customerId} canStart={surveys.ready && !!row} onGoPhoto={onContinue} />
-            </div>
-          )}
+        <div className={`${card} overflow-hidden p-2`}>
+          {survey && <Survey key={`${code}-${lang}`} model={survey} />}
         </div>
       )}
 
       <div className={`${cardPad} flex flex-wrap items-center justify-between gap-3`}>
         <div className="flex flex-wrap items-center gap-3">
-          <label className="flex items-center gap-2 text-xs text-zinc-500">
-            {t('Customer ID (test)', 'ID pelanggan (uji)')}
-            <input className={`${field} w-40 font-mono`} value={who.customerId} onChange={(e) => setWho({ ...who, customerId: e.target.value })} />
-          </label>
           {(code || conv.session) && <button type="button" className={btnGhost} onClick={reset}>{t('Reset questionnaire', 'Reset kuesioner')}</button>}
         </div>
         <div className="flex items-center gap-2">
           {!ready && survey && <span className="text-xs text-zinc-500">{missing} {t('required question(s) left', 'pertanyaan wajib tersisa')}</span>}
-          <button type="button" className={btnSecondary} onClick={onSkip}>{t('Skip', 'Lewati')}</button>
-          <button type="button" className={`${btnPrimary} rounded-full`} disabled={!ready} onClick={onContinue}>{t('Continue to photo', 'Lanjut ke foto')} →</button>
+          <button type="button" className={btnSecondary} onClick={() => { sendAction('skip_questionnaire', survey?.currentElementName || undefined); onSkip(); }}>{t('Skip', 'Lewati')}</button>
+          <button type="button" className={`${btnPrimary} rounded-full`} disabled={!ready} onClick={() => { sendAction('continue_to_photo'); onContinue(); }}>{t('Continue to photo', 'Lanjut ke foto')} →</button>
         </div>
       </div>
     </section>
