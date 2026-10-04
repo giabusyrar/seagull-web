@@ -433,6 +433,43 @@ var ReferenceTable = ({
 import { useState, useEffect } from "react";
 import { Save, Loader2 } from "lucide-react";
 import { SearchableSelect, Modal } from "@gateway-experience/shared";
+
+// src/reference/api.ts
+function entityListFrom(data, config) {
+  const rawList = data.data || (config.dataKey ? data[config.dataKey] : null) || (config.slug ? data[config.slug] : null) || data.items || data.brands || data.products || data.ingredients || data.eventTypes || data.reference || [];
+  return Array.isArray(rawList) ? rawList : [];
+}
+async function listEntityItems(config) {
+  const res = await fetch(config.apiEndpoint, { cache: "no-store" });
+  if (!res.ok) throw new Error("Failed to fetch reference items");
+  return entityListFrom(await res.json(), config);
+}
+async function saveEntityItem(apiEndpoint, payload, isEdit) {
+  const res = await fetch(apiEndpoint, {
+    method: isEdit ? "PUT" : "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.error || `Failed to ${isEdit ? "update" : "create"} item`);
+  }
+}
+async function deleteEntityItem(apiEndpoint, id) {
+  const url = apiEndpoint.includes("?") ? `${apiEndpoint}&id=${id}` : `${apiEndpoint}?id=${id}`;
+  let res = await fetch(url, { method: "DELETE" });
+  if (!res.ok) {
+    res = await fetch(`${apiEndpoint}/${id}`, { method: "DELETE" });
+  }
+  if (!res.ok) throw new Error("Failed to delete item");
+}
+async function listRelationOptions(entity) {
+  const data = await (await fetch(`/api/reference/${entity}`)).json();
+  const list2 = data.data || data[entity] || data.dimensions || data.items || data.brands || data.products || data.ingredients || [];
+  return data.success && Array.isArray(list2) ? list2 : null;
+}
+
+// src/reference/components/ReferenceFormModal.tsx
 import { jsx as jsx2, jsxs as jsxs2 } from "react/jsx-runtime";
 var ReferenceFormModal = ({
   isOpen,
@@ -458,10 +495,8 @@ var ReferenceFormModal = ({
       config.fields.forEach(async (field2) => {
         if ((field2.type === "relation" || field2.type === "multi-relation") && field2.relationEntity) {
           try {
-            const res = await fetch(`/api/reference/${field2.relationEntity}`);
-            const data = await res.json();
-            const list2 = data.data || data[field2.relationEntity] || data.dimensions || data.items || data.brands || data.products || data.ingredients || [];
-            if (data.success && Array.isArray(list2)) {
+            const list2 = await listRelationOptions(field2.relationEntity);
+            if (list2) {
               setRelationOptions((prev) => ({ ...prev, [field2.relationEntity]: list2 }));
             }
           } catch {
@@ -1037,37 +1072,22 @@ var ReferenceEntityDashboard = ({ slug }) => {
   const fetchItems = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(config.apiEndpoint, { cache: "no-store" });
-      if (!res.ok) throw new Error("Failed to fetch reference items");
-      const data = await res.json();
-      const rawList = data.data || (config.dataKey ? data[config.dataKey] : null) || (config.slug ? data[config.slug] : null) || // reference-service wraps every collection as { data: [...], success: true }
-      (Array.isArray(data?.data) ? data.data : null) || data.items || data.brands || data.products || data.ingredients || data.eventTypes || data.reference || [];
-      setItems(Array.isArray(rawList) ? rawList : []);
+      setItems(await listEntityItems(config));
     } catch (err) {
       console.error("Fetch items error:", err);
       setItems([]);
     } finally {
       setLoading(false);
     }
-  }, [config.apiEndpoint, config.slug]);
+  }, [config]);
   useEffect3(() => {
     fetchItems();
   }, [fetchItems]);
   const handleSave = async (formData) => {
     try {
       const isEdit = !!editingItem;
-      const url = config.apiEndpoint;
-      const method = isEdit ? "PUT" : "POST";
       const payload = isEdit ? { ...editingItem, ...formData, id: editingItem.id } : formData;
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || `Failed to ${isEdit ? "update" : "create"} item`);
-      }
+      await saveEntityItem(config.apiEndpoint, payload, isEdit);
       await fetchItems();
       setIsModalOpen(false);
       setEditingItem(null);
@@ -1089,12 +1109,7 @@ var ReferenceEntityDashboard = ({ slug }) => {
     if (!targetId || typeof targetId !== "string") return;
     setDeleteConfig((prev) => ({ ...prev, isDeleting: true }));
     try {
-      const url = config.apiEndpoint.includes("?") ? `${config.apiEndpoint}&id=${targetId}` : `${config.apiEndpoint}?id=${targetId}`;
-      let res = await fetch(url, { method: "DELETE" });
-      if (!res.ok) {
-        res = await fetch(`${config.apiEndpoint}/${targetId}`, { method: "DELETE" });
-      }
-      if (!res.ok) throw new Error("Failed to delete item");
+      await deleteEntityItem(config.apiEndpoint, targetId);
       await fetchItems();
       setDeleteConfig({ isOpen: false, item: null, isDeleting: false });
     } catch (err) {

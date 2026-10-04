@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Save, Loader2 } from 'lucide-react';
 import { SearchableSelect, Modal } from '@gateway-experience/shared';
 import type { EntityConfig } from '../config/reference-entity-configs';
+import { listRelationOptions } from '../api';
 
 interface ReferenceFormModalProps {
   isOpen: boolean;
@@ -39,18 +40,8 @@ export const ReferenceFormModal: React.FC<ReferenceFormModalProps> = ({
       config.fields.forEach(async (field) => {
         if ((field.type === 'relation' || field.type === 'multi-relation') && field.relationEntity) {
           try {
-            const res = await fetch(`/api/reference/${field.relationEntity}`);
-            const data = await res.json();
-            const list =
-              data.data ||
-              data[field.relationEntity!] ||
-              data.dimensions ||
-              data.items ||
-              data.brands ||
-              data.products ||
-              data.ingredients ||
-              [];
-            if (data.success && Array.isArray(list)) {
+            const list = await listRelationOptions(field.relationEntity);
+            if (list) {
               setRelationOptions((prev) => ({ ...prev, [field.relationEntity!]: list }));
             }
           } catch {}
