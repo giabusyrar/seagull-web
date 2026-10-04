@@ -5,6 +5,8 @@ import { Copy, Check } from 'lucide-react';
 import { InfoTooltip, usePersistentState } from '@gateway-experience/shared';
 import type { ScoreRuleset, RulesetSimulationResponse } from '../../types';
 import { getSafetyFlags } from '../../../form/api';
+import { SIMULATE_PATH, fetchTenantSurveys, simulateRuleset } from '../../api';
+import { safetyFlagsFromSurveys } from '../../utils/safety-flags';
 
 interface ScoreSimulatorTabProps {
   rulesets: ScoreRuleset[];
@@ -146,36 +148,10 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch(
-          `/core/form-engine/survey?brand_id=${encodeURIComponent(activeRuleset.brandId)}&application_id=${encodeURIComponent(activeRuleset.applicationId)}`,
-        );
-        if (!res.ok) return;
-        const allSurveys: { code?: string; schema?: string }[] = await res.json();
-        const surveys = formSurveyCode
-          ? allSurveys.filter((s) => s.code === formSurveyCode)
-          : allSurveys;
-        const flags = new Set<string>();
-        for (const survey of surveys || []) {
-          if (!survey.schema) continue;
-          try {
-            const parsed = JSON.parse(survey.schema);
-            for (const page of parsed.pages || []) {
-              for (const el of page.elements || []) {
-                for (const choice of el.choices || []) {
-                  // Stored as condition_map (snake_case, matching the Go/JSON
-                  // survey schema) — conditionMap is also checked in case a
-                  // future schema writer uses the camelCase form instead.
-                  const conditionMap =
-                    typeof choice === 'object' ? choice.condition_map || choice.conditionMap : null;
-                  if (conditionMap) Object.keys(conditionMap).forEach((k) => flags.add(k));
-                }
-              }
-            }
-          } catch {
-            // skip surveys with unparsable schema
-          }
-        }
-        if (!cancelled) setSurveySafetyFlags(Array.from(flags));
+        const surveys = await fetchTenantSurveys(activeRuleset.brandId, activeRuleset.applicationId);
+        if (surveys === null) return;
+        const flags = safetyFlagsFromSurveys(surveys, formSurveyCode);
+        if (!cancelled) setSurveySafetyFlags(flags);
       } catch {
         if (!cancelled) setSurveySafetyFlags([]);
       }
@@ -217,7 +193,6 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
   const [simResponse, setSimResponse] = useState<RulesetSimulationResponse | null>(null);
   const [copiedReq, setCopiedReq] = useState(false);
 
-  const SIMULATE_PATH = '/core/score-engine/simulate';
 
   // form_scores / vision_scores are HEALTH-space (100 = optimal), exactly
   // what the sliders below are labelled — the backend does the concern-space
@@ -264,18 +239,14 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
   const runSimulation = useCallback(async () => {
     if (!activeRuleset?.schema) return;
     try {
-      const res = await fetch(SIMULATE_PATH, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          schema: activeRuleset.schema,
-          form_scores: formScores,
-          vision_scores: visionScores,
-          age_years: ageYears,
-          customer_condition: selectedConditions,
-        }),
+      const response = await simulateRuleset({
+        schema: activeRuleset.schema,
+        form_scores: formScores,
+        vision_scores: visionScores,
+        age_years: ageYears,
+        customer_condition: selectedConditions,
       });
-      if (res.ok) setSimResponse(await res.json());
+      if (response) setSimResponse(response);
     } catch (err) {
       console.error('Simulation request failed', err);
     }

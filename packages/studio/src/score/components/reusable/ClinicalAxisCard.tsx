@@ -5,6 +5,7 @@ import { Trash2, ChevronRight, ChevronDown, Plus } from 'lucide-react';
 import { DimensionSelect, InfoTooltip } from '@gateway-experience/shared';
 import type { VisualAxisConfig, InputSource, ThresholdBand } from '../../types';
 import { defaultConcernLabel } from '../../utils/jdm-compiler';
+import { listSkinConditions } from '../../api';
 
 /** One selectable CV capability, flattened from ref_skin_conditions —
  *  a condition can list several (e.g. "wrinkle" -> score_wrinkle), each
@@ -15,12 +16,8 @@ export function useVisionFields() {
     Array<{ code: string; name: string; visionCapabilities?: string[] }>
   >([]);
   useEffect(() => {
-    fetch('/api/skin-conditions')
-      .then((res) => res.json())
-      .then((data) => {
-        const list = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
-        setConditions(list);
-      })
+    listSkinConditions()
+      .then(setConditions)
       .catch(() => {});
   }, []);
   return useMemo(

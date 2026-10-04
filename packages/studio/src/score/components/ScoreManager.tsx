@@ -4,17 +4,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Sliders, SlidersHorizontal, Play, FileText } from 'lucide-react';
 import { PageHeader, TabNav, ConfirmDialog, usePersistentState, type TabItem } from '@gateway-experience/shared';
 import type { ScoreRuleset } from '../types';
-import { withTenantScope } from '../../core/scope';
+import { deleteRuleset, listRulesets, saveRuleset } from '../api';
 
 import { RulesetsTab } from './tabs/RulesetsTab';
 import { BlendingTab } from './tabs/BlendingTab';
 import { ScoreSimulatorTab } from './tabs/ScoreSimulatorTab';
 import { RulesetModal } from './modals/RulesetModal';
-
-// Score Engine is reached through the API Gateway "Core Engine API" collection,
-// which forwards `/core/score-engine/*` to the engine host and injects the API
-// key. Routes are registered as bare resources (e.g. `/core/score-engine/rulesets`).
-const SCORE = '/core/score-engine';
 
 export const ScoreManager: React.FC = () => {
   const [activeTab, setActiveTab] = usePersistentState<'rulesets' | 'blending' | 'simulator'>('xg.scoreEngine.activeTab', 'rulesets');
@@ -50,12 +45,9 @@ export const ScoreManager: React.FC = () => {
   const loadRulesets = useCallback(() => {
     // The studio has no tenant selector: it lists every tenant's rulesets,
     // scoped explicitly so the gateway cannot narrow it to one brand.
-    fetch(withTenantScope(`${SCORE}/rulesets`))
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data.rulesets)) {
-          setRulesets(data.rulesets);
-        }
+    listRulesets()
+      .then((list) => {
+        if (list) setRulesets(list);
       })
       .catch(() => {});
   }, []);
@@ -84,21 +76,7 @@ export const ScoreManager: React.FC = () => {
   ];
 
   const handleSaveRuleset = async (rulesetData: Partial<ScoreRuleset>) => {
-    const isEdit = !!rulesetData.id;
-    const url = isEdit ? `${SCORE}/rulesets/${rulesetData.id}` : `${SCORE}/rulesets`;
-    const method = isEdit ? 'PUT' : 'POST';
-
-    const res = await fetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(rulesetData),
-    });
-
-    if (!res.ok) {
-      const errData = await res.json();
-      throw new Error(errData.error || 'Failed to save skin grading framework');
-    }
-
+    await saveRuleset(rulesetData);
     loadRulesets();
   };
 
@@ -110,11 +88,7 @@ export const ScoreManager: React.FC = () => {
       onConfirm: async () => {
         setDeleteConfirm((prev) => ({ ...prev, isLoading: true }));
         try {
-          const res = await fetch(`${SCORE}/rulesets/${id}`, { method: 'DELETE' });
-          if (!res.ok) {
-            const errData = await res.json();
-            throw new Error(errData.error || 'Failed to delete ruleset');
-          }
+          await deleteRuleset(id);
           loadRulesets();
         } catch (err: any) {
           alert(err.message);

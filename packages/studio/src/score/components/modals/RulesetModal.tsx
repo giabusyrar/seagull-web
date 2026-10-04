@@ -18,6 +18,7 @@ import {
   DEFAULT_STARTER_PROFILES,
 } from '../../utils/jdm-compiler';
 import { ClinicalAxisCard } from '../reusable/ClinicalAxisCard';
+import { fetchTenantSurveys, surveyList } from '../../api';
 import { BandTable } from '../reusable/BandTable';
 import { ProfileMappingTable } from '../reusable/ProfileMappingTable';
 
@@ -129,12 +130,8 @@ export const RulesetModal: React.FC<RulesetModalProps> = ({
   // brand/application, so the picker only lists forms actually reachable.
   useEffect(() => {
     if (!isOpen) return;
-    fetch(`/core/form-engine/survey?brand_id=${encodeURIComponent(brandId)}&application_id=${encodeURIComponent(applicationId)}`)
-      .then((res) => res.json())
-      .then((data) => {
-        const list = Array.isArray(data) ? data : Array.isArray(data?.surveys) ? data.surveys : data?.code ? [data] : [];
-        setSurveys(list);
-      })
+    fetchTenantSurveys(brandId, applicationId)
+      .then((data) => setSurveys(surveyList(data)))
       .catch(() => setSurveys([]));
   }, [isOpen, brandId, applicationId]);
 

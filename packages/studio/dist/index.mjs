@@ -3777,6 +3777,53 @@ function withTenantScope(path, brandId, applicationId) {
   return `${path}${path.includes("?") ? "&" : "?"}${tenantScopeQuery(brandId, applicationId)}`;
 }
 
+// src/score/api.ts
+var SCORE = "/core/score-engine";
+async function listRulesets() {
+  const data = await (await fetch(withTenantScope(`${SCORE}/rulesets`))).json();
+  return Array.isArray(data.rulesets) ? data.rulesets : null;
+}
+async function throwFromBody(res, fallback) {
+  const errData = await res.json();
+  throw new Error(errData.error || fallback);
+}
+async function saveRuleset(ruleset) {
+  const isEdit = !!ruleset.id;
+  const res = await fetch(isEdit ? `${SCORE}/rulesets/${ruleset.id}` : `${SCORE}/rulesets`, {
+    method: isEdit ? "PUT" : "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(ruleset)
+  });
+  if (!res.ok) await throwFromBody(res, "Failed to save skin grading framework");
+}
+async function deleteRuleset(id) {
+  const res = await fetch(`${SCORE}/rulesets/${id}`, { method: "DELETE" });
+  if (!res.ok) await throwFromBody(res, "Failed to delete ruleset");
+}
+var SIMULATE_PATH = `${SCORE}/simulate`;
+async function simulateRuleset(body) {
+  const res = await fetch(SIMULATE_PATH, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  return res.ok ? await res.json() : null;
+}
+async function fetchTenantSurveys(brandId, applicationId) {
+  const res = await fetch(
+    `/core/form-engine/survey?brand_id=${encodeURIComponent(brandId)}&application_id=${encodeURIComponent(applicationId)}`
+  );
+  return res.ok ? res.json() : null;
+}
+function surveyList(data) {
+  const d = data;
+  return Array.isArray(data) ? data : Array.isArray(d?.surveys) ? d.surveys : d?.code ? [data] : [];
+}
+async function listSkinConditions() {
+  const data = await (await fetch("/api/skin-conditions")).json();
+  return Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
+}
+
 // src/score/components/tabs/RulesetsTab.tsx
 import React9 from "react";
 import { Sliders, Pencil as Pencil2, Trash2 as Trash25, Play as Play3, Plus as Plus4, Copy, Check } from "lucide-react";
@@ -4395,10 +4442,7 @@ import { jsx as jsx12, jsxs as jsxs11 } from "react/jsx-runtime";
 function useVisionFields() {
   const [conditions, setConditions] = useState9([]);
   useEffect8(() => {
-    fetch("/api/skin-conditions").then((res) => res.json()).then((data) => {
-      const list2 = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
-      setConditions(list2);
-    }).catch(() => {
+    listSkinConditions().then(setConditions).catch(() => {
     });
   }, []);
   return useMemo5(
@@ -4787,6 +4831,32 @@ var BlendingTab = ({
 import { useState as useState11, useEffect as useEffect10, useMemo as useMemo6, useCallback as useCallback2 } from "react";
 import { Copy as Copy2, Check as Check3 } from "lucide-react";
 import { InfoTooltip as InfoTooltip5, usePersistentState as usePersistentState3 } from "@gateway-experience/shared";
+
+// src/score/utils/safety-flags.ts
+function safetyFlagsFromSurveys(surveys, surveyCode) {
+  if (!Array.isArray(surveys)) return [];
+  const rows = surveys;
+  const selected = surveyCode ? rows.filter((s) => s.code === surveyCode) : rows;
+  const flags = /* @__PURE__ */ new Set();
+  for (const survey of selected) {
+    if (!survey.schema) continue;
+    try {
+      const parsed = JSON.parse(survey.schema);
+      for (const page of parsed.pages || []) {
+        for (const el of page.elements || []) {
+          for (const choice of el.choices || []) {
+            const conditionMap = typeof choice === "object" ? choice.condition_map || choice.conditionMap : null;
+            if (conditionMap) Object.keys(conditionMap).forEach((k) => flags.add(k));
+          }
+        }
+      }
+    } catch {
+    }
+  }
+  return Array.from(flags);
+}
+
+// src/score/components/tabs/ScoreSimulatorTab.tsx
 import { jsx as jsx14, jsxs as jsxs13 } from "react/jsx-runtime";
 var card = "rounded-lg border border-border bg-card p-4";
 var sliderCls = "w-full h-1.5 rounded appearance-none cursor-pointer bg-muted accent-[#d97706]";
@@ -4879,29 +4949,10 @@ var ScoreSimulatorTab = ({
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch(
-          `/core/form-engine/survey?brand_id=${encodeURIComponent(activeRuleset.brandId)}&application_id=${encodeURIComponent(activeRuleset.applicationId)}`
-        );
-        if (!res.ok) return;
-        const allSurveys = await res.json();
-        const surveys = formSurveyCode ? allSurveys.filter((s) => s.code === formSurveyCode) : allSurveys;
-        const flags = /* @__PURE__ */ new Set();
-        for (const survey of surveys || []) {
-          if (!survey.schema) continue;
-          try {
-            const parsed = JSON.parse(survey.schema);
-            for (const page of parsed.pages || []) {
-              for (const el of page.elements || []) {
-                for (const choice of el.choices || []) {
-                  const conditionMap = typeof choice === "object" ? choice.condition_map || choice.conditionMap : null;
-                  if (conditionMap) Object.keys(conditionMap).forEach((k) => flags.add(k));
-                }
-              }
-            }
-          } catch {
-          }
-        }
-        if (!cancelled) setSurveySafetyFlags(Array.from(flags));
+        const surveys = await fetchTenantSurveys(activeRuleset.brandId, activeRuleset.applicationId);
+        if (surveys === null) return;
+        const flags = safetyFlagsFromSurveys(surveys, formSurveyCode);
+        if (!cancelled) setSurveySafetyFlags(flags);
       } catch {
         if (!cancelled) setSurveySafetyFlags([]);
       }
@@ -4930,7 +4981,6 @@ var ScoreSimulatorTab = ({
   }, [allSafetyFlags, catalogSafetyFlags, conditionChoices]);
   const [simResponse, setSimResponse] = useState11(null);
   const [copiedReq, setCopiedReq] = useState11(false);
-  const SIMULATE_PATH = "/core/score-engine/simulate";
   const formScores = useMemo6(() => {
     const out = {};
     for (const d of formDims) out[d] = questionnaireValues[d] ?? 50;
@@ -4964,18 +5014,14 @@ var ScoreSimulatorTab = ({
   const runSimulation = useCallback2(async () => {
     if (!activeRuleset?.schema) return;
     try {
-      const res = await fetch(SIMULATE_PATH, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          schema: activeRuleset.schema,
-          form_scores: formScores,
-          vision_scores: visionScores,
-          age_years: ageYears,
-          customer_condition: selectedConditions
-        })
+      const response = await simulateRuleset({
+        schema: activeRuleset.schema,
+        form_scores: formScores,
+        vision_scores: visionScores,
+        age_years: ageYears,
+        customer_condition: selectedConditions
       });
-      if (res.ok) setSimResponse(await res.json());
+      if (response) setSimResponse(response);
     } catch (err) {
       console.error("Simulation request failed", err);
     }
@@ -5865,10 +5911,7 @@ var RulesetModal = ({
   }, [description, tab, isOpen]);
   useEffect11(() => {
     if (!isOpen) return;
-    fetch(`/core/form-engine/survey?brand_id=${encodeURIComponent(brandId)}&application_id=${encodeURIComponent(applicationId)}`).then((res) => res.json()).then((data) => {
-      const list2 = Array.isArray(data) ? data : Array.isArray(data?.surveys) ? data.surveys : data?.code ? [data] : [];
-      setSurveys(list2);
-    }).catch(() => setSurveys([]));
+    fetchTenantSurveys(brandId, applicationId).then((data) => setSurveys(surveyList(data))).catch(() => setSurveys([]));
   }, [isOpen, brandId, applicationId]);
   const effectiveCode = codeEdited ? code : slugify2(name);
   const totalWeight = axes.reduce((sum, a) => sum + (Number(a.weight) || 0), 0);
@@ -6328,7 +6371,6 @@ var RulesetModal = ({
 
 // src/score/components/ScoreManager.tsx
 import { jsx as jsx18, jsxs as jsxs17 } from "react/jsx-runtime";
-var SCORE = "/core/score-engine";
 var ScoreManager = () => {
   const [activeTab, setActiveTab] = usePersistentState4("xg.scoreEngine.activeTab", "rulesets");
   const [searchQuery, setSearchQuery] = useState14("");
@@ -6347,10 +6389,8 @@ var ScoreManager = () => {
     }
   });
   const loadRulesets = useCallback3(() => {
-    fetch(withTenantScope(`${SCORE}/rulesets`)).then((res) => res.json()).then((data) => {
-      if (Array.isArray(data.rulesets)) {
-        setRulesets(data.rulesets);
-      }
+    listRulesets().then((list2) => {
+      if (list2) setRulesets(list2);
     }).catch(() => {
     });
   }, []);
@@ -6376,18 +6416,7 @@ var ScoreManager = () => {
     }
   ];
   const handleSaveRuleset = async (rulesetData) => {
-    const isEdit = !!rulesetData.id;
-    const url = isEdit ? `${SCORE}/rulesets/${rulesetData.id}` : `${SCORE}/rulesets`;
-    const method = isEdit ? "PUT" : "POST";
-    const res = await fetch(url, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(rulesetData)
-    });
-    if (!res.ok) {
-      const errData = await res.json();
-      throw new Error(errData.error || "Failed to save skin grading framework");
-    }
+    await saveRuleset(rulesetData);
     loadRulesets();
   };
   const handleDeleteRuleset = (id, code) => {
@@ -6398,11 +6427,7 @@ var ScoreManager = () => {
       onConfirm: async () => {
         setDeleteConfirm((prev) => ({ ...prev, isLoading: true }));
         try {
-          const res = await fetch(`${SCORE}/rulesets/${id}`, { method: "DELETE" });
-          if (!res.ok) {
-            const errData = await res.json();
-            throw new Error(errData.error || "Failed to delete ruleset");
-          }
+          await deleteRuleset(id);
           loadRulesets();
         } catch (err) {
           alert(err.message);
