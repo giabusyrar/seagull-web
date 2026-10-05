@@ -1,5 +1,6 @@
 import type { BuiltRequest } from './photo';
 import { svcPath } from './services';
+import { DRY_RUN_HEADER } from '@gateway-experience/shared';
 
 export type BodyKindOut = 'json' | 'image' | 'glb' | 'text' | 'empty';
 export interface CallResult { ok: boolean; status: number; ms: number; url: string; headers: [string, string][]; kind: BodyKindOut; json?: unknown; text?: string; blobUrl?: string; size?: number; networkError?: string; hint?: string }
@@ -20,7 +21,7 @@ const blobUrl = (b: Blob) => (typeof URL.createObjectURL === 'function' ? URL.cr
  * DRY_RUN_UNSUPPORTED) a write it cannot run without storing. Added here, at
  * the one place requests leave, so no builder can forget it.
  */
-export const DRY_RUN_HEADER = 'X-Dry-Run';
+export { DRY_RUN_HEADER };
 const CORE_PREFIX = svcPath('core', '/');
 
 export function withDryRun(req: BuiltRequest): BuiltRequest {

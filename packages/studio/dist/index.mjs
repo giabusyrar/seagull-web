@@ -1363,7 +1363,6 @@ __export(form_exports, {
   FormManager: () => FormManager,
   MissingTenantError: () => MissingTenantError,
   PFORM_EXAMPLE: () => PFORM_EXAMPLE,
-  PFORM_SUGGESTED_DIMENSIONS: () => PFORM_SUGGESTED_DIMENSIONS,
   QuestionnaireRunner: () => QuestionnaireRunner,
   applyCalculationMethod: () => applyCalculationMethod,
   applyDimensionMapping: () => applyDimensionMapping,
@@ -1527,18 +1526,6 @@ var PFORM_EXAMPLE = {
   ],
   calculationMethods: {}
   // set alongside the dimension mapping
-};
-var PFORM_SUGGESTED_DIMENSIONS = {
-  pform_age: "lifestyle",
-  pform_pregnancy: "sensitivity",
-  pform_sun_exposure: "sun_exposure",
-  pform_climate: "climate_humidity",
-  pform_pollution: "pollution_exposure",
-  pform_stress: "mental_stress",
-  pform_sleep: "mental_stress",
-  pform_diet: "gut_health",
-  pform_hydration: "gut_health",
-  pform_smoking: "lifestyle"
 };
 var PFORM_TYPE_MAP = {
   radiogroup: "single_choice",
@@ -2098,7 +2085,7 @@ var FormSimulatorTab = ({
   const answersKey = currentQ?.code ? ANSWERS_KEY_PREFIX + currentQ.code : null;
   const [data, setData] = usePersistentState(answersKey, {});
   const [showPayload, setShowPayload] = useState5(false);
-  const [customerId, setCustomerId] = usePersistentState(CUSTOMER_ID_KEY, "demo-customer-001");
+  const [customerId, setCustomerId] = usePersistentState(CUSTOMER_ID_KEY, "");
   const [copied, setCopied] = useState5("");
   const copy = (text, tag) => {
     navigator.clipboard?.writeText(text).then(
@@ -2145,7 +2132,7 @@ var FormSimulatorTab = ({
   const submitBody = {
     brand_id: currentQ?.brandId || brandId,
     application_id: currentQ?.applicationId || applicationId,
-    customer_id: customerId,
+    ...customerId.trim() ? { customer_id: customerId.trim() } : {},
     data
   };
   const submitBodyJson = JSON.stringify(submitBody, null, 2);
@@ -2789,7 +2776,7 @@ var QuestionnaireModal = ({
                     required: true,
                     value: qName,
                     onChange: (e) => setQName(e.target.value),
-                    placeholder: "e.g. Pixie Skin Analyzer",
+                    placeholder: "questionnaire name",
                     className: `${field} w-full`
                   }
                 ),
@@ -3690,8 +3677,6 @@ __export(score_exports, {
   BlendingTab: () => BlendingTab,
   ClinicalAxisCard: () => ClinicalAxisCard,
   ClinicalDimensionCard: () => ClinicalDimensionCard,
-  DEFAULT_SCORE_RANGE_BANDS: () => DEFAULT_SCORE_RANGE_BANDS,
-  DEFAULT_SEVERITY_BANDS: () => DEFAULT_SEVERITY_BANDS,
   EMPTY_PROFILE_CONFIG: () => EMPTY_PROFILE_CONFIG,
   ProfileMappingTable: () => ProfileMappingTable,
   ScoreManager: () => ScoreManager,
@@ -3768,7 +3753,7 @@ async function listSkinConditions(routes) {
 // src/score/components/tabs/RulesetsTab.tsx
 import React9 from "react";
 import { Sliders, Pencil as Pencil2, Trash2 as Trash25, Play as Play3, Plus as Plus4, Copy, Check } from "lucide-react";
-import { StatusBadge, EmptyState as EmptyState4, SearchFilterBar as SearchFilterBar4, Button as Button2 } from "@gateway-experience/shared";
+import { StatusBadge, EmptyState as EmptyState4, SearchFilterBar as SearchFilterBar4, Button as Button2, LIFECYCLE_STATUSES } from "@gateway-experience/shared";
 import { jsx as jsx11, jsxs as jsxs10 } from "react/jsx-runtime";
 var filterSelect = "h-8 rounded-md bg-muted/40 border border-border px-2.5 text-foreground text-xs outline-none focus:border-ring";
 var RulesetsTab = ({
@@ -3830,10 +3815,7 @@ var RulesetsTab = ({
               style: { colorScheme: "dark" },
               children: [
                 /* @__PURE__ */ jsx11("option", { value: "ALL", children: "All statuses" }),
-                /* @__PURE__ */ jsx11("option", { value: "ACTIVE", children: "Active" }),
-                /* @__PURE__ */ jsx11("option", { value: "DRAFT", children: "Draft" }),
-                /* @__PURE__ */ jsx11("option", { value: "INACTIVE", children: "Inactive" }),
-                /* @__PURE__ */ jsx11("option", { value: "ARCHIVED", children: "Archived" })
+                LIFECYCLE_STATUSES.map((s) => /* @__PURE__ */ jsx11("option", { value: s.code, children: s.name }, s.code))
               ]
             }
           )
@@ -3958,18 +3940,6 @@ var AGE_FIELD = "age_over_30";
 var AGE_FIELD_CUTOFF_YEARS = 30;
 var FORM_SOURCE = "form";
 var VISION_SOURCE = "vision";
-var DEFAULT_SCORE_RANGE_BANDS = [
-  { id: "sr1", max: 40, label: "Perlu Perhatian Khusus" },
-  { id: "sr2", max: 60, label: "Sedang" },
-  { id: "sr3", max: 100, label: "Optimal" }
-];
-var DEFAULT_SEVERITY_BANDS = [
-  { id: "sv1", max: 20, label: "Sangat Parah" },
-  { id: "sv2", max: 40, label: "Parah" },
-  { id: "sv3", max: 60, label: "Sedang" },
-  { id: "sv4", max: 80, label: "Ringan" },
-  { id: "sv5", max: 100, label: "Sehat" }
-];
 var KNOWN_VISION_FIELDS = [
   { code: "data.inference_result.results.skin_scoring.Darkspot", label: "Darkspot", description: "results.skin_scoring.Darkspot \u2014 feeds Pigmentation." },
   { code: "data.inference_result.results.skin_scoring.Wrinkle", label: "Wrinkle", description: "results.skin_scoring.Wrinkle \u2014 feeds Aging." },
@@ -4081,7 +4051,7 @@ function scoreRangeLetters(bands) {
 var bandsToSchema = (bands) => bands.map((b) => ({ max: Math.max(0, Math.min(100, Number(b.max) || 0)), label: b.label || "" }));
 var cleanVal = (v) => `"${(v || "").replace(/"/g, "")}"`;
 var rangeCell = (min, max) => `[${Math.max(0, Math.min(100, min ?? 0))}..${Math.max(0, Math.min(100, max ?? 100))}]`;
-function compileVisualToJDM(axes, profileConfig = EMPTY_PROFILE_CONFIG, scoreRangeBands = DEFAULT_SCORE_RANGE_BANDS, severityBands = DEFAULT_SEVERITY_BANDS, existingSchema, sources) {
+function compileVisualToJDM(axes, profileConfig = EMPTY_PROFILE_CONFIG, scoreRangeBands = [], severityBands = [], existingSchema, sources) {
   const effectiveAxes = axes.filter((a) => (a.dimensionKey || "").trim());
   const nodes = [
     { id: "input_node", name: "Input", type: "inputNode", position: { x: 40, y: 40 } }
@@ -4195,9 +4165,9 @@ function compileVisualToJDM(axes, profileConfig = EMPTY_PROFILE_CONFIG, scoreRan
           rules: bands.slice().reverse().map((b) => ({ in: rangeCell(b.min, b.max), out: cleanVal(b.letter) }))
         }
       });
-    } else if ((a.axisCodeLow || "").trim() && (a.axisCodeHigh || "").trim()) {
+    } else if ((a.axisCodeLow || "").trim() && (a.axisCodeHigh || "").trim() && typeof a.axisCodeThreshold === "number" && Number.isFinite(a.axisCodeThreshold)) {
       axis_codes[key] = {
-        threshold: Math.max(0, Math.min(100, Number(a.axisCodeThreshold ?? 50))),
+        threshold: Math.max(0, Math.min(100, a.axisCodeThreshold)),
         low: (a.axisCodeLow || "").trim(),
         high: (a.axisCodeHigh || "").trim()
       };
@@ -4232,10 +4202,12 @@ function compileVisualToJDM(axes, profileConfig = EMPTY_PROFILE_CONFIG, scoreRan
     nodes: [...nodes, ...preservedNodes],
     edges,
     dimension_weights: mergeOwned(base.dimension_weights, dimension_weights),
-    concern_labels: mergeOwned(base.concern_labels, concern_labels),
-    score_range_bands: bandsToSchema(scoreRangeBands),
-    severity_bands: bandsToSchema(severityBands)
+    concern_labels: mergeOwned(base.concern_labels, concern_labels)
   };
+  if (scoreRangeBands.length > 0) model.score_range_bands = bandsToSchema(scoreRangeBands);
+  else delete model.score_range_bands;
+  if (severityBands.length > 0) model.severity_bands = bandsToSchema(severityBands);
+  else delete model.severity_bands;
   const mergedAxisCodes = mergeOwned(base.axis_codes, axis_codes);
   if (Object.keys(mergedAxisCodes).length > 0) model.axis_codes = mergedAxisCodes;
   else delete model.axis_codes;
@@ -4251,8 +4223,8 @@ function compileVisualToJDM(axes, profileConfig = EMPTY_PROFILE_CONFIG, scoreRan
   }
   return JSON.stringify(model, null, 2);
 }
-var bandsFromSchema = (raw, fallback, prefix) => {
-  if (!Array.isArray(raw) || raw.length === 0) return fallback.map((b) => ({ ...b }));
+var bandsFromSchema = (raw, prefix) => {
+  if (!Array.isArray(raw) || raw.length === 0) return [];
   return raw.map((b, i) => ({
     id: `${prefix}${i + 1}`,
     max: Number(b?.max) || 0,
@@ -4263,8 +4235,8 @@ function decompileJDMToVisualComponents(schemaStr) {
   const fallback = {
     axes: [],
     profileConfig: { ...EMPTY_PROFILE_CONFIG, profiles: [] },
-    scoreRangeBands: DEFAULT_SCORE_RANGE_BANDS.map((b) => ({ ...b })),
-    severityBands: DEFAULT_SEVERITY_BANDS.map((b) => ({ ...b })),
+    scoreRangeBands: [],
+    severityBands: [],
     sources: {},
     convertedBlend: false,
     legacy: false
@@ -4329,8 +4301,8 @@ function decompileJDMToVisualComponents(schemaStr) {
         if (!range) return null;
         return { id: `${key}_b${ri}`, min: range.min, max: range.max, letter: clean(r[outId]) };
       }).filter(Boolean);
-    } else if (ac && (ac.low || ac.high)) {
-      const t = typeof ac.threshold === "number" ? ac.threshold : 50;
+    } else if (ac && (ac.low || ac.high) && typeof ac.threshold === "number") {
+      const t = ac.threshold;
       bands = [
         { id: `${key}_lo`, min: 0, max: Math.max(0, t - 1), letter: ac.low || "" },
         { id: `${key}_hi`, min: t, max: 100, letter: ac.high || "" }
@@ -4349,7 +4321,7 @@ function decompileJDMToVisualComponents(schemaStr) {
       ...ac && (ac.low || ac.high) ? {
         axisCodeLow: ac.low || "",
         axisCodeHigh: ac.high || "",
-        axisCodeThreshold: typeof ac.threshold === "number" ? ac.threshold : 50
+        ...typeof ac.threshold === "number" ? { axisCodeThreshold: ac.threshold } : {}
       } : {}
     };
   });
@@ -4407,8 +4379,8 @@ function decompileJDMToVisualComponents(schemaStr) {
   return {
     axes,
     profileConfig,
-    scoreRangeBands: bandsFromSchema(parsed.score_range_bands, DEFAULT_SCORE_RANGE_BANDS, "sr"),
-    severityBands: bandsFromSchema(parsed.severity_bands, DEFAULT_SEVERITY_BANDS, "sv"),
+    scoreRangeBands: bandsFromSchema(parsed.score_range_bands, "sr"),
+    severityBands: bandsFromSchema(parsed.severity_bands, "sv"),
     sources: blend.sources,
     convertedBlend: blend.converted,
     legacy
@@ -5456,6 +5428,7 @@ var ScoreSimulatorTab = ({
 import { useState as useState13, useEffect as useEffect11, useRef as useRef2 } from "react";
 import { Copy as Copy3, Check as Check4, Plus as Plus8, AlertTriangle as AlertTriangle2, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { Modal as Modal4, Button as Button4, BrandSelect as BrandSelect3, ApplicationSelect as ApplicationSelect3, StatusSelect, InfoTooltip as InfoTooltip7 } from "@gateway-experience/shared";
+import { CORE_DEFAULT_SCORE_RANGE_BANDS, CORE_DEFAULT_SEVERITY_BANDS } from "@gateway-experience/shared";
 
 // src/score/components/reusable/BandTable.tsx
 import { jsx as jsx15, jsxs as jsxs14 } from "react/jsx-runtime";
@@ -5464,8 +5437,31 @@ var BandTable = ({
   onChange,
   disabled = false,
   fixed = false,
-  idPrefix = "band"
+  idPrefix = "band",
+  engineDefaults
 }) => {
+  if (bands.length === 0 && engineDefaults) {
+    return /* @__PURE__ */ jsxs14("div", { className: "rounded-md border border-dashed border-border bg-muted/10 p-3 space-y-2 text-xs", children: [
+      /* @__PURE__ */ jsx15("p", { className: "text-[11px] text-muted-foreground", children: "Not set \u2014 the engine's default bands apply:" }),
+      /* @__PURE__ */ jsx15("ul", { className: "space-y-0.5 text-muted-foreground", children: engineDefaults.map((b, i) => /* @__PURE__ */ jsxs14("li", { className: "flex gap-2", children: [
+        /* @__PURE__ */ jsxs14("span", { className: "w-24 shrink-0 font-mono", children: [
+          i === 0 ? 0 : engineDefaults[i - 1].max + 1,
+          "\u2013",
+          b.max
+        ] }),
+        /* @__PURE__ */ jsx15("span", { children: b.label })
+      ] }, `${b.max}-${i}`)) }),
+      !disabled && /* @__PURE__ */ jsx15(
+        "button",
+        {
+          type: "button",
+          onClick: () => onChange(engineDefaults.map((b, i) => ({ id: `${idPrefix}${i + 1}`, max: b.max, label: b.label }))),
+          className: "rounded border border-border px-2 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground",
+          children: "Customise (start from these)"
+        }
+      )
+    ] });
+  }
   const setMax = (idx, raw) => {
     const next = bands.map((b) => ({ ...b }));
     const lower = idx === 0 ? 0 : next[idx - 1].max + 1;
@@ -5538,16 +5534,29 @@ var BandTable = ({
         )
       ] }, b.id);
     }),
-    !fixed && /* @__PURE__ */ jsx15("div", { className: "px-3 py-1.5", children: /* @__PURE__ */ jsx15(
-      "button",
-      {
-        type: "button",
-        disabled,
-        onClick: addRow,
-        className: "text-[11px] text-muted-foreground hover:text-foreground disabled:opacity-50",
-        children: "+ Add band"
-      }
-    ) })
+    !fixed && /* @__PURE__ */ jsxs14("div", { className: "px-3 py-1.5", children: [
+      /* @__PURE__ */ jsx15(
+        "button",
+        {
+          type: "button",
+          disabled,
+          onClick: addRow,
+          className: "text-[11px] text-muted-foreground hover:text-foreground disabled:opacity-50",
+          children: "+ Add band"
+        }
+      ),
+      engineDefaults && /* @__PURE__ */ jsx15(
+        "button",
+        {
+          type: "button",
+          disabled,
+          onClick: () => onChange([]),
+          className: "ml-3 text-[11px] text-muted-foreground hover:text-foreground disabled:opacity-50",
+          title: "Clear these bands so the engine's defaults apply",
+          children: "Use engine defaults"
+        }
+      )
+    ] })
   ] });
 };
 
@@ -5855,7 +5864,7 @@ var ProfileMappingTable = ({
                       disabled,
                       value: p.code,
                       onChange: (e) => handleUpdateProfile(p.id, "code", e.target.value.toUpperCase().replace(/\s+/g, "_")),
-                      placeholder: "DSPW",
+                      placeholder: "code",
                       className: "w-full px-2.5 py-1.5 bg-muted/40 border border-border rounded text-beak font-bold focus:outline-none focus:border-ring disabled:opacity-50 text-xs"
                     }
                   ) }),
@@ -6033,8 +6042,8 @@ var RulesetModal = ({
   const [surveys, setSurveys] = useState13([]);
   const [axes, setAxes] = useState13([]);
   const [profileConfig, setProfileConfig] = useState13(EMPTY_PROFILE_CONFIG);
-  const [scoreRangeBands, setScoreRangeBands] = useState13(DEFAULT_SCORE_RANGE_BANDS);
-  const [severityBands, setSeverityBands] = useState13(DEFAULT_SEVERITY_BANDS);
+  const [scoreRangeBands, setScoreRangeBands] = useState13([]);
+  const [severityBands, setSeverityBands] = useState13([]);
   const [tab, setTab] = useState13("setup");
   const [schemaOpen, setSchemaOpen] = useState13(true);
   const notesRef = useRef2(null);
@@ -6082,8 +6091,8 @@ var RulesetModal = ({
       setStatus("ACTIVE");
       setAxes([]);
       setProfileConfig({ ...EMPTY_PROFILE_CONFIG, profiles: [] });
-      setScoreRangeBands(DEFAULT_SCORE_RANGE_BANDS);
-      setSeverityBands(DEFAULT_SEVERITY_BANDS);
+      setScoreRangeBands([]);
+      setSeverityBands([]);
       setIsLegacy(false);
       setFormSurveyCode("");
       setVisionSourceCode("");
@@ -6164,6 +6173,8 @@ var RulesetModal = ({
       setIsSubmitting(false);
     }
   };
+  const effectiveScoreRangeBands = scoreRangeBands.length ? scoreRangeBands : CORE_DEFAULT_SCORE_RANGE_BANDS.map((b, i) => ({ id: `sr${i + 1}`, ...b }));
+  const effectiveSeverityBands = severityBands.length ? severityBands : CORE_DEFAULT_SEVERITY_BANDS.map((b, i) => ({ id: `sv${i + 1}`, ...b }));
   const jsonText = withSetupFields(compileVisualToJDM(axes, profileConfig, scoreRangeBands, severityBands, editingRuleset?.schema));
   const createRequestBody = JSON.stringify(
     {
@@ -6342,22 +6353,18 @@ var RulesetModal = ({
                         /* @__PURE__ */ jsx17(
                           InfoTooltip7,
                           {
-                            content: "Which CV/vendor source this ruleset pairs with. Only one is registered today (Paradev Skin Analyzer) \u2014 more get added as new vendors are wired up.",
+                            content: "The code of the CV/vendor source this ruleset pairs with (vision_source_code). There is no vendor registry to pick from yet, so it is entered as the integration names it.",
                             label: "About Vision input"
                           }
                         )
                       ] }),
-                      /* @__PURE__ */ jsxs16(
-                        "select",
+                      /* @__PURE__ */ jsx17(
+                        "input",
                         {
                           value: visionSourceCode,
-                          onChange: (e) => setVisionSourceCode(e.target.value),
-                          className: inputCls,
-                          style: { colorScheme: "dark" },
-                          children: [
-                            /* @__PURE__ */ jsx17("option", { value: "", children: "\u2014 none selected \u2014" }),
-                            /* @__PURE__ */ jsx17("option", { value: "paradev_skin_analyzer", children: "Paradev Skin Analyzer" })
-                          ]
+                          onChange: (e) => setVisionSourceCode(e.target.value.trim()),
+                          placeholder: "vendor source code (optional)",
+                          className: inputCls + " font-mono"
                         }
                       )
                     ] })
@@ -6453,7 +6460,7 @@ var RulesetModal = ({
                       }
                     )
                   ] }),
-                  /* @__PURE__ */ jsx17(BandTable, { bands: scoreRangeBands, onChange: setScoreRangeBands, idPrefix: "sr" })
+                  /* @__PURE__ */ jsx17(BandTable, { bands: scoreRangeBands, onChange: setScoreRangeBands, idPrefix: "sr", engineDefaults: CORE_DEFAULT_SCORE_RANGE_BANDS })
                 ] }),
                 /* @__PURE__ */ jsxs16("div", { className: "space-y-1.5", children: [
                   /* @__PURE__ */ jsxs16("div", { className: "flex items-center gap-1.5", children: [
@@ -6466,7 +6473,7 @@ var RulesetModal = ({
                       }
                     )
                   ] }),
-                  /* @__PURE__ */ jsx17(BandTable, { bands: severityBands, onChange: setSeverityBands, idPrefix: "sv" })
+                  /* @__PURE__ */ jsx17(BandTable, { bands: severityBands, onChange: setSeverityBands, idPrefix: "sv", engineDefaults: CORE_DEFAULT_SEVERITY_BANDS })
                 ] })
               ] }),
               /* @__PURE__ */ jsxs16("div", { className: "space-y-1.5 border-t border-border pt-4", children: [
@@ -6486,8 +6493,8 @@ var RulesetModal = ({
                     axes,
                     config: profileConfig,
                     onChange: setProfileConfig,
-                    scoreRangeBands,
-                    severityBands
+                    scoreRangeBands: effectiveScoreRangeBands,
+                    severityBands: effectiveSeverityBands
                   }
                 )
               ] })
@@ -6758,10 +6765,11 @@ var SeverityTierTable = ({
         id: `t_${Date.now()}`,
         minScore: last ? Math.min(100, last.maxScore + 1) : 0,
         maxScore: 100,
-        valueCode: "X",
+        // Blank until authored: no letter, severity or trait is presumed.
+        valueCode: "",
         gradeName: `Level ${tiers.length + 1}`,
-        severity: "optimal",
-        trait: "Normal"
+        severity: "",
+        trait: ""
       }
     ]);
   };
@@ -6833,6 +6841,7 @@ var SeverityTierTable = ({
           SeveritySelect2,
           {
             value: tier.severity,
+            emptyLabel: "\u2014 choose \u2014",
             disabled,
             onChange: (sev) => update(tier.id, { severity: sev })
           }
@@ -6900,7 +6909,7 @@ __export(match_exports, {
 });
 
 // src/match/components/MatchManager.tsx
-import { useState as useState20, useEffect as useEffect17 } from "react";
+import { useState as useState21, useEffect as useEffect18 } from "react";
 import { Sparkles as Sparkles4, ShieldAlert as ShieldAlert4, Boxes as Boxes3, Play as Play6, Palette as Palette2, Wand2 as Wand22 } from "lucide-react";
 import { PageHeader as PageHeader4, TabNav as TabNav3, ConfirmDialog as ConfirmDialog4, usePersistentState as usePersistentState5 } from "@gateway-experience/shared";
 
@@ -7272,28 +7281,43 @@ var ShadesTab = ({
 };
 
 // src/match/components/tabs/MatchSimulatorTab.tsx
+import { useEffect as useEffect13, useState as useState16 } from "react";
 import { Play as Play5, Sparkles as Sparkles3, AlertTriangle as AlertTriangle3, ShieldCheck, Sun, Moon, Zap, Layers as Layers2, Tag } from "lucide-react";
-import { EmptyState as EmptyState6, BrandSelect as BrandSelect6 } from "@gateway-experience/shared";
+import { EmptyState as EmptyState6, BrandSelect as BrandSelect6, useHostRoutes as useHostRoutes6 } from "@gateway-experience/shared";
 import { Fragment as Fragment3, jsx as jsx23, jsxs as jsxs22 } from "react/jsx-runtime";
+var SLIDER_MIN = 0;
+var SLIDER_MAX = 100;
+var SLIDER_MIDPOINT = (SLIDER_MIN + SLIDER_MAX) / 2;
 var MatchSimulatorTab = ({
   simBrand,
   setSimBrand,
   simSkinType,
   setSimSkinType,
-  simSebum,
-  setSimSebum,
-  simHydration,
-  setSimHydration,
-  simSensitivity,
-  setSimSensitivity,
-  simPregnant,
-  setSimPregnant,
-  simRetinol,
-  setSimRetinol,
+  simScores,
+  setSimScores,
+  simConditions,
+  setSimConditions,
   onRunSimulator,
   isSimulating,
   simResult
 }) => {
+  const hostRoutes = useHostRoutes6();
+  const [dimensions, setDimensions] = useState16(null);
+  const [flags, setFlags] = useState16(null);
+  useEffect13(() => {
+    let alive = true;
+    getDimensions(hostRoutes).then((rows) => alive && setDimensions(rows.filter((d) => d?.code && !d.parentCode)));
+    getSafetyFlags(hostRoutes).then((rows) => alive && setFlags(rows.filter((f) => f?.code)));
+    return () => {
+      alive = false;
+    };
+  }, [hostRoutes]);
+  const toggleDimension = (code, on) => {
+    const next = { ...simScores };
+    if (on) next[code] = next[code] ?? SLIDER_MIDPOINT;
+    else delete next[code];
+    setSimScores(next);
+  };
   const getPhaseIcon = (phaseKey) => {
     const lower = phaseKey.toLowerCase();
     if (lower.includes("morning") || lower.includes("am") || lower.includes("sun") || lower.includes("day")) {
@@ -7352,109 +7376,57 @@ var MatchSimulatorTab = ({
           /* @__PURE__ */ jsx23(BrandSelect6, { value: simBrand, onChange: setSimBrand, includeUniversal: true, label: "" })
         ] }),
         /* @__PURE__ */ jsxs22("div", { className: "space-y-1", children: [
-          /* @__PURE__ */ jsx23("label", { className: "text-muted-foreground", children: "Skin Profile (Phenotype):" }),
-          /* @__PURE__ */ jsxs22(
-            "select",
+          /* @__PURE__ */ jsx23("label", { className: "text-muted-foreground", children: "Skin profile code (optional):" }),
+          /* @__PURE__ */ jsx23(
+            "input",
             {
               value: simSkinType,
-              onChange: (e) => setSimSkinType(e.target.value),
-              className: "w-full bg-muted/40 border border-border rounded px-3 py-2 text-foreground font-mono",
-              children: [
-                /* @__PURE__ */ jsx23("option", { value: "OSPT", children: "OSPT (Oily, Sensitive, Pigmented, Tight)" }),
-                /* @__PURE__ */ jsx23("option", { value: "OSPW", children: "OSPW (Oily, Sensitive, Pigmented, Wrinkled)" }),
-                /* @__PURE__ */ jsx23("option", { value: "DRNT", children: "DRNT (Dry, Resistant, Non-Pigmented, Tight)" }),
-                /* @__PURE__ */ jsx23("option", { value: "DSPT", children: "DSPT (Dry, Sensitive, Pigmented, Tight)" }),
-                /* @__PURE__ */ jsx23("option", { value: "ORNT", children: "ORNT (Oily, Resistant, Non-Pigmented, Tight)" })
-              ]
+              onChange: (e) => setSimSkinType(e.target.value.toUpperCase().trim()),
+              placeholder: "as the ruleset's profile mapping names it",
+              className: "w-full bg-muted/40 border border-border rounded px-3 py-2 text-foreground font-mono"
             }
           )
         ] }),
-        /* @__PURE__ */ jsxs22("div", { className: "space-y-1", children: [
-          /* @__PURE__ */ jsxs22("div", { className: "flex justify-between text-muted-foreground", children: [
-            /* @__PURE__ */ jsx23("span", { children: "Sebum Dimension:" }),
-            /* @__PURE__ */ jsxs22("span", { className: "font-mono text-foreground font-bold", children: [
-              simSebum,
-              " pts"
-            ] })
-          ] }),
-          /* @__PURE__ */ jsx23(
-            "input",
-            {
-              type: "range",
-              min: "0",
-              max: "100",
-              value: simSebum,
-              onChange: (e) => setSimSebum(Number(e.target.value)),
-              className: "w-full accent-amber-400"
-            }
-          )
-        ] }),
-        /* @__PURE__ */ jsxs22("div", { className: "space-y-1", children: [
-          /* @__PURE__ */ jsxs22("div", { className: "flex justify-between text-muted-foreground", children: [
-            /* @__PURE__ */ jsx23("span", { children: "Hydration Level:" }),
-            /* @__PURE__ */ jsxs22("span", { className: "font-mono text-foreground font-bold", children: [
-              simHydration,
-              " pts"
-            ] })
-          ] }),
-          /* @__PURE__ */ jsx23(
-            "input",
-            {
-              type: "range",
-              min: "0",
-              max: "100",
-              value: simHydration,
-              onChange: (e) => setSimHydration(Number(e.target.value)),
-              className: "w-full accent-sky-400"
-            }
-          )
-        ] }),
-        /* @__PURE__ */ jsxs22("div", { className: "space-y-1", children: [
-          /* @__PURE__ */ jsxs22("div", { className: "flex justify-between text-muted-foreground", children: [
-            /* @__PURE__ */ jsx23("span", { children: "Sensitivity Level:" }),
-            /* @__PURE__ */ jsxs22("span", { className: "font-mono text-foreground font-bold", children: [
-              simSensitivity,
-              " pts"
-            ] })
-          ] }),
-          /* @__PURE__ */ jsx23(
-            "input",
-            {
-              type: "range",
-              min: "0",
-              max: "100",
-              value: simSensitivity,
-              onChange: (e) => setSimSensitivity(Number(e.target.value)),
-              className: "w-full accent-rose-400"
-            }
-          )
+        /* @__PURE__ */ jsxs22("div", { className: "space-y-2 pt-2 border-t border-border", children: [
+          /* @__PURE__ */ jsx23("label", { className: "text-muted-foreground font-bold block", children: "Dimension scores (0-100, include to send):" }),
+          dimensions === null ? /* @__PURE__ */ jsx23("p", { className: "text-muted-foreground italic", children: "Loading dimensions\u2026" }) : dimensions.length === 0 ? /* @__PURE__ */ jsx23("p", { className: "text-amber-500", children: "Dimensions could not be loaded from reference data." }) : dimensions.map((d) => {
+            const included = typeof simScores[d.code] === "number";
+            return /* @__PURE__ */ jsxs22("div", { className: "space-y-1", children: [
+              /* @__PURE__ */ jsxs22("label", { className: "flex items-center justify-between gap-2 text-muted-foreground cursor-pointer", children: [
+                /* @__PURE__ */ jsxs22("span", { className: "flex items-center gap-2", children: [
+                  /* @__PURE__ */ jsx23("input", { type: "checkbox", checked: included, onChange: (e) => toggleDimension(d.code, e.target.checked) }),
+                  d.name || d.code
+                ] }),
+                /* @__PURE__ */ jsx23("span", { className: "font-mono text-foreground font-bold", children: included ? simScores[d.code] : "not sent" })
+              ] }),
+              included && /* @__PURE__ */ jsx23(
+                "input",
+                {
+                  type: "range",
+                  min: SLIDER_MIN,
+                  max: SLIDER_MAX,
+                  value: simScores[d.code],
+                  onChange: (e) => setSimScores({ ...simScores, [d.code]: Number(e.target.value) }),
+                  className: "w-full accent-amber-400"
+                }
+              )
+            ] }, d.code);
+          })
         ] }),
         /* @__PURE__ */ jsxs22("div", { className: "pt-2 border-t border-border space-y-2", children: [
-          /* @__PURE__ */ jsx23("label", { className: "text-muted-foreground font-bold block", children: "Safety Gatekeeper Flags:" }),
-          /* @__PURE__ */ jsxs22("label", { className: "flex items-center gap-2 p-2 bg-muted/40 border border-border rounded cursor-pointer", children: [
+          /* @__PURE__ */ jsx23("label", { className: "text-muted-foreground font-bold block", children: "Safety flags:" }),
+          flags === null ? /* @__PURE__ */ jsx23("p", { className: "text-muted-foreground italic", children: "Loading safety flags\u2026" }) : flags.length === 0 ? /* @__PURE__ */ jsx23("p", { className: "text-amber-500", children: "Safety flags could not be loaded from reference data." }) : flags.map((f) => /* @__PURE__ */ jsxs22("label", { className: "flex items-center gap-2 p-2 bg-muted/40 border border-border rounded cursor-pointer", children: [
             /* @__PURE__ */ jsx23(
               "input",
               {
                 type: "checkbox",
-                checked: simPregnant,
-                onChange: (e) => setSimPregnant(e.target.checked),
+                checked: !!simConditions[f.code],
+                onChange: (e) => setSimConditions({ ...simConditions, [f.code]: e.target.checked }),
                 className: "accent-rose-400 rounded"
               }
             ),
-            /* @__PURE__ */ jsx23("span", { className: "text-foreground", children: "Is Pregnant / Nursing Consumer (Zero Retinoids)" })
-          ] }),
-          /* @__PURE__ */ jsxs22("label", { className: "flex items-center gap-2 p-2 bg-muted/40 border border-border rounded cursor-pointer", children: [
-            /* @__PURE__ */ jsx23(
-              "input",
-              {
-                type: "checkbox",
-                checked: simRetinol,
-                onChange: (e) => setSimRetinol(e.target.checked),
-                className: "accent-amber-400 rounded"
-              }
-            ),
-            /* @__PURE__ */ jsx23("span", { className: "text-foreground", children: "Active Retinol / Direct Acid User" })
-          ] })
+            /* @__PURE__ */ jsx23("span", { className: "text-foreground", children: f.name || f.code })
+          ] }, f.code))
         ] }),
         /* @__PURE__ */ jsxs22(
           "button",
@@ -7550,7 +7522,7 @@ var MatchSimulatorTab = ({
 };
 
 // src/match/components/tabs/PhotoTryOnTab.tsx
-import { useCallback as useCallback4, useEffect as useEffect13, useRef as useRef3, useState as useState16 } from "react";
+import { useCallback as useCallback4, useEffect as useEffect14, useRef as useRef3, useState as useState17 } from "react";
 import { AlertTriangle as AlertTriangle4, ImagePlus, Loader2 as Loader23, RefreshCw, Wand2, X as X2 } from "lucide-react";
 import { Button as Button8, EmptyState as EmptyState7 } from "@gateway-experience/shared";
 
@@ -7663,8 +7635,8 @@ async function listReferenceIngredients(routes, doFetch = fetch) {
 import { Fragment as Fragment4, jsx as jsx24, jsxs as jsxs23 } from "react/jsx-runtime";
 var errorMessage = (e) => e instanceof Error && e.message ? e.message : String(e);
 function useObjectUrl(blob) {
-  const [url, setUrl] = useState16(null);
-  useEffect13(() => {
+  const [url, setUrl] = useState17(null);
+  useEffect14(() => {
     if (!blob) {
       setUrl(null);
       return;
@@ -7676,14 +7648,14 @@ function useObjectUrl(blob) {
   return url;
 }
 var PhotoTryOnTab = () => {
-  const [catalog, setCatalog] = useState16(null);
-  const [catalogLoading, setCatalogLoading] = useState16(true);
-  const [catalogError, setCatalogError] = useState16(null);
-  const [photo, setPhoto] = useState16(null);
-  const [selected, setSelected] = useState16({});
-  const [result, setResult] = useState16(null);
-  const [rendering, setRendering] = useState16(false);
-  const [renderError, setRenderError] = useState16(null);
+  const [catalog, setCatalog] = useState17(null);
+  const [catalogLoading, setCatalogLoading] = useState17(true);
+  const [catalogError, setCatalogError] = useState17(null);
+  const [photo, setPhoto] = useState17(null);
+  const [selected, setSelected] = useState17({});
+  const [result, setResult] = useState17(null);
+  const [rendering, setRendering] = useState17(false);
+  const [renderError, setRenderError] = useState17(null);
   const requestId = useRef3(0);
   const photoUrl = useObjectUrl(photo);
   const resultUrl = useObjectUrl(result);
@@ -7692,7 +7664,7 @@ var PhotoTryOnTab = () => {
     setCatalogError(null);
     fetchColourCatalog().then(setCatalog).catch((e) => setCatalogError(errorMessage(e))).finally(() => setCatalogLoading(false));
   }, []);
-  useEffect13(() => {
+  useEffect14(() => {
     loadCatalog();
   }, [loadCatalog]);
   const resetResult = () => {
@@ -7843,9 +7815,9 @@ var PhotoTryOnTab = () => {
 };
 
 // src/match/components/modals/ConflictRuleModal.tsx
-import { useState as useState17, useEffect as useEffect14 } from "react";
+import { useState as useState18, useEffect as useEffect15 } from "react";
 import { ShieldAlert as ShieldAlert3, Loader2 as Loader24 } from "lucide-react";
-import { Modal as Modal5, useHostRoutes as useHostRoutes6 } from "@gateway-experience/shared";
+import { Modal as Modal5, useHostRoutes as useHostRoutes7 } from "@gateway-experience/shared";
 import { jsx as jsx25, jsxs as jsxs24 } from "react/jsx-runtime";
 var ConflictRuleModal = ({
   isOpen,
@@ -7853,21 +7825,21 @@ var ConflictRuleModal = ({
   onSave,
   editingConflict
 }) => {
-  const hostRoutes = useHostRoutes6();
-  const [confA, setConfA] = useState17("");
-  const [confB, setConfB] = useState17("");
-  const [confType, setConfType] = useState17("over_exfoliation");
-  const [confAction, setConfAction] = useState17("split_am_pm");
-  const [confWarning, setConfWarning] = useState17("");
-  const [isSubmitting, setIsSubmitting] = useState17(false);
-  const [ingredients, setIngredients] = useState17([]);
-  useEffect14(() => {
+  const hostRoutes = useHostRoutes7();
+  const [confA, setConfA] = useState18("");
+  const [confB, setConfB] = useState18("");
+  const [confType, setConfType] = useState18("over_exfoliation");
+  const [confAction, setConfAction] = useState18("split_am_pm");
+  const [confWarning, setConfWarning] = useState18("");
+  const [isSubmitting, setIsSubmitting] = useState18(false);
+  const [ingredients, setIngredients] = useState18([]);
+  useEffect15(() => {
     listReferenceIngredients(hostRoutes).then((list2) => {
       if (list2.length > 0) setIngredients(list2);
     }).catch(() => {
     });
   }, [isOpen, hostRoutes]);
-  useEffect14(() => {
+  useEffect15(() => {
     if (editingConflict) {
       setConfA(editingConflict.ingredientA);
       setConfB(editingConflict.ingredientB);
@@ -8011,7 +7983,7 @@ var ConflictRuleModal = ({
 };
 
 // src/match/components/modals/ProductGroupModal.tsx
-import { useState as useState18, useEffect as useEffect15, useMemo as useMemo9 } from "react";
+import { useState as useState19, useEffect as useEffect16, useMemo as useMemo9 } from "react";
 import { Boxes as Boxes2, Loader2 as Loader25, X as X3 } from "lucide-react";
 import { Modal as Modal6, SearchableSelect as SearchableSelect2, InfoTooltip as InfoTooltip8, BrandSelect as BrandSelect7 } from "@gateway-experience/shared";
 import { jsx as jsx26, jsxs as jsxs25 } from "react/jsx-runtime";
@@ -8023,18 +7995,18 @@ var ProductGroupModal = ({
   editingGroup,
   defaultBrand
 }) => {
-  const [brandId, setBrandId] = useState18(initialBrand(defaultBrand));
-  const [applicationId, setApplicationId] = useState18("*");
-  const [name, setName] = useState18("");
-  const [code, setCode] = useState18("");
-  const [description, setDescription] = useState18("");
-  const [productIds, setProductIds] = useState18([]);
-  const [categories, setCategories] = useState18([]);
-  const [categoryDraft, setCategoryDraft] = useState18("");
-  const [isActive, setIsActive] = useState18(true);
-  const [isSubmitting, setIsSubmitting] = useState18(false);
-  const [products, setProducts] = useState18([]);
-  useEffect15(() => {
+  const [brandId, setBrandId] = useState19(initialBrand(defaultBrand));
+  const [applicationId, setApplicationId] = useState19("*");
+  const [name, setName] = useState19("");
+  const [code, setCode] = useState19("");
+  const [description, setDescription] = useState19("");
+  const [productIds, setProductIds] = useState19([]);
+  const [categories, setCategories] = useState19([]);
+  const [categoryDraft, setCategoryDraft] = useState19("");
+  const [isActive, setIsActive] = useState19(true);
+  const [isSubmitting, setIsSubmitting] = useState19(false);
+  const [products, setProducts] = useState19([]);
+  useEffect16(() => {
     if (!isOpen) return;
     if (!brandId) {
       void Promise.resolve([]).then(setProducts);
@@ -8045,7 +8017,7 @@ var ProductGroupModal = ({
     }).catch(() => {
     });
   }, [isOpen, brandId]);
-  useEffect15(() => {
+  useEffect16(() => {
     if (editingGroup) {
       setBrandId(editingGroup.brandId);
       setApplicationId(editingGroup.applicationId || "*");
@@ -8261,16 +8233,16 @@ var ProductGroupModal = ({
 };
 
 // src/match/components/modals/ShadeModal.tsx
-import { useState as useState19, useEffect as useEffect16 } from "react";
+import { useState as useState20, useEffect as useEffect17 } from "react";
 import { Palette, Loader2 as Loader26 } from "lucide-react";
 import { Modal as Modal7 } from "@gateway-experience/shared";
 import { jsx as jsx27, jsxs as jsxs26 } from "react/jsx-runtime";
 var ShadeModal = ({ isOpen, onClose, onSave, editingShade, productId }) => {
-  const [name, setName] = useState19("");
-  const [hexColor, setHexColor] = useState19("#C41E3A");
-  const [region, setRegion] = useState19("lip");
-  const [isSubmitting, setIsSubmitting] = useState19(false);
-  useEffect16(() => {
+  const [name, setName] = useState20("");
+  const [hexColor, setHexColor] = useState20("#C41E3A");
+  const [region, setRegion] = useState20("lip");
+  const [isSubmitting, setIsSubmitting] = useState20(false);
+  useEffect17(() => {
     if (editingShade) {
       setName(editingShade.name);
       setHexColor(editingShade.hexColor);
@@ -8388,10 +8360,10 @@ var ShadeModal = ({ isOpen, onClose, onSave, editingShade, productId }) => {
 import { jsx as jsx28, jsxs as jsxs27 } from "react/jsx-runtime";
 var MatchManager = () => {
   const [activeTab, setActiveTab] = usePersistentState5("xg.matchEngine.activeTab", "conflicts");
-  const [searchQuery, setSearchQuery] = useState20("");
-  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState20(false);
-  const [activeFilters, setActiveFilters] = useState20({});
-  const [deleteConfirm, setDeleteConfirm] = useState20({
+  const [searchQuery, setSearchQuery] = useState21("");
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState21(false);
+  const [activeFilters, setActiveFilters] = useState21({});
+  const [deleteConfirm, setDeleteConfirm] = useState21({
     isOpen: false,
     title: "",
     message: "",
@@ -8400,25 +8372,22 @@ var MatchManager = () => {
   });
   const [selectedBrand, setSelectedBrand] = usePersistentState5("xg.matchEngine.brand", "*");
   const [selectedApp, setSelectedApp] = usePersistentState5("xg.matchEngine.application", "*");
-  const [conflicts, setConflicts] = useState20([]);
-  const [productGroups, setProductGroups] = useState20([]);
-  const [products, setProducts] = useState20([]);
-  const [shades, setShades] = useState20([]);
-  const [shadeProductId, setShadeProductId] = useState20("");
-  const [isConflictModalOpen, setIsConflictModalOpen] = useState20(false);
-  const [isGroupModalOpen, setIsGroupModalOpen] = useState20(false);
-  const [isShadeModalOpen, setIsShadeModalOpen] = useState20(false);
-  const [editingConflict, setEditingConflict] = useState20(null);
-  const [editingGroup, setEditingGroup] = useState20(null);
-  const [editingShade, setEditingShade] = useState20(null);
+  const [conflicts, setConflicts] = useState21([]);
+  const [productGroups, setProductGroups] = useState21([]);
+  const [products, setProducts] = useState21([]);
+  const [shades, setShades] = useState21([]);
+  const [shadeProductId, setShadeProductId] = useState21("");
+  const [isConflictModalOpen, setIsConflictModalOpen] = useState21(false);
+  const [isGroupModalOpen, setIsGroupModalOpen] = useState21(false);
+  const [isShadeModalOpen, setIsShadeModalOpen] = useState21(false);
+  const [editingConflict, setEditingConflict] = useState21(null);
+  const [editingGroup, setEditingGroup] = useState21(null);
+  const [editingShade, setEditingShade] = useState21(null);
   const [simBrand, setSimBrand] = usePersistentState5("xg.matchEngine.simulator.brand", "*");
-  const [simSkinType, setSimSkinType] = usePersistentState5("xg.matchEngine.simulator.skinType", "OSPT");
-  const [simSebum, setSimSebum] = usePersistentState5("xg.matchEngine.simulator.sebum", 75);
-  const [simHydration, setSimHydration] = usePersistentState5("xg.matchEngine.simulator.hydration", 40);
-  const [simSensitivity, setSimSensitivity] = usePersistentState5("xg.matchEngine.simulator.sensitivity", 65);
-  const [simPregnant, setSimPregnant] = usePersistentState5("xg.matchEngine.simulator.pregnant", false);
-  const [simRetinol, setSimRetinol] = usePersistentState5("xg.matchEngine.simulator.retinol", true);
-  const [isSimulating, setIsSimulating] = useState20(false);
+  const [simSkinType, setSimSkinType] = usePersistentState5("xg.matchEngine.simulator.profileCode", "");
+  const [simScores, setSimScores] = usePersistentState5("xg.matchEngine.simulator.scores", {});
+  const [simConditions, setSimConditions] = usePersistentState5("xg.matchEngine.simulator.conditions", {});
+  const [isSimulating, setIsSimulating] = useState21(false);
   const [simResult, setSimResult] = usePersistentState5("xg.matchEngine.simulator.result", null);
   const loadData = () => {
     conflictsApi.list().then((list2) => {
@@ -8447,10 +8416,10 @@ var MatchManager = () => {
     }).catch(() => {
     });
   };
-  useEffect17(() => {
+  useEffect18(() => {
     loadData();
   }, []);
-  useEffect17(() => {
+  useEffect18(() => {
     loadShades(shadeProductId);
   }, [shadeProductId]);
   const matchTabs = [
@@ -8576,17 +8545,9 @@ var MatchManager = () => {
       const payload = {
         brand_id: simBrand,
         application_id: selectedApp,
-        dimension_scores: {
-          sebum: Number(simSebum),
-          hydration: Number(simHydration),
-          sensitivity: Number(simSensitivity),
-          pigmentation: 45
-        },
-        skin_profile: simSkinType,
-        customer_conditions: {
-          is_pregnant: simPregnant,
-          uses_retinol: simRetinol
-        }
+        dimension_scores: simScores,
+        ...simSkinType ? { skin_profile: simSkinType } : {},
+        customer_conditions: Object.fromEntries(Object.entries(simConditions).filter(([, on]) => on))
       };
       const data = await runMatch(payload);
       if (data) setSimResult(data);
@@ -8701,16 +8662,10 @@ var MatchManager = () => {
           setSimBrand,
           simSkinType,
           setSimSkinType,
-          simSebum,
-          setSimSebum,
-          simHydration,
-          setSimHydration,
-          simSensitivity,
-          setSimSensitivity,
-          simPregnant,
-          setSimPregnant,
-          simRetinol,
-          setSimRetinol,
+          simScores,
+          setSimScores,
+          simConditions,
+          setSimConditions,
           onRunSimulator: handleRunSimulator,
           isSimulating,
           simResult

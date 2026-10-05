@@ -37,7 +37,6 @@ export {
 export {
   BUILTIN_TEMPLATES,
   PFORM_EXAMPLE,
-  PFORM_SUGGESTED_DIMENSIONS,
   fromPFormSchema,
   applyDimensionMapping,
   CALCULATION_METHODS,

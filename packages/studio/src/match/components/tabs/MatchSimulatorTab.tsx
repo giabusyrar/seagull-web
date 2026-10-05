@@ -1,49 +1,71 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Play, Sparkles, AlertTriangle, ShieldCheck, Sun, Moon, Zap, Layers, Tag } from 'lucide-react';
-import { EmptyState, BrandSelect } from '@gateway-experience/shared';
+import { EmptyState, BrandSelect, useHostRoutes } from '@gateway-experience/shared';
 import type { ClinicalMatchResult, RegimenStep } from '../../types';
+import { getDimensions, getSafetyFlags, type DimensionRow, type SafetyFlagRow } from '../../../form/api';
+
+/** The 0-100 dimension score scale the match engine takes (health space). */
+const SLIDER_MIN = 0;
+const SLIDER_MAX = 100;
+const SLIDER_MIDPOINT = (SLIDER_MIN + SLIDER_MAX) / 2;
 
 interface MatchSimulatorTabProps {
   simBrand: string;
   setSimBrand: (b: string) => void;
+  /** Skin profile code to match against; empty = not sent. */
   simSkinType: string;
   setSimSkinType: (st: string) => void;
-  simSebum: number;
-  setSimSebum: (s: number) => void;
-  simHydration: number;
-  setSimHydration: (h: number) => void;
-  simSensitivity: number;
-  setSimSensitivity: (s: number) => void;
-  simPregnant: boolean;
-  setSimPregnant: (p: boolean) => void;
-  simRetinol: boolean;
-  setSimRetinol: (r: boolean) => void;
+  /** Dimension scores to send, by reference dimension code; a dimension not here is not sent. */
+  simScores: Record<string, number>;
+  setSimScores: (s: Record<string, number>) => void;
+  /** Customer conditions (reference safety flags) that are on. */
+  simConditions: Record<string, boolean>;
+  setSimConditions: (c: Record<string, boolean>) => void;
   onRunSimulator: () => void;
   isSimulating: boolean;
   simResult: ClinicalMatchResult | null;
 }
 
+/**
+ * The match engine simulator's inputs. Dimensions and safety flags come from
+ * reference data, nothing is preset: a dimension counts only once it is
+ * included, so no score reaches the engine that nobody chose.
+ */
 export const MatchSimulatorTab: React.FC<MatchSimulatorTabProps> = ({
   simBrand,
   setSimBrand,
   simSkinType,
   setSimSkinType,
-  simSebum,
-  setSimSebum,
-  simHydration,
-  setSimHydration,
-  simSensitivity,
-  setSimSensitivity,
-  simPregnant,
-  setSimPregnant,
-  simRetinol,
-  setSimRetinol,
+  simScores,
+  setSimScores,
+  simConditions,
+  setSimConditions,
   onRunSimulator,
   isSimulating,
   simResult,
 }) => {
+  const hostRoutes = useHostRoutes();
+  const [dimensions, setDimensions] = useState<DimensionRow[] | null>(null);
+  const [flags, setFlags] = useState<SafetyFlagRow[] | null>(null);
+  useEffect(() => {
+    let alive = true;
+    getDimensions(hostRoutes).then((rows) => alive && setDimensions(rows.filter((d) => d?.code && !d.parentCode)));
+    getSafetyFlags(hostRoutes).then((rows) => alive && setFlags(rows.filter((f) => f?.code)));
+    return () => {
+      alive = false;
+    };
+  }, [hostRoutes]);
+
+  const toggleDimension = (code: string, on: boolean) => {
+    const next = { ...simScores };
+    // A dimension just included starts at the scale's midpoint, shown on its slider; nothing is sent until it is included.
+    if (on) next[code] = next[code] ?? SLIDER_MIDPOINT;
+    else delete next[code];
+    setSimScores(next);
+  };
+
   const getPhaseIcon = (phaseKey: string) => {
     const lower = phaseKey.toLowerCase();
     if (lower.includes('morning') || lower.includes('am') || lower.includes('sun') || lower.includes('day')) {
@@ -116,86 +138,68 @@ export const MatchSimulatorTab: React.FC<MatchSimulatorTabProps> = ({
             </div>
 
             <div className="space-y-1">
-              <label className="text-muted-foreground">Skin Profile (Phenotype):</label>
-              <select
+              <label className="text-muted-foreground">Skin profile code (optional):</label>
+              <input
                 value={simSkinType}
-                onChange={(e) => setSimSkinType(e.target.value)}
+                onChange={(e) => setSimSkinType(e.target.value.toUpperCase().trim())}
+                placeholder="as the ruleset's profile mapping names it"
                 className="w-full bg-muted/40 border border-border rounded px-3 py-2 text-foreground font-mono"
-              >
-                <option value="OSPT">OSPT (Oily, Sensitive, Pigmented, Tight)</option>
-                <option value="OSPW">OSPW (Oily, Sensitive, Pigmented, Wrinkled)</option>
-                <option value="DRNT">DRNT (Dry, Resistant, Non-Pigmented, Tight)</option>
-                <option value="DSPT">DSPT (Dry, Sensitive, Pigmented, Tight)</option>
-                <option value="ORNT">ORNT (Oily, Resistant, Non-Pigmented, Tight)</option>
-              </select>
-            </div>
-
-            <div className="space-y-1">
-              <div className="flex justify-between text-muted-foreground">
-                <span>Sebum Dimension:</span>
-                <span className="font-mono text-foreground font-bold">{simSebum} pts</span>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={simSebum}
-                onChange={(e) => setSimSebum(Number(e.target.value))}
-                className="w-full accent-amber-400"
               />
             </div>
 
-            <div className="space-y-1">
-              <div className="flex justify-between text-muted-foreground">
-                <span>Hydration Level:</span>
-                <span className="font-mono text-foreground font-bold">{simHydration} pts</span>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={simHydration}
-                onChange={(e) => setSimHydration(Number(e.target.value))}
-                className="w-full accent-sky-400"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <div className="flex justify-between text-muted-foreground">
-                <span>Sensitivity Level:</span>
-                <span className="font-mono text-foreground font-bold">{simSensitivity} pts</span>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={simSensitivity}
-                onChange={(e) => setSimSensitivity(Number(e.target.value))}
-                className="w-full accent-rose-400"
-              />
+            <div className="space-y-2 pt-2 border-t border-border">
+              <label className="text-muted-foreground font-bold block">Dimension scores (0-100, include to send):</label>
+              {dimensions === null ? (
+                <p className="text-muted-foreground italic">Loading dimensions…</p>
+              ) : dimensions.length === 0 ? (
+                <p className="text-amber-500">Dimensions could not be loaded from reference data.</p>
+              ) : (
+                dimensions.map((d) => {
+                  const included = typeof simScores[d.code] === 'number';
+                  return (
+                    <div key={d.code} className="space-y-1">
+                      <label className="flex items-center justify-between gap-2 text-muted-foreground cursor-pointer">
+                        <span className="flex items-center gap-2">
+                          <input type="checkbox" checked={included} onChange={(e) => toggleDimension(d.code, e.target.checked)} />
+                          {d.name || d.code}
+                        </span>
+                        <span className="font-mono text-foreground font-bold">{included ? simScores[d.code] : 'not sent'}</span>
+                      </label>
+                      {included && (
+                        <input
+                          type="range"
+                          min={SLIDER_MIN}
+                          max={SLIDER_MAX}
+                          value={simScores[d.code]}
+                          onChange={(e) => setSimScores({ ...simScores, [d.code]: Number(e.target.value) })}
+                          className="w-full accent-amber-400"
+                        />
+                      )}
+                    </div>
+                  );
+                })
+              )}
             </div>
 
             <div className="pt-2 border-t border-border space-y-2">
-              <label className="text-muted-foreground font-bold block">Safety Gatekeeper Flags:</label>
-              <label className="flex items-center gap-2 p-2 bg-muted/40 border border-border rounded cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={simPregnant}
-                  onChange={(e) => setSimPregnant(e.target.checked)}
-                  className="accent-rose-400 rounded"
-                />
-                <span className="text-foreground">Is Pregnant / Nursing Consumer (Zero Retinoids)</span>
-              </label>
-
-              <label className="flex items-center gap-2 p-2 bg-muted/40 border border-border rounded cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={simRetinol}
-                  onChange={(e) => setSimRetinol(e.target.checked)}
-                  className="accent-amber-400 rounded"
-                />
-                <span className="text-foreground">Active Retinol / Direct Acid User</span>
-              </label>
+              <label className="text-muted-foreground font-bold block">Safety flags:</label>
+              {flags === null ? (
+                <p className="text-muted-foreground italic">Loading safety flags…</p>
+              ) : flags.length === 0 ? (
+                <p className="text-amber-500">Safety flags could not be loaded from reference data.</p>
+              ) : (
+                flags.map((f) => (
+                  <label key={f.code} className="flex items-center gap-2 p-2 bg-muted/40 border border-border rounded cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={!!simConditions[f.code]}
+                      onChange={(e) => setSimConditions({ ...simConditions, [f.code]: e.target.checked })}
+                      className="accent-rose-400 rounded"
+                    />
+                    <span className="text-foreground">{f.name || f.code}</span>
+                  </label>
+                ))
+              )}
             </div>
 
             <button

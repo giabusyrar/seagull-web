@@ -19,6 +19,8 @@ export interface DimensionScoreCardProps {
   className?: string;
 }
 
+// Core's severity words, read exactly. Identical to SEVERITY_TONES in
+// @gateway-experience/shared (this package does not depend on it); keep both in step.
 const SEVERITY_TONES: Record<string, DimensionScoreTone> = {
   optimal: 'good',
   mild: 'good',

@@ -1,4 +1,5 @@
 'use client';
+import { severityToneOf, type SeverityTone } from '@gateway-experience/shared';
 import { Component, useState, type ReactNode } from 'react';
 import type { CallResult } from '@/lib/http';
 import { ResponseView } from '@/components/ResponseView';
@@ -116,14 +117,15 @@ export function Tile({ label, value }: { label: string; value: ReactNode }) {
  * Colour for a severity word the backend sent. Only the backend's own
  * words are read; an unknown word stays neutral rather than guessed at.
  */
+const TONE_CLASSES: Record<SeverityTone, string> = {
+  good: 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200',
+  warning: 'bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-200',
+  bad: 'bg-red-50 text-red-700 ring-1 ring-inset ring-red-200',
+  neutral: 'bg-zinc-100 text-zinc-600',
+};
+
 export function severityTone(severity: unknown): string {
-  const s = typeof severity === 'string' ? severity.toLowerCase() : '';
-  if (!s) return 'bg-zinc-100 text-zinc-600';
-  if (s.includes('severe') || s.includes('high')) return 'bg-red-50 text-red-700 ring-1 ring-inset ring-red-200';
-  if (s.includes('moderate') || s.includes('medium')) return 'bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-200';
-  if (s.includes('mild') || s.includes('low')) return 'bg-yellow-50 text-yellow-800 ring-1 ring-inset ring-yellow-200';
-  if (s.includes('optimal') || s.includes('none') || s.includes('good') || s.includes('healthy')) return 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200';
-  return 'bg-zinc-100 text-zinc-600';
+  return TONE_CLASSES[severityToneOf(severity)];
 }
 
 export function Pill({ children, className = '' }: { children: ReactNode; className?: string }) {

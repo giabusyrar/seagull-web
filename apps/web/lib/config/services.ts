@@ -49,3 +49,13 @@ export function getGatewayProxyUrl(): string {
 // it through the gateway's /reference collection (lib/proxy-handler.ts), which
 // is also what carries the data-plane key. There is no REFERENCE_SERVICE_URL
 // left to resolve.
+
+/**
+ * The data plane as the browser addresses it — the default for an
+ * environment's `host`: NEXT_PUBLIC_GATEWAY_PROXY_URL when set, else this
+ * app's own origin, whose server proxy forwards to the data plane
+ * (lib/proxy-handler.ts). One definition for every browser-side caller.
+ */
+export function browserDataPlaneHost(): string {
+  return process.env.NEXT_PUBLIC_GATEWAY_PROXY_URL || (typeof window !== 'undefined' ? window.location.origin : '');
+}

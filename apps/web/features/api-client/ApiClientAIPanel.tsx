@@ -7,7 +7,6 @@ import {
   History,
   X,
   Send,
-  ChevronDown,
   Globe,
   Lock,
   Wrench,
@@ -39,7 +38,6 @@ export const ApiClientAIPanel: React.FC<ApiClientAIPanelProps> = ({
 }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([INITIAL_AI_MESSAGE]);
   const [inputText, setInputText] = useState('');
-  const [modelMode] = useState('Auto');
 
   if (!isOpen) return null;
 
@@ -162,10 +160,9 @@ export const ApiClientAIPanel: React.FC<ApiClientAIPanelProps> = ({
 
           <div className="flex items-center justify-between pt-2 border-t border-border mt-1">
             <div className="flex items-center gap-1.5 text-muted-foreground text-[10px]">
-              <button className="flex items-center gap-1 px-2 py-0.5 bg-muted hover:bg-muted/80 rounded text-foreground font-medium transition cursor-pointer border border-border">
-                <span>{modelMode}</span>
-                <ChevronDown className="h-3 w-3" />
-              </button>
+              <span className="px-2 py-0.5 rounded border border-border text-muted-foreground" title="No AI service is configured">
+                not connected
+              </span>
               <span className="flex items-center gap-0.5 hover:text-foreground cursor-pointer">
                 <AtSign className="h-3 w-3" /> context
               </span>

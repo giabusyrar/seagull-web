@@ -54,7 +54,8 @@ export const ApplicationsView: React.FC = () => {
   const [formKey, setFormKey] = useState('');
   const [formName, setFormName] = useState('');
   const [formDescription, setFormDescription] = useState('');
-  const [formChannelType, setFormChannelType] = useState('Mobile Web DTC');
+  // Unset until chosen; an application without one shows as without one.
+  const [formChannelType, setFormChannelType] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Delete Confirm Dialog State
@@ -89,7 +90,7 @@ export const ApplicationsView: React.FC = () => {
     setFormKey('');
     setFormName('');
     setFormDescription('');
-    setFormChannelType('Mobile Web DTC');
+    setFormChannelType('');
     setIsModalOpen(true);
   };
 
@@ -98,7 +99,7 @@ export const ApplicationsView: React.FC = () => {
     setFormKey(app.key);
     setFormName(app.name);
     setFormDescription(app.description || '');
-    setFormChannelType(app.channelType || 'Mobile Web DTC');
+    setFormChannelType(app.channelType || '');
     setIsModalOpen(true);
   };
 

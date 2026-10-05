@@ -1,4 +1,5 @@
 import { HttpMethod, ResponseData, KeyValuePair, ApiClientRequest } from '@/types/api-client';
+import { browserDataPlaneHost } from '@/lib/config/services';
 
 export const METHOD_COLORS: Record<HttpMethod, { text: string; bg: string; border: string }> = {
   GET: { text: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200' },
@@ -66,9 +67,7 @@ export function resolveVariableToken(
     explicitScope = 'collection';
   }
 
-  const fallbackHost =
-    process.env.NEXT_PUBLIC_GATEWAY_PROXY_URL ||
-    (typeof window !== 'undefined' ? window.location.origin : '');
+  const fallbackHost = browserDataPlaneHost();
 
   if (explicitScope === 'global') {
     const val = globalVars[cleanKey] || variables[cleanKey] || (cleanKey === 'host' ? (globalVars['host'] || fallbackHost) : undefined);

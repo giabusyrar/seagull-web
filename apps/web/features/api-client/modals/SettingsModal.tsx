@@ -190,7 +190,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                 <div className="flex items-center gap-1.5">
                   <label className="text-muted-foreground font-medium text-xs">Retention Period (Days)</label>
                   <InfoTooltip
-                    content={`Logs older than ${retentionDays || 7} days will be automatically purged by the Go Admin background ticker worker.`}
+                    content={retentionDays ? `Logs older than ${retentionDays} days will be automatically purged by the Go Admin background ticker worker.` : "Not set here: logs are purged after the gateway's own default retention period."}
                     label="About Retention Period"
                   />
                 </div>

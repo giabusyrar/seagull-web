@@ -11,8 +11,6 @@ export {
   EMPTY_PROFILE_CONFIG,
 } from './utils/jdm-compiler';
 export {
-  DEFAULT_SCORE_RANGE_BANDS,
-  DEFAULT_SEVERITY_BANDS,
 } from './types';
 export type {
   ScoreRuleset,

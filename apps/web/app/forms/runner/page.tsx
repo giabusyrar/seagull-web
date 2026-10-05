@@ -131,7 +131,6 @@ function RunnerDemo() {
           <QuestionnaireRunner
             key={`${brandId}/${applicationId}/${code}/${runKey}`}
             questionnaireCode={code}
-            customerId="demo-customer-123"
             brandId={brandId}
             applicationId={applicationId}
             onComplete={(p) => setPayload(p)}

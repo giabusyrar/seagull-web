@@ -125,7 +125,7 @@ export const ReferenceModal: React.FC<ReferenceModalProps> = ({
             <label className="block text-muted-foreground font-medium text-xs">Item Name</label>
             <Input
               type="text"
-              placeholder="e.g. Wardah, Skincare, Staging"
+              placeholder="name"
               required
               value={name}
               onChange={(e) => setName(e.target.value)}

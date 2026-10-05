@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { decompileJDMToVisualComponents, compileVisualToJDM, scoreRangeLetters } from './jdm-compiler';
-import { DEFAULT_SCORE_RANGE_BANDS } from '../types';
+import { CORE_DEFAULT_SCORE_RANGE_BANDS } from '@gateway-experience/shared';
 
 // A minimal but structurally real schema: 4 axis_codes-driven dimensions
 // (aging/sebum/sensitivity/pigmentation, all represented in the visual
@@ -199,10 +199,50 @@ describe('nothing is filled in for the author', () => {
 describe('scoreRangeLetters', () => {
   // core axisValuesFromScores: strings.ToUpper(label[:1]) of the band a score falls in.
   it('is the initial of each Score Range band label, lowest band first', () => {
-    expect(scoreRangeLetters(DEFAULT_SCORE_RANGE_BANDS)).toEqual(['P', 'S', 'O']);
+    expect(scoreRangeLetters(CORE_DEFAULT_SCORE_RANGE_BANDS.map((b, i) => ({ id: `sr${i}`, ...b })))).toEqual(['P', 'S', 'O']);
   });
 
   it('follows the ruleset’s own bands', () => {
     expect(scoreRangeLetters([{ id: 'x', max: 100, label: 'high' }, { id: 'y', max: 50, label: 'low' }])).toEqual(['L', 'H']);
+  });
+});
+
+describe('axis codes without a threshold', () => {
+  const schema = JSON.stringify({ nodes: [], edges: [], dimension_weights: { sebum: 1 }, axis_codes: { sebum: { low: 'O', high: 'D' } } });
+
+  it('reads no bands instead of inventing a cutoff at 50', () => {
+    const axis = decompileJDMToVisualComponents(schema).axes.find((a) => a.dimensionKey === 'sebum')!;
+    expect(axis.bands).toBeUndefined();
+    expect(axis.axisCodeThreshold).toBeUndefined();
+  });
+
+  it('writes no axis code for it until a threshold is set', () => {
+    const d = decompileJDMToVisualComponents(schema);
+    const after = JSON.parse(compileVisualToJDM(d.axes, d.profileConfig, d.scoreRangeBands, d.severityBands, schema));
+    expect(after.axis_codes?.sebum).toBeUndefined();
+  });
+});
+
+describe('score range / severity bands', () => {
+  const noBands = JSON.stringify({ nodes: [], edges: [], dimension_weights: { sebum: 1 } });
+
+  it('reads a ruleset without bands as having none (core applies its defaults)', () => {
+    const d = decompileJDMToVisualComponents(noBands);
+    expect(d.scoreRangeBands).toEqual([]);
+    expect(d.severityBands).toEqual([]);
+  });
+
+  it('does not write default bands into a ruleset on save', () => {
+    const d = decompileJDMToVisualComponents(noBands);
+    const after = JSON.parse(compileVisualToJDM(d.axes, d.profileConfig, d.scoreRangeBands, d.severityBands, noBands));
+    expect(after.score_range_bands).toBeUndefined();
+    expect(after.severity_bands).toBeUndefined();
+  });
+
+  it('keeps bands the ruleset sets', () => {
+    const own = JSON.stringify({ nodes: [], edges: [], score_range_bands: [{ max: 50, label: 'Low' }, { max: 100, label: 'High' }] });
+    const d = decompileJDMToVisualComponents(own);
+    const after = JSON.parse(compileVisualToJDM(d.axes, d.profileConfig, d.scoreRangeBands, d.severityBands, own));
+    expect(after.score_range_bands).toEqual([{ max: 50, label: 'Low' }, { max: 100, label: 'High' }]);
   });
 });

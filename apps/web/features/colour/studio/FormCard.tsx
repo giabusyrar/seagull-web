@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { ClipboardList } from 'lucide-react';
-import { ApplicationSelect, BrandSelect, usePersistentState } from '@gateway-experience/shared';
+import { ApplicationSelect, BrandSelect, DRY_RUN_HEADER, usePersistentState } from '@gateway-experience/shared';
 import {
   QuestionnaireRunner,
   listQuestionnaires,
@@ -14,8 +14,6 @@ import type { FormEvaluation, FormRun } from './FormResult';
 
 type GetEndpoint = (key: 'form', path: string) => string;
 
-/** core-engine's dry-run header: score without storing anything or needing a customer id. */
-const DRY_RUN_HEADER = 'X-Dry-Run';
 
 const PREFIX = 'xg.simulatorStudio.form.';
 

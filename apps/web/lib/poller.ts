@@ -1,6 +1,9 @@
 import { apiClient } from './api-client';
 import { rebuildRouter } from './router-registry';
 
+/** How long one health check waits before calling a service unhealthy. */
+const HEALTH_CHECK_TIMEOUT_MS = 5000;
+
 let isPolling = false;
 
 export async function runHealthCheck() {
@@ -29,7 +32,7 @@ export async function runHealthCheck() {
 
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        const timeoutId = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT_MS);
 
         const response = await fetch(url, {
           method: 'GET',

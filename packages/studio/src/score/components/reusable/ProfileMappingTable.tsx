@@ -401,7 +401,7 @@ export const ProfileMappingTable: React.FC<ProfileMappingTableProps> = ({
                           disabled={disabled}
                           value={p.code}
                           onChange={(e) => handleUpdateProfile(p.id, 'code', e.target.value.toUpperCase().replace(/\s+/g, '_'))}
-                          placeholder="DSPW"
+                          placeholder="code"
                           className="w-full px-2.5 py-1.5 bg-muted/40 border border-border rounded text-beak font-bold focus:outline-none focus:border-ring disabled:opacity-50 text-xs"
                         />
                       </td>

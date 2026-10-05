@@ -2,6 +2,9 @@ import findMyWay from 'find-my-way';
 import { apiClient } from './api-client';
 import Redis from 'ioredis';
 
+/** How long connecting to Redis may take before the registry falls back to no cache. */
+const REDIS_CONNECT_TIMEOUT_MS = 5000;
+
 export interface RouteMatch {
   routeId?: string;
   collectionId: string;
@@ -81,7 +84,7 @@ export async function rebuildRouter() {
     if (process.env.REDIS_URL) {
       try {
         const redis = new Redis(process.env.REDIS_URL, {
-          connectTimeout: 5000,
+          connectTimeout: REDIS_CONNECT_TIMEOUT_MS,
           maxRetriesPerRequest: 1,
           lazyConnect: true,
           retryStrategy: (times) => (times > 2 ? null : 100),

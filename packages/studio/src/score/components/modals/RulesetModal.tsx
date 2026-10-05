@@ -9,7 +9,7 @@ import type {
   VisualProfileMappingConfig,
   VisualBand,
 } from '../../types';
-import { DEFAULT_SCORE_RANGE_BANDS, DEFAULT_SEVERITY_BANDS } from '../../types';
+import { CORE_DEFAULT_SCORE_RANGE_BANDS, CORE_DEFAULT_SEVERITY_BANDS } from '@gateway-experience/shared';
 import {
   compileVisualToJDM,
   decompileJDMToVisualComponents,
@@ -59,8 +59,9 @@ export const RulesetModal: React.FC<RulesetModalProps> = ({
   // dimensions it grades and how is the author's to set, not a template's.
   const [axes, setAxes] = useState<VisualAxisConfig[]>([]);
   const [profileConfig, setProfileConfig] = useState<VisualProfileMappingConfig>(EMPTY_PROFILE_CONFIG);
-  const [scoreRangeBands, setScoreRangeBands] = useState<VisualBand[]>(DEFAULT_SCORE_RANGE_BANDS);
-  const [severityBands, setSeverityBands] = useState<VisualBand[]>(DEFAULT_SEVERITY_BANDS);
+  // Empty = the ruleset sets none and core's defaults apply (shown, not saved).
+  const [scoreRangeBands, setScoreRangeBands] = useState<VisualBand[]>([]);
+  const [severityBands, setSeverityBands] = useState<VisualBand[]>([]);
 
   const [tab, setTab] = useState<'setup' | 'dimensions' | 'bands'>('setup');
   const [schemaOpen, setSchemaOpen] = useState(true);
@@ -114,8 +115,8 @@ export const RulesetModal: React.FC<RulesetModalProps> = ({
       setStatus('ACTIVE');
       setAxes([]);
       setProfileConfig({ ...EMPTY_PROFILE_CONFIG, profiles: [] });
-      setScoreRangeBands(DEFAULT_SCORE_RANGE_BANDS);
-      setSeverityBands(DEFAULT_SEVERITY_BANDS);
+      setScoreRangeBands([]);
+      setSeverityBands([]);
       setIsLegacy(false);
       setFormSurveyCode('');
       setVisionSourceCode('');
@@ -215,6 +216,13 @@ export const RulesetModal: React.FC<RulesetModalProps> = ({
     }
   };
 
+  // What applies: the ruleset's own bands, else core's defaults — for showing letters and levels only.
+  const effectiveScoreRangeBands = scoreRangeBands.length
+    ? scoreRangeBands
+    : CORE_DEFAULT_SCORE_RANGE_BANDS.map((b, i) => ({ id: `sr${i + 1}`, ...b }));
+  const effectiveSeverityBands = severityBands.length
+    ? severityBands
+    : CORE_DEFAULT_SEVERITY_BANDS.map((b, i) => ({ id: `sv${i + 1}`, ...b }));
   const jsonText = withSetupFields(compileVisualToJDM(axes, profileConfig, scoreRangeBands, severityBands, editingRuleset?.schema));
 
   // Ready-to-paste request bodies for the Core Score Engine API collection.
@@ -406,19 +414,16 @@ export const RulesetModal: React.FC<RulesetModalProps> = ({
                         <div className="flex items-center gap-1.5 mb-1.5">
                           <label className={labelCls + ' mb-0'}>Vision input</label>
                           <InfoTooltip
-                            content="Which CV/vendor source this ruleset pairs with. Only one is registered today (Paradev Skin Analyzer) — more get added as new vendors are wired up."
+                            content="The code of the CV/vendor source this ruleset pairs with (vision_source_code). There is no vendor registry to pick from yet, so it is entered as the integration names it."
                             label="About Vision input"
                           />
                         </div>
-                        <select
+                        <input
                           value={visionSourceCode}
-                          onChange={(e) => setVisionSourceCode(e.target.value)}
-                          className={inputCls}
-                          style={{ colorScheme: 'dark' }}
-                        >
-                          <option value="">— none selected —</option>
-                          <option value="paradev_skin_analyzer">Paradev Skin Analyzer</option>
-                        </select>
+                          onChange={(e) => setVisionSourceCode(e.target.value.trim())}
+                          placeholder="vendor source code (optional)"
+                          className={inputCls + ' font-mono'}
+                        />
                       </div>
                     </div>
                     <div>
@@ -516,7 +521,7 @@ export const RulesetModal: React.FC<RulesetModalProps> = ({
                         label="About Score Range"
                       />
                     </div>
-                    <BandTable bands={scoreRangeBands} onChange={setScoreRangeBands} idPrefix="sr" />
+                    <BandTable bands={scoreRangeBands} onChange={setScoreRangeBands} idPrefix="sr" engineDefaults={CORE_DEFAULT_SCORE_RANGE_BANDS} />
                   </div>
                   <div className="space-y-1.5">
                     <div className="flex items-center gap-1.5">
@@ -526,7 +531,7 @@ export const RulesetModal: React.FC<RulesetModalProps> = ({
                         label="About Severity Level"
                       />
                     </div>
-                    <BandTable bands={severityBands} onChange={setSeverityBands} idPrefix="sv" />
+                    <BandTable bands={severityBands} onChange={setSeverityBands} idPrefix="sv" engineDefaults={CORE_DEFAULT_SEVERITY_BANDS} />
                   </div>
                 </div>
 
@@ -542,8 +547,8 @@ export const RulesetModal: React.FC<RulesetModalProps> = ({
                     axes={axes}
                     config={profileConfig}
                     onChange={setProfileConfig}
-                    scoreRangeBands={scoreRangeBands}
-                    severityBands={severityBands}
+                    scoreRangeBands={effectiveScoreRangeBands}
+                    severityBands={effectiveSeverityBands}
                   />
                 </div>
               </div>

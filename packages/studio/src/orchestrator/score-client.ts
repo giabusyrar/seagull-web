@@ -10,14 +10,13 @@
 // names. None of it came from a ruleset. When the engine cannot be reached
 // or refuses, this returns no scores and says why.
 
+import { DRY_RUN_HEADER } from '@gateway-experience/shared';
 import type { ScoreDimensionBreakdown } from './types';
 import { DEFAULT_SCORE_TIMEOUT_MS } from './pipeline-defaults';
 
 /** Where the score engine's evaluate endpoint is; the ruleset code is appended. */
 export const DEFAULT_SCORE_ENGINE_PATH = '/core/score-engine/evaluate';
 
-/** core-engine's dry-run header (internal/dryrun): score without storing or requiring a customer. */
-const DRY_RUN_HEADER = 'X-Dry-Run';
 
 export interface ScoreResult {
   rulesetCode?: string;

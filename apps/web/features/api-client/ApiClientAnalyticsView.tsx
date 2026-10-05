@@ -47,10 +47,11 @@ export const ApiClientAnalyticsView: React.FC = () => {
 
   const totalRequests = logs.length;
   const successRequests = logs.filter((l) => l.status >= 200 && l.status < 400).length;
-  const successRate = totalRequests > 0 ? ((successRequests / totalRequests) * 100).toFixed(1) : '100';
+  // No requests: no rate and no latency — "—", not a perfect 100% / 0 ms.
+  const successRate = totalRequests > 0 ? `${((successRequests / totalRequests) * 100).toFixed(1)}%` : '—';
 
   const avgLatency =
-    totalRequests > 0 ? Math.round(logs.reduce((acc, curr) => acc + curr.latencyMs, 0) / totalRequests) : 0;
+    totalRequests > 0 ? `${Math.round(logs.reduce((acc, curr) => acc + curr.latencyMs, 0) / totalRequests)} ms` : '—';
 
   const totalTokens = logs.reduce((acc, curr) => acc + (curr.tokensPrompt || 0) + (curr.tokensCompletion || 0), 0);
   const totalCost = logs.reduce((acc, curr) => acc + (curr.estimatedCost || 0), 0).toFixed(4);
@@ -90,12 +91,12 @@ export const ApiClientAnalyticsView: React.FC = () => {
         />
         <StatWidget
           title="Success Rate"
-          value={`${successRate}%`}
+          value={successRate}
           icon={<CheckCircle2 className="w-4 h-4 text-emerald-400" />}
         />
         <StatWidget
           title="Avg Latency"
-          value={`${avgLatency} ms`}
+          value={avgLatency}
           icon={<Clock className="w-4 h-4 text-purple-400" />}
         />
         <StatWidget

@@ -12,6 +12,14 @@ export interface StatusSelectProps {
   className?: string;
 }
 
+/** A ruleset's lifecycle states, fixed by the engine (it scores only ACTIVE); defined once. */
+export const LIFECYCLE_STATUSES: readonly { code: string; name: string }[] = [
+  { code: 'ACTIVE', name: 'Active' },
+  { code: 'DRAFT', name: 'Draft' },
+  { code: 'INACTIVE', name: 'Inactive' },
+  { code: 'ARCHIVED', name: 'Archived' },
+];
+
 export const StatusSelect: React.FC<StatusSelectProps> = ({
   value,
   onChange,
@@ -25,12 +33,7 @@ export const StatusSelect: React.FC<StatusSelectProps> = ({
   // the engine, not by a brand. reference-service dropped its statuses entity
   // on 2026-10-01 — the list below is the whole truth, and it used to be
   // silently overwritten by whatever that endpoint happened to return.
-  const statuses = [
-    { code: 'ACTIVE', name: 'Active' },
-    { code: 'DRAFT', name: 'Draft' },
-    { code: 'INACTIVE', name: 'Inactive' },
-    { code: 'ARCHIVED', name: 'Archived' },
-  ];
+  const statuses = LIFECYCLE_STATUSES;
 
 
   const options: SelectOption[] = useMemo(() => {

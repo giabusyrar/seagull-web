@@ -179,20 +179,6 @@ export const PFORM_EXAMPLE: QuestionnaireItem = {
   calculationMethods: {}, // set alongside the dimension mapping
 };
 
-/** Suggested XG dimension for each pForm question — a starting point, not enforced. */
-export const PFORM_SUGGESTED_DIMENSIONS: Record<string, string> = {
-  pform_age: 'lifestyle',
-  pform_pregnancy: 'sensitivity',
-  pform_sun_exposure: 'sun_exposure',
-  pform_climate: 'climate_humidity',
-  pform_pollution: 'pollution_exposure',
-  pform_stress: 'mental_stress',
-  pform_sleep: 'mental_stress',
-  pform_diet: 'gut_health',
-  pform_hydration: 'gut_health',
-  pform_smoking: 'lifestyle',
-};
-
 type PFormChoiceLike = { label?: string; text?: string; title?: string; value?: string; score?: number };
 type PFormQuestionLike = {
   id?: string;

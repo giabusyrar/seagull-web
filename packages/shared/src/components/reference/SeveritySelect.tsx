@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { CORE_DEFAULT_SEVERITY_BANDS } from './core-default-bands';
 
 export interface SeveritySelectProps {
   value: string;
@@ -23,11 +24,10 @@ export interface SeveritySelectProps {
 // oriented: higher score = healthier. Plain native <select> — no search, no
 // colour glyphs.
 //
-// These labels mirror core's defaultSeverityBands (seagull-core
-// apps/core-engine/internal/score/service/score_service.go), the bands core
-// applies when a ruleset carries no severity_bands. A ruleset that sets its
-// own is the authority: pass them as `options`.
-const CORE_DEFAULT_SEVERITY_LABELS = ['Sangat Parah', 'Parah', 'Sedang', 'Ringan', 'Sehat'];
+// Omitted options: the labels of core's default severity bands (one mirror,
+// core-default-bands.ts), which apply when a ruleset carries no
+// severity_bands. A ruleset that sets its own is the authority: pass them.
+const CORE_DEFAULT_SEVERITY_LABELS = CORE_DEFAULT_SEVERITY_BANDS.map((b) => b.label);
 
 export const SeveritySelect: React.FC<SeveritySelectProps> = ({
   value,

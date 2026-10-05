@@ -276,6 +276,12 @@ export interface ScoreRequestCore {
  * Builds the core of the `ScoreModuleRequest` the Form Engine sends to the Score
  * Engine — a faithful client-side mirror of form-engine's ExtractEvaluationData.
  * The caller adds `code` / `brand_id` / `application_id` / `vision_signals`.
+ *
+ * Its defaults are core's, kept identical on purpose so a preview scores the
+ * same as the engine: an unscored choice counts 0, a boolean without scores
+ * counts 1/0, and a dimension with no usable scale falls back to 0-100
+ * (seagull-core internal/form/domain/survey_parser.go). Changing them belongs
+ * in core first; this mirror follows.
  */
 export function buildScoreRequest(
   model: SurveyJSModel,

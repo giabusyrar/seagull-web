@@ -377,7 +377,9 @@ interface PipelineEnv {
     matchEngineUrl?: string;
     /** Score engine origin; when absent the payload's baseUrl is used. */
     scoreEngineUrl?: string;
-    /** Sent to the score engine and to a dispatch service a configOverride names. Server-side only. */
+    /** Capability dispatch endpoint (full URL); absent: nothing is dispatched. */
+    visionDispatchUrl?: string;
+    /** Sent to the score, match and dispatch services. Server-side only. */
     gatewayApiKey?: string;
 }
 /**
@@ -415,6 +417,10 @@ declare class PipelineInputError extends Error {
  * The effective config: settings, plus service URLs from env, under the
  * payload's override. Throws `PipelineInputError` when brand, application
  * or ruleset is missing.
+ *
+ * Service URLs never come from the payload's override: the server attaches
+ * the gateway API key to these calls, so a caller who could name the URL
+ * could have the key sent to a host of their choosing.
  */
 declare function resolvePipelineConfig(payload: AssessmentPayload, settings: PipelineSettings, env: PipelineEnv): OrchestratorPipelineConfig;
 declare function executeAssessmentPipeline(payload: AssessmentPayload, deps: PipelineDeps): Promise<UnifiedAssessmentResponse>;

@@ -27,7 +27,7 @@ __export(match_exports, {
 module.exports = __toCommonJS(match_exports);
 
 // src/match/components/MatchManager.tsx
-var import_react5 = require("react");
+var import_react6 = require("react");
 var import_lucide_react9 = require("lucide-react");
 var import_shared9 = require("@gateway-experience/shared");
 
@@ -399,28 +399,69 @@ var ShadesTab = ({
 };
 
 // src/match/components/tabs/MatchSimulatorTab.tsx
+var import_react = require("react");
 var import_lucide_react4 = require("lucide-react");
 var import_shared4 = require("@gateway-experience/shared");
+
+// src/form/api.ts
+async function getDimensions(routes) {
+  try {
+    const res = await fetch(routes.reference("dimensions"), { cache: "no-store" });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const arr = Array.isArray(data) ? data : Array.isArray(data?.dimensions) ? data.dimensions : Array.isArray(data?.data) ? data.data : [];
+    return arr;
+  } catch {
+    return [];
+  }
+}
+async function getSafetyFlags(routes) {
+  try {
+    const res = await fetch(routes.reference("conditions"), { cache: "no-store" });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const arr = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
+    return arr;
+  } catch {
+    return [];
+  }
+}
+
+// src/match/components/tabs/MatchSimulatorTab.tsx
 var import_jsx_runtime4 = require("react/jsx-runtime");
+var SLIDER_MIN = 0;
+var SLIDER_MAX = 100;
+var SLIDER_MIDPOINT = (SLIDER_MIN + SLIDER_MAX) / 2;
 var MatchSimulatorTab = ({
   simBrand,
   setSimBrand,
   simSkinType,
   setSimSkinType,
-  simSebum,
-  setSimSebum,
-  simHydration,
-  setSimHydration,
-  simSensitivity,
-  setSimSensitivity,
-  simPregnant,
-  setSimPregnant,
-  simRetinol,
-  setSimRetinol,
+  simScores,
+  setSimScores,
+  simConditions,
+  setSimConditions,
   onRunSimulator,
   isSimulating,
   simResult
 }) => {
+  const hostRoutes = (0, import_shared4.useHostRoutes)();
+  const [dimensions, setDimensions] = (0, import_react.useState)(null);
+  const [flags, setFlags] = (0, import_react.useState)(null);
+  (0, import_react.useEffect)(() => {
+    let alive = true;
+    getDimensions(hostRoutes).then((rows) => alive && setDimensions(rows.filter((d) => d?.code && !d.parentCode)));
+    getSafetyFlags(hostRoutes).then((rows) => alive && setFlags(rows.filter((f) => f?.code)));
+    return () => {
+      alive = false;
+    };
+  }, [hostRoutes]);
+  const toggleDimension = (code, on) => {
+    const next = { ...simScores };
+    if (on) next[code] = next[code] ?? SLIDER_MIDPOINT;
+    else delete next[code];
+    setSimScores(next);
+  };
   const getPhaseIcon = (phaseKey) => {
     const lower = phaseKey.toLowerCase();
     if (lower.includes("morning") || lower.includes("am") || lower.includes("sun") || lower.includes("day")) {
@@ -479,109 +520,57 @@ var MatchSimulatorTab = ({
           /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_shared4.BrandSelect, { value: simBrand, onChange: setSimBrand, includeUniversal: true, label: "" })
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "space-y-1", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("label", { className: "text-muted-foreground", children: "Skin Profile (Phenotype):" }),
-          /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(
-            "select",
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("label", { className: "text-muted-foreground", children: "Skin profile code (optional):" }),
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+            "input",
             {
               value: simSkinType,
-              onChange: (e) => setSimSkinType(e.target.value),
-              className: "w-full bg-muted/40 border border-border rounded px-3 py-2 text-foreground font-mono",
-              children: [
-                /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("option", { value: "OSPT", children: "OSPT (Oily, Sensitive, Pigmented, Tight)" }),
-                /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("option", { value: "OSPW", children: "OSPW (Oily, Sensitive, Pigmented, Wrinkled)" }),
-                /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("option", { value: "DRNT", children: "DRNT (Dry, Resistant, Non-Pigmented, Tight)" }),
-                /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("option", { value: "DSPT", children: "DSPT (Dry, Sensitive, Pigmented, Tight)" }),
-                /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("option", { value: "ORNT", children: "ORNT (Oily, Resistant, Non-Pigmented, Tight)" })
-              ]
+              onChange: (e) => setSimSkinType(e.target.value.toUpperCase().trim()),
+              placeholder: "as the ruleset's profile mapping names it",
+              className: "w-full bg-muted/40 border border-border rounded px-3 py-2 text-foreground font-mono"
             }
           )
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "space-y-1", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex justify-between text-muted-foreground", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { children: "Sebum Dimension:" }),
-            /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("span", { className: "font-mono text-foreground font-bold", children: [
-              simSebum,
-              " pts"
-            ] })
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
-            "input",
-            {
-              type: "range",
-              min: "0",
-              max: "100",
-              value: simSebum,
-              onChange: (e) => setSimSebum(Number(e.target.value)),
-              className: "w-full accent-amber-400"
-            }
-          )
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "space-y-1", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex justify-between text-muted-foreground", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { children: "Hydration Level:" }),
-            /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("span", { className: "font-mono text-foreground font-bold", children: [
-              simHydration,
-              " pts"
-            ] })
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
-            "input",
-            {
-              type: "range",
-              min: "0",
-              max: "100",
-              value: simHydration,
-              onChange: (e) => setSimHydration(Number(e.target.value)),
-              className: "w-full accent-sky-400"
-            }
-          )
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "space-y-1", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex justify-between text-muted-foreground", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { children: "Sensitivity Level:" }),
-            /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("span", { className: "font-mono text-foreground font-bold", children: [
-              simSensitivity,
-              " pts"
-            ] })
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
-            "input",
-            {
-              type: "range",
-              min: "0",
-              max: "100",
-              value: simSensitivity,
-              onChange: (e) => setSimSensitivity(Number(e.target.value)),
-              className: "w-full accent-rose-400"
-            }
-          )
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "space-y-2 pt-2 border-t border-border", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("label", { className: "text-muted-foreground font-bold block", children: "Dimension scores (0-100, include to send):" }),
+          dimensions === null ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("p", { className: "text-muted-foreground italic", children: "Loading dimensions\u2026" }) : dimensions.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("p", { className: "text-amber-500", children: "Dimensions could not be loaded from reference data." }) : dimensions.map((d) => {
+            const included = typeof simScores[d.code] === "number";
+            return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "space-y-1", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("label", { className: "flex items-center justify-between gap-2 text-muted-foreground cursor-pointer", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("span", { className: "flex items-center gap-2", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("input", { type: "checkbox", checked: included, onChange: (e) => toggleDimension(d.code, e.target.checked) }),
+                  d.name || d.code
+                ] }),
+                /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "font-mono text-foreground font-bold", children: included ? simScores[d.code] : "not sent" })
+              ] }),
+              included && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+                "input",
+                {
+                  type: "range",
+                  min: SLIDER_MIN,
+                  max: SLIDER_MAX,
+                  value: simScores[d.code],
+                  onChange: (e) => setSimScores({ ...simScores, [d.code]: Number(e.target.value) }),
+                  className: "w-full accent-amber-400"
+                }
+              )
+            ] }, d.code);
+          })
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "pt-2 border-t border-border space-y-2", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("label", { className: "text-muted-foreground font-bold block", children: "Safety Gatekeeper Flags:" }),
-          /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("label", { className: "flex items-center gap-2 p-2 bg-muted/40 border border-border rounded cursor-pointer", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("label", { className: "text-muted-foreground font-bold block", children: "Safety flags:" }),
+          flags === null ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("p", { className: "text-muted-foreground italic", children: "Loading safety flags\u2026" }) : flags.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("p", { className: "text-amber-500", children: "Safety flags could not be loaded from reference data." }) : flags.map((f) => /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("label", { className: "flex items-center gap-2 p-2 bg-muted/40 border border-border rounded cursor-pointer", children: [
             /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
               "input",
               {
                 type: "checkbox",
-                checked: simPregnant,
-                onChange: (e) => setSimPregnant(e.target.checked),
+                checked: !!simConditions[f.code],
+                onChange: (e) => setSimConditions({ ...simConditions, [f.code]: e.target.checked }),
                 className: "accent-rose-400 rounded"
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "text-foreground", children: "Is Pregnant / Nursing Consumer (Zero Retinoids)" })
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("label", { className: "flex items-center gap-2 p-2 bg-muted/40 border border-border rounded cursor-pointer", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
-              "input",
-              {
-                type: "checkbox",
-                checked: simRetinol,
-                onChange: (e) => setSimRetinol(e.target.checked),
-                className: "accent-amber-400 rounded"
-              }
-            ),
-            /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "text-foreground", children: "Active Retinol / Direct Acid User" })
-          ] })
+            /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "text-foreground", children: f.name || f.code })
+          ] }, f.code))
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(
           "button",
@@ -677,7 +666,7 @@ var MatchSimulatorTab = ({
 };
 
 // src/match/components/tabs/PhotoTryOnTab.tsx
-var import_react = require("react");
+var import_react2 = require("react");
 var import_lucide_react5 = require("lucide-react");
 var import_shared5 = require("@gateway-experience/shared");
 
@@ -799,8 +788,8 @@ async function listReferenceIngredients(routes, doFetch = fetch) {
 var import_jsx_runtime5 = require("react/jsx-runtime");
 var errorMessage = (e) => e instanceof Error && e.message ? e.message : String(e);
 function useObjectUrl(blob) {
-  const [url, setUrl] = (0, import_react.useState)(null);
-  (0, import_react.useEffect)(() => {
+  const [url, setUrl] = (0, import_react2.useState)(null);
+  (0, import_react2.useEffect)(() => {
     if (!blob) {
       setUrl(null);
       return;
@@ -812,23 +801,23 @@ function useObjectUrl(blob) {
   return url;
 }
 var PhotoTryOnTab = () => {
-  const [catalog, setCatalog] = (0, import_react.useState)(null);
-  const [catalogLoading, setCatalogLoading] = (0, import_react.useState)(true);
-  const [catalogError, setCatalogError] = (0, import_react.useState)(null);
-  const [photo, setPhoto] = (0, import_react.useState)(null);
-  const [selected, setSelected] = (0, import_react.useState)({});
-  const [result, setResult] = (0, import_react.useState)(null);
-  const [rendering, setRendering] = (0, import_react.useState)(false);
-  const [renderError, setRenderError] = (0, import_react.useState)(null);
-  const requestId = (0, import_react.useRef)(0);
+  const [catalog, setCatalog] = (0, import_react2.useState)(null);
+  const [catalogLoading, setCatalogLoading] = (0, import_react2.useState)(true);
+  const [catalogError, setCatalogError] = (0, import_react2.useState)(null);
+  const [photo, setPhoto] = (0, import_react2.useState)(null);
+  const [selected, setSelected] = (0, import_react2.useState)({});
+  const [result, setResult] = (0, import_react2.useState)(null);
+  const [rendering, setRendering] = (0, import_react2.useState)(false);
+  const [renderError, setRenderError] = (0, import_react2.useState)(null);
+  const requestId = (0, import_react2.useRef)(0);
   const photoUrl = useObjectUrl(photo);
   const resultUrl = useObjectUrl(result);
-  const loadCatalog = (0, import_react.useCallback)(() => {
+  const loadCatalog = (0, import_react2.useCallback)(() => {
     setCatalogLoading(true);
     setCatalogError(null);
     fetchColourCatalog().then(setCatalog).catch((e) => setCatalogError(errorMessage(e))).finally(() => setCatalogLoading(false));
   }, []);
-  (0, import_react.useEffect)(() => {
+  (0, import_react2.useEffect)(() => {
     loadCatalog();
   }, [loadCatalog]);
   const resetResult = () => {
@@ -979,7 +968,7 @@ var PhotoTryOnTab = () => {
 };
 
 // src/match/components/modals/ConflictRuleModal.tsx
-var import_react2 = require("react");
+var import_react3 = require("react");
 var import_lucide_react6 = require("lucide-react");
 var import_shared6 = require("@gateway-experience/shared");
 var import_jsx_runtime6 = require("react/jsx-runtime");
@@ -990,20 +979,20 @@ var ConflictRuleModal = ({
   editingConflict
 }) => {
   const hostRoutes = (0, import_shared6.useHostRoutes)();
-  const [confA, setConfA] = (0, import_react2.useState)("");
-  const [confB, setConfB] = (0, import_react2.useState)("");
-  const [confType, setConfType] = (0, import_react2.useState)("over_exfoliation");
-  const [confAction, setConfAction] = (0, import_react2.useState)("split_am_pm");
-  const [confWarning, setConfWarning] = (0, import_react2.useState)("");
-  const [isSubmitting, setIsSubmitting] = (0, import_react2.useState)(false);
-  const [ingredients, setIngredients] = (0, import_react2.useState)([]);
-  (0, import_react2.useEffect)(() => {
+  const [confA, setConfA] = (0, import_react3.useState)("");
+  const [confB, setConfB] = (0, import_react3.useState)("");
+  const [confType, setConfType] = (0, import_react3.useState)("over_exfoliation");
+  const [confAction, setConfAction] = (0, import_react3.useState)("split_am_pm");
+  const [confWarning, setConfWarning] = (0, import_react3.useState)("");
+  const [isSubmitting, setIsSubmitting] = (0, import_react3.useState)(false);
+  const [ingredients, setIngredients] = (0, import_react3.useState)([]);
+  (0, import_react3.useEffect)(() => {
     listReferenceIngredients(hostRoutes).then((list2) => {
       if (list2.length > 0) setIngredients(list2);
     }).catch(() => {
     });
   }, [isOpen, hostRoutes]);
-  (0, import_react2.useEffect)(() => {
+  (0, import_react3.useEffect)(() => {
     if (editingConflict) {
       setConfA(editingConflict.ingredientA);
       setConfB(editingConflict.ingredientB);
@@ -1147,7 +1136,7 @@ var ConflictRuleModal = ({
 };
 
 // src/match/components/modals/ProductGroupModal.tsx
-var import_react3 = require("react");
+var import_react4 = require("react");
 var import_lucide_react7 = require("lucide-react");
 var import_shared7 = require("@gateway-experience/shared");
 var import_jsx_runtime7 = require("react/jsx-runtime");
@@ -1159,18 +1148,18 @@ var ProductGroupModal = ({
   editingGroup,
   defaultBrand
 }) => {
-  const [brandId, setBrandId] = (0, import_react3.useState)(initialBrand(defaultBrand));
-  const [applicationId, setApplicationId] = (0, import_react3.useState)("*");
-  const [name, setName] = (0, import_react3.useState)("");
-  const [code, setCode] = (0, import_react3.useState)("");
-  const [description, setDescription] = (0, import_react3.useState)("");
-  const [productIds, setProductIds] = (0, import_react3.useState)([]);
-  const [categories, setCategories] = (0, import_react3.useState)([]);
-  const [categoryDraft, setCategoryDraft] = (0, import_react3.useState)("");
-  const [isActive, setIsActive] = (0, import_react3.useState)(true);
-  const [isSubmitting, setIsSubmitting] = (0, import_react3.useState)(false);
-  const [products, setProducts] = (0, import_react3.useState)([]);
-  (0, import_react3.useEffect)(() => {
+  const [brandId, setBrandId] = (0, import_react4.useState)(initialBrand(defaultBrand));
+  const [applicationId, setApplicationId] = (0, import_react4.useState)("*");
+  const [name, setName] = (0, import_react4.useState)("");
+  const [code, setCode] = (0, import_react4.useState)("");
+  const [description, setDescription] = (0, import_react4.useState)("");
+  const [productIds, setProductIds] = (0, import_react4.useState)([]);
+  const [categories, setCategories] = (0, import_react4.useState)([]);
+  const [categoryDraft, setCategoryDraft] = (0, import_react4.useState)("");
+  const [isActive, setIsActive] = (0, import_react4.useState)(true);
+  const [isSubmitting, setIsSubmitting] = (0, import_react4.useState)(false);
+  const [products, setProducts] = (0, import_react4.useState)([]);
+  (0, import_react4.useEffect)(() => {
     if (!isOpen) return;
     if (!brandId) {
       void Promise.resolve([]).then(setProducts);
@@ -1181,7 +1170,7 @@ var ProductGroupModal = ({
     }).catch(() => {
     });
   }, [isOpen, brandId]);
-  (0, import_react3.useEffect)(() => {
+  (0, import_react4.useEffect)(() => {
     if (editingGroup) {
       setBrandId(editingGroup.brandId);
       setApplicationId(editingGroup.applicationId || "*");
@@ -1203,11 +1192,11 @@ var ProductGroupModal = ({
     }
     setCategoryDraft("");
   }, [editingGroup, isOpen, defaultBrand]);
-  const productOptions = (0, import_react3.useMemo)(
+  const productOptions = (0, import_react4.useMemo)(
     () => products.map((p) => ({ value: p.id, label: p.name, description: p.category })),
     [products]
   );
-  const availableCategories = (0, import_react3.useMemo)(
+  const availableCategories = (0, import_react4.useMemo)(
     () => Array.from(new Set(products.map((p) => p.category).filter(Boolean))),
     [products]
   );
@@ -1397,16 +1386,16 @@ var ProductGroupModal = ({
 };
 
 // src/match/components/modals/ShadeModal.tsx
-var import_react4 = require("react");
+var import_react5 = require("react");
 var import_lucide_react8 = require("lucide-react");
 var import_shared8 = require("@gateway-experience/shared");
 var import_jsx_runtime8 = require("react/jsx-runtime");
 var ShadeModal = ({ isOpen, onClose, onSave, editingShade, productId }) => {
-  const [name, setName] = (0, import_react4.useState)("");
-  const [hexColor, setHexColor] = (0, import_react4.useState)("#C41E3A");
-  const [region, setRegion] = (0, import_react4.useState)("lip");
-  const [isSubmitting, setIsSubmitting] = (0, import_react4.useState)(false);
-  (0, import_react4.useEffect)(() => {
+  const [name, setName] = (0, import_react5.useState)("");
+  const [hexColor, setHexColor] = (0, import_react5.useState)("#C41E3A");
+  const [region, setRegion] = (0, import_react5.useState)("lip");
+  const [isSubmitting, setIsSubmitting] = (0, import_react5.useState)(false);
+  (0, import_react5.useEffect)(() => {
     if (editingShade) {
       setName(editingShade.name);
       setHexColor(editingShade.hexColor);
@@ -1524,10 +1513,10 @@ var ShadeModal = ({ isOpen, onClose, onSave, editingShade, productId }) => {
 var import_jsx_runtime9 = require("react/jsx-runtime");
 var MatchManager = () => {
   const [activeTab, setActiveTab] = (0, import_shared9.usePersistentState)("xg.matchEngine.activeTab", "conflicts");
-  const [searchQuery, setSearchQuery] = (0, import_react5.useState)("");
-  const [isFilterPanelOpen, setIsFilterPanelOpen] = (0, import_react5.useState)(false);
-  const [activeFilters, setActiveFilters] = (0, import_react5.useState)({});
-  const [deleteConfirm, setDeleteConfirm] = (0, import_react5.useState)({
+  const [searchQuery, setSearchQuery] = (0, import_react6.useState)("");
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = (0, import_react6.useState)(false);
+  const [activeFilters, setActiveFilters] = (0, import_react6.useState)({});
+  const [deleteConfirm, setDeleteConfirm] = (0, import_react6.useState)({
     isOpen: false,
     title: "",
     message: "",
@@ -1536,25 +1525,22 @@ var MatchManager = () => {
   });
   const [selectedBrand, setSelectedBrand] = (0, import_shared9.usePersistentState)("xg.matchEngine.brand", "*");
   const [selectedApp, setSelectedApp] = (0, import_shared9.usePersistentState)("xg.matchEngine.application", "*");
-  const [conflicts, setConflicts] = (0, import_react5.useState)([]);
-  const [productGroups, setProductGroups] = (0, import_react5.useState)([]);
-  const [products, setProducts] = (0, import_react5.useState)([]);
-  const [shades, setShades] = (0, import_react5.useState)([]);
-  const [shadeProductId, setShadeProductId] = (0, import_react5.useState)("");
-  const [isConflictModalOpen, setIsConflictModalOpen] = (0, import_react5.useState)(false);
-  const [isGroupModalOpen, setIsGroupModalOpen] = (0, import_react5.useState)(false);
-  const [isShadeModalOpen, setIsShadeModalOpen] = (0, import_react5.useState)(false);
-  const [editingConflict, setEditingConflict] = (0, import_react5.useState)(null);
-  const [editingGroup, setEditingGroup] = (0, import_react5.useState)(null);
-  const [editingShade, setEditingShade] = (0, import_react5.useState)(null);
+  const [conflicts, setConflicts] = (0, import_react6.useState)([]);
+  const [productGroups, setProductGroups] = (0, import_react6.useState)([]);
+  const [products, setProducts] = (0, import_react6.useState)([]);
+  const [shades, setShades] = (0, import_react6.useState)([]);
+  const [shadeProductId, setShadeProductId] = (0, import_react6.useState)("");
+  const [isConflictModalOpen, setIsConflictModalOpen] = (0, import_react6.useState)(false);
+  const [isGroupModalOpen, setIsGroupModalOpen] = (0, import_react6.useState)(false);
+  const [isShadeModalOpen, setIsShadeModalOpen] = (0, import_react6.useState)(false);
+  const [editingConflict, setEditingConflict] = (0, import_react6.useState)(null);
+  const [editingGroup, setEditingGroup] = (0, import_react6.useState)(null);
+  const [editingShade, setEditingShade] = (0, import_react6.useState)(null);
   const [simBrand, setSimBrand] = (0, import_shared9.usePersistentState)("xg.matchEngine.simulator.brand", "*");
-  const [simSkinType, setSimSkinType] = (0, import_shared9.usePersistentState)("xg.matchEngine.simulator.skinType", "OSPT");
-  const [simSebum, setSimSebum] = (0, import_shared9.usePersistentState)("xg.matchEngine.simulator.sebum", 75);
-  const [simHydration, setSimHydration] = (0, import_shared9.usePersistentState)("xg.matchEngine.simulator.hydration", 40);
-  const [simSensitivity, setSimSensitivity] = (0, import_shared9.usePersistentState)("xg.matchEngine.simulator.sensitivity", 65);
-  const [simPregnant, setSimPregnant] = (0, import_shared9.usePersistentState)("xg.matchEngine.simulator.pregnant", false);
-  const [simRetinol, setSimRetinol] = (0, import_shared9.usePersistentState)("xg.matchEngine.simulator.retinol", true);
-  const [isSimulating, setIsSimulating] = (0, import_react5.useState)(false);
+  const [simSkinType, setSimSkinType] = (0, import_shared9.usePersistentState)("xg.matchEngine.simulator.profileCode", "");
+  const [simScores, setSimScores] = (0, import_shared9.usePersistentState)("xg.matchEngine.simulator.scores", {});
+  const [simConditions, setSimConditions] = (0, import_shared9.usePersistentState)("xg.matchEngine.simulator.conditions", {});
+  const [isSimulating, setIsSimulating] = (0, import_react6.useState)(false);
   const [simResult, setSimResult] = (0, import_shared9.usePersistentState)("xg.matchEngine.simulator.result", null);
   const loadData = () => {
     conflictsApi.list().then((list2) => {
@@ -1583,10 +1569,10 @@ var MatchManager = () => {
     }).catch(() => {
     });
   };
-  (0, import_react5.useEffect)(() => {
+  (0, import_react6.useEffect)(() => {
     loadData();
   }, []);
-  (0, import_react5.useEffect)(() => {
+  (0, import_react6.useEffect)(() => {
     loadShades(shadeProductId);
   }, [shadeProductId]);
   const matchTabs = [
@@ -1712,17 +1698,9 @@ var MatchManager = () => {
       const payload = {
         brand_id: simBrand,
         application_id: selectedApp,
-        dimension_scores: {
-          sebum: Number(simSebum),
-          hydration: Number(simHydration),
-          sensitivity: Number(simSensitivity),
-          pigmentation: 45
-        },
-        skin_profile: simSkinType,
-        customer_conditions: {
-          is_pregnant: simPregnant,
-          uses_retinol: simRetinol
-        }
+        dimension_scores: simScores,
+        ...simSkinType ? { skin_profile: simSkinType } : {},
+        customer_conditions: Object.fromEntries(Object.entries(simConditions).filter(([, on]) => on))
       };
       const data = await runMatch(payload);
       if (data) setSimResult(data);
@@ -1837,16 +1815,10 @@ var MatchManager = () => {
           setSimBrand,
           simSkinType,
           setSimSkinType,
-          simSebum,
-          setSimSebum,
-          simHydration,
-          setSimHydration,
-          simSensitivity,
-          setSimSensitivity,
-          simPregnant,
-          setSimPregnant,
-          simRetinol,
-          setSimRetinol,
+          simScores,
+          setSimScores,
+          simConditions,
+          setSimConditions,
           onRunSimulator: handleRunSimulator,
           isSimulating,
           simResult

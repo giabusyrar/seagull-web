@@ -43,7 +43,8 @@ export const FormSimulatorTab: React.FC<FormSimulatorTabProps> = ({
   const answersKey = currentQ?.code ? ANSWERS_KEY_PREFIX + currentQ.code : null;
   const [data, setData] = usePersistentState<Record<string, unknown>>(answersKey, {});
   const [showPayload, setShowPayload] = useState(false);
-  const [customerId, setCustomerId] = usePersistentState(CUSTOMER_ID_KEY, 'demo-customer-001');
+  // Empty unless typed: a stand-in id would be accepted by core as a real customer.
+  const [customerId, setCustomerId] = usePersistentState(CUSTOMER_ID_KEY, '');
   const [copied, setCopied] = useState('');
 
   const copy = (text: string, tag: string) => {
@@ -105,7 +106,7 @@ export const FormSimulatorTab: React.FC<FormSimulatorTabProps> = ({
   const submitBody = {
     brand_id: currentQ?.brandId || brandId,
     application_id: currentQ?.applicationId || applicationId,
-    customer_id: customerId,
+    ...(customerId.trim() ? { customer_id: customerId.trim() } : {}),
     data,
   };
   const submitBodyJson = JSON.stringify(submitBody, null, 2);

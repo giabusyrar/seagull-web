@@ -231,7 +231,9 @@ export async function executeAssessmentPipeline(
   timings['total_pipeline_ms'] = Date.now() - startTime;
 
   return {
-    success: true,
+    // Scored or not: a run whose scoring failed is not a success, whatever
+    // the other stages did (each stage still carries its own error).
+    success: !score.error,
     pipelineId: `pipe_run_${Date.now()}`,
     executionStrategy: config.executionStrategy,
     stages: {

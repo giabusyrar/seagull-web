@@ -4,40 +4,14 @@ import { useState, useEffect, useCallback } from 'react';
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api-client';
 import type { Environment, EnvironmentVariable } from '@/types/api-client';
 
-export function ensureHostVariable(envs: Environment[]): Environment[] {
-  const defaultHostValue =
-    process.env.NEXT_PUBLIC_GATEWAY_PROXY_URL ||
-    (typeof window !== 'undefined' ? window.location.origin : '');
-
-  // No environments from the gateway: offer only the local one, whose host
-  // comes from configuration. Staging/production stand-ins pointing at
-  // example.com looked like real environments and are gone.
-  if (!envs || envs.length === 0) {
-    return [
-      {
-        id: 'env-dev',
-        name: 'Development',
-        isDefault: true,
-        variables: [
-          { id: 'v-host-dev', key: 'host', value: defaultHostValue, enabled: true, isSecret: false },
-        ],
-      },
-    ];
-  }
-
-  return envs.map((env) => {
-    const hasHost = env.variables.some((v) => v.key.trim() === 'host');
-    if (!hasHost) {
-      return {
-        ...env,
-        variables: [
-          { id: `v-host-${env.id}`, key: 'host', value: defaultHostValue, enabled: true, isSecret: false },
-          ...env.variables,
-        ],
-      };
-    }
-    return env;
-  });
+/**
+ * The gateway's environments as they are. When the gateway has none (or
+ * cannot be reached) there are none: no "Development" stand-in is invented,
+ * and an environment without a `host` is left without one — the API client's
+ * missing-host prompt says so and offers to set it (browserDataPlaneHost).
+ */
+export function gatewayEnvironments(envs: Environment[] | undefined): Environment[] {
+  return Array.isArray(envs) ? envs : [];
 }
 
 export function useGlobalEnvironments() {
@@ -50,15 +24,15 @@ export function useGlobalEnvironments() {
     try {
       const res = await apiGet<{ success: boolean; environments?: Environment[]; error?: string }>('/api/global-environments');
       if (res.success && res.environments) {
-        setEnvironments(ensureHostVariable(res.environments));
+        setEnvironments(gatewayEnvironments(res.environments));
         setError(null);
       } else {
-        setEnvironments(ensureHostVariable([]));
+        setEnvironments([]);
         setError(res.error || 'Failed to load global environments');
       }
     } catch (err: any) {
       console.warn('useGlobalEnvironments: fallback to default environments:', err?.message || err);
-      setEnvironments(ensureHostVariable([]));
+      setEnvironments([]);
       setError(null);
     } finally {
       setLoading(false);

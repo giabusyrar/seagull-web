@@ -1398,7 +1398,6 @@ __export(form_exports, {
   FormManager: () => FormManager,
   MissingTenantError: () => MissingTenantError,
   PFORM_EXAMPLE: () => PFORM_EXAMPLE,
-  PFORM_SUGGESTED_DIMENSIONS: () => PFORM_SUGGESTED_DIMENSIONS,
   QuestionnaireRunner: () => QuestionnaireRunner,
   applyCalculationMethod: () => applyCalculationMethod,
   applyDimensionMapping: () => applyDimensionMapping,
@@ -1552,18 +1551,6 @@ var PFORM_EXAMPLE = {
   ],
   calculationMethods: {}
   // set alongside the dimension mapping
-};
-var PFORM_SUGGESTED_DIMENSIONS = {
-  pform_age: "lifestyle",
-  pform_pregnancy: "sensitivity",
-  pform_sun_exposure: "sun_exposure",
-  pform_climate: "climate_humidity",
-  pform_pollution: "pollution_exposure",
-  pform_stress: "mental_stress",
-  pform_sleep: "mental_stress",
-  pform_diet: "gut_health",
-  pform_hydration: "gut_health",
-  pform_smoking: "lifestyle"
 };
 var PFORM_TYPE_MAP = {
   radiogroup: "single_choice",
@@ -2123,7 +2110,7 @@ var FormSimulatorTab = ({
   const answersKey = currentQ?.code ? ANSWERS_KEY_PREFIX + currentQ.code : null;
   const [data, setData] = (0, import_shared7.usePersistentState)(answersKey, {});
   const [showPayload, setShowPayload] = (0, import_react5.useState)(false);
-  const [customerId, setCustomerId] = (0, import_shared7.usePersistentState)(CUSTOMER_ID_KEY, "demo-customer-001");
+  const [customerId, setCustomerId] = (0, import_shared7.usePersistentState)(CUSTOMER_ID_KEY, "");
   const [copied, setCopied] = (0, import_react5.useState)("");
   const copy = (text, tag) => {
     navigator.clipboard?.writeText(text).then(
@@ -2170,7 +2157,7 @@ var FormSimulatorTab = ({
   const submitBody = {
     brand_id: currentQ?.brandId || brandId,
     application_id: currentQ?.applicationId || applicationId,
-    customer_id: customerId,
+    ...customerId.trim() ? { customer_id: customerId.trim() } : {},
     data
   };
   const submitBodyJson = JSON.stringify(submitBody, null, 2);
@@ -2814,7 +2801,7 @@ var QuestionnaireModal = ({
                     required: true,
                     value: qName,
                     onChange: (e) => setQName(e.target.value),
-                    placeholder: "e.g. Pixie Skin Analyzer",
+                    placeholder: "questionnaire name",
                     className: `${field} w-full`
                   }
                 ),
@@ -3715,8 +3702,6 @@ __export(score_exports, {
   BlendingTab: () => BlendingTab,
   ClinicalAxisCard: () => ClinicalAxisCard,
   ClinicalDimensionCard: () => ClinicalDimensionCard,
-  DEFAULT_SCORE_RANGE_BANDS: () => DEFAULT_SCORE_RANGE_BANDS,
-  DEFAULT_SEVERITY_BANDS: () => DEFAULT_SEVERITY_BANDS,
   EMPTY_PROFILE_CONFIG: () => EMPTY_PROFILE_CONFIG,
   ProfileMappingTable: () => ProfileMappingTable,
   ScoreManager: () => ScoreManager,
@@ -3729,7 +3714,7 @@ __export(score_exports, {
 // src/score/components/ScoreManager.tsx
 var import_react15 = require("react");
 var import_lucide_react15 = require("lucide-react");
-var import_shared16 = require("@gateway-experience/shared");
+var import_shared17 = require("@gateway-experience/shared");
 
 // src/core/scope.ts
 var ALL_TENANTS = "*";
@@ -3855,10 +3840,7 @@ var RulesetsTab = ({
               style: { colorScheme: "dark" },
               children: [
                 /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("option", { value: "ALL", children: "All statuses" }),
-                /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("option", { value: "ACTIVE", children: "Active" }),
-                /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("option", { value: "DRAFT", children: "Draft" }),
-                /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("option", { value: "INACTIVE", children: "Inactive" }),
-                /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("option", { value: "ARCHIVED", children: "Archived" })
+                import_shared10.LIFECYCLE_STATUSES.map((s) => /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("option", { value: s.code, children: s.name }, s.code))
               ]
             }
           )
@@ -3983,18 +3965,6 @@ var AGE_FIELD = "age_over_30";
 var AGE_FIELD_CUTOFF_YEARS = 30;
 var FORM_SOURCE = "form";
 var VISION_SOURCE = "vision";
-var DEFAULT_SCORE_RANGE_BANDS = [
-  { id: "sr1", max: 40, label: "Perlu Perhatian Khusus" },
-  { id: "sr2", max: 60, label: "Sedang" },
-  { id: "sr3", max: 100, label: "Optimal" }
-];
-var DEFAULT_SEVERITY_BANDS = [
-  { id: "sv1", max: 20, label: "Sangat Parah" },
-  { id: "sv2", max: 40, label: "Parah" },
-  { id: "sv3", max: 60, label: "Sedang" },
-  { id: "sv4", max: 80, label: "Ringan" },
-  { id: "sv5", max: 100, label: "Sehat" }
-];
 var KNOWN_VISION_FIELDS = [
   { code: "data.inference_result.results.skin_scoring.Darkspot", label: "Darkspot", description: "results.skin_scoring.Darkspot \u2014 feeds Pigmentation." },
   { code: "data.inference_result.results.skin_scoring.Wrinkle", label: "Wrinkle", description: "results.skin_scoring.Wrinkle \u2014 feeds Aging." },
@@ -4106,7 +4076,7 @@ function scoreRangeLetters(bands) {
 var bandsToSchema = (bands) => bands.map((b) => ({ max: Math.max(0, Math.min(100, Number(b.max) || 0)), label: b.label || "" }));
 var cleanVal = (v) => `"${(v || "").replace(/"/g, "")}"`;
 var rangeCell = (min, max) => `[${Math.max(0, Math.min(100, min ?? 0))}..${Math.max(0, Math.min(100, max ?? 100))}]`;
-function compileVisualToJDM(axes, profileConfig = EMPTY_PROFILE_CONFIG, scoreRangeBands = DEFAULT_SCORE_RANGE_BANDS, severityBands = DEFAULT_SEVERITY_BANDS, existingSchema, sources) {
+function compileVisualToJDM(axes, profileConfig = EMPTY_PROFILE_CONFIG, scoreRangeBands = [], severityBands = [], existingSchema, sources) {
   const effectiveAxes = axes.filter((a) => (a.dimensionKey || "").trim());
   const nodes = [
     { id: "input_node", name: "Input", type: "inputNode", position: { x: 40, y: 40 } }
@@ -4220,9 +4190,9 @@ function compileVisualToJDM(axes, profileConfig = EMPTY_PROFILE_CONFIG, scoreRan
           rules: bands.slice().reverse().map((b) => ({ in: rangeCell(b.min, b.max), out: cleanVal(b.letter) }))
         }
       });
-    } else if ((a.axisCodeLow || "").trim() && (a.axisCodeHigh || "").trim()) {
+    } else if ((a.axisCodeLow || "").trim() && (a.axisCodeHigh || "").trim() && typeof a.axisCodeThreshold === "number" && Number.isFinite(a.axisCodeThreshold)) {
       axis_codes[key] = {
-        threshold: Math.max(0, Math.min(100, Number(a.axisCodeThreshold ?? 50))),
+        threshold: Math.max(0, Math.min(100, a.axisCodeThreshold)),
         low: (a.axisCodeLow || "").trim(),
         high: (a.axisCodeHigh || "").trim()
       };
@@ -4257,10 +4227,12 @@ function compileVisualToJDM(axes, profileConfig = EMPTY_PROFILE_CONFIG, scoreRan
     nodes: [...nodes, ...preservedNodes],
     edges,
     dimension_weights: mergeOwned(base.dimension_weights, dimension_weights),
-    concern_labels: mergeOwned(base.concern_labels, concern_labels),
-    score_range_bands: bandsToSchema(scoreRangeBands),
-    severity_bands: bandsToSchema(severityBands)
+    concern_labels: mergeOwned(base.concern_labels, concern_labels)
   };
+  if (scoreRangeBands.length > 0) model.score_range_bands = bandsToSchema(scoreRangeBands);
+  else delete model.score_range_bands;
+  if (severityBands.length > 0) model.severity_bands = bandsToSchema(severityBands);
+  else delete model.severity_bands;
   const mergedAxisCodes = mergeOwned(base.axis_codes, axis_codes);
   if (Object.keys(mergedAxisCodes).length > 0) model.axis_codes = mergedAxisCodes;
   else delete model.axis_codes;
@@ -4276,8 +4248,8 @@ function compileVisualToJDM(axes, profileConfig = EMPTY_PROFILE_CONFIG, scoreRan
   }
   return JSON.stringify(model, null, 2);
 }
-var bandsFromSchema = (raw, fallback, prefix) => {
-  if (!Array.isArray(raw) || raw.length === 0) return fallback.map((b) => ({ ...b }));
+var bandsFromSchema = (raw, prefix) => {
+  if (!Array.isArray(raw) || raw.length === 0) return [];
   return raw.map((b, i) => ({
     id: `${prefix}${i + 1}`,
     max: Number(b?.max) || 0,
@@ -4288,8 +4260,8 @@ function decompileJDMToVisualComponents(schemaStr) {
   const fallback = {
     axes: [],
     profileConfig: { ...EMPTY_PROFILE_CONFIG, profiles: [] },
-    scoreRangeBands: DEFAULT_SCORE_RANGE_BANDS.map((b) => ({ ...b })),
-    severityBands: DEFAULT_SEVERITY_BANDS.map((b) => ({ ...b })),
+    scoreRangeBands: [],
+    severityBands: [],
     sources: {},
     convertedBlend: false,
     legacy: false
@@ -4354,8 +4326,8 @@ function decompileJDMToVisualComponents(schemaStr) {
         if (!range) return null;
         return { id: `${key}_b${ri}`, min: range.min, max: range.max, letter: clean(r[outId]) };
       }).filter(Boolean);
-    } else if (ac && (ac.low || ac.high)) {
-      const t = typeof ac.threshold === "number" ? ac.threshold : 50;
+    } else if (ac && (ac.low || ac.high) && typeof ac.threshold === "number") {
+      const t = ac.threshold;
       bands = [
         { id: `${key}_lo`, min: 0, max: Math.max(0, t - 1), letter: ac.low || "" },
         { id: `${key}_hi`, min: t, max: 100, letter: ac.high || "" }
@@ -4374,7 +4346,7 @@ function decompileJDMToVisualComponents(schemaStr) {
       ...ac && (ac.low || ac.high) ? {
         axisCodeLow: ac.low || "",
         axisCodeHigh: ac.high || "",
-        axisCodeThreshold: typeof ac.threshold === "number" ? ac.threshold : 50
+        ...typeof ac.threshold === "number" ? { axisCodeThreshold: ac.threshold } : {}
       } : {}
     };
   });
@@ -4432,8 +4404,8 @@ function decompileJDMToVisualComponents(schemaStr) {
   return {
     axes,
     profileConfig,
-    scoreRangeBands: bandsFromSchema(parsed.score_range_bands, DEFAULT_SCORE_RANGE_BANDS, "sr"),
-    severityBands: bandsFromSchema(parsed.severity_bands, DEFAULT_SEVERITY_BANDS, "sv"),
+    scoreRangeBands: bandsFromSchema(parsed.score_range_bands, "sr"),
+    severityBands: bandsFromSchema(parsed.severity_bands, "sv"),
     sources: blend.sources,
     convertedBlend: blend.converted,
     legacy
@@ -5481,6 +5453,7 @@ var ScoreSimulatorTab = ({
 var import_react14 = require("react");
 var import_lucide_react14 = require("lucide-react");
 var import_shared15 = require("@gateway-experience/shared");
+var import_shared16 = require("@gateway-experience/shared");
 
 // src/score/components/reusable/BandTable.tsx
 var import_jsx_runtime15 = require("react/jsx-runtime");
@@ -5489,8 +5462,31 @@ var BandTable = ({
   onChange,
   disabled = false,
   fixed = false,
-  idPrefix = "band"
+  idPrefix = "band",
+  engineDefaults
 }) => {
+  if (bands.length === 0 && engineDefaults) {
+    return /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { className: "rounded-md border border-dashed border-border bg-muted/10 p-3 space-y-2 text-xs", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("p", { className: "text-[11px] text-muted-foreground", children: "Not set \u2014 the engine's default bands apply:" }),
+      /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("ul", { className: "space-y-0.5 text-muted-foreground", children: engineDefaults.map((b, i) => /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("li", { className: "flex gap-2", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("span", { className: "w-24 shrink-0 font-mono", children: [
+          i === 0 ? 0 : engineDefaults[i - 1].max + 1,
+          "\u2013",
+          b.max
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { children: b.label })
+      ] }, `${b.max}-${i}`)) }),
+      !disabled && /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
+        "button",
+        {
+          type: "button",
+          onClick: () => onChange(engineDefaults.map((b, i) => ({ id: `${idPrefix}${i + 1}`, max: b.max, label: b.label }))),
+          className: "rounded border border-border px-2 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground",
+          children: "Customise (start from these)"
+        }
+      )
+    ] });
+  }
   const setMax = (idx, raw) => {
     const next = bands.map((b) => ({ ...b }));
     const lower = idx === 0 ? 0 : next[idx - 1].max + 1;
@@ -5563,16 +5559,29 @@ var BandTable = ({
         )
       ] }, b.id);
     }),
-    !fixed && /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("div", { className: "px-3 py-1.5", children: /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
-      "button",
-      {
-        type: "button",
-        disabled,
-        onClick: addRow,
-        className: "text-[11px] text-muted-foreground hover:text-foreground disabled:opacity-50",
-        children: "+ Add band"
-      }
-    ) })
+    !fixed && /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { className: "px-3 py-1.5", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
+        "button",
+        {
+          type: "button",
+          disabled,
+          onClick: addRow,
+          className: "text-[11px] text-muted-foreground hover:text-foreground disabled:opacity-50",
+          children: "+ Add band"
+        }
+      ),
+      engineDefaults && /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
+        "button",
+        {
+          type: "button",
+          disabled,
+          onClick: () => onChange([]),
+          className: "ml-3 text-[11px] text-muted-foreground hover:text-foreground disabled:opacity-50",
+          title: "Clear these bands so the engine's defaults apply",
+          children: "Use engine defaults"
+        }
+      )
+    ] })
   ] });
 };
 
@@ -5880,7 +5889,7 @@ var ProfileMappingTable = ({
                       disabled,
                       value: p.code,
                       onChange: (e) => handleUpdateProfile(p.id, "code", e.target.value.toUpperCase().replace(/\s+/g, "_")),
-                      placeholder: "DSPW",
+                      placeholder: "code",
                       className: "w-full px-2.5 py-1.5 bg-muted/40 border border-border rounded text-beak font-bold focus:outline-none focus:border-ring disabled:opacity-50 text-xs"
                     }
                   ) }),
@@ -6058,8 +6067,8 @@ var RulesetModal = ({
   const [surveys, setSurveys] = (0, import_react14.useState)([]);
   const [axes, setAxes] = (0, import_react14.useState)([]);
   const [profileConfig, setProfileConfig] = (0, import_react14.useState)(EMPTY_PROFILE_CONFIG);
-  const [scoreRangeBands, setScoreRangeBands] = (0, import_react14.useState)(DEFAULT_SCORE_RANGE_BANDS);
-  const [severityBands, setSeverityBands] = (0, import_react14.useState)(DEFAULT_SEVERITY_BANDS);
+  const [scoreRangeBands, setScoreRangeBands] = (0, import_react14.useState)([]);
+  const [severityBands, setSeverityBands] = (0, import_react14.useState)([]);
   const [tab, setTab] = (0, import_react14.useState)("setup");
   const [schemaOpen, setSchemaOpen] = (0, import_react14.useState)(true);
   const notesRef = (0, import_react14.useRef)(null);
@@ -6107,8 +6116,8 @@ var RulesetModal = ({
       setStatus("ACTIVE");
       setAxes([]);
       setProfileConfig({ ...EMPTY_PROFILE_CONFIG, profiles: [] });
-      setScoreRangeBands(DEFAULT_SCORE_RANGE_BANDS);
-      setSeverityBands(DEFAULT_SEVERITY_BANDS);
+      setScoreRangeBands([]);
+      setSeverityBands([]);
       setIsLegacy(false);
       setFormSurveyCode("");
       setVisionSourceCode("");
@@ -6189,6 +6198,8 @@ var RulesetModal = ({
       setIsSubmitting(false);
     }
   };
+  const effectiveScoreRangeBands = scoreRangeBands.length ? scoreRangeBands : import_shared16.CORE_DEFAULT_SCORE_RANGE_BANDS.map((b, i) => ({ id: `sr${i + 1}`, ...b }));
+  const effectiveSeverityBands = severityBands.length ? severityBands : import_shared16.CORE_DEFAULT_SEVERITY_BANDS.map((b, i) => ({ id: `sv${i + 1}`, ...b }));
   const jsonText = withSetupFields(compileVisualToJDM(axes, profileConfig, scoreRangeBands, severityBands, editingRuleset?.schema));
   const createRequestBody = JSON.stringify(
     {
@@ -6367,22 +6378,18 @@ var RulesetModal = ({
                         /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(
                           import_shared15.InfoTooltip,
                           {
-                            content: "Which CV/vendor source this ruleset pairs with. Only one is registered today (Paradev Skin Analyzer) \u2014 more get added as new vendors are wired up.",
+                            content: "The code of the CV/vendor source this ruleset pairs with (vision_source_code). There is no vendor registry to pick from yet, so it is entered as the integration names it.",
                             label: "About Vision input"
                           }
                         )
                       ] }),
-                      /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)(
-                        "select",
+                      /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(
+                        "input",
                         {
                           value: visionSourceCode,
-                          onChange: (e) => setVisionSourceCode(e.target.value),
-                          className: inputCls,
-                          style: { colorScheme: "dark" },
-                          children: [
-                            /* @__PURE__ */ (0, import_jsx_runtime17.jsx)("option", { value: "", children: "\u2014 none selected \u2014" }),
-                            /* @__PURE__ */ (0, import_jsx_runtime17.jsx)("option", { value: "paradev_skin_analyzer", children: "Paradev Skin Analyzer" })
-                          ]
+                          onChange: (e) => setVisionSourceCode(e.target.value.trim()),
+                          placeholder: "vendor source code (optional)",
+                          className: inputCls + " font-mono"
                         }
                       )
                     ] })
@@ -6478,7 +6485,7 @@ var RulesetModal = ({
                       }
                     )
                   ] }),
-                  /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(BandTable, { bands: scoreRangeBands, onChange: setScoreRangeBands, idPrefix: "sr" })
+                  /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(BandTable, { bands: scoreRangeBands, onChange: setScoreRangeBands, idPrefix: "sr", engineDefaults: import_shared16.CORE_DEFAULT_SCORE_RANGE_BANDS })
                 ] }),
                 /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)("div", { className: "space-y-1.5", children: [
                   /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)("div", { className: "flex items-center gap-1.5", children: [
@@ -6491,7 +6498,7 @@ var RulesetModal = ({
                       }
                     )
                   ] }),
-                  /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(BandTable, { bands: severityBands, onChange: setSeverityBands, idPrefix: "sv" })
+                  /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(BandTable, { bands: severityBands, onChange: setSeverityBands, idPrefix: "sv", engineDefaults: import_shared16.CORE_DEFAULT_SEVERITY_BANDS })
                 ] })
               ] }),
               /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)("div", { className: "space-y-1.5 border-t border-border pt-4", children: [
@@ -6511,8 +6518,8 @@ var RulesetModal = ({
                     axes,
                     config: profileConfig,
                     onChange: setProfileConfig,
-                    scoreRangeBands,
-                    severityBands
+                    scoreRangeBands: effectiveScoreRangeBands,
+                    severityBands: effectiveSeverityBands
                   }
                 )
               ] })
@@ -6598,10 +6605,10 @@ var RulesetModal = ({
 // src/score/components/ScoreManager.tsx
 var import_jsx_runtime18 = require("react/jsx-runtime");
 var ScoreManager = () => {
-  const [activeTab, setActiveTab] = (0, import_shared16.usePersistentState)("xg.scoreEngine.activeTab", "rulesets");
+  const [activeTab, setActiveTab] = (0, import_shared17.usePersistentState)("xg.scoreEngine.activeTab", "rulesets");
   const [searchQuery, setSearchQuery] = (0, import_react15.useState)("");
   const [rulesets, setRulesets] = (0, import_react15.useState)([]);
-  const [selectedRulesetId, setSelectedRulesetId] = (0, import_shared16.usePersistentState)("xg.scoreEngine.selectedRulesetId", null);
+  const [selectedRulesetId, setSelectedRulesetId] = (0, import_shared17.usePersistentState)("xg.scoreEngine.selectedRulesetId", null);
   const selectedRuleset = rulesets.find((r) => r.id === selectedRulesetId) ?? null;
   const setSelectedRuleset = (r) => setSelectedRulesetId(r?.id ?? null);
   const [isRulesetModalOpen, setIsRulesetModalOpen] = (0, import_react15.useState)(false);
@@ -6665,7 +6672,7 @@ var ScoreManager = () => {
   };
   return /* @__PURE__ */ (0, import_jsx_runtime18.jsxs)("div", { className: "flex-1 min-w-0 h-full overflow-y-auto bg-background text-foreground font-sans flex flex-col select-none", children: [
     /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(
-      import_shared16.PageHeader,
+      import_shared17.PageHeader,
       {
         icon: /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(import_lucide_react15.FileText, { className: "h-5 w-5" }),
         breadcrumbs: [
@@ -6675,7 +6682,7 @@ var ScoreManager = () => {
         ],
         title: "Score Engine",
         children: /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(
-          import_shared16.TabNav,
+          import_shared17.TabNav,
           {
             tabs: scoreTabs,
             activeTab,
@@ -6737,7 +6744,7 @@ var ScoreManager = () => {
       }
     ),
     /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(
-      import_shared16.ConfirmDialog,
+      import_shared17.ConfirmDialog,
       {
         isOpen: deleteConfirm.isOpen,
         title: deleteConfirm.title,
@@ -6752,7 +6759,7 @@ var ScoreManager = () => {
 // src/score/components/reusable/SeverityTierTable.tsx
 var import_react16 = require("react");
 var import_lucide_react16 = require("lucide-react");
-var import_shared17 = require("@gateway-experience/shared");
+var import_shared18 = require("@gateway-experience/shared");
 var import_jsx_runtime19 = require("react/jsx-runtime");
 var SEV_LABEL = {
   optimal: "Level 5 \xB7 Healthy",
@@ -6783,10 +6790,11 @@ var SeverityTierTable = ({
         id: `t_${Date.now()}`,
         minScore: last ? Math.min(100, last.maxScore + 1) : 0,
         maxScore: 100,
-        valueCode: "X",
+        // Blank until authored: no letter, severity or trait is presumed.
+        valueCode: "",
         gradeName: `Level ${tiers.length + 1}`,
-        severity: "optimal",
-        trait: "Normal"
+        severity: "",
+        trait: ""
       }
     ]);
   };
@@ -6835,7 +6843,7 @@ var SeverityTierTable = ({
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime19.jsx)("div", { className: "divide-y divide-border", children: tiers.map((tier) => /* @__PURE__ */ (0, import_jsx_runtime19.jsxs)("div", { className: "flex items-center gap-2 px-3 py-2", children: [
         /* @__PURE__ */ (0, import_jsx_runtime19.jsx)("div", { className: "shrink-0", style: { width: W_RANGE }, children: /* @__PURE__ */ (0, import_jsx_runtime19.jsx)(
-          import_shared17.ScoreRangeInput,
+          import_shared18.ScoreRangeInput,
           {
             minScore: tier.minScore,
             maxScore: tier.maxScore,
@@ -6855,9 +6863,10 @@ var SeverityTierTable = ({
           }
         ),
         /* @__PURE__ */ (0, import_jsx_runtime19.jsx)("div", { className: "shrink-0", style: { width: W_SEVERITY }, children: /* @__PURE__ */ (0, import_jsx_runtime19.jsx)(
-          import_shared17.SeveritySelect,
+          import_shared18.SeveritySelect,
           {
             value: tier.severity,
+            emptyLabel: "\u2014 choose \u2014",
             disabled,
             onChange: (sev) => update(tier.id, { severity: sev })
           }
@@ -6925,13 +6934,13 @@ __export(match_exports, {
 });
 
 // src/match/components/MatchManager.tsx
-var import_react21 = require("react");
+var import_react22 = require("react");
 var import_lucide_react25 = require("lucide-react");
-var import_shared26 = require("@gateway-experience/shared");
+var import_shared27 = require("@gateway-experience/shared");
 
 // src/match/components/tabs/ConflictMatrixTab.tsx
 var import_lucide_react17 = require("lucide-react");
-var import_shared18 = require("@gateway-experience/shared");
+var import_shared19 = require("@gateway-experience/shared");
 var import_jsx_runtime20 = require("react/jsx-runtime");
 var ConflictMatrixTab = ({
   conflicts,
@@ -6978,14 +6987,14 @@ var ConflictMatrixTab = ({
         /* @__PURE__ */ (0, import_jsx_runtime20.jsx)(import_lucide_react17.Building, { className: "h-3 w-3 text-beak" }),
         /* @__PURE__ */ (0, import_jsx_runtime20.jsx)("span", { children: "Brand Scope" })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime20.jsx)(import_shared18.BrandSelect, { value: selectedBrand, onChange: setSelectedBrand, includeUniversal: true, label: "" })
+      /* @__PURE__ */ (0, import_jsx_runtime20.jsx)(import_shared19.BrandSelect, { value: selectedBrand, onChange: setSelectedBrand, includeUniversal: true, label: "" })
     ] }),
     /* @__PURE__ */ (0, import_jsx_runtime20.jsxs)("div", { className: "space-y-1.5", children: [
       /* @__PURE__ */ (0, import_jsx_runtime20.jsxs)("label", { className: "text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5", children: [
         /* @__PURE__ */ (0, import_jsx_runtime20.jsx)(import_lucide_react17.Smartphone, { className: "h-3 w-3 text-sky-400" }),
         /* @__PURE__ */ (0, import_jsx_runtime20.jsx)("span", { children: "Channel / Application" })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime20.jsx)(import_shared18.ApplicationSelect, { value: selectedApp, onChange: setSelectedApp, includeUniversal: true, label: "" })
+      /* @__PURE__ */ (0, import_jsx_runtime20.jsx)(import_shared19.ApplicationSelect, { value: selectedApp, onChange: setSelectedApp, includeUniversal: true, label: "" })
     ] })
   ] });
   const columns = [
@@ -7023,7 +7032,7 @@ var ConflictMatrixTab = ({
       align: "right",
       render: (c) => /* @__PURE__ */ (0, import_jsx_runtime20.jsxs)("div", { className: "flex items-center justify-end gap-1", children: [
         /* @__PURE__ */ (0, import_jsx_runtime20.jsx)(
-          import_shared18.Button,
+          import_shared19.Button,
           {
             variant: "ghost",
             size: "icon-xs",
@@ -7033,7 +7042,7 @@ var ConflictMatrixTab = ({
           }
         ),
         /* @__PURE__ */ (0, import_jsx_runtime20.jsx)(
-          import_shared18.Button,
+          import_shared19.Button,
           {
             variant: "ghost",
             size: "icon-xs",
@@ -7048,7 +7057,7 @@ var ConflictMatrixTab = ({
   ];
   return /* @__PURE__ */ (0, import_jsx_runtime20.jsxs)("div", { className: "space-y-4", children: [
     /* @__PURE__ */ (0, import_jsx_runtime20.jsx)(
-      import_shared18.SearchFilterBar,
+      import_shared19.SearchFilterBar,
       {
         searchQuery,
         onSearchChange,
@@ -7060,7 +7069,7 @@ var ConflictMatrixTab = ({
       }
     ),
     /* @__PURE__ */ (0, import_jsx_runtime20.jsx)(
-      import_shared18.DataTable,
+      import_shared19.DataTable,
       {
         columns,
         data: filtered,
@@ -7073,7 +7082,7 @@ var ConflictMatrixTab = ({
 
 // src/match/components/tabs/ProductGroupsTab.tsx
 var import_lucide_react18 = require("lucide-react");
-var import_shared19 = require("@gateway-experience/shared");
+var import_shared20 = require("@gateway-experience/shared");
 var import_jsx_runtime21 = require("react/jsx-runtime");
 var ProductGroupsTab = ({
   groups,
@@ -7120,14 +7129,14 @@ var ProductGroupsTab = ({
         /* @__PURE__ */ (0, import_jsx_runtime21.jsx)(import_lucide_react18.Building, { className: "h-3 w-3 text-primary" }),
         /* @__PURE__ */ (0, import_jsx_runtime21.jsx)("span", { children: "Brand Scope" })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime21.jsx)(import_shared19.BrandSelect, { value: selectedBrand, onChange: setSelectedBrand, includeUniversal: true, label: "" })
+      /* @__PURE__ */ (0, import_jsx_runtime21.jsx)(import_shared20.BrandSelect, { value: selectedBrand, onChange: setSelectedBrand, includeUniversal: true, label: "" })
     ] }),
     /* @__PURE__ */ (0, import_jsx_runtime21.jsxs)("div", { className: "space-y-1.5", children: [
       /* @__PURE__ */ (0, import_jsx_runtime21.jsxs)("label", { className: "text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5", children: [
         /* @__PURE__ */ (0, import_jsx_runtime21.jsx)(import_lucide_react18.Smartphone, { className: "h-3 w-3 text-sky-400" }),
         /* @__PURE__ */ (0, import_jsx_runtime21.jsx)("span", { children: "Channel / Application" })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime21.jsx)(import_shared19.ApplicationSelect, { value: selectedApp, onChange: setSelectedApp, includeUniversal: true, label: "" })
+      /* @__PURE__ */ (0, import_jsx_runtime21.jsx)(import_shared20.ApplicationSelect, { value: selectedApp, onChange: setSelectedApp, includeUniversal: true, label: "" })
     ] })
   ] });
   const columns = [
@@ -7189,7 +7198,7 @@ var ProductGroupsTab = ({
       align: "right",
       render: (g) => /* @__PURE__ */ (0, import_jsx_runtime21.jsxs)("div", { className: "flex items-center justify-end gap-1", children: [
         /* @__PURE__ */ (0, import_jsx_runtime21.jsx)(
-          import_shared19.Button,
+          import_shared20.Button,
           {
             variant: "ghost",
             size: "icon-xs",
@@ -7199,7 +7208,7 @@ var ProductGroupsTab = ({
           }
         ),
         /* @__PURE__ */ (0, import_jsx_runtime21.jsx)(
-          import_shared19.Button,
+          import_shared20.Button,
           {
             variant: "ghost",
             size: "icon-xs",
@@ -7214,7 +7223,7 @@ var ProductGroupsTab = ({
   ];
   return /* @__PURE__ */ (0, import_jsx_runtime21.jsxs)("div", { className: "space-y-4", children: [
     /* @__PURE__ */ (0, import_jsx_runtime21.jsx)(
-      import_shared19.SearchFilterBar,
+      import_shared20.SearchFilterBar,
       {
         searchQuery,
         onSearchChange,
@@ -7226,7 +7235,7 @@ var ProductGroupsTab = ({
       }
     ),
     /* @__PURE__ */ (0, import_jsx_runtime21.jsx)(
-      import_shared19.DataTable,
+      import_shared20.DataTable,
       {
         columns,
         data: filtered,
@@ -7239,7 +7248,7 @@ var ProductGroupsTab = ({
 
 // src/match/components/tabs/ShadesTab.tsx
 var import_lucide_react19 = require("lucide-react");
-var import_shared20 = require("@gateway-experience/shared");
+var import_shared21 = require("@gateway-experience/shared");
 var import_jsx_runtime22 = require("react/jsx-runtime");
 var ShadesTab = ({
   shades,
@@ -7276,14 +7285,14 @@ var ShadesTab = ({
       header: "Actions",
       align: "right",
       render: (s) => /* @__PURE__ */ (0, import_jsx_runtime22.jsxs)("div", { className: "flex items-center justify-end gap-1", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime22.jsx)(import_shared20.Button, { variant: "ghost", size: "icon-xs", onClick: () => onOpenEditModal(s), title: "Edit Shade", children: /* @__PURE__ */ (0, import_jsx_runtime22.jsx)(import_lucide_react19.Pencil, { className: "h-3.5 w-3.5" }) }),
-        /* @__PURE__ */ (0, import_jsx_runtime22.jsx)(import_shared20.Button, { variant: "ghost", size: "icon-xs", onClick: () => onDeleteShade(s.id), title: "Delete Shade", className: "hover:text-destructive", children: /* @__PURE__ */ (0, import_jsx_runtime22.jsx)(import_lucide_react19.Trash2, { className: "h-3.5 w-3.5" }) })
+        /* @__PURE__ */ (0, import_jsx_runtime22.jsx)(import_shared21.Button, { variant: "ghost", size: "icon-xs", onClick: () => onOpenEditModal(s), title: "Edit Shade", children: /* @__PURE__ */ (0, import_jsx_runtime22.jsx)(import_lucide_react19.Pencil, { className: "h-3.5 w-3.5" }) }),
+        /* @__PURE__ */ (0, import_jsx_runtime22.jsx)(import_shared21.Button, { variant: "ghost", size: "icon-xs", onClick: () => onDeleteShade(s.id), title: "Delete Shade", className: "hover:text-destructive", children: /* @__PURE__ */ (0, import_jsx_runtime22.jsx)(import_lucide_react19.Trash2, { className: "h-3.5 w-3.5" }) })
       ] })
     }
   ];
   return /* @__PURE__ */ (0, import_jsx_runtime22.jsxs)("div", { className: "space-y-4", children: [
     /* @__PURE__ */ (0, import_jsx_runtime22.jsx)(
-      import_shared20.SearchFilterBar,
+      import_shared21.SearchFilterBar,
       {
         searchQuery,
         onSearchChange,
@@ -7292,33 +7301,48 @@ var ShadesTab = ({
         onAction: onOpenAddModal
       }
     ),
-    /* @__PURE__ */ (0, import_jsx_runtime22.jsx)(import_shared20.DataTable, { columns, data: filtered, keyExtractor: (s) => s.id, emptyMessage: "No shades defined for this product yet." })
+    /* @__PURE__ */ (0, import_jsx_runtime22.jsx)(import_shared21.DataTable, { columns, data: filtered, keyExtractor: (s) => s.id, emptyMessage: "No shades defined for this product yet." })
   ] });
 };
 
 // src/match/components/tabs/MatchSimulatorTab.tsx
+var import_react17 = require("react");
 var import_lucide_react20 = require("lucide-react");
-var import_shared21 = require("@gateway-experience/shared");
+var import_shared22 = require("@gateway-experience/shared");
 var import_jsx_runtime23 = require("react/jsx-runtime");
+var SLIDER_MIN = 0;
+var SLIDER_MAX = 100;
+var SLIDER_MIDPOINT = (SLIDER_MIN + SLIDER_MAX) / 2;
 var MatchSimulatorTab = ({
   simBrand,
   setSimBrand,
   simSkinType,
   setSimSkinType,
-  simSebum,
-  setSimSebum,
-  simHydration,
-  setSimHydration,
-  simSensitivity,
-  setSimSensitivity,
-  simPregnant,
-  setSimPregnant,
-  simRetinol,
-  setSimRetinol,
+  simScores,
+  setSimScores,
+  simConditions,
+  setSimConditions,
   onRunSimulator,
   isSimulating,
   simResult
 }) => {
+  const hostRoutes = (0, import_shared22.useHostRoutes)();
+  const [dimensions, setDimensions] = (0, import_react17.useState)(null);
+  const [flags, setFlags] = (0, import_react17.useState)(null);
+  (0, import_react17.useEffect)(() => {
+    let alive = true;
+    getDimensions(hostRoutes).then((rows) => alive && setDimensions(rows.filter((d) => d?.code && !d.parentCode)));
+    getSafetyFlags(hostRoutes).then((rows) => alive && setFlags(rows.filter((f) => f?.code)));
+    return () => {
+      alive = false;
+    };
+  }, [hostRoutes]);
+  const toggleDimension = (code, on) => {
+    const next = { ...simScores };
+    if (on) next[code] = next[code] ?? SLIDER_MIDPOINT;
+    else delete next[code];
+    setSimScores(next);
+  };
   const getPhaseIcon = (phaseKey) => {
     const lower = phaseKey.toLowerCase();
     if (lower.includes("morning") || lower.includes("am") || lower.includes("sun") || lower.includes("day")) {
@@ -7374,112 +7398,60 @@ var MatchSimulatorTab = ({
       /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)("div", { className: "space-y-3 text-xs", children: [
         /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)("div", { className: "space-y-1", children: [
           /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("label", { className: "text-muted-foreground", children: "Brand Scope:" }),
-          /* @__PURE__ */ (0, import_jsx_runtime23.jsx)(import_shared21.BrandSelect, { value: simBrand, onChange: setSimBrand, includeUniversal: true, label: "" })
+          /* @__PURE__ */ (0, import_jsx_runtime23.jsx)(import_shared22.BrandSelect, { value: simBrand, onChange: setSimBrand, includeUniversal: true, label: "" })
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)("div", { className: "space-y-1", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("label", { className: "text-muted-foreground", children: "Skin Profile (Phenotype):" }),
-          /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)(
-            "select",
+          /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("label", { className: "text-muted-foreground", children: "Skin profile code (optional):" }),
+          /* @__PURE__ */ (0, import_jsx_runtime23.jsx)(
+            "input",
             {
               value: simSkinType,
-              onChange: (e) => setSimSkinType(e.target.value),
-              className: "w-full bg-muted/40 border border-border rounded px-3 py-2 text-foreground font-mono",
-              children: [
-                /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("option", { value: "OSPT", children: "OSPT (Oily, Sensitive, Pigmented, Tight)" }),
-                /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("option", { value: "OSPW", children: "OSPW (Oily, Sensitive, Pigmented, Wrinkled)" }),
-                /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("option", { value: "DRNT", children: "DRNT (Dry, Resistant, Non-Pigmented, Tight)" }),
-                /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("option", { value: "DSPT", children: "DSPT (Dry, Sensitive, Pigmented, Tight)" }),
-                /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("option", { value: "ORNT", children: "ORNT (Oily, Resistant, Non-Pigmented, Tight)" })
-              ]
+              onChange: (e) => setSimSkinType(e.target.value.toUpperCase().trim()),
+              placeholder: "as the ruleset's profile mapping names it",
+              className: "w-full bg-muted/40 border border-border rounded px-3 py-2 text-foreground font-mono"
             }
           )
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)("div", { className: "space-y-1", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)("div", { className: "flex justify-between text-muted-foreground", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("span", { children: "Sebum Dimension:" }),
-            /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)("span", { className: "font-mono text-foreground font-bold", children: [
-              simSebum,
-              " pts"
-            ] })
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime23.jsx)(
-            "input",
-            {
-              type: "range",
-              min: "0",
-              max: "100",
-              value: simSebum,
-              onChange: (e) => setSimSebum(Number(e.target.value)),
-              className: "w-full accent-amber-400"
-            }
-          )
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)("div", { className: "space-y-1", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)("div", { className: "flex justify-between text-muted-foreground", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("span", { children: "Hydration Level:" }),
-            /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)("span", { className: "font-mono text-foreground font-bold", children: [
-              simHydration,
-              " pts"
-            ] })
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime23.jsx)(
-            "input",
-            {
-              type: "range",
-              min: "0",
-              max: "100",
-              value: simHydration,
-              onChange: (e) => setSimHydration(Number(e.target.value)),
-              className: "w-full accent-sky-400"
-            }
-          )
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)("div", { className: "space-y-1", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)("div", { className: "flex justify-between text-muted-foreground", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("span", { children: "Sensitivity Level:" }),
-            /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)("span", { className: "font-mono text-foreground font-bold", children: [
-              simSensitivity,
-              " pts"
-            ] })
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime23.jsx)(
-            "input",
-            {
-              type: "range",
-              min: "0",
-              max: "100",
-              value: simSensitivity,
-              onChange: (e) => setSimSensitivity(Number(e.target.value)),
-              className: "w-full accent-rose-400"
-            }
-          )
+        /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)("div", { className: "space-y-2 pt-2 border-t border-border", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("label", { className: "text-muted-foreground font-bold block", children: "Dimension scores (0-100, include to send):" }),
+          dimensions === null ? /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("p", { className: "text-muted-foreground italic", children: "Loading dimensions\u2026" }) : dimensions.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("p", { className: "text-amber-500", children: "Dimensions could not be loaded from reference data." }) : dimensions.map((d) => {
+            const included = typeof simScores[d.code] === "number";
+            return /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)("div", { className: "space-y-1", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)("label", { className: "flex items-center justify-between gap-2 text-muted-foreground cursor-pointer", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)("span", { className: "flex items-center gap-2", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("input", { type: "checkbox", checked: included, onChange: (e) => toggleDimension(d.code, e.target.checked) }),
+                  d.name || d.code
+                ] }),
+                /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("span", { className: "font-mono text-foreground font-bold", children: included ? simScores[d.code] : "not sent" })
+              ] }),
+              included && /* @__PURE__ */ (0, import_jsx_runtime23.jsx)(
+                "input",
+                {
+                  type: "range",
+                  min: SLIDER_MIN,
+                  max: SLIDER_MAX,
+                  value: simScores[d.code],
+                  onChange: (e) => setSimScores({ ...simScores, [d.code]: Number(e.target.value) }),
+                  className: "w-full accent-amber-400"
+                }
+              )
+            ] }, d.code);
+          })
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)("div", { className: "pt-2 border-t border-border space-y-2", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("label", { className: "text-muted-foreground font-bold block", children: "Safety Gatekeeper Flags:" }),
-          /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)("label", { className: "flex items-center gap-2 p-2 bg-muted/40 border border-border rounded cursor-pointer", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("label", { className: "text-muted-foreground font-bold block", children: "Safety flags:" }),
+          flags === null ? /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("p", { className: "text-muted-foreground italic", children: "Loading safety flags\u2026" }) : flags.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("p", { className: "text-amber-500", children: "Safety flags could not be loaded from reference data." }) : flags.map((f) => /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)("label", { className: "flex items-center gap-2 p-2 bg-muted/40 border border-border rounded cursor-pointer", children: [
             /* @__PURE__ */ (0, import_jsx_runtime23.jsx)(
               "input",
               {
                 type: "checkbox",
-                checked: simPregnant,
-                onChange: (e) => setSimPregnant(e.target.checked),
+                checked: !!simConditions[f.code],
+                onChange: (e) => setSimConditions({ ...simConditions, [f.code]: e.target.checked }),
                 className: "accent-rose-400 rounded"
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("span", { className: "text-foreground", children: "Is Pregnant / Nursing Consumer (Zero Retinoids)" })
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)("label", { className: "flex items-center gap-2 p-2 bg-muted/40 border border-border rounded cursor-pointer", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime23.jsx)(
-              "input",
-              {
-                type: "checkbox",
-                checked: simRetinol,
-                onChange: (e) => setSimRetinol(e.target.checked),
-                className: "accent-amber-400 rounded"
-              }
-            ),
-            /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("span", { className: "text-foreground", children: "Active Retinol / Direct Acid User" })
-          ] })
+            /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("span", { className: "text-foreground", children: f.name || f.code })
+          ] }, f.code))
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)(
           "button",
@@ -7563,7 +7535,7 @@ var MatchSimulatorTab = ({
         ] }, step.stepNumber)) })
       ] }, phase.key))
     ] }) : /* @__PURE__ */ (0, import_jsx_runtime23.jsx)(
-      import_shared21.EmptyState,
+      import_shared22.EmptyState,
       {
         icon: /* @__PURE__ */ (0, import_jsx_runtime23.jsx)(import_lucide_react20.Sparkles, { className: "h-6 w-6 text-emerald-400" }),
         title: "Regimen Matching Standby",
@@ -7575,9 +7547,9 @@ var MatchSimulatorTab = ({
 };
 
 // src/match/components/tabs/PhotoTryOnTab.tsx
-var import_react17 = require("react");
+var import_react18 = require("react");
 var import_lucide_react21 = require("lucide-react");
-var import_shared22 = require("@gateway-experience/shared");
+var import_shared23 = require("@gateway-experience/shared");
 
 // src/core/collection-resolver.ts
 function getCollectionPrefix(key) {
@@ -7688,8 +7660,8 @@ async function listReferenceIngredients(routes, doFetch = fetch) {
 var import_jsx_runtime24 = require("react/jsx-runtime");
 var errorMessage = (e) => e instanceof Error && e.message ? e.message : String(e);
 function useObjectUrl(blob) {
-  const [url, setUrl] = (0, import_react17.useState)(null);
-  (0, import_react17.useEffect)(() => {
+  const [url, setUrl] = (0, import_react18.useState)(null);
+  (0, import_react18.useEffect)(() => {
     if (!blob) {
       setUrl(null);
       return;
@@ -7701,23 +7673,23 @@ function useObjectUrl(blob) {
   return url;
 }
 var PhotoTryOnTab = () => {
-  const [catalog, setCatalog] = (0, import_react17.useState)(null);
-  const [catalogLoading, setCatalogLoading] = (0, import_react17.useState)(true);
-  const [catalogError, setCatalogError] = (0, import_react17.useState)(null);
-  const [photo, setPhoto] = (0, import_react17.useState)(null);
-  const [selected, setSelected] = (0, import_react17.useState)({});
-  const [result, setResult] = (0, import_react17.useState)(null);
-  const [rendering, setRendering] = (0, import_react17.useState)(false);
-  const [renderError, setRenderError] = (0, import_react17.useState)(null);
-  const requestId = (0, import_react17.useRef)(0);
+  const [catalog, setCatalog] = (0, import_react18.useState)(null);
+  const [catalogLoading, setCatalogLoading] = (0, import_react18.useState)(true);
+  const [catalogError, setCatalogError] = (0, import_react18.useState)(null);
+  const [photo, setPhoto] = (0, import_react18.useState)(null);
+  const [selected, setSelected] = (0, import_react18.useState)({});
+  const [result, setResult] = (0, import_react18.useState)(null);
+  const [rendering, setRendering] = (0, import_react18.useState)(false);
+  const [renderError, setRenderError] = (0, import_react18.useState)(null);
+  const requestId = (0, import_react18.useRef)(0);
   const photoUrl = useObjectUrl(photo);
   const resultUrl = useObjectUrl(result);
-  const loadCatalog = (0, import_react17.useCallback)(() => {
+  const loadCatalog = (0, import_react18.useCallback)(() => {
     setCatalogLoading(true);
     setCatalogError(null);
     fetchColourCatalog().then(setCatalog).catch((e) => setCatalogError(errorMessage(e))).finally(() => setCatalogLoading(false));
   }, []);
-  (0, import_react17.useEffect)(() => {
+  (0, import_react18.useEffect)(() => {
     loadCatalog();
   }, [loadCatalog]);
   const resetResult = () => {
@@ -7779,7 +7751,7 @@ var PhotoTryOnTab = () => {
           ] }),
           photo && /* @__PURE__ */ (0, import_jsx_runtime24.jsxs)(import_jsx_runtime24.Fragment, { children: [
             /* @__PURE__ */ (0, import_jsx_runtime24.jsx)("span", { className: "text-[11px] text-muted-foreground truncate max-w-[180px]", title: photo.name, children: photo.name }),
-            /* @__PURE__ */ (0, import_jsx_runtime24.jsx)(import_shared22.Button, { variant: "ghost", size: "icon-xs", onClick: () => choosePhoto(null), title: "Remove photo", children: /* @__PURE__ */ (0, import_jsx_runtime24.jsx)(import_lucide_react21.X, { className: "h-3.5 w-3.5" }) })
+            /* @__PURE__ */ (0, import_jsx_runtime24.jsx)(import_shared23.Button, { variant: "ghost", size: "icon-xs", onClick: () => choosePhoto(null), title: "Remove photo", children: /* @__PURE__ */ (0, import_jsx_runtime24.jsx)(import_lucide_react21.X, { className: "h-3.5 w-3.5" }) })
           ] })
         ] })
       ] }),
@@ -7808,7 +7780,7 @@ var PhotoTryOnTab = () => {
             "Could not load the catalog: ",
             catalogError
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime24.jsx)(import_shared22.Button, { variant: "ghost", size: "icon-xs", onClick: loadCatalog, title: "Retry", children: /* @__PURE__ */ (0, import_jsx_runtime24.jsx)(import_lucide_react21.RefreshCw, { className: "h-3.5 w-3.5" }) })
+          /* @__PURE__ */ (0, import_jsx_runtime24.jsx)(import_shared23.Button, { variant: "ghost", size: "icon-xs", onClick: loadCatalog, title: "Retry", children: /* @__PURE__ */ (0, import_jsx_runtime24.jsx)(import_lucide_react21.RefreshCw, { className: "h-3.5 w-3.5" }) })
         ] }),
         !catalogLoading && !catalogError && categories.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime24.jsx)("p", { className: "text-xs text-muted-foreground", children: "The colour engine's catalog has no shades to try." }),
         categories.map(([category, shades]) => /* @__PURE__ */ (0, import_jsx_runtime24.jsxs)("div", { className: "space-y-1.5", children: [
@@ -7833,13 +7805,13 @@ var PhotoTryOnTab = () => {
           }) })
         ] }, category))
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime24.jsxs)(import_shared22.Button, { onClick: render, disabled: !photo || shadeIds.length === 0 || rendering, className: "w-full", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime24.jsxs)(import_shared23.Button, { onClick: render, disabled: !photo || shadeIds.length === 0 || rendering, className: "w-full", children: [
         rendering ? /* @__PURE__ */ (0, import_jsx_runtime24.jsx)(import_lucide_react21.Loader2, { className: "h-4 w-4 animate-spin" }) : /* @__PURE__ */ (0, import_jsx_runtime24.jsx)(import_lucide_react21.Wand2, { className: "h-4 w-4" }),
         /* @__PURE__ */ (0, import_jsx_runtime24.jsx)("span", { children: rendering ? "Rendering..." : "Render try-on" })
       ] })
     ] }),
     /* @__PURE__ */ (0, import_jsx_runtime24.jsx)("div", { className: "bg-card border border-border rounded-xl p-4 space-y-3", children: !photoUrl ? /* @__PURE__ */ (0, import_jsx_runtime24.jsx)(
-      import_shared22.EmptyState,
+      import_shared23.EmptyState,
       {
         icon: /* @__PURE__ */ (0, import_jsx_runtime24.jsx)(import_lucide_react21.ImagePlus, { className: "h-6 w-6" }),
         title: "No photo yet",
@@ -7868,9 +7840,9 @@ var PhotoTryOnTab = () => {
 };
 
 // src/match/components/modals/ConflictRuleModal.tsx
-var import_react18 = require("react");
+var import_react19 = require("react");
 var import_lucide_react22 = require("lucide-react");
-var import_shared23 = require("@gateway-experience/shared");
+var import_shared24 = require("@gateway-experience/shared");
 var import_jsx_runtime25 = require("react/jsx-runtime");
 var ConflictRuleModal = ({
   isOpen,
@@ -7878,21 +7850,21 @@ var ConflictRuleModal = ({
   onSave,
   editingConflict
 }) => {
-  const hostRoutes = (0, import_shared23.useHostRoutes)();
-  const [confA, setConfA] = (0, import_react18.useState)("");
-  const [confB, setConfB] = (0, import_react18.useState)("");
-  const [confType, setConfType] = (0, import_react18.useState)("over_exfoliation");
-  const [confAction, setConfAction] = (0, import_react18.useState)("split_am_pm");
-  const [confWarning, setConfWarning] = (0, import_react18.useState)("");
-  const [isSubmitting, setIsSubmitting] = (0, import_react18.useState)(false);
-  const [ingredients, setIngredients] = (0, import_react18.useState)([]);
-  (0, import_react18.useEffect)(() => {
+  const hostRoutes = (0, import_shared24.useHostRoutes)();
+  const [confA, setConfA] = (0, import_react19.useState)("");
+  const [confB, setConfB] = (0, import_react19.useState)("");
+  const [confType, setConfType] = (0, import_react19.useState)("over_exfoliation");
+  const [confAction, setConfAction] = (0, import_react19.useState)("split_am_pm");
+  const [confWarning, setConfWarning] = (0, import_react19.useState)("");
+  const [isSubmitting, setIsSubmitting] = (0, import_react19.useState)(false);
+  const [ingredients, setIngredients] = (0, import_react19.useState)([]);
+  (0, import_react19.useEffect)(() => {
     listReferenceIngredients(hostRoutes).then((list2) => {
       if (list2.length > 0) setIngredients(list2);
     }).catch(() => {
     });
   }, [isOpen, hostRoutes]);
-  (0, import_react18.useEffect)(() => {
+  (0, import_react19.useEffect)(() => {
     if (editingConflict) {
       setConfA(editingConflict.ingredientA);
       setConfB(editingConflict.ingredientB);
@@ -7927,7 +7899,7 @@ var ConflictRuleModal = ({
     }
   };
   return /* @__PURE__ */ (0, import_jsx_runtime25.jsx)(
-    import_shared23.Modal,
+    import_shared24.Modal,
     {
       isOpen,
       onClose,
@@ -8036,9 +8008,9 @@ var ConflictRuleModal = ({
 };
 
 // src/match/components/modals/ProductGroupModal.tsx
-var import_react19 = require("react");
+var import_react20 = require("react");
 var import_lucide_react23 = require("lucide-react");
-var import_shared24 = require("@gateway-experience/shared");
+var import_shared25 = require("@gateway-experience/shared");
 var import_jsx_runtime26 = require("react/jsx-runtime");
 var initialBrand = (defaultBrand) => defaultBrand && defaultBrand !== "*" ? defaultBrand : "";
 var ProductGroupModal = ({
@@ -8048,18 +8020,18 @@ var ProductGroupModal = ({
   editingGroup,
   defaultBrand
 }) => {
-  const [brandId, setBrandId] = (0, import_react19.useState)(initialBrand(defaultBrand));
-  const [applicationId, setApplicationId] = (0, import_react19.useState)("*");
-  const [name, setName] = (0, import_react19.useState)("");
-  const [code, setCode] = (0, import_react19.useState)("");
-  const [description, setDescription] = (0, import_react19.useState)("");
-  const [productIds, setProductIds] = (0, import_react19.useState)([]);
-  const [categories, setCategories] = (0, import_react19.useState)([]);
-  const [categoryDraft, setCategoryDraft] = (0, import_react19.useState)("");
-  const [isActive, setIsActive] = (0, import_react19.useState)(true);
-  const [isSubmitting, setIsSubmitting] = (0, import_react19.useState)(false);
-  const [products, setProducts] = (0, import_react19.useState)([]);
-  (0, import_react19.useEffect)(() => {
+  const [brandId, setBrandId] = (0, import_react20.useState)(initialBrand(defaultBrand));
+  const [applicationId, setApplicationId] = (0, import_react20.useState)("*");
+  const [name, setName] = (0, import_react20.useState)("");
+  const [code, setCode] = (0, import_react20.useState)("");
+  const [description, setDescription] = (0, import_react20.useState)("");
+  const [productIds, setProductIds] = (0, import_react20.useState)([]);
+  const [categories, setCategories] = (0, import_react20.useState)([]);
+  const [categoryDraft, setCategoryDraft] = (0, import_react20.useState)("");
+  const [isActive, setIsActive] = (0, import_react20.useState)(true);
+  const [isSubmitting, setIsSubmitting] = (0, import_react20.useState)(false);
+  const [products, setProducts] = (0, import_react20.useState)([]);
+  (0, import_react20.useEffect)(() => {
     if (!isOpen) return;
     if (!brandId) {
       void Promise.resolve([]).then(setProducts);
@@ -8070,7 +8042,7 @@ var ProductGroupModal = ({
     }).catch(() => {
     });
   }, [isOpen, brandId]);
-  (0, import_react19.useEffect)(() => {
+  (0, import_react20.useEffect)(() => {
     if (editingGroup) {
       setBrandId(editingGroup.brandId);
       setApplicationId(editingGroup.applicationId || "*");
@@ -8092,11 +8064,11 @@ var ProductGroupModal = ({
     }
     setCategoryDraft("");
   }, [editingGroup, isOpen, defaultBrand]);
-  const productOptions = (0, import_react19.useMemo)(
+  const productOptions = (0, import_react20.useMemo)(
     () => products.map((p) => ({ value: p.id, label: p.name, description: p.category })),
     [products]
   );
-  const availableCategories = (0, import_react19.useMemo)(
+  const availableCategories = (0, import_react20.useMemo)(
     () => Array.from(new Set(products.map((p) => p.category).filter(Boolean))),
     [products]
   );
@@ -8128,7 +8100,7 @@ var ProductGroupModal = ({
     }
   };
   return /* @__PURE__ */ (0, import_jsx_runtime26.jsx)(
-    import_shared24.Modal,
+    import_shared25.Modal,
     {
       isOpen,
       onClose,
@@ -8142,7 +8114,7 @@ var ProductGroupModal = ({
           /* @__PURE__ */ (0, import_jsx_runtime26.jsxs)("div", { className: "space-y-1", children: [
             /* @__PURE__ */ (0, import_jsx_runtime26.jsx)("label", { className: "text-[#888888]", children: "Brand:" }),
             /* @__PURE__ */ (0, import_jsx_runtime26.jsx)(
-              import_shared24.BrandSelect,
+              import_shared25.BrandSelect,
               {
                 value: brandId,
                 onChange: setBrandId,
@@ -8214,7 +8186,7 @@ var ProductGroupModal = ({
         /* @__PURE__ */ (0, import_jsx_runtime26.jsxs)("div", { className: "space-y-1", children: [
           /* @__PURE__ */ (0, import_jsx_runtime26.jsx)("label", { className: "text-[#888888]", children: "Products in Group:" }),
           /* @__PURE__ */ (0, import_jsx_runtime26.jsx)(
-            import_shared24.SearchableSelect,
+            import_shared25.SearchableSelect,
             {
               multiple: true,
               options: productOptions,
@@ -8228,7 +8200,7 @@ var ProductGroupModal = ({
         /* @__PURE__ */ (0, import_jsx_runtime26.jsxs)("div", { className: "space-y-1", children: [
           /* @__PURE__ */ (0, import_jsx_runtime26.jsxs)("div", { className: "flex items-center gap-1.5", children: [
             /* @__PURE__ */ (0, import_jsx_runtime26.jsx)("label", { className: "text-[#888888]", children: "Categories in Group:" }),
-            /* @__PURE__ */ (0, import_jsx_runtime26.jsx)(import_shared24.InfoTooltip, { content: "Every product in each listed category is included in the group.", label: "About Categories in Group" })
+            /* @__PURE__ */ (0, import_jsx_runtime26.jsx)(import_shared25.InfoTooltip, { content: "Every product in each listed category is included in the group.", label: "About Categories in Group" })
           ] }),
           /* @__PURE__ */ (0, import_jsx_runtime26.jsx)("div", { className: "flex flex-wrap items-center gap-1.5 mb-1.5", children: categories.map((c) => /* @__PURE__ */ (0, import_jsx_runtime26.jsxs)(
             "span",
@@ -8286,16 +8258,16 @@ var ProductGroupModal = ({
 };
 
 // src/match/components/modals/ShadeModal.tsx
-var import_react20 = require("react");
+var import_react21 = require("react");
 var import_lucide_react24 = require("lucide-react");
-var import_shared25 = require("@gateway-experience/shared");
+var import_shared26 = require("@gateway-experience/shared");
 var import_jsx_runtime27 = require("react/jsx-runtime");
 var ShadeModal = ({ isOpen, onClose, onSave, editingShade, productId }) => {
-  const [name, setName] = (0, import_react20.useState)("");
-  const [hexColor, setHexColor] = (0, import_react20.useState)("#C41E3A");
-  const [region, setRegion] = (0, import_react20.useState)("lip");
-  const [isSubmitting, setIsSubmitting] = (0, import_react20.useState)(false);
-  (0, import_react20.useEffect)(() => {
+  const [name, setName] = (0, import_react21.useState)("");
+  const [hexColor, setHexColor] = (0, import_react21.useState)("#C41E3A");
+  const [region, setRegion] = (0, import_react21.useState)("lip");
+  const [isSubmitting, setIsSubmitting] = (0, import_react21.useState)(false);
+  (0, import_react21.useEffect)(() => {
     if (editingShade) {
       setName(editingShade.name);
       setHexColor(editingShade.hexColor);
@@ -8324,7 +8296,7 @@ var ShadeModal = ({ isOpen, onClose, onSave, editingShade, productId }) => {
     }
   };
   return /* @__PURE__ */ (0, import_jsx_runtime27.jsx)(
-    import_shared25.Modal,
+    import_shared26.Modal,
     {
       isOpen,
       onClose,
@@ -8412,39 +8384,36 @@ var ShadeModal = ({ isOpen, onClose, onSave, editingShade, productId }) => {
 // src/match/components/MatchManager.tsx
 var import_jsx_runtime28 = require("react/jsx-runtime");
 var MatchManager = () => {
-  const [activeTab, setActiveTab] = (0, import_shared26.usePersistentState)("xg.matchEngine.activeTab", "conflicts");
-  const [searchQuery, setSearchQuery] = (0, import_react21.useState)("");
-  const [isFilterPanelOpen, setIsFilterPanelOpen] = (0, import_react21.useState)(false);
-  const [activeFilters, setActiveFilters] = (0, import_react21.useState)({});
-  const [deleteConfirm, setDeleteConfirm] = (0, import_react21.useState)({
+  const [activeTab, setActiveTab] = (0, import_shared27.usePersistentState)("xg.matchEngine.activeTab", "conflicts");
+  const [searchQuery, setSearchQuery] = (0, import_react22.useState)("");
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = (0, import_react22.useState)(false);
+  const [activeFilters, setActiveFilters] = (0, import_react22.useState)({});
+  const [deleteConfirm, setDeleteConfirm] = (0, import_react22.useState)({
     isOpen: false,
     title: "",
     message: "",
     onConfirm: () => {
     }
   });
-  const [selectedBrand, setSelectedBrand] = (0, import_shared26.usePersistentState)("xg.matchEngine.brand", "*");
-  const [selectedApp, setSelectedApp] = (0, import_shared26.usePersistentState)("xg.matchEngine.application", "*");
-  const [conflicts, setConflicts] = (0, import_react21.useState)([]);
-  const [productGroups, setProductGroups] = (0, import_react21.useState)([]);
-  const [products, setProducts] = (0, import_react21.useState)([]);
-  const [shades, setShades] = (0, import_react21.useState)([]);
-  const [shadeProductId, setShadeProductId] = (0, import_react21.useState)("");
-  const [isConflictModalOpen, setIsConflictModalOpen] = (0, import_react21.useState)(false);
-  const [isGroupModalOpen, setIsGroupModalOpen] = (0, import_react21.useState)(false);
-  const [isShadeModalOpen, setIsShadeModalOpen] = (0, import_react21.useState)(false);
-  const [editingConflict, setEditingConflict] = (0, import_react21.useState)(null);
-  const [editingGroup, setEditingGroup] = (0, import_react21.useState)(null);
-  const [editingShade, setEditingShade] = (0, import_react21.useState)(null);
-  const [simBrand, setSimBrand] = (0, import_shared26.usePersistentState)("xg.matchEngine.simulator.brand", "*");
-  const [simSkinType, setSimSkinType] = (0, import_shared26.usePersistentState)("xg.matchEngine.simulator.skinType", "OSPT");
-  const [simSebum, setSimSebum] = (0, import_shared26.usePersistentState)("xg.matchEngine.simulator.sebum", 75);
-  const [simHydration, setSimHydration] = (0, import_shared26.usePersistentState)("xg.matchEngine.simulator.hydration", 40);
-  const [simSensitivity, setSimSensitivity] = (0, import_shared26.usePersistentState)("xg.matchEngine.simulator.sensitivity", 65);
-  const [simPregnant, setSimPregnant] = (0, import_shared26.usePersistentState)("xg.matchEngine.simulator.pregnant", false);
-  const [simRetinol, setSimRetinol] = (0, import_shared26.usePersistentState)("xg.matchEngine.simulator.retinol", true);
-  const [isSimulating, setIsSimulating] = (0, import_react21.useState)(false);
-  const [simResult, setSimResult] = (0, import_shared26.usePersistentState)("xg.matchEngine.simulator.result", null);
+  const [selectedBrand, setSelectedBrand] = (0, import_shared27.usePersistentState)("xg.matchEngine.brand", "*");
+  const [selectedApp, setSelectedApp] = (0, import_shared27.usePersistentState)("xg.matchEngine.application", "*");
+  const [conflicts, setConflicts] = (0, import_react22.useState)([]);
+  const [productGroups, setProductGroups] = (0, import_react22.useState)([]);
+  const [products, setProducts] = (0, import_react22.useState)([]);
+  const [shades, setShades] = (0, import_react22.useState)([]);
+  const [shadeProductId, setShadeProductId] = (0, import_react22.useState)("");
+  const [isConflictModalOpen, setIsConflictModalOpen] = (0, import_react22.useState)(false);
+  const [isGroupModalOpen, setIsGroupModalOpen] = (0, import_react22.useState)(false);
+  const [isShadeModalOpen, setIsShadeModalOpen] = (0, import_react22.useState)(false);
+  const [editingConflict, setEditingConflict] = (0, import_react22.useState)(null);
+  const [editingGroup, setEditingGroup] = (0, import_react22.useState)(null);
+  const [editingShade, setEditingShade] = (0, import_react22.useState)(null);
+  const [simBrand, setSimBrand] = (0, import_shared27.usePersistentState)("xg.matchEngine.simulator.brand", "*");
+  const [simSkinType, setSimSkinType] = (0, import_shared27.usePersistentState)("xg.matchEngine.simulator.profileCode", "");
+  const [simScores, setSimScores] = (0, import_shared27.usePersistentState)("xg.matchEngine.simulator.scores", {});
+  const [simConditions, setSimConditions] = (0, import_shared27.usePersistentState)("xg.matchEngine.simulator.conditions", {});
+  const [isSimulating, setIsSimulating] = (0, import_react22.useState)(false);
+  const [simResult, setSimResult] = (0, import_shared27.usePersistentState)("xg.matchEngine.simulator.result", null);
   const loadData = () => {
     conflictsApi.list().then((list2) => {
       if (list2) setConflicts(list2);
@@ -8472,10 +8441,10 @@ var MatchManager = () => {
     }).catch(() => {
     });
   };
-  (0, import_react21.useEffect)(() => {
+  (0, import_react22.useEffect)(() => {
     loadData();
   }, []);
-  (0, import_react21.useEffect)(() => {
+  (0, import_react22.useEffect)(() => {
     loadShades(shadeProductId);
   }, [shadeProductId]);
   const matchTabs = [
@@ -8601,17 +8570,9 @@ var MatchManager = () => {
       const payload = {
         brand_id: simBrand,
         application_id: selectedApp,
-        dimension_scores: {
-          sebum: Number(simSebum),
-          hydration: Number(simHydration),
-          sensitivity: Number(simSensitivity),
-          pigmentation: 45
-        },
-        skin_profile: simSkinType,
-        customer_conditions: {
-          is_pregnant: simPregnant,
-          uses_retinol: simRetinol
-        }
+        dimension_scores: simScores,
+        ...simSkinType ? { skin_profile: simSkinType } : {},
+        customer_conditions: Object.fromEntries(Object.entries(simConditions).filter(([, on]) => on))
       };
       const data = await runMatch(payload);
       if (data) setSimResult(data);
@@ -8622,7 +8583,7 @@ var MatchManager = () => {
   };
   return /* @__PURE__ */ (0, import_jsx_runtime28.jsxs)("div", { className: "flex-1 min-w-0 h-full overflow-y-auto bg-background text-foreground font-sans flex flex-col select-none", children: [
     /* @__PURE__ */ (0, import_jsx_runtime28.jsx)(
-      import_shared26.PageHeader,
+      import_shared27.PageHeader,
       {
         icon: /* @__PURE__ */ (0, import_jsx_runtime28.jsx)(import_lucide_react25.Sparkles, { className: "h-5 w-5 text-beak" }),
         breadcrumbs: [
@@ -8632,7 +8593,7 @@ var MatchManager = () => {
         ],
         title: "Clinical Product Matcher & Routine Generator",
         children: /* @__PURE__ */ (0, import_jsx_runtime28.jsx)(
-          import_shared26.TabNav,
+          import_shared27.TabNav,
           {
             tabs: matchTabs,
             activeTab,
@@ -8726,16 +8687,10 @@ var MatchManager = () => {
           setSimBrand,
           simSkinType,
           setSimSkinType,
-          simSebum,
-          setSimSebum,
-          simHydration,
-          setSimHydration,
-          simSensitivity,
-          setSimSensitivity,
-          simPregnant,
-          setSimPregnant,
-          simRetinol,
-          setSimRetinol,
+          simScores,
+          setSimScores,
+          simConditions,
+          setSimConditions,
           onRunSimulator: handleRunSimulator,
           isSimulating,
           simResult
@@ -8772,7 +8727,7 @@ var MatchManager = () => {
       }
     ),
     /* @__PURE__ */ (0, import_jsx_runtime28.jsx)(
-      import_shared26.ConfirmDialog,
+      import_shared27.ConfirmDialog,
       {
         isOpen: deleteConfirm.isOpen,
         title: deleteConfirm.title,

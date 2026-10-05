@@ -11,7 +11,7 @@ import type {
   SourceSpec,
   DimensionInputs,
 } from '../types';
-import { DEFAULT_SCORE_RANGE_BANDS, DEFAULT_SEVERITY_BANDS, KNOWN_VISION_FIELDS, VISION_SOURCE } from '../types';
+import { KNOWN_VISION_FIELDS, VISION_SOURCE } from '../types';
 import { readBlend, toDimensionInputs } from './blend';
 
 const visionFieldLabel = (code: string) => KNOWN_VISION_FIELDS.find((f) => f.code === code)?.label || code;
@@ -55,8 +55,9 @@ const rangeCell = (min?: number, max?: number) =>
 export function compileVisualToJDM(
   axes: VisualAxisConfig[],
   profileConfig: VisualProfileMappingConfig = EMPTY_PROFILE_CONFIG,
-  scoreRangeBands: VisualBand[] = DEFAULT_SCORE_RANGE_BANDS,
-  severityBands: VisualBand[] = DEFAULT_SEVERITY_BANDS,
+  /** Empty: the ruleset sets none and core applies its defaults. */
+  scoreRangeBands: VisualBand[] = [],
+  severityBands: VisualBand[] = [],
   /** The schema being edited, if any. Any node in it that this function
    *  doesn't itself own (not 'input_node'/'profile', not `<axisKey>-band`
    *  for a key in `axes`) is carried over untouched — e.g. a hand-authored
@@ -170,6 +171,8 @@ export function compileVisualToJDM(
 
   for (const a of effectiveAxes) {
     const key = a.dimensionKey.toLowerCase();
+    // An axis without a weight counts 1 — what core gives any dimension it has
+    // no weight for (score_service.go: w := 1.0), so writing it changes nothing.
     dimension_weights[key] = a.weight ?? 1;
     // Only a label the author set is written. Without one, core applies its
     // own default concern name (score_service.go concernLabel), so this
@@ -204,10 +207,16 @@ export function compileVisualToJDM(
             .map((b) => ({ in: rangeCell(b.min, b.max), out: cleanVal(b.letter) })),
         },
       });
-    } else if ((a.axisCodeLow || '').trim() && (a.axisCodeHigh || '').trim()) {
-      // Legacy fallback: old axisCodeLow/High fields, no `bands` set yet.
+    } else if (
+      (a.axisCodeLow || '').trim() &&
+      (a.axisCodeHigh || '').trim() &&
+      typeof a.axisCodeThreshold === 'number' &&
+      Number.isFinite(a.axisCodeThreshold)
+    ) {
+      // Legacy fallback: old axisCodeLow/High fields, no `bands` set yet. Only
+      // with a threshold of its own: none means no cutoff, not an invented 50.
       axis_codes[key] = {
-        threshold: Math.max(0, Math.min(100, Number(a.axisCodeThreshold ?? 50))),
+        threshold: Math.max(0, Math.min(100, a.axisCodeThreshold)),
         low: (a.axisCodeLow || '').trim(),
         high: (a.axisCodeHigh || '').trim(),
       };
@@ -262,9 +271,13 @@ export function compileVisualToJDM(
     edges,
     dimension_weights: mergeOwned(base.dimension_weights, dimension_weights),
     concern_labels: mergeOwned(base.concern_labels, concern_labels),
-    score_range_bands: bandsToSchema(scoreRangeBands),
-    severity_bands: bandsToSchema(severityBands),
   };
+  // Bands only when the ruleset sets them; none means core's defaults apply,
+  // so they are not written in on the ruleset's behalf.
+  if (scoreRangeBands.length > 0) model.score_range_bands = bandsToSchema(scoreRangeBands);
+  else delete model.score_range_bands;
+  if (severityBands.length > 0) model.severity_bands = bandsToSchema(severityBands);
+  else delete model.severity_bands;
   const mergedAxisCodes = mergeOwned(base.axis_codes, axis_codes);
   if (Object.keys(mergedAxisCodes).length > 0) model.axis_codes = mergedAxisCodes;
   else delete model.axis_codes;
@@ -298,8 +311,9 @@ export interface DecompiledGrading {
   legacy: boolean;
 }
 
-const bandsFromSchema = (raw: any, fallback: VisualBand[], prefix: string): VisualBand[] => {
-  if (!Array.isArray(raw) || raw.length === 0) return fallback.map((b) => ({ ...b }));
+/** The ruleset's own bands; none (core's defaults apply) reads as empty. */
+const bandsFromSchema = (raw: any, prefix: string): VisualBand[] => {
+  if (!Array.isArray(raw) || raw.length === 0) return [];
   return raw.map((b: any, i: number) => ({
     id: `${prefix}${i + 1}`,
     max: Number(b?.max) || 0,
@@ -314,8 +328,8 @@ export function decompileJDMToVisualComponents(schemaStr: string): DecompiledGra
   const fallback: DecompiledGrading = {
     axes: [],
     profileConfig: { ...EMPTY_PROFILE_CONFIG, profiles: [] },
-    scoreRangeBands: DEFAULT_SCORE_RANGE_BANDS.map((b) => ({ ...b })),
-    severityBands: DEFAULT_SEVERITY_BANDS.map((b) => ({ ...b })),
+    scoreRangeBands: [],
+    severityBands: [],
     sources: {},
     convertedBlend: false,
     legacy: false,
@@ -431,8 +445,10 @@ export function decompileJDMToVisualComponents(schemaStr: string): DecompiledGra
           return { id: `${key}_b${ri}`, min: range.min, max: range.max, letter: clean(r[outId]) };
         })
         .filter(Boolean) as ThresholdBand[];
-    } else if (ac && (ac.low || ac.high)) {
-      const t = typeof ac.threshold === 'number' ? ac.threshold : 50;
+    } else if (ac && (ac.low || ac.high) && typeof ac.threshold === 'number') {
+      // Bands only from a stored threshold; without one the axis shows no
+      // bands to fill in rather than a cutoff invented at 50.
+      const t = ac.threshold;
       bands = [
         { id: `${key}_lo`, min: 0, max: Math.max(0, t - 1), letter: ac.low || '' },
         { id: `${key}_hi`, min: t, max: 100, letter: ac.high || '' },
@@ -456,7 +472,7 @@ export function decompileJDMToVisualComponents(schemaStr: string): DecompiledGra
         ? {
             axisCodeLow: ac.low || '',
             axisCodeHigh: ac.high || '',
-            axisCodeThreshold: typeof ac.threshold === 'number' ? ac.threshold : 50,
+            ...(typeof ac.threshold === 'number' ? { axisCodeThreshold: ac.threshold } : {}),
           }
         : {}),
     };
@@ -525,8 +541,8 @@ export function decompileJDMToVisualComponents(schemaStr: string): DecompiledGra
   return {
     axes,
     profileConfig,
-    scoreRangeBands: bandsFromSchema(parsed.score_range_bands, DEFAULT_SCORE_RANGE_BANDS, 'sr'),
-    severityBands: bandsFromSchema(parsed.severity_bands, DEFAULT_SEVERITY_BANDS, 'sv'),
+    scoreRangeBands: bandsFromSchema(parsed.score_range_bands, 'sr'),
+    severityBands: bandsFromSchema(parsed.severity_bands, 'sv'),
     sources: blend.sources,
     convertedBlend: blend.converted,
     legacy,

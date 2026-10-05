@@ -129,6 +129,9 @@ export { ApplicationSelect, type ApplicationSelectProps } from './components/ref
 export { StatusSelect, type StatusSelectProps } from './components/reference/StatusSelect';
 export { DimensionSelect, type DimensionSelectProps } from './components/reference/DimensionSelect';
 export { SeveritySelect, type SeveritySelectProps } from './components/reference/SeveritySelect';
+export { CORE_DEFAULT_SCORE_RANGE_BANDS, CORE_DEFAULT_SEVERITY_BANDS, type CoreBand } from './components/reference/core-default-bands';
+export { SEVERITY_TONES, severityToneOf, type SeverityTone } from './components/reference/severity-tone';
+export { LIFECYCLE_STATUSES } from './components/reference/StatusSelect';
 export { cn } from './utils';
 
 export {
@@ -140,3 +143,4 @@ export {
   saveBlob,
   loadBlob,
 } from './persistent-state';
+export { DRY_RUN_HEADER } from './dry-run';

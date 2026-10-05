@@ -29,9 +29,16 @@ export const PolygonHeatmap: React.FC<PolygonHeatmapProps> = ({
       return { stroke: '#ef4444', fill: 'rgba(239, 68, 68, 0.4)' }; // Red: Missed
     }
     if (metric.status === 'moderate_issue') {
-      return { stroke: '#f59e0b', fill: 'rgba(245, 158, 11, 0.35)' }; // Yellow: Uneven
+      return { stroke: '#f59e0b', fill: 'rgba(245, 158, 11, 0.35)' }; // Amber: Uneven
     }
-    return { stroke: '#10b981', fill: 'rgba(16, 185, 129, 0.25)' }; // Green: Optimal
+    if (metric.status === 'mild_issue') {
+      return { stroke: '#eab308', fill: 'rgba(234, 179, 8, 0.25)' }; // Yellow: Mild
+    }
+    if (metric.status === 'optimal') {
+      return { stroke: '#10b981', fill: 'rgba(16, 185, 129, 0.25)' }; // Green: Optimal
+    }
+    // A status this map does not know is shown as unknown, not as optimal.
+    return { stroke: '#94a3b8', fill: 'rgba(148, 163, 184, 0.2)' };
   };
 
   return (

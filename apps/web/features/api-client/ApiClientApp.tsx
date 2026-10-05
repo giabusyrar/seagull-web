@@ -39,6 +39,7 @@ import type {
 } from '@/types/api-client';
 import { executeHttpRequest, formatJsonString } from '@/lib/api-client-utils';
 import { setDataPlaneHostCookie } from '@/lib/data-plane-cookie';
+import { browserDataPlaneHost } from '@/lib/config/services';
 import { useCollections, useRoutes, useAllRoutes } from '@/lib/hooks/use-collections';
 import { useGlobalEnvironments } from '@/lib/hooks/use-global-environments';
 import { MissingHostModal } from './MissingHostModal';
@@ -308,9 +309,7 @@ export function ApiClientApp() {
   }, []);
 
   const handleAutoFixHost = useCallback(() => {
-    const defaultHost =
-      process.env.NEXT_PUBLIC_GATEWAY_PROXY_URL ||
-      (typeof window !== 'undefined' ? window.location.origin : '');
+    const defaultHost = browserDataPlaneHost();
 
     const activeEnv = environments.find((e) => e.id === selectedEnvId) || environments[0];
     if (activeEnv) {

@@ -3,6 +3,11 @@
 import React from 'react';
 import type { VisualBand } from '../../types';
 
+interface EngineBand {
+  max: number;
+  label: string;
+}
+
 export interface BandTableProps {
   bands: VisualBand[];
   onChange: (bands: VisualBand[]) => void;
@@ -10,6 +15,8 @@ export interface BandTableProps {
   /** Fixed row count — bands can be re-labelled and re-bounded but not added/removed. */
   fixed?: boolean;
   idPrefix?: string;
+  /** What core applies when `bands` is empty; shown read-only, with "Customise" to start from them. */
+  engineDefaults?: readonly EngineBand[];
 }
 
 /**
@@ -23,7 +30,34 @@ export const BandTable: React.FC<BandTableProps> = ({
   disabled = false,
   fixed = false,
   idPrefix = 'band',
+  engineDefaults,
 }) => {
+  if (bands.length === 0 && engineDefaults) {
+    // The ruleset sets none: core's defaults apply. Shown, not written in.
+    return (
+      <div className="rounded-md border border-dashed border-border bg-muted/10 p-3 space-y-2 text-xs">
+        <p className="text-[11px] text-muted-foreground">Not set — the engine&apos;s default bands apply:</p>
+        <ul className="space-y-0.5 text-muted-foreground">
+          {engineDefaults.map((b, i) => (
+            <li key={`${b.max}-${i}`} className="flex gap-2">
+              <span className="w-24 shrink-0 font-mono">{i === 0 ? 0 : engineDefaults[i - 1].max + 1}–{b.max}</span>
+              <span>{b.label}</span>
+            </li>
+          ))}
+        </ul>
+        {!disabled && (
+          <button
+            type="button"
+            onClick={() => onChange(engineDefaults.map((b, i) => ({ id: `${idPrefix}${i + 1}`, max: b.max, label: b.label })))}
+            className="rounded border border-border px-2 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+          >
+            Customise (start from these)
+          </button>
+        )}
+      </div>
+    );
+  }
+
   const setMax = (idx: number, raw: number) => {
     const next = bands.map((b) => ({ ...b }));
     const lower = idx === 0 ? 0 : next[idx - 1].max + 1;
@@ -107,6 +141,17 @@ export const BandTable: React.FC<BandTableProps> = ({
           >
             + Add band
           </button>
+          {engineDefaults && (
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => onChange([])}
+              className="ml-3 text-[11px] text-muted-foreground hover:text-foreground disabled:opacity-50"
+              title="Clear these bands so the engine's defaults apply"
+            >
+              Use engine defaults
+            </button>
+          )}
         </div>
       )}
     </div>

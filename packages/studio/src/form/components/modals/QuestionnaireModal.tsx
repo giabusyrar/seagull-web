@@ -500,7 +500,7 @@ export const QuestionnaireModal: React.FC<QuestionnaireModalProps> = ({
                   required
                   value={qName}
                   onChange={(e) => setQName(e.target.value)}
-                  placeholder="e.g. Pixie Skin Analyzer"
+                  placeholder="questionnaire name"
                   className={`${field} w-full`}
                 />
                 <span className="block text-[11px] text-muted-foreground">

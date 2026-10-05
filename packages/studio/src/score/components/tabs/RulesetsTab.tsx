@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Sliders, Pencil, Trash2, Play, Plus, Copy, Check } from 'lucide-react';
-import { StatusBadge, EmptyState, SearchFilterBar, Button } from '@gateway-experience/shared';
+import { StatusBadge, EmptyState, SearchFilterBar, Button, LIFECYCLE_STATUSES } from '@gateway-experience/shared';
 import type { ScoreRuleset } from '../../types';
 
 interface RulesetsTabProps {
@@ -85,10 +85,11 @@ export const RulesetsTab: React.FC<RulesetsTabProps> = ({
               style={{ colorScheme: 'dark' }}
             >
               <option value="ALL">All statuses</option>
-              <option value="ACTIVE">Active</option>
-              <option value="DRAFT">Draft</option>
-              <option value="INACTIVE">Inactive</option>
-              <option value="ARCHIVED">Archived</option>
+              {LIFECYCLE_STATUSES.map((s) => (
+                <option key={s.code} value={s.code}>
+                  {s.name}
+                </option>
+              ))}
             </select>
           </div>
         }

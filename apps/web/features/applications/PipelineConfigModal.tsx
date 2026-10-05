@@ -30,10 +30,10 @@ export const PipelineConfigModal: React.FC<PipelineConfigModalProps> = ({
   const [brandId, setBrandId] = useState(initialBrandId);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [formEnabled, setFormEnabled] = useState(true);
+  const [formEnabled, setFormEnabled] = useState(false);
   // No default questionnaire or vision pipeline: an empty code is "not set".
   const [questionnaireCode, setQuestionnaireCode] = useState('');
-  const [visionEnabled, setVisionEnabled] = useState(true);
+  const [visionEnabled, setVisionEnabled] = useState(false);
   const [visionPipelineCode, setVisionPipelineCode] = useState('');
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
@@ -43,9 +43,10 @@ export const PipelineConfigModal: React.FC<PipelineConfigModalProps> = ({
     setStatusMessage(null);
     try {
       const c = await getPipelineConfig(brandId, applicationId);
-      setFormEnabled(c?.formEnabled ?? true);
+      // A stored config is read as stored; a setting it lacks is off, not presumed on.
+      setFormEnabled(c?.formEnabled ?? false);
       setQuestionnaireCode(c?.questionnaireCode || '');
-      setVisionEnabled(c?.visionEnabled ?? true);
+      setVisionEnabled(c?.visionEnabled ?? false);
       setVisionPipelineCode(c?.visionPipelineCode || '');
     } catch (err: any) {
       console.error('Failed to load pipeline config', err);

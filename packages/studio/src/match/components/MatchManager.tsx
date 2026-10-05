@@ -58,12 +58,11 @@ export const MatchManager: React.FC = () => {
 
   // Simulator State — inputs and the last result survive a reload.
   const [simBrand, setSimBrand] = usePersistentState('xg.matchEngine.simulator.brand', '*');
-  const [simSkinType, setSimSkinType] = usePersistentState('xg.matchEngine.simulator.skinType', 'OSPT');
-  const [simSebum, setSimSebum] = usePersistentState('xg.matchEngine.simulator.sebum', 75);
-  const [simHydration, setSimHydration] = usePersistentState('xg.matchEngine.simulator.hydration', 40);
-  const [simSensitivity, setSimSensitivity] = usePersistentState('xg.matchEngine.simulator.sensitivity', 65);
-  const [simPregnant, setSimPregnant] = usePersistentState('xg.matchEngine.simulator.pregnant', false);
-  const [simRetinol, setSimRetinol] = usePersistentState('xg.matchEngine.simulator.retinol', true);
+  // Nothing preset (new keys, so the old OSPT / 75 / 40 / 65 defaults do not come back):
+  // only what the user includes is sent.
+  const [simSkinType, setSimSkinType] = usePersistentState('xg.matchEngine.simulator.profileCode', '');
+  const [simScores, setSimScores] = usePersistentState<Record<string, number>>('xg.matchEngine.simulator.scores', {});
+  const [simConditions, setSimConditions] = usePersistentState<Record<string, boolean>>('xg.matchEngine.simulator.conditions', {});
   const [isSimulating, setIsSimulating] = useState(false);
   const [simResult, setSimResult] = usePersistentState<ClinicalMatchResult | null>('xg.matchEngine.simulator.result', null);
 
@@ -239,17 +238,9 @@ export const MatchManager: React.FC = () => {
       const payload = {
         brand_id: simBrand,
         application_id: selectedApp,
-        dimension_scores: {
-          sebum: Number(simSebum),
-          hydration: Number(simHydration),
-          sensitivity: Number(simSensitivity),
-          pigmentation: 45,
-        },
-        skin_profile: simSkinType,
-        customer_conditions: {
-          is_pregnant: simPregnant,
-          uses_retinol: simRetinol,
-        },
+        dimension_scores: simScores,
+        ...(simSkinType ? { skin_profile: simSkinType } : {}),
+        customer_conditions: Object.fromEntries(Object.entries(simConditions).filter(([, on]) => on)),
       };
 
       const data = await runMatch(payload);
@@ -363,16 +354,10 @@ export const MatchManager: React.FC = () => {
             setSimBrand={setSimBrand}
             simSkinType={simSkinType}
             setSimSkinType={setSimSkinType}
-            simSebum={simSebum}
-            setSimSebum={setSimSebum}
-            simHydration={simHydration}
-            setSimHydration={setSimHydration}
-            simSensitivity={simSensitivity}
-            setSimSensitivity={setSimSensitivity}
-            simPregnant={simPregnant}
-            setSimPregnant={setSimPregnant}
-            simRetinol={simRetinol}
-            setSimRetinol={setSimRetinol}
+            simScores={simScores}
+            setSimScores={setSimScores}
+            simConditions={simConditions}
+            setSimConditions={setSimConditions}
             onRunSimulator={handleRunSimulator}
             isSimulating={isSimulating}
             simResult={simResult}

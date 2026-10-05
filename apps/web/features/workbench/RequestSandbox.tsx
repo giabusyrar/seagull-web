@@ -573,7 +573,7 @@ export const RequestSandbox: React.FC<RequestSandboxProps> = ({
                     onChange={(e) => onUpdateRequest({ ...request, body: e.target.value })}
                     spellCheck={false}
                     wrap="off"
-                    placeholder={'{\n  "brand_id": "wardah",\n  "application_id": "skinverse",\n  "code": "my_form",\n  "title": "My Form",\n  "status": "active",\n  "schema": { }\n}'}
+                    placeholder={'{\n  "brand_id": "<brand>",\n  "application_id": "<application>",\n  "code": "my_form",\n  "title": "My Form",\n  "status": "active",\n  "schema": { }\n}'}
                     className="w-full h-96 rounded-md bg-secondary border border-border p-3 text-[12px] text-foreground font-mono leading-relaxed outline-none focus:border-ring resize-y overflow-auto"
                   />
                 </>

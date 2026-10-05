@@ -28,7 +28,6 @@ const isCollectionDescendant = (targetId: string, parentId: string, collections:
 
 type Tab = 'general' | 'environments' | 'variables' | 'knowledge';
 
-const ENVIRONMENT_NAMES = ['Staging', 'Production'] as const;
 
 interface ParameterRow {
   id: string;
@@ -84,20 +83,10 @@ export const CollectionSettingsModal: React.FC<ApiClientCollectionSettingsModalP
 
   const [environments, setEnvironments] = useState<CollectionEnvironment[]>([]);
   const [activeEnvironmentId, setActiveEnvironmentId] = useState<string | null>(collection?.activeEnvironmentId || null);
-  const [selectedEnvName, setSelectedEnvName] = useState<string>('Staging');
+  // An environment is named by whoever adds it; the gateway stores any name.
+  const [selectedEnvName, setSelectedEnvName] = useState<string>('');
   const [envHostInput, setEnvHostInput] = useState<string>('');
   const [envSaveStatus, setEnvSaveStatus] = useState<boolean>(false);
-
-  useEffect(() => {
-    const unconfiguredNames = ENVIRONMENT_NAMES.filter(
-      (n) => !environments.some((e) => e.name.toLowerCase() === n.toLowerCase())
-    );
-    if (unconfiguredNames.length > 0) {
-      if (!selectedEnvName || !unconfiguredNames.includes(selectedEnvName as any)) {
-        setSelectedEnvName(unconfiguredNames[0]);
-      }
-    }
-  }, [environments, selectedEnvName]);
 
   useEffect(() => {
     setEnvHostInput('');
@@ -872,12 +861,18 @@ export const CollectionSettingsModal: React.FC<ApiClientCollectionSettingsModalP
                 <h4 className="text-xs font-semibold text-foreground">Add/Update Environment Host</h4>
                 <div className="flex gap-2 items-center">
                   <div className="shrink-0 w-40">
-                    <SearchableSelect
+                    <input
                       value={selectedEnvName}
-                      onChange={setSelectedEnvName}
-                      options={ENVIRONMENT_NAMES.map((n) => ({ value: n, label: n }))}
-                      placeholder="Select environment..."
+                      onChange={(e) => setSelectedEnvName(e.target.value)}
+                      list="collection-env-names"
+                      placeholder="environment name"
+                      className="w-full h-8 bg-background border border-border rounded px-3 text-xs text-foreground outline-none focus:border-ring placeholder:text-muted-foreground"
                     />
+                    <datalist id="collection-env-names">
+                      {environments.map((e) => (
+                        <option key={e.id} value={e.name} />
+                      ))}
+                    </datalist>
                   </div>
 
                   <input

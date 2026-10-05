@@ -28,7 +28,7 @@ import {
 } from './api';
 import { buildTryRequest } from './try-request';
 import { recallTryApiKey } from '@/lib/try-api-key';
-import { DEFAULT_DATA_PLANE_PORT } from '@/lib/config/services';
+import { browserDataPlaneHost } from '@/lib/config/services';
 import { RouteExecutionHistoryPanel, RouteExecutionHistoryPanelRef } from './RouteExecutionHistoryPanel';
 
 export interface RouteEditorProps {
@@ -252,16 +252,7 @@ export const RouteEditor: React.FC<RouteEditorProps> = ({
       const h = envMap['gateway_url'].trim();
       return h.endsWith('/') ? h.slice(0, -1) : h;
     }
-    const publicGateway = process.env.NEXT_PUBLIC_GATEWAY_PROXY_URL;
-    if (publicGateway) {
-      return publicGateway;
-    }
-    const { protocol, hostname } = window.location;
-    // Local development only: a hostname that merely contains "local" is not one.
-    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]' || hostname.endsWith('.localhost')) {
-      return `${protocol}//${hostname}:${DEFAULT_DATA_PLANE_PORT}`;
-    }
-    return `${protocol}//${hostname}`;
+    return browserDataPlaneHost();
   };
 
   const getRouterGatewayUrl = (prefix: string, pattern: string, envMap?: Record<string, string>) => {

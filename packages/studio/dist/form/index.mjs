@@ -145,18 +145,6 @@ var PFORM_EXAMPLE = {
   calculationMethods: {}
   // set alongside the dimension mapping
 };
-var PFORM_SUGGESTED_DIMENSIONS = {
-  pform_age: "lifestyle",
-  pform_pregnancy: "sensitivity",
-  pform_sun_exposure: "sun_exposure",
-  pform_climate: "climate_humidity",
-  pform_pollution: "pollution_exposure",
-  pform_stress: "mental_stress",
-  pform_sleep: "mental_stress",
-  pform_diet: "gut_health",
-  pform_hydration: "gut_health",
-  pform_smoking: "lifestyle"
-};
 var PFORM_TYPE_MAP = {
   radiogroup: "single_choice",
   radio: "single_choice",
@@ -715,7 +703,7 @@ var FormSimulatorTab = ({
   const answersKey = currentQ?.code ? ANSWERS_KEY_PREFIX + currentQ.code : null;
   const [data, setData] = usePersistentState(answersKey, {});
   const [showPayload, setShowPayload] = useState2(false);
-  const [customerId, setCustomerId] = usePersistentState(CUSTOMER_ID_KEY, "demo-customer-001");
+  const [customerId, setCustomerId] = usePersistentState(CUSTOMER_ID_KEY, "");
   const [copied, setCopied] = useState2("");
   const copy = (text, tag) => {
     navigator.clipboard?.writeText(text).then(
@@ -762,7 +750,7 @@ var FormSimulatorTab = ({
   const submitBody = {
     brand_id: currentQ?.brandId || brandId,
     application_id: currentQ?.applicationId || applicationId,
-    customer_id: customerId,
+    ...customerId.trim() ? { customer_id: customerId.trim() } : {},
     data
   };
   const submitBodyJson = JSON.stringify(submitBody, null, 2);
@@ -1406,7 +1394,7 @@ var QuestionnaireModal = ({
                     required: true,
                     value: qName,
                     onChange: (e) => setQName(e.target.value),
-                    placeholder: "e.g. Pixie Skin Analyzer",
+                    placeholder: "questionnaire name",
                     className: `${field} w-full`
                   }
                 ),
@@ -2305,7 +2293,6 @@ export {
   FormManager,
   MissingTenantError,
   PFORM_EXAMPLE,
-  PFORM_SUGGESTED_DIMENSIONS,
   QuestionnaireRunner,
   applyCalculationMethod,
   applyDimensionMapping,

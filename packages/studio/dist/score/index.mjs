@@ -67,7 +67,7 @@ async function listSkinConditions(routes) {
 // src/score/components/tabs/RulesetsTab.tsx
 import React from "react";
 import { Sliders, Pencil, Trash2, Play, Plus, Copy, Check } from "lucide-react";
-import { StatusBadge, EmptyState, SearchFilterBar, Button } from "@gateway-experience/shared";
+import { StatusBadge, EmptyState, SearchFilterBar, Button, LIFECYCLE_STATUSES } from "@gateway-experience/shared";
 import { jsx, jsxs } from "react/jsx-runtime";
 var filterSelect = "h-8 rounded-md bg-muted/40 border border-border px-2.5 text-foreground text-xs outline-none focus:border-ring";
 var RulesetsTab = ({
@@ -129,10 +129,7 @@ var RulesetsTab = ({
               style: { colorScheme: "dark" },
               children: [
                 /* @__PURE__ */ jsx("option", { value: "ALL", children: "All statuses" }),
-                /* @__PURE__ */ jsx("option", { value: "ACTIVE", children: "Active" }),
-                /* @__PURE__ */ jsx("option", { value: "DRAFT", children: "Draft" }),
-                /* @__PURE__ */ jsx("option", { value: "INACTIVE", children: "Inactive" }),
-                /* @__PURE__ */ jsx("option", { value: "ARCHIVED", children: "Archived" })
+                LIFECYCLE_STATUSES.map((s) => /* @__PURE__ */ jsx("option", { value: s.code, children: s.name }, s.code))
               ]
             }
           )
@@ -257,18 +254,6 @@ var AGE_FIELD = "age_over_30";
 var AGE_FIELD_CUTOFF_YEARS = 30;
 var FORM_SOURCE = "form";
 var VISION_SOURCE = "vision";
-var DEFAULT_SCORE_RANGE_BANDS = [
-  { id: "sr1", max: 40, label: "Perlu Perhatian Khusus" },
-  { id: "sr2", max: 60, label: "Sedang" },
-  { id: "sr3", max: 100, label: "Optimal" }
-];
-var DEFAULT_SEVERITY_BANDS = [
-  { id: "sv1", max: 20, label: "Sangat Parah" },
-  { id: "sv2", max: 40, label: "Parah" },
-  { id: "sv3", max: 60, label: "Sedang" },
-  { id: "sv4", max: 80, label: "Ringan" },
-  { id: "sv5", max: 100, label: "Sehat" }
-];
 var KNOWN_VISION_FIELDS = [
   { code: "data.inference_result.results.skin_scoring.Darkspot", label: "Darkspot", description: "results.skin_scoring.Darkspot \u2014 feeds Pigmentation." },
   { code: "data.inference_result.results.skin_scoring.Wrinkle", label: "Wrinkle", description: "results.skin_scoring.Wrinkle \u2014 feeds Aging." },
@@ -380,7 +365,7 @@ function scoreRangeLetters(bands) {
 var bandsToSchema = (bands) => bands.map((b) => ({ max: Math.max(0, Math.min(100, Number(b.max) || 0)), label: b.label || "" }));
 var cleanVal = (v) => `"${(v || "").replace(/"/g, "")}"`;
 var rangeCell = (min, max) => `[${Math.max(0, Math.min(100, min ?? 0))}..${Math.max(0, Math.min(100, max ?? 100))}]`;
-function compileVisualToJDM(axes, profileConfig = EMPTY_PROFILE_CONFIG, scoreRangeBands = DEFAULT_SCORE_RANGE_BANDS, severityBands = DEFAULT_SEVERITY_BANDS, existingSchema, sources) {
+function compileVisualToJDM(axes, profileConfig = EMPTY_PROFILE_CONFIG, scoreRangeBands = [], severityBands = [], existingSchema, sources) {
   const effectiveAxes = axes.filter((a) => (a.dimensionKey || "").trim());
   const nodes = [
     { id: "input_node", name: "Input", type: "inputNode", position: { x: 40, y: 40 } }
@@ -494,9 +479,9 @@ function compileVisualToJDM(axes, profileConfig = EMPTY_PROFILE_CONFIG, scoreRan
           rules: bands.slice().reverse().map((b) => ({ in: rangeCell(b.min, b.max), out: cleanVal(b.letter) }))
         }
       });
-    } else if ((a.axisCodeLow || "").trim() && (a.axisCodeHigh || "").trim()) {
+    } else if ((a.axisCodeLow || "").trim() && (a.axisCodeHigh || "").trim() && typeof a.axisCodeThreshold === "number" && Number.isFinite(a.axisCodeThreshold)) {
       axis_codes[key] = {
-        threshold: Math.max(0, Math.min(100, Number(a.axisCodeThreshold ?? 50))),
+        threshold: Math.max(0, Math.min(100, a.axisCodeThreshold)),
         low: (a.axisCodeLow || "").trim(),
         high: (a.axisCodeHigh || "").trim()
       };
@@ -531,10 +516,12 @@ function compileVisualToJDM(axes, profileConfig = EMPTY_PROFILE_CONFIG, scoreRan
     nodes: [...nodes, ...preservedNodes],
     edges,
     dimension_weights: mergeOwned(base.dimension_weights, dimension_weights),
-    concern_labels: mergeOwned(base.concern_labels, concern_labels),
-    score_range_bands: bandsToSchema(scoreRangeBands),
-    severity_bands: bandsToSchema(severityBands)
+    concern_labels: mergeOwned(base.concern_labels, concern_labels)
   };
+  if (scoreRangeBands.length > 0) model.score_range_bands = bandsToSchema(scoreRangeBands);
+  else delete model.score_range_bands;
+  if (severityBands.length > 0) model.severity_bands = bandsToSchema(severityBands);
+  else delete model.severity_bands;
   const mergedAxisCodes = mergeOwned(base.axis_codes, axis_codes);
   if (Object.keys(mergedAxisCodes).length > 0) model.axis_codes = mergedAxisCodes;
   else delete model.axis_codes;
@@ -550,8 +537,8 @@ function compileVisualToJDM(axes, profileConfig = EMPTY_PROFILE_CONFIG, scoreRan
   }
   return JSON.stringify(model, null, 2);
 }
-var bandsFromSchema = (raw, fallback, prefix) => {
-  if (!Array.isArray(raw) || raw.length === 0) return fallback.map((b) => ({ ...b }));
+var bandsFromSchema = (raw, prefix) => {
+  if (!Array.isArray(raw) || raw.length === 0) return [];
   return raw.map((b, i) => ({
     id: `${prefix}${i + 1}`,
     max: Number(b?.max) || 0,
@@ -562,8 +549,8 @@ function decompileJDMToVisualComponents(schemaStr) {
   const fallback = {
     axes: [],
     profileConfig: { ...EMPTY_PROFILE_CONFIG, profiles: [] },
-    scoreRangeBands: DEFAULT_SCORE_RANGE_BANDS.map((b) => ({ ...b })),
-    severityBands: DEFAULT_SEVERITY_BANDS.map((b) => ({ ...b })),
+    scoreRangeBands: [],
+    severityBands: [],
     sources: {},
     convertedBlend: false,
     legacy: false
@@ -628,8 +615,8 @@ function decompileJDMToVisualComponents(schemaStr) {
         if (!range) return null;
         return { id: `${key}_b${ri}`, min: range.min, max: range.max, letter: clean(r[outId]) };
       }).filter(Boolean);
-    } else if (ac && (ac.low || ac.high)) {
-      const t = typeof ac.threshold === "number" ? ac.threshold : 50;
+    } else if (ac && (ac.low || ac.high) && typeof ac.threshold === "number") {
+      const t = ac.threshold;
       bands = [
         { id: `${key}_lo`, min: 0, max: Math.max(0, t - 1), letter: ac.low || "" },
         { id: `${key}_hi`, min: t, max: 100, letter: ac.high || "" }
@@ -648,7 +635,7 @@ function decompileJDMToVisualComponents(schemaStr) {
       ...ac && (ac.low || ac.high) ? {
         axisCodeLow: ac.low || "",
         axisCodeHigh: ac.high || "",
-        axisCodeThreshold: typeof ac.threshold === "number" ? ac.threshold : 50
+        ...typeof ac.threshold === "number" ? { axisCodeThreshold: ac.threshold } : {}
       } : {}
     };
   });
@@ -706,8 +693,8 @@ function decompileJDMToVisualComponents(schemaStr) {
   return {
     axes,
     profileConfig,
-    scoreRangeBands: bandsFromSchema(parsed.score_range_bands, DEFAULT_SCORE_RANGE_BANDS, "sr"),
-    severityBands: bandsFromSchema(parsed.severity_bands, DEFAULT_SEVERITY_BANDS, "sv"),
+    scoreRangeBands: bandsFromSchema(parsed.score_range_bands, "sr"),
+    severityBands: bandsFromSchema(parsed.severity_bands, "sv"),
     sources: blend.sources,
     convertedBlend: blend.converted,
     legacy
@@ -1768,6 +1755,7 @@ var ScoreSimulatorTab = ({
 import { useState as useState5, useEffect as useEffect4, useRef } from "react";
 import { Copy as Copy3, Check as Check4, Plus as Plus5, AlertTriangle as AlertTriangle2, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { Modal, Button as Button3, BrandSelect, ApplicationSelect, StatusSelect, InfoTooltip as InfoTooltip5 } from "@gateway-experience/shared";
+import { CORE_DEFAULT_SCORE_RANGE_BANDS, CORE_DEFAULT_SEVERITY_BANDS } from "@gateway-experience/shared";
 
 // src/score/components/reusable/BandTable.tsx
 import { jsx as jsx5, jsxs as jsxs5 } from "react/jsx-runtime";
@@ -1776,8 +1764,31 @@ var BandTable = ({
   onChange,
   disabled = false,
   fixed = false,
-  idPrefix = "band"
+  idPrefix = "band",
+  engineDefaults
 }) => {
+  if (bands.length === 0 && engineDefaults) {
+    return /* @__PURE__ */ jsxs5("div", { className: "rounded-md border border-dashed border-border bg-muted/10 p-3 space-y-2 text-xs", children: [
+      /* @__PURE__ */ jsx5("p", { className: "text-[11px] text-muted-foreground", children: "Not set \u2014 the engine's default bands apply:" }),
+      /* @__PURE__ */ jsx5("ul", { className: "space-y-0.5 text-muted-foreground", children: engineDefaults.map((b, i) => /* @__PURE__ */ jsxs5("li", { className: "flex gap-2", children: [
+        /* @__PURE__ */ jsxs5("span", { className: "w-24 shrink-0 font-mono", children: [
+          i === 0 ? 0 : engineDefaults[i - 1].max + 1,
+          "\u2013",
+          b.max
+        ] }),
+        /* @__PURE__ */ jsx5("span", { children: b.label })
+      ] }, `${b.max}-${i}`)) }),
+      !disabled && /* @__PURE__ */ jsx5(
+        "button",
+        {
+          type: "button",
+          onClick: () => onChange(engineDefaults.map((b, i) => ({ id: `${idPrefix}${i + 1}`, max: b.max, label: b.label }))),
+          className: "rounded border border-border px-2 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground",
+          children: "Customise (start from these)"
+        }
+      )
+    ] });
+  }
   const setMax = (idx, raw) => {
     const next = bands.map((b) => ({ ...b }));
     const lower = idx === 0 ? 0 : next[idx - 1].max + 1;
@@ -1850,16 +1861,29 @@ var BandTable = ({
         )
       ] }, b.id);
     }),
-    !fixed && /* @__PURE__ */ jsx5("div", { className: "px-3 py-1.5", children: /* @__PURE__ */ jsx5(
-      "button",
-      {
-        type: "button",
-        disabled,
-        onClick: addRow,
-        className: "text-[11px] text-muted-foreground hover:text-foreground disabled:opacity-50",
-        children: "+ Add band"
-      }
-    ) })
+    !fixed && /* @__PURE__ */ jsxs5("div", { className: "px-3 py-1.5", children: [
+      /* @__PURE__ */ jsx5(
+        "button",
+        {
+          type: "button",
+          disabled,
+          onClick: addRow,
+          className: "text-[11px] text-muted-foreground hover:text-foreground disabled:opacity-50",
+          children: "+ Add band"
+        }
+      ),
+      engineDefaults && /* @__PURE__ */ jsx5(
+        "button",
+        {
+          type: "button",
+          disabled,
+          onClick: () => onChange([]),
+          className: "ml-3 text-[11px] text-muted-foreground hover:text-foreground disabled:opacity-50",
+          title: "Clear these bands so the engine's defaults apply",
+          children: "Use engine defaults"
+        }
+      )
+    ] })
   ] });
 };
 
@@ -2167,7 +2191,7 @@ var ProfileMappingTable = ({
                       disabled,
                       value: p.code,
                       onChange: (e) => handleUpdateProfile(p.id, "code", e.target.value.toUpperCase().replace(/\s+/g, "_")),
-                      placeholder: "DSPW",
+                      placeholder: "code",
                       className: "w-full px-2.5 py-1.5 bg-muted/40 border border-border rounded text-beak font-bold focus:outline-none focus:border-ring disabled:opacity-50 text-xs"
                     }
                   ) }),
@@ -2345,8 +2369,8 @@ var RulesetModal = ({
   const [surveys, setSurveys] = useState5([]);
   const [axes, setAxes] = useState5([]);
   const [profileConfig, setProfileConfig] = useState5(EMPTY_PROFILE_CONFIG);
-  const [scoreRangeBands, setScoreRangeBands] = useState5(DEFAULT_SCORE_RANGE_BANDS);
-  const [severityBands, setSeverityBands] = useState5(DEFAULT_SEVERITY_BANDS);
+  const [scoreRangeBands, setScoreRangeBands] = useState5([]);
+  const [severityBands, setSeverityBands] = useState5([]);
   const [tab, setTab] = useState5("setup");
   const [schemaOpen, setSchemaOpen] = useState5(true);
   const notesRef = useRef(null);
@@ -2394,8 +2418,8 @@ var RulesetModal = ({
       setStatus("ACTIVE");
       setAxes([]);
       setProfileConfig({ ...EMPTY_PROFILE_CONFIG, profiles: [] });
-      setScoreRangeBands(DEFAULT_SCORE_RANGE_BANDS);
-      setSeverityBands(DEFAULT_SEVERITY_BANDS);
+      setScoreRangeBands([]);
+      setSeverityBands([]);
       setIsLegacy(false);
       setFormSurveyCode("");
       setVisionSourceCode("");
@@ -2476,6 +2500,8 @@ var RulesetModal = ({
       setIsSubmitting(false);
     }
   };
+  const effectiveScoreRangeBands = scoreRangeBands.length ? scoreRangeBands : CORE_DEFAULT_SCORE_RANGE_BANDS.map((b, i) => ({ id: `sr${i + 1}`, ...b }));
+  const effectiveSeverityBands = severityBands.length ? severityBands : CORE_DEFAULT_SEVERITY_BANDS.map((b, i) => ({ id: `sv${i + 1}`, ...b }));
   const jsonText = withSetupFields(compileVisualToJDM(axes, profileConfig, scoreRangeBands, severityBands, editingRuleset?.schema));
   const createRequestBody = JSON.stringify(
     {
@@ -2654,22 +2680,18 @@ var RulesetModal = ({
                         /* @__PURE__ */ jsx7(
                           InfoTooltip5,
                           {
-                            content: "Which CV/vendor source this ruleset pairs with. Only one is registered today (Paradev Skin Analyzer) \u2014 more get added as new vendors are wired up.",
+                            content: "The code of the CV/vendor source this ruleset pairs with (vision_source_code). There is no vendor registry to pick from yet, so it is entered as the integration names it.",
                             label: "About Vision input"
                           }
                         )
                       ] }),
-                      /* @__PURE__ */ jsxs7(
-                        "select",
+                      /* @__PURE__ */ jsx7(
+                        "input",
                         {
                           value: visionSourceCode,
-                          onChange: (e) => setVisionSourceCode(e.target.value),
-                          className: inputCls,
-                          style: { colorScheme: "dark" },
-                          children: [
-                            /* @__PURE__ */ jsx7("option", { value: "", children: "\u2014 none selected \u2014" }),
-                            /* @__PURE__ */ jsx7("option", { value: "paradev_skin_analyzer", children: "Paradev Skin Analyzer" })
-                          ]
+                          onChange: (e) => setVisionSourceCode(e.target.value.trim()),
+                          placeholder: "vendor source code (optional)",
+                          className: inputCls + " font-mono"
                         }
                       )
                     ] })
@@ -2765,7 +2787,7 @@ var RulesetModal = ({
                       }
                     )
                   ] }),
-                  /* @__PURE__ */ jsx7(BandTable, { bands: scoreRangeBands, onChange: setScoreRangeBands, idPrefix: "sr" })
+                  /* @__PURE__ */ jsx7(BandTable, { bands: scoreRangeBands, onChange: setScoreRangeBands, idPrefix: "sr", engineDefaults: CORE_DEFAULT_SCORE_RANGE_BANDS })
                 ] }),
                 /* @__PURE__ */ jsxs7("div", { className: "space-y-1.5", children: [
                   /* @__PURE__ */ jsxs7("div", { className: "flex items-center gap-1.5", children: [
@@ -2778,7 +2800,7 @@ var RulesetModal = ({
                       }
                     )
                   ] }),
-                  /* @__PURE__ */ jsx7(BandTable, { bands: severityBands, onChange: setSeverityBands, idPrefix: "sv" })
+                  /* @__PURE__ */ jsx7(BandTable, { bands: severityBands, onChange: setSeverityBands, idPrefix: "sv", engineDefaults: CORE_DEFAULT_SEVERITY_BANDS })
                 ] })
               ] }),
               /* @__PURE__ */ jsxs7("div", { className: "space-y-1.5 border-t border-border pt-4", children: [
@@ -2798,8 +2820,8 @@ var RulesetModal = ({
                     axes,
                     config: profileConfig,
                     onChange: setProfileConfig,
-                    scoreRangeBands,
-                    severityBands
+                    scoreRangeBands: effectiveScoreRangeBands,
+                    severityBands: effectiveSeverityBands
                   }
                 )
               ] })
@@ -3070,10 +3092,11 @@ var SeverityTierTable = ({
         id: `t_${Date.now()}`,
         minScore: last ? Math.min(100, last.maxScore + 1) : 0,
         maxScore: 100,
-        valueCode: "X",
+        // Blank until authored: no letter, severity or trait is presumed.
+        valueCode: "",
         gradeName: `Level ${tiers.length + 1}`,
-        severity: "optimal",
-        trait: "Normal"
+        severity: "",
+        trait: ""
       }
     ]);
   };
@@ -3145,6 +3168,7 @@ var SeverityTierTable = ({
           SeveritySelect2,
           {
             value: tier.severity,
+            emptyLabel: "\u2014 choose \u2014",
             disabled,
             onChange: (sev) => update(tier.id, { severity: sev })
           }
@@ -3209,8 +3233,6 @@ export {
   BlendingTab,
   ClinicalAxisCard,
   ClinicalDimensionCard,
-  DEFAULT_SCORE_RANGE_BANDS,
-  DEFAULT_SEVERITY_BANDS,
   EMPTY_PROFILE_CONFIG,
   ProfileMappingTable,
   ScoreManager,

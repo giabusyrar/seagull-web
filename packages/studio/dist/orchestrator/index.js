@@ -1,5 +1,7 @@
 'use strict';
 
+var shared = require('@gateway-experience/shared');
+
 // src/orchestrator/capability-registry.ts
 var cachedConditions = null;
 var lastFetchTime = 0;
@@ -109,10 +111,7 @@ async function dispatchPyTorchCapabilities(params) {
     );
   }
 }
-
-// src/orchestrator/score-client.ts
 var DEFAULT_SCORE_ENGINE_PATH = "/core/score-engine/evaluate";
-var DRY_RUN_HEADER = "X-Dry-Run";
 var none = (error, warnings = []) => ({
   dimensionScores: {},
   breakdown: {},
@@ -145,7 +144,7 @@ async function evaluateScore(params) {
       method: "POST",
       headers: {
         ...apiKey ? { "x-api-key": apiKey } : {},
-        ...dryRun ? { [DRY_RUN_HEADER]: "true" } : {}
+        ...dryRun ? { [shared.DRY_RUN_HEADER]: "true" } : {}
       },
       body: form,
       signal: controller.signal
@@ -274,6 +273,7 @@ function pipelineEnvFromProcess() {
   return {
     matchEngineUrl: process.env.MATCH_ENGINE_URL,
     scoreEngineUrl: process.env.SCORE_ENGINE_URL,
+    visionDispatchUrl: process.env.VISION_DISPATCH_URL,
     gatewayApiKey: process.env.GATEWAY_API_KEY
   };
 }
@@ -299,25 +299,25 @@ function resolvePipelineConfig(payload, settings, env) {
     executionStrategy: o.executionStrategy || settings.executionStrategy,
     vision: {
       timeoutMs: settings.vision.timeoutMs,
+      ...o.vision,
       // worker-models, which served capability dispatch, was retired with
-      // the model registry (Seagull-core, 2026-10-03). Only a configOverride
-      // can name a dispatch service now; without one the vision stage reports
-      // that nothing was dispatched, and why.
-      serviceUrl: "",
-      ...o.vision
+      // the model registry (Seagull-core, 2026-10-03). A deployment names a
+      // dispatch service in its environment; without one the vision stage
+      // reports that nothing was dispatched, and why.
+      serviceUrl: env.visionDispatchUrl || ""
     },
     scoring: {
       rulesetCode: payload.rulesetCode || "",
       timeoutMs: settings.scoring.timeoutMs,
       // The score engine origin when the pipeline runs on a server; otherwise
       // the app's own path, which the dashboard proxies to the gateway.
-      serviceUrl: `${env.scoreEngineUrl || payload.baseUrl || ""}${DEFAULT_SCORE_ENGINE_PATH}`,
-      ...o.scoring
+      ...o.scoring,
+      serviceUrl: `${env.scoreEngineUrl || payload.baseUrl || ""}${DEFAULT_SCORE_ENGINE_PATH}`
     },
     matching: {
       ...settings.matching,
-      serviceUrl: `${env.matchEngineUrl || payload.baseUrl || ""}${DEFAULT_MATCH_ENGINE_PATH}`,
-      ...o.matching
+      ...o.matching,
+      serviceUrl: `${env.matchEngineUrl || payload.baseUrl || ""}${DEFAULT_MATCH_ENGINE_PATH}`
     }
   };
   const missing = [
@@ -401,7 +401,9 @@ async function executeAssessmentPipeline(payload, deps) {
   timings["stage4_matching_ms"] = Date.now() - t3;
   timings["total_pipeline_ms"] = Date.now() - startTime;
   return {
-    success: true,
+    // Scored or not: a run whose scoring failed is not a success, whatever
+    // the other stages did (each stage still carries its own error).
+    success: !score.error,
     pipelineId: `pipe_run_${Date.now()}`,
     executionStrategy: config.executionStrategy,
     stages: {

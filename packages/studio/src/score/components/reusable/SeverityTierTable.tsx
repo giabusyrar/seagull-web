@@ -51,10 +51,11 @@ export const SeverityTierTable: React.FC<SeverityTierTableProps> = ({
         id: `t_${Date.now()}`,
         minScore: last ? Math.min(100, last.maxScore + 1) : 0,
         maxScore: 100,
-        valueCode: 'X',
+        // Blank until authored: no letter, severity or trait is presumed.
+        valueCode: '',
         gradeName: `Level ${tiers.length + 1}`,
-        severity: 'optimal',
-        trait: 'Normal',
+        severity: '' as VisualSeverityTier['severity'],
+        trait: '',
       },
     ]);
   };
@@ -140,6 +141,7 @@ export const SeverityTierTable: React.FC<SeverityTierTableProps> = ({
                   <div className="shrink-0" style={{ width: W_SEVERITY }}>
                     <SeveritySelect
                       value={tier.severity}
+                      emptyLabel="— choose —"
                       disabled={disabled}
                       onChange={(sev) => update(tier.id, { severity: sev as VisualSeverityTier['severity'] })}
                     />

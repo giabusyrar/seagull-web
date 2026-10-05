@@ -35,8 +35,6 @@ __export(score_exports, {
   BlendingTab: () => BlendingTab,
   ClinicalAxisCard: () => ClinicalAxisCard,
   ClinicalDimensionCard: () => ClinicalDimensionCard,
-  DEFAULT_SCORE_RANGE_BANDS: () => DEFAULT_SCORE_RANGE_BANDS,
-  DEFAULT_SEVERITY_BANDS: () => DEFAULT_SEVERITY_BANDS,
   EMPTY_PROFILE_CONFIG: () => EMPTY_PROFILE_CONFIG,
   ProfileMappingTable: () => ProfileMappingTable,
   ScoreManager: () => ScoreManager,
@@ -50,7 +48,7 @@ module.exports = __toCommonJS(score_exports);
 // src/score/components/ScoreManager.tsx
 var import_react7 = require("react");
 var import_lucide_react7 = require("lucide-react");
-var import_shared7 = require("@gateway-experience/shared");
+var import_shared8 = require("@gateway-experience/shared");
 
 // src/core/scope.ts
 var ALL_TENANTS = "*";
@@ -176,10 +174,7 @@ var RulesetsTab = ({
               style: { colorScheme: "dark" },
               children: [
                 /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: "ALL", children: "All statuses" }),
-                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: "ACTIVE", children: "Active" }),
-                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: "DRAFT", children: "Draft" }),
-                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: "INACTIVE", children: "Inactive" }),
-                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: "ARCHIVED", children: "Archived" })
+                import_shared.LIFECYCLE_STATUSES.map((s) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: s.code, children: s.name }, s.code))
               ]
             }
           )
@@ -304,18 +299,6 @@ var AGE_FIELD = "age_over_30";
 var AGE_FIELD_CUTOFF_YEARS = 30;
 var FORM_SOURCE = "form";
 var VISION_SOURCE = "vision";
-var DEFAULT_SCORE_RANGE_BANDS = [
-  { id: "sr1", max: 40, label: "Perlu Perhatian Khusus" },
-  { id: "sr2", max: 60, label: "Sedang" },
-  { id: "sr3", max: 100, label: "Optimal" }
-];
-var DEFAULT_SEVERITY_BANDS = [
-  { id: "sv1", max: 20, label: "Sangat Parah" },
-  { id: "sv2", max: 40, label: "Parah" },
-  { id: "sv3", max: 60, label: "Sedang" },
-  { id: "sv4", max: 80, label: "Ringan" },
-  { id: "sv5", max: 100, label: "Sehat" }
-];
 var KNOWN_VISION_FIELDS = [
   { code: "data.inference_result.results.skin_scoring.Darkspot", label: "Darkspot", description: "results.skin_scoring.Darkspot \u2014 feeds Pigmentation." },
   { code: "data.inference_result.results.skin_scoring.Wrinkle", label: "Wrinkle", description: "results.skin_scoring.Wrinkle \u2014 feeds Aging." },
@@ -427,7 +410,7 @@ function scoreRangeLetters(bands) {
 var bandsToSchema = (bands) => bands.map((b) => ({ max: Math.max(0, Math.min(100, Number(b.max) || 0)), label: b.label || "" }));
 var cleanVal = (v) => `"${(v || "").replace(/"/g, "")}"`;
 var rangeCell = (min, max) => `[${Math.max(0, Math.min(100, min ?? 0))}..${Math.max(0, Math.min(100, max ?? 100))}]`;
-function compileVisualToJDM(axes, profileConfig = EMPTY_PROFILE_CONFIG, scoreRangeBands = DEFAULT_SCORE_RANGE_BANDS, severityBands = DEFAULT_SEVERITY_BANDS, existingSchema, sources) {
+function compileVisualToJDM(axes, profileConfig = EMPTY_PROFILE_CONFIG, scoreRangeBands = [], severityBands = [], existingSchema, sources) {
   const effectiveAxes = axes.filter((a) => (a.dimensionKey || "").trim());
   const nodes = [
     { id: "input_node", name: "Input", type: "inputNode", position: { x: 40, y: 40 } }
@@ -541,9 +524,9 @@ function compileVisualToJDM(axes, profileConfig = EMPTY_PROFILE_CONFIG, scoreRan
           rules: bands.slice().reverse().map((b) => ({ in: rangeCell(b.min, b.max), out: cleanVal(b.letter) }))
         }
       });
-    } else if ((a.axisCodeLow || "").trim() && (a.axisCodeHigh || "").trim()) {
+    } else if ((a.axisCodeLow || "").trim() && (a.axisCodeHigh || "").trim() && typeof a.axisCodeThreshold === "number" && Number.isFinite(a.axisCodeThreshold)) {
       axis_codes[key] = {
-        threshold: Math.max(0, Math.min(100, Number(a.axisCodeThreshold ?? 50))),
+        threshold: Math.max(0, Math.min(100, a.axisCodeThreshold)),
         low: (a.axisCodeLow || "").trim(),
         high: (a.axisCodeHigh || "").trim()
       };
@@ -578,10 +561,12 @@ function compileVisualToJDM(axes, profileConfig = EMPTY_PROFILE_CONFIG, scoreRan
     nodes: [...nodes, ...preservedNodes],
     edges,
     dimension_weights: mergeOwned(base.dimension_weights, dimension_weights),
-    concern_labels: mergeOwned(base.concern_labels, concern_labels),
-    score_range_bands: bandsToSchema(scoreRangeBands),
-    severity_bands: bandsToSchema(severityBands)
+    concern_labels: mergeOwned(base.concern_labels, concern_labels)
   };
+  if (scoreRangeBands.length > 0) model.score_range_bands = bandsToSchema(scoreRangeBands);
+  else delete model.score_range_bands;
+  if (severityBands.length > 0) model.severity_bands = bandsToSchema(severityBands);
+  else delete model.severity_bands;
   const mergedAxisCodes = mergeOwned(base.axis_codes, axis_codes);
   if (Object.keys(mergedAxisCodes).length > 0) model.axis_codes = mergedAxisCodes;
   else delete model.axis_codes;
@@ -597,8 +582,8 @@ function compileVisualToJDM(axes, profileConfig = EMPTY_PROFILE_CONFIG, scoreRan
   }
   return JSON.stringify(model, null, 2);
 }
-var bandsFromSchema = (raw, fallback, prefix) => {
-  if (!Array.isArray(raw) || raw.length === 0) return fallback.map((b) => ({ ...b }));
+var bandsFromSchema = (raw, prefix) => {
+  if (!Array.isArray(raw) || raw.length === 0) return [];
   return raw.map((b, i) => ({
     id: `${prefix}${i + 1}`,
     max: Number(b?.max) || 0,
@@ -609,8 +594,8 @@ function decompileJDMToVisualComponents(schemaStr) {
   const fallback = {
     axes: [],
     profileConfig: { ...EMPTY_PROFILE_CONFIG, profiles: [] },
-    scoreRangeBands: DEFAULT_SCORE_RANGE_BANDS.map((b) => ({ ...b })),
-    severityBands: DEFAULT_SEVERITY_BANDS.map((b) => ({ ...b })),
+    scoreRangeBands: [],
+    severityBands: [],
     sources: {},
     convertedBlend: false,
     legacy: false
@@ -675,8 +660,8 @@ function decompileJDMToVisualComponents(schemaStr) {
         if (!range) return null;
         return { id: `${key}_b${ri}`, min: range.min, max: range.max, letter: clean(r[outId]) };
       }).filter(Boolean);
-    } else if (ac && (ac.low || ac.high)) {
-      const t = typeof ac.threshold === "number" ? ac.threshold : 50;
+    } else if (ac && (ac.low || ac.high) && typeof ac.threshold === "number") {
+      const t = ac.threshold;
       bands = [
         { id: `${key}_lo`, min: 0, max: Math.max(0, t - 1), letter: ac.low || "" },
         { id: `${key}_hi`, min: t, max: 100, letter: ac.high || "" }
@@ -695,7 +680,7 @@ function decompileJDMToVisualComponents(schemaStr) {
       ...ac && (ac.low || ac.high) ? {
         axisCodeLow: ac.low || "",
         axisCodeHigh: ac.high || "",
-        axisCodeThreshold: typeof ac.threshold === "number" ? ac.threshold : 50
+        ...typeof ac.threshold === "number" ? { axisCodeThreshold: ac.threshold } : {}
       } : {}
     };
   });
@@ -753,8 +738,8 @@ function decompileJDMToVisualComponents(schemaStr) {
   return {
     axes,
     profileConfig,
-    scoreRangeBands: bandsFromSchema(parsed.score_range_bands, DEFAULT_SCORE_RANGE_BANDS, "sr"),
-    severityBands: bandsFromSchema(parsed.severity_bands, DEFAULT_SEVERITY_BANDS, "sv"),
+    scoreRangeBands: bandsFromSchema(parsed.score_range_bands, "sr"),
+    severityBands: bandsFromSchema(parsed.severity_bands, "sv"),
     sources: blend.sources,
     convertedBlend: blend.converted,
     legacy
@@ -1815,6 +1800,7 @@ var ScoreSimulatorTab = ({
 var import_react6 = require("react");
 var import_lucide_react6 = require("lucide-react");
 var import_shared6 = require("@gateway-experience/shared");
+var import_shared7 = require("@gateway-experience/shared");
 
 // src/score/components/reusable/BandTable.tsx
 var import_jsx_runtime5 = require("react/jsx-runtime");
@@ -1823,8 +1809,31 @@ var BandTable = ({
   onChange,
   disabled = false,
   fixed = false,
-  idPrefix = "band"
+  idPrefix = "band",
+  engineDefaults
 }) => {
+  if (bands.length === 0 && engineDefaults) {
+    return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "rounded-md border border-dashed border-border bg-muted/10 p-3 space-y-2 text-xs", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("p", { className: "text-[11px] text-muted-foreground", children: "Not set \u2014 the engine's default bands apply:" }),
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("ul", { className: "space-y-0.5 text-muted-foreground", children: engineDefaults.map((b, i) => /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("li", { className: "flex gap-2", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("span", { className: "w-24 shrink-0 font-mono", children: [
+          i === 0 ? 0 : engineDefaults[i - 1].max + 1,
+          "\u2013",
+          b.max
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { children: b.label })
+      ] }, `${b.max}-${i}`)) }),
+      !disabled && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+        "button",
+        {
+          type: "button",
+          onClick: () => onChange(engineDefaults.map((b, i) => ({ id: `${idPrefix}${i + 1}`, max: b.max, label: b.label }))),
+          className: "rounded border border-border px-2 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground",
+          children: "Customise (start from these)"
+        }
+      )
+    ] });
+  }
   const setMax = (idx, raw) => {
     const next = bands.map((b) => ({ ...b }));
     const lower = idx === 0 ? 0 : next[idx - 1].max + 1;
@@ -1897,16 +1906,29 @@ var BandTable = ({
         )
       ] }, b.id);
     }),
-    !fixed && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "px-3 py-1.5", children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
-      "button",
-      {
-        type: "button",
-        disabled,
-        onClick: addRow,
-        className: "text-[11px] text-muted-foreground hover:text-foreground disabled:opacity-50",
-        children: "+ Add band"
-      }
-    ) })
+    !fixed && /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "px-3 py-1.5", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+        "button",
+        {
+          type: "button",
+          disabled,
+          onClick: addRow,
+          className: "text-[11px] text-muted-foreground hover:text-foreground disabled:opacity-50",
+          children: "+ Add band"
+        }
+      ),
+      engineDefaults && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+        "button",
+        {
+          type: "button",
+          disabled,
+          onClick: () => onChange([]),
+          className: "ml-3 text-[11px] text-muted-foreground hover:text-foreground disabled:opacity-50",
+          title: "Clear these bands so the engine's defaults apply",
+          children: "Use engine defaults"
+        }
+      )
+    ] })
   ] });
 };
 
@@ -2214,7 +2236,7 @@ var ProfileMappingTable = ({
                       disabled,
                       value: p.code,
                       onChange: (e) => handleUpdateProfile(p.id, "code", e.target.value.toUpperCase().replace(/\s+/g, "_")),
-                      placeholder: "DSPW",
+                      placeholder: "code",
                       className: "w-full px-2.5 py-1.5 bg-muted/40 border border-border rounded text-beak font-bold focus:outline-none focus:border-ring disabled:opacity-50 text-xs"
                     }
                   ) }),
@@ -2392,8 +2414,8 @@ var RulesetModal = ({
   const [surveys, setSurveys] = (0, import_react6.useState)([]);
   const [axes, setAxes] = (0, import_react6.useState)([]);
   const [profileConfig, setProfileConfig] = (0, import_react6.useState)(EMPTY_PROFILE_CONFIG);
-  const [scoreRangeBands, setScoreRangeBands] = (0, import_react6.useState)(DEFAULT_SCORE_RANGE_BANDS);
-  const [severityBands, setSeverityBands] = (0, import_react6.useState)(DEFAULT_SEVERITY_BANDS);
+  const [scoreRangeBands, setScoreRangeBands] = (0, import_react6.useState)([]);
+  const [severityBands, setSeverityBands] = (0, import_react6.useState)([]);
   const [tab, setTab] = (0, import_react6.useState)("setup");
   const [schemaOpen, setSchemaOpen] = (0, import_react6.useState)(true);
   const notesRef = (0, import_react6.useRef)(null);
@@ -2441,8 +2463,8 @@ var RulesetModal = ({
       setStatus("ACTIVE");
       setAxes([]);
       setProfileConfig({ ...EMPTY_PROFILE_CONFIG, profiles: [] });
-      setScoreRangeBands(DEFAULT_SCORE_RANGE_BANDS);
-      setSeverityBands(DEFAULT_SEVERITY_BANDS);
+      setScoreRangeBands([]);
+      setSeverityBands([]);
       setIsLegacy(false);
       setFormSurveyCode("");
       setVisionSourceCode("");
@@ -2523,6 +2545,8 @@ var RulesetModal = ({
       setIsSubmitting(false);
     }
   };
+  const effectiveScoreRangeBands = scoreRangeBands.length ? scoreRangeBands : import_shared7.CORE_DEFAULT_SCORE_RANGE_BANDS.map((b, i) => ({ id: `sr${i + 1}`, ...b }));
+  const effectiveSeverityBands = severityBands.length ? severityBands : import_shared7.CORE_DEFAULT_SEVERITY_BANDS.map((b, i) => ({ id: `sv${i + 1}`, ...b }));
   const jsonText = withSetupFields(compileVisualToJDM(axes, profileConfig, scoreRangeBands, severityBands, editingRuleset?.schema));
   const createRequestBody = JSON.stringify(
     {
@@ -2701,22 +2725,18 @@ var RulesetModal = ({
                         /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
                           import_shared6.InfoTooltip,
                           {
-                            content: "Which CV/vendor source this ruleset pairs with. Only one is registered today (Paradev Skin Analyzer) \u2014 more get added as new vendors are wired up.",
+                            content: "The code of the CV/vendor source this ruleset pairs with (vision_source_code). There is no vendor registry to pick from yet, so it is entered as the integration names it.",
                             label: "About Vision input"
                           }
                         )
                       ] }),
-                      /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
-                        "select",
+                      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+                        "input",
                         {
                           value: visionSourceCode,
-                          onChange: (e) => setVisionSourceCode(e.target.value),
-                          className: inputCls,
-                          style: { colorScheme: "dark" },
-                          children: [
-                            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("option", { value: "", children: "\u2014 none selected \u2014" }),
-                            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("option", { value: "paradev_skin_analyzer", children: "Paradev Skin Analyzer" })
-                          ]
+                          onChange: (e) => setVisionSourceCode(e.target.value.trim()),
+                          placeholder: "vendor source code (optional)",
+                          className: inputCls + " font-mono"
                         }
                       )
                     ] })
@@ -2812,7 +2832,7 @@ var RulesetModal = ({
                       }
                     )
                   ] }),
-                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(BandTable, { bands: scoreRangeBands, onChange: setScoreRangeBands, idPrefix: "sr" })
+                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(BandTable, { bands: scoreRangeBands, onChange: setScoreRangeBands, idPrefix: "sr", engineDefaults: import_shared7.CORE_DEFAULT_SCORE_RANGE_BANDS })
                 ] }),
                 /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "space-y-1.5", children: [
                   /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "flex items-center gap-1.5", children: [
@@ -2825,7 +2845,7 @@ var RulesetModal = ({
                       }
                     )
                   ] }),
-                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(BandTable, { bands: severityBands, onChange: setSeverityBands, idPrefix: "sv" })
+                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(BandTable, { bands: severityBands, onChange: setSeverityBands, idPrefix: "sv", engineDefaults: import_shared7.CORE_DEFAULT_SEVERITY_BANDS })
                 ] })
               ] }),
               /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "space-y-1.5 border-t border-border pt-4", children: [
@@ -2845,8 +2865,8 @@ var RulesetModal = ({
                     axes,
                     config: profileConfig,
                     onChange: setProfileConfig,
-                    scoreRangeBands,
-                    severityBands
+                    scoreRangeBands: effectiveScoreRangeBands,
+                    severityBands: effectiveSeverityBands
                   }
                 )
               ] })
@@ -2932,10 +2952,10 @@ var RulesetModal = ({
 // src/score/components/ScoreManager.tsx
 var import_jsx_runtime8 = require("react/jsx-runtime");
 var ScoreManager = () => {
-  const [activeTab, setActiveTab] = (0, import_shared7.usePersistentState)("xg.scoreEngine.activeTab", "rulesets");
+  const [activeTab, setActiveTab] = (0, import_shared8.usePersistentState)("xg.scoreEngine.activeTab", "rulesets");
   const [searchQuery, setSearchQuery] = (0, import_react7.useState)("");
   const [rulesets, setRulesets] = (0, import_react7.useState)([]);
-  const [selectedRulesetId, setSelectedRulesetId] = (0, import_shared7.usePersistentState)("xg.scoreEngine.selectedRulesetId", null);
+  const [selectedRulesetId, setSelectedRulesetId] = (0, import_shared8.usePersistentState)("xg.scoreEngine.selectedRulesetId", null);
   const selectedRuleset = rulesets.find((r) => r.id === selectedRulesetId) ?? null;
   const setSelectedRuleset = (r) => setSelectedRulesetId(r?.id ?? null);
   const [isRulesetModalOpen, setIsRulesetModalOpen] = (0, import_react7.useState)(false);
@@ -2999,7 +3019,7 @@ var ScoreManager = () => {
   };
   return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "flex-1 min-w-0 h-full overflow-y-auto bg-background text-foreground font-sans flex flex-col select-none", children: [
     /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
-      import_shared7.PageHeader,
+      import_shared8.PageHeader,
       {
         icon: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_lucide_react7.FileText, { className: "h-5 w-5" }),
         breadcrumbs: [
@@ -3009,7 +3029,7 @@ var ScoreManager = () => {
         ],
         title: "Score Engine",
         children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
-          import_shared7.TabNav,
+          import_shared8.TabNav,
           {
             tabs: scoreTabs,
             activeTab,
@@ -3071,7 +3091,7 @@ var ScoreManager = () => {
       }
     ),
     /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
-      import_shared7.ConfirmDialog,
+      import_shared8.ConfirmDialog,
       {
         isOpen: deleteConfirm.isOpen,
         title: deleteConfirm.title,
@@ -3086,7 +3106,7 @@ var ScoreManager = () => {
 // src/score/components/reusable/SeverityTierTable.tsx
 var import_react8 = require("react");
 var import_lucide_react8 = require("lucide-react");
-var import_shared8 = require("@gateway-experience/shared");
+var import_shared9 = require("@gateway-experience/shared");
 var import_jsx_runtime9 = require("react/jsx-runtime");
 var SEV_LABEL = {
   optimal: "Level 5 \xB7 Healthy",
@@ -3117,10 +3137,11 @@ var SeverityTierTable = ({
         id: `t_${Date.now()}`,
         minScore: last ? Math.min(100, last.maxScore + 1) : 0,
         maxScore: 100,
-        valueCode: "X",
+        // Blank until authored: no letter, severity or trait is presumed.
+        valueCode: "",
         gradeName: `Level ${tiers.length + 1}`,
-        severity: "optimal",
-        trait: "Normal"
+        severity: "",
+        trait: ""
       }
     ]);
   };
@@ -3169,7 +3190,7 @@ var SeverityTierTable = ({
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "divide-y divide-border", children: tiers.map((tier) => /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "flex items-center gap-2 px-3 py-2", children: [
         /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "shrink-0", style: { width: W_RANGE }, children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
-          import_shared8.ScoreRangeInput,
+          import_shared9.ScoreRangeInput,
           {
             minScore: tier.minScore,
             maxScore: tier.maxScore,
@@ -3189,9 +3210,10 @@ var SeverityTierTable = ({
           }
         ),
         /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "shrink-0", style: { width: W_SEVERITY }, children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
-          import_shared8.SeveritySelect,
+          import_shared9.SeveritySelect,
           {
             value: tier.severity,
+            emptyLabel: "\u2014 choose \u2014",
             disabled,
             onChange: (sev) => update(tier.id, { severity: sev })
           }
@@ -3257,8 +3279,6 @@ var SeverityTierTable = ({
   BlendingTab,
   ClinicalAxisCard,
   ClinicalDimensionCard,
-  DEFAULT_SCORE_RANGE_BANDS,
-  DEFAULT_SEVERITY_BANDS,
   EMPTY_PROFILE_CONFIG,
   ProfileMappingTable,
   ScoreManager,

@@ -127,23 +127,6 @@ export const AGE_FIELD_CUTOFF_YEARS = 30;
 export const FORM_SOURCE = 'form';
 export const VISION_SOURCE = 'vision';
 
-/** Defaults used when a ruleset carries no overrides. Health-oriented: the
- *  score climbs from 0 (critical) to 100 (optimal). */
-export const DEFAULT_SCORE_RANGE_BANDS: VisualBand[] = [
-  { id: 'sr1', max: 40, label: 'Perlu Perhatian Khusus' },
-  { id: 'sr2', max: 60, label: 'Sedang' },
-  { id: 'sr3', max: 100, label: 'Optimal' },
-];
-
-/** Clinical 5-level severity scale (Scoring Method doc). */
-export const DEFAULT_SEVERITY_BANDS: VisualBand[] = [
-  { id: 'sv1', max: 20, label: 'Sangat Parah' },
-  { id: 'sv2', max: 40, label: 'Parah' },
-  { id: 'sv3', max: 60, label: 'Sedang' },
-  { id: 'sv4', max: 80, label: 'Ringan' },
-  { id: 'sv5', max: 100, label: 'Sehat' },
-];
-
 export interface VisualSeverityTier {
   id: string;
   minScore: number;

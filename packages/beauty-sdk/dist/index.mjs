@@ -481,7 +481,13 @@ var PolygonHeatmap = ({
     if (metric.status === "moderate_issue") {
       return { stroke: "#f59e0b", fill: "rgba(245, 158, 11, 0.35)" };
     }
-    return { stroke: "#10b981", fill: "rgba(16, 185, 129, 0.25)" };
+    if (metric.status === "mild_issue") {
+      return { stroke: "#eab308", fill: "rgba(234, 179, 8, 0.25)" };
+    }
+    if (metric.status === "optimal") {
+      return { stroke: "#10b981", fill: "rgba(16, 185, 129, 0.25)" };
+    }
+    return { stroke: "#94a3b8", fill: "rgba(148, 163, 184, 0.2)" };
   };
   return /* @__PURE__ */ jsxs("div", { className: `relative overflow-hidden rounded-2xl border border-white/10 bg-black/60 shadow-2xl ${className}`, children: [
     /* @__PURE__ */ jsx(
