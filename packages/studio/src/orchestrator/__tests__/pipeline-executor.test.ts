@@ -226,12 +226,22 @@ describe('executeAssessmentPipeline: services and dispatch', () => {
     expect(res.stages.vision.dispatchedCapabilities).toEqual(['cap_a', 'cap_b']);
   });
 
-  it('lets a configOverride replace part of a section', async () => {
+  it('lets a configOverride replace part of a section, but never a service URL', async () => {
     await executeAssessmentPipeline(
-      { ...basePayload, configOverride: { matching: { serviceUrl: 'http://override', timeoutMs: 1 } } },
-      { routes },
+      {
+        ...basePayload,
+        configOverride: {
+          matching: { serviceUrl: 'http://attacker.test', timeoutMs: 1 },
+          scoring: { serviceUrl: 'http://attacker.test', timeoutMs: 1, rulesetCode: 'rs' },
+          vision: { serviceUrl: 'http://attacker.test', timeoutMs: 1 },
+        },
+      },
+      { routes, env: { gatewayApiKey: 'secret' } },
     );
-    expect(fetchRegimens).toHaveBeenCalledWith(expect.objectContaining({ url: 'http://override', timeoutMs: 1 }));
+    // The gateway key goes with these calls, so their URLs come from the server only.
+    expect(fetchRegimens).toHaveBeenCalledWith(expect.objectContaining({ url: 'http://app/core/match-engine/evaluate', timeoutMs: 1 }));
+    expect(evaluateScore).toHaveBeenCalledWith(expect.objectContaining({ url: 'http://app/core/score-engine/evaluate' }));
+    expect(dispatchPyTorchCapabilities).toHaveBeenCalledWith(expect.objectContaining({ serviceUrl: '' }));
   });
 });
 

@@ -12,7 +12,9 @@ export interface PipelineEnv {
   matchEngineUrl?: string;
   /** Score engine origin; when absent the payload's baseUrl is used. */
   scoreEngineUrl?: string;
-  /** Sent to the score engine and to a dispatch service a configOverride names. Server-side only. */
+  /** Capability dispatch endpoint (full URL); absent: nothing is dispatched. */
+  visionDispatchUrl?: string;
+  /** Sent to the score, match and dispatch services. Server-side only. */
   gatewayApiKey?: string;
 }
 
@@ -24,6 +26,7 @@ export function pipelineEnvFromProcess(): PipelineEnv {
   return {
     matchEngineUrl: process.env.MATCH_ENGINE_URL,
     scoreEngineUrl: process.env.SCORE_ENGINE_URL,
+    visionDispatchUrl: process.env.VISION_DISPATCH_URL,
     gatewayApiKey: process.env.GATEWAY_API_KEY,
   };
 }
@@ -71,6 +74,10 @@ const defaultClients = (): PipelineClients => ({
  * The effective config: settings, plus service URLs from env, under the
  * payload's override. Throws `PipelineInputError` when brand, application
  * or ruleset is missing.
+ *
+ * Service URLs never come from the payload's override: the server attaches
+ * the gateway API key to these calls, so a caller who could name the URL
+ * could have the key sent to a host of their choosing.
  */
 export function resolvePipelineConfig(
   payload: AssessmentPayload,
@@ -84,25 +91,25 @@ export function resolvePipelineConfig(
     executionStrategy: o.executionStrategy || settings.executionStrategy,
     vision: {
       timeoutMs: settings.vision.timeoutMs,
-      // worker-models, which served capability dispatch, was retired with
-      // the model registry (Seagull-core, 2026-10-03). Only a configOverride
-      // can name a dispatch service now; without one the vision stage reports
-      // that nothing was dispatched, and why.
-      serviceUrl: '',
       ...o.vision,
+      // worker-models, which served capability dispatch, was retired with
+      // the model registry (Seagull-core, 2026-10-03). A deployment names a
+      // dispatch service in its environment; without one the vision stage
+      // reports that nothing was dispatched, and why.
+      serviceUrl: env.visionDispatchUrl || '',
     },
     scoring: {
       rulesetCode: payload.rulesetCode || '',
       timeoutMs: settings.scoring.timeoutMs,
       // The score engine origin when the pipeline runs on a server; otherwise
       // the app's own path, which the dashboard proxies to the gateway.
-      serviceUrl: `${env.scoreEngineUrl || payload.baseUrl || ''}${DEFAULT_SCORE_ENGINE_PATH}`,
       ...o.scoring,
+      serviceUrl: `${env.scoreEngineUrl || payload.baseUrl || ''}${DEFAULT_SCORE_ENGINE_PATH}`,
     },
     matching: {
       ...settings.matching,
-      serviceUrl: `${env.matchEngineUrl || payload.baseUrl || ''}${DEFAULT_MATCH_ENGINE_PATH}`,
       ...o.matching,
+      serviceUrl: `${env.matchEngineUrl || payload.baseUrl || ''}${DEFAULT_MATCH_ENGINE_PATH}`,
     },
   };
 

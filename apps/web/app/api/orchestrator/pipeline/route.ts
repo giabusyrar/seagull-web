@@ -11,11 +11,13 @@ export async function POST(req: Request) {
     const body: AssessmentPayload = await req.json();
     // The pipeline calls back through this app (score and match engines,
     // skin conditions) using paths that are relative in the browser. On the
-    // server there is no page to be relative to, so hand it this request's origin.
+    // server there is no page to be relative to, so hand it this request's
+    // origin — always this app's own, never one from the body: the server
+    // sends its gateway key to these calls.
     const response = await executeAssessmentPipeline(
       {
         ...body,
-        baseUrl: body.baseUrl || new URL(req.url).origin,
+        baseUrl: new URL(req.url).origin,
       },
       { routes: STUDIO_HOST_ROUTES },
     );

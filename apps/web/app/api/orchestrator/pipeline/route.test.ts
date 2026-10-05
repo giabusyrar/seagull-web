@@ -39,6 +39,11 @@ describe('POST /api/orchestrator/pipeline', () => {
     expect((await res.json()).baseUrl).toBe('http://dash.test');
   });
 
+  it('ignores a baseUrl in the body, so the gateway key never goes to a caller-chosen host', async () => {
+    const res = await post({ brandId: 'b', applicationId: 'a', rulesetCode: 'rs', answers: {}, baseUrl: 'http://attacker.test' });
+    expect((await res.json()).baseUrl).toBe('http://dash.test');
+  });
+
   it('answers 500 on an unexpected failure', async () => {
     const res = await post({ brandId: 'b', applicationId: 'a', rulesetCode: 'boom', answers: {} });
     expect(res.status).toBe(500);
