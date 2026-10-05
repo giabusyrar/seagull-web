@@ -16,7 +16,7 @@ import type { FaceArchitectureResult } from '../face/faceTypes';
 import type { FaceApiError } from '../face/faceTypes';
 
 export type Stage = '2d' | '3d';
-export type Panel = 'colour' | 'face';
+export type Panel = 'colour' | 'face' | 'form';
 
 // One frame for every view, so switching 2D/3D or Warna/Wajah never jumps.
 const FRAME = 'w-full aspect-[3/4]';

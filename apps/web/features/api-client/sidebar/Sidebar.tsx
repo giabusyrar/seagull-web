@@ -234,11 +234,11 @@ export const ApiClientSidebar: React.FC<SidebarProps> = ({
             type="button"
             onClick={onOpenTryOn}
             className="p-1.5 hover:bg-sidebar-accent hover:text-sidebar-foreground rounded-md text-muted-foreground transition cursor-pointer relative group"
-            title="Vision Engine"
+            title="Simulator Studio"
           >
             <Palette className="h-4 w-4" />
             <span className="absolute left-12 bg-popover text-popover-foreground text-[10px] font-medium px-2 py-1 rounded border border-border shadow-xs opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-50">
-              Vision Engine
+              Simulator Studio
             </span>
           </button>
 
@@ -495,7 +495,7 @@ export const ApiClientSidebar: React.FC<SidebarProps> = ({
                   <ExternalLink className="h-3 w-3 text-muted-foreground group-hover:text-foreground shrink-0 opacity-0 group-hover:opacity-100 transition" />
                 </button>
 
-                {/* Vision Engine (was Try-On Engine): WCPA colour analysis + photo makeup try-on */}
+                {/* Simulator Studio (was Try-On, then Vision Engine): customer, form, colour analysis, try-on, face */}
                 <button
                   type="button"
                   onClick={() => {
@@ -506,7 +506,7 @@ export const ApiClientSidebar: React.FC<SidebarProps> = ({
                 >
                   <div className="flex items-center gap-2 min-w-0">
                     <Palette className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground shrink-0" />
-                    <span className="text-xs font-medium text-foreground truncate" title="Vision Engine">Vision Engine</span>
+                    <span className="text-xs font-medium text-foreground truncate" title="Simulator Studio">Simulator Studio</span>
                   </div>
                   <ExternalLink className="h-3 w-3 text-muted-foreground group-hover:text-foreground shrink-0 opacity-0 group-hover:opacity-100 transition" />
                 </button>

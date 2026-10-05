@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Download, Palette, RotateCcw, ScanFace, Sparkles, Undo2 } from 'lucide-react';
+import { ClipboardList, Download, Palette, RotateCcw, ScanFace, Sparkles, Undo2 } from 'lucide-react';
 import { ApplicationSelect, BrandSelect, Button, cn, loadBlob, saveBlob, usePersistentState } from '@gateway-experience/shared';
 import { useCoreCollection } from '@/lib/hooks/use-core-collection';
 import { analyzeColour, fetchColourCatalog } from './api';
@@ -13,6 +13,10 @@ import { YesNoField, type YesNo } from './YesNoField';
 import { brandsInCatalog, filterCatalog, type BrandCount } from './brands/filterCatalog';
 import { useProductBrands } from './brands/useProductBrands';
 import { FacePanel } from './studio/FacePanel';
+import { CustomerCard, EMPTY_CUSTOMER, type StudioCustomer } from './studio/CustomerCard';
+import { FormCard } from './studio/FormCard';
+import { FormResult, type FormRun } from './studio/FormResult';
+import { resultPanels } from './studio/panels';
 import { PhotoStage, type Panel, type Stage } from './studio/PhotoStage';
 import { SideShots, type Side, type Sides } from './studio/SideShots';
 import { measurementGeometry } from './face/faceTypes';
@@ -57,6 +61,10 @@ export function ColourStudioView() {
   const [brandId, setBrandId] = usePersistentState<string>(FACE_PREFIX + 'brand', '*');
   const [applicationId, setApplicationId] = usePersistentState<string>(FACE_PREFIX + 'application', '*');
   const [pdMm, setPdMm] = usePersistentState<number | null>(FACE_PREFIX + 'pdMm', null);
+  // Who the run is for and an optional form, as in the simulator (Simulator Studio).
+  const [customer, setCustomer] = usePersistentState<StudioCustomer>('xg.simulatorStudio.customer', EMPTY_CUSTOMER);
+  const [formRun, setFormRun] = usePersistentState<FormRun | null>('xg.simulatorStudio.formRun', null);
+  const [formRestart, setFormRestart] = useState(0);
 
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = usePersistentState<AnalyzeResult | null>(PERSIST_PREFIX + 'result', null);
@@ -69,7 +77,7 @@ export function ColourStudioView() {
   const views = useMemo(() => (file ? { front: file, ...sides } : {}), [file, sides]);
   const face = useFaceArchitecture(file, getEndpoint);
   const head = useFaceHead(views, getEndpoint);
-  const [panel, setPanel] = usePersistentState<Panel>(PERSIST_PREFIX + 'panel', 'colour');
+  const [chosenPanel, setPanel] = usePersistentState<Panel>(PERSIST_PREFIX + 'panel', 'colour');
   const [stage, setStage] = useState<Stage>('2d');
   const [selected, setSelected] = useState<string | null>(null);
 
@@ -110,6 +118,18 @@ export function ColourStudioView() {
   );
 
   const step: Step = !file ? 'capture' : result || plain ? 'result' : 'questions';
+  // One results view, as in the simulator: colour and face once the photo is
+  // analysed, the form once it is scored. Only tabs with something to show.
+  const { panels, panel } = resultPanels(step === 'result', !!formRun, chosenPanel);
+  const showResults = panels.length > 0;
+  const onFormRun = (run: FormRun | null) => {
+    setFormRun(run);
+    if (run) setPanel('form');
+  };
+  const restartForm = () => {
+    setFormRun(null);
+    setFormRestart((n) => n + 1);
+  };
   const catalog = useMemo(() => (result ? catalogOf(result) : plain?.catalog ?? {}), [result, plain]);
   // Brand filter over the try-on catalog ('' = every brand). Products whose
   // brand reference-service does not know stay under "Semua brand" only.
@@ -272,8 +292,10 @@ export function ColourStudioView() {
             )}
           </div>
 
-          {/* Right: questions, or the Warna / Wajah panels */}
+          {/* Right: customer and form, then questions, or the Warna / Wajah panels */}
           <div className="flex flex-col gap-4 min-w-0">
+            <CustomerCard value={customer} onChange={setCustomer} />
+            <FormCard getEndpoint={getEndpoint} customer={customer} run={formRun} onRun={onFormRun} restartKey={formRestart} />
             {step === 'capture' && (
               <div className="rounded-2xl border border-border bg-card p-5 shadow-xs space-y-3 text-sm">
                 <p className="font-bold text-foreground">Cara kerjanya</p>
@@ -331,9 +353,11 @@ export function ColourStudioView() {
               </div>
             )}
 
-            {step === 'result' && (
+            {showResults && (
               <>
-                <PanelSwitch panel={panel} onPanel={setPanel} faceBusy={face.loading} />
+                <PanelSwitch panels={panels} panel={panel} onPanel={setPanel} faceBusy={face.loading} />
+
+                {panel === 'form' && formRun && <FormResult run={formRun} onRestart={restartForm} />}
 
                 {panel === 'colour' && (
                   <>
@@ -411,15 +435,16 @@ function BrandFilter({ brands, value, onChange }: { brands: BrandCount[]; value:
   );
 }
 
-function PanelSwitch({ panel, onPanel, faceBusy }: { panel: Panel; onPanel: (p: Panel) => void; faceBusy: boolean }) {
+function PanelSwitch({ panels, panel, onPanel, faceBusy }: { panels: Panel[]; panel: Panel; onPanel: (p: Panel) => void; faceBusy: boolean }) {
   return (
     <div role="tablist" aria-label="Hasil" className="flex w-fit gap-1 rounded-xl border border-border bg-secondary/50 p-1">
       {(
         [
           ['colour', 'Analisis warna', Palette],
           ['face', 'Analisis wajah', ScanFace],
+          ['form', 'Form', ClipboardList],
         ] as const
-      ).map(([key, label, Icon]) => (
+      ).filter(([key]) => panels.includes(key)).map(([key, label, Icon]) => (
         <button
           key={key}
           type="button"

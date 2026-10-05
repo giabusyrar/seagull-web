@@ -396,7 +396,7 @@ export function ApiClientApp() {
       setActiveTabId(existing.id);
     } else {
       const id = 'tab-tryon';
-      setTabs((prev) => [...prev, { id, title: 'Vision Engine', type: 'tryon' }]);
+      setTabs((prev) => [...prev, { id, title: 'Simulator Studio', type: 'tryon' }]);
       setActiveTabId(id);
     }
   };
