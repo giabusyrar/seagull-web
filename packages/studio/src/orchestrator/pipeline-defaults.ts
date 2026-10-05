@@ -1,63 +1,40 @@
 import type { OrchestratorPipelineConfig } from './types';
 
 /**
- * The pipeline settings used when the caller supplies none. Every value here
- * is the one the executor has always applied inline; they were collected
- * into this object, unchanged, so a deployment can replace them through
- * `executeAssessmentPipeline(payload, { defaults })` or a payload
- * `configOverride`.
+ * How long the pipeline waits on each service before giving up. These are
+ * client-side waits, not engine policy and not a property of any tenant: a
+ * timeout only decides when "no answer yet" becomes "no answer", and the
+ * stage then reports that it timed out rather than returning a value.
+ * A deployment can replace them through `defaults` or a configOverride.
+ */
+export const DEFAULT_VISION_TIMEOUT_MS = 3000;
+export const DEFAULT_SCORE_TIMEOUT_MS = 5000;
+export const DEFAULT_MATCH_TIMEOUT_MS = 5000;
+
+/**
+ * The pipeline settings used where the caller is silent. Only mechanical
+ * values live here: the execution strategy and the timeouts above.
  *
- * None of these are measurements or calibrated values. The brand and
- * application ids are the demo tenant; the fusion weights, efficacy floor
- * and routine-step limits are policy that has no recorded source. Treat
- * them as placeholders until a deployment's own pipeline config replaces
- * them. Service URLs are not here: they come from the environment (see
- * `PipelineEnv`).
+ * There is deliberately no tenant, questionnaire or ruleset. These used to
+ * default to a demo brand and application, a questionnaire code, a ruleset
+ * code, answer-to-dimension mappings, fusion weights and matching limits —
+ * none of them grounded, and a run that forgot its tenant silently scored
+ * against the demo one. The caller now names brand, application and
+ * ruleset (`PipelineInputError` otherwise); the ruleset owns everything that
+ * used to be guessed here. Service URLs come from the environment
+ * (see `PipelineEnv`).
  */
 export const DEFAULT_PIPELINE_SETTINGS = {
-  id: 'pipe-default',
-  brandId: 'brand_wardah',
-  applicationId: 'app_kiosk',
-  channel: 'kiosk',
   executionStrategy: 'dynamic_capability_dispatch',
-  vision: {
-    timeoutMs: 3000,
-    inputMode: 'single_image',
-    confidenceThreshold: 0.6,
-    enabledCapabilities: [],
-  },
-  form: {
-    questionnaireCode: 'q_default_diagnostic',
-    dimensionMappingRules: {
-      q_sebum: 'sebum',
-      q_sensitivity: 'sensitivity',
-      q_pigmentation: 'pigmentation',
-      q_aging: 'aging',
-      q_barrier: 'barrier',
-    },
-  },
-  scoring: {
-    rulesetCode: 'ruleset_default_jdm',
-    dimensionFusionWeights: {
-      sebum: { formWeight: 0.4, visionWeight: 0.6 },
-      acne: { formWeight: 0.3, visionWeight: 0.7 },
-      pigmentation: { formWeight: 0.4, visionWeight: 0.6 },
-      aging: { formWeight: 0.5, visionWeight: 0.5 },
-      sensitivity: { formWeight: 0.6, visionWeight: 0.4 },
-      barrier: { formWeight: 0.5, visionWeight: 0.5 },
-    },
-  },
-  matching: {
-    minEfficacyScore: 40,
-    strictContraindications: true,
-    maxAmRoutineSteps: 4,
-    maxPmRoutineSteps: 4,
-    timeoutMs: 5000,
-  },
+  vision: { timeoutMs: DEFAULT_VISION_TIMEOUT_MS },
+  scoring: { timeoutMs: DEFAULT_SCORE_TIMEOUT_MS },
+  matching: { timeoutMs: DEFAULT_MATCH_TIMEOUT_MS },
 } satisfies PipelineSettings;
 
-/** A pipeline config without its service URLs, which come from `PipelineEnv`. */
-export type PipelineSettings = Omit<OrchestratorPipelineConfig, 'vision' | 'matching'> & {
-  vision: Omit<OrchestratorPipelineConfig['vision'], 'serviceUrl'>;
-  matching: Omit<OrchestratorPipelineConfig['matching'], 'serviceUrl'>;
-};
+/** What a deployment may default: everything but the tenant, the ruleset and the service URLs. */
+export interface PipelineSettings {
+  executionStrategy: OrchestratorPipelineConfig['executionStrategy'];
+  vision: { timeoutMs: number };
+  scoring: { timeoutMs: number };
+  matching: { timeoutMs: number; strategyId?: string };
+}

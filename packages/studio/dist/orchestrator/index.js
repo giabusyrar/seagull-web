@@ -51,17 +51,18 @@ async function resolveRequiredCapabilities(detectedConditions, skinConditionsUrl
   return resolveRequiredCapabilitiesFromDb(detectedConditions, skinConditionsUrl);
 }
 
-// src/orchestrator/pytorch-client.ts
-var CAPABILITY_METRIC_MAP = {
-  sebum_shine_detector: ["sebum"],
-  comedone_pore_detector: ["acne", "pores"],
-  acne_lesion_classifier: ["acne"],
-  hyperpigmentation_net: ["pigmentation"],
-  hypopigmentation_net: ["hypopigmentation"],
-  wrinkle_depth_estimator: ["aging"],
-  erythema_vascular_net: ["sensitivity", "barrier"],
-  texture_desquamation_net: ["hydration", "barrier"]
+// src/orchestrator/pipeline-defaults.ts
+var DEFAULT_VISION_TIMEOUT_MS = 3e3;
+var DEFAULT_SCORE_TIMEOUT_MS = 5e3;
+var DEFAULT_MATCH_TIMEOUT_MS = 5e3;
+var DEFAULT_PIPELINE_SETTINGS = {
+  executionStrategy: "dynamic_capability_dispatch",
+  vision: { timeoutMs: DEFAULT_VISION_TIMEOUT_MS },
+  scoring: { timeoutMs: DEFAULT_SCORE_TIMEOUT_MS },
+  matching: { timeoutMs: DEFAULT_MATCH_TIMEOUT_MS }
 };
+
+// src/orchestrator/pytorch-client.ts
 var empty = (error, capabilities = []) => ({
   telemetry: {},
   unavailable: {},
@@ -74,7 +75,7 @@ async function dispatchPyTorchCapabilities(params) {
   if (!serviceUrl) return empty("No capability dispatch service: the model registry (worker-models) was retired; a configOverride must name one.", capabilities);
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs || 3e3);
+    const timeout = setTimeout(() => controller.abort(), timeoutMs || DEFAULT_VISION_TIMEOUT_MS);
     const res = await fetch(serviceUrl, {
       method: "POST",
       headers: {
@@ -94,10 +95,8 @@ async function dispatchPyTorchCapabilities(params) {
     const telemetry = {};
     const missing = [];
     for (const cap of capabilities) {
-      if (cap in scored) {
-        for (const metricKey of CAPABILITY_METRIC_MAP[cap] || []) {
-          telemetry[metricKey] = scored[cap];
-        }
+      if (typeof scored[cap] === "number") {
+        telemetry[cap] = scored[cap];
       } else if (!(cap in unavailable)) {
         missing.push(cap);
       }
@@ -111,26 +110,85 @@ async function dispatchPyTorchCapabilities(params) {
   }
 }
 
-// src/orchestrator/score-fusion.ts
-function fuseDimensionScores(formScores, visionScores, weights = {}) {
-  const allKeys = Array.from(/* @__PURE__ */ new Set([...Object.keys(formScores), ...Object.keys(visionScores)]));
-  const fused = {};
-  for (const key of allKeys) {
-    const formVal = formScores[key];
-    const visionVal = visionScores[key];
-    const weightConfig = weights[key] || { formWeight: 0.5, visionWeight: 0.5 };
-    if (formVal !== void 0 && visionVal !== void 0) {
-      const totalWeight = weightConfig.formWeight + weightConfig.visionWeight || 1;
-      const normalizedFormWeight = weightConfig.formWeight / totalWeight;
-      const normalizedVisionWeight = weightConfig.visionWeight / totalWeight;
-      fused[key] = Math.round(formVal * normalizedFormWeight + visionVal * normalizedVisionWeight);
-    } else if (formVal !== void 0) {
-      fused[key] = Math.round(formVal);
-    } else if (visionVal !== void 0) {
-      fused[key] = Math.round(visionVal);
+// src/orchestrator/score-client.ts
+var DEFAULT_SCORE_ENGINE_PATH = "/core/score-engine/evaluate";
+var DRY_RUN_HEADER = "X-Dry-Run";
+var none = (error, warnings = []) => ({
+  dimensionScores: {},
+  breakdown: {},
+  missingDimensions: [],
+  customerConditions: {},
+  warnings,
+  error
+});
+async function engineError(res) {
+  const body = await res.json().catch(() => null);
+  const parts = [];
+  if (typeof body?.error === "string" && body.error) parts.push(body.error);
+  if (Array.isArray(body?.errors)) parts.push(...body.errors.map((e) => typeof e === "string" ? e : JSON.stringify(e)));
+  return `Score engine answered HTTP ${res.status}${parts.length ? `: ${parts.join("; ")}` : "."}`;
+}
+async function evaluateScore(params) {
+  const { url, rulesetCode, brandId, applicationId, answers, customerId, dryRun, sourceSignals, apiKey, timeoutMs } = params;
+  if (!url) return none("No score engine configured (SCORE_ENGINE_URL).");
+  if (!rulesetCode) return none("No scoring ruleset named.");
+  const form = new FormData();
+  form.append("brand_id", brandId);
+  form.append("application_id", applicationId);
+  if (customerId) form.append("customer_id", customerId);
+  if (Object.keys(answers).length) form.append("data", JSON.stringify(answers));
+  if (sourceSignals && Object.keys(sourceSignals).length) form.append("source_signals", JSON.stringify(sourceSignals));
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs || DEFAULT_SCORE_TIMEOUT_MS);
+    const res = await fetch(`${url}/${encodeURIComponent(rulesetCode)}`, {
+      method: "POST",
+      headers: {
+        ...apiKey ? { "x-api-key": apiKey } : {},
+        ...dryRun ? { [DRY_RUN_HEADER]: "true" } : {}
+      },
+      body: form,
+      signal: controller.signal
+    });
+    clearTimeout(timeout);
+    if (!res.ok) return none(await engineError(res));
+    const data = await res.json();
+    if (data?.success === false) return none("Score engine reported a failure.", data.warnings || []);
+    const dimensionScores = {};
+    for (const [key, dim] of Object.entries(data.dimensions || {})) {
+      if (dim?.scored !== false && typeof dim?.final_score === "number") dimensionScores[key] = dim.final_score;
     }
+    const breakdown = data.dimension_breakdown || {};
+    const missingDimensions = Object.entries(breakdown).filter(([, b]) => !b.scored).map(([key]) => key);
+    const anyAxisScored = Object.values(data.dimensions || {}).some(
+      (d) => d?.scored !== false && typeof d?.final_score === "number" && !!d.axis
+    );
+    const profile = data.skin_profile;
+    return {
+      ...data.code ? { rulesetCode: data.code } : {},
+      dimensionScores,
+      ...anyAxisScored && typeof data.total_score === "number" ? { totalScore: data.total_score } : {},
+      ...profile?.code ? {
+        skinProfile: {
+          code: profile.code,
+          name: profile.name || "",
+          ...profile.category ? { category: profile.category } : {},
+          ...profile.description ? { description: profile.description } : {},
+          complete: profile.complete === true,
+          ...profile.axis_values ? { axisValues: profile.axis_values } : {}
+        }
+      } : {},
+      breakdown,
+      missingDimensions,
+      customerConditions: data.customer_condition || {},
+      warnings: Array.isArray(data.warnings) ? data.warnings : [],
+      ...Object.keys(dimensionScores).length ? {} : { error: "The score engine scored no dimension for these answers." }
+    };
+  } catch (err) {
+    return none(
+      err instanceof Error && err.name === "AbortError" ? "Score engine did not answer in time." : `Score engine could not be reached: ${err instanceof Error ? err.message : String(err)}`
+    );
   }
-  return fused;
 }
 
 // src/orchestrator/match-client.ts
@@ -141,23 +199,23 @@ function toRoutine(steps) {
     step: s.step_name || (s.step_number ? `Step ${s.step_number}` : s.category || "Step"),
     productName: s.primary_product?.name || "",
     // The engine's own score. Absent rather than invented when it sends none.
-    matchScore: typeof s.primary_product?.match_score === "number" ? s.primary_product.match_score : 0,
+    ...typeof s.primary_product?.match_score === "number" ? { matchScore: s.primary_product.match_score } : {},
     reason: (s.primary_product?.why_selected || []).join("; ")
   }));
 }
 async function fetchRegimens(params) {
-  const { url, brandId, applicationId, dimensionScores, customerConditions, strategyId, timeoutMs } = params;
-  const none = (error) => ({
+  const { url, brandId, applicationId, dimensionScores, skinProfile, customerConditions, strategyId, timeoutMs } = params;
+  const none2 = (error) => ({
     amRoutine: [],
     pmRoutine: [],
     phases: {},
     warnings: [],
     error
   });
-  if (!url) return none("No match engine configured (MATCH_ENGINE_URL).");
+  if (!url) return none2("No match engine configured (MATCH_ENGINE_URL).");
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs || 5e3);
+    const timeout = setTimeout(() => controller.abort(), timeoutMs || DEFAULT_MATCH_TIMEOUT_MS);
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -165,15 +223,24 @@ async function fetchRegimens(params) {
         brand_id: brandId,
         application_id: applicationId,
         dimension_scores: dimensionScores,
+        ...skinProfile ? {
+          skin_profile: {
+            code: skinProfile.code,
+            name: skinProfile.name,
+            ...skinProfile.description ? { description: skinProfile.description } : {},
+            ...skinProfile.category ? { category: skinProfile.category } : {},
+            ...skinProfile.axisValues ? { axis_values: skinProfile.axisValues } : {}
+          }
+        } : {},
         ...customerConditions ? { customer_conditions: customerConditions } : {},
         ...strategyId ? { strategy_id: strategyId } : {}
       }),
       signal: controller.signal
     });
     clearTimeout(timeout);
-    if (!res.ok) return none(`Match engine answered HTTP ${res.status}.`);
+    if (!res.ok) return none2(`Match engine answered HTTP ${res.status}.`);
     const data = await res.json();
-    if (data?.success === false) return none("Match engine reported a failure.");
+    if (data?.success === false) return none2("Match engine reported a failure.");
     const amRoutine = toRoutine(data?.regimens?.am_routine);
     const pmRoutine = toRoutine(data?.regimens?.pm_routine);
     const phases = {};
@@ -196,91 +263,70 @@ async function fetchRegimens(params) {
       ...nothing ? { error: "The match engine returned no regimen for this brand and application." } : {}
     };
   } catch (err) {
-    return none(
+    return none2(
       err instanceof Error && err.name === "AbortError" ? "Match engine did not answer in time." : `Match engine could not be reached: ${err instanceof Error ? err.message : String(err)}`
     );
   }
 }
 
-// src/orchestrator/pipeline-defaults.ts
-var DEFAULT_PIPELINE_SETTINGS = {
-  id: "pipe-default",
-  brandId: "brand_wardah",
-  applicationId: "app_kiosk",
-  channel: "kiosk",
-  executionStrategy: "dynamic_capability_dispatch",
-  vision: {
-    timeoutMs: 3e3,
-    inputMode: "single_image",
-    confidenceThreshold: 0.6,
-    enabledCapabilities: []
-  },
-  form: {
-    questionnaireCode: "q_default_diagnostic",
-    dimensionMappingRules: {
-      q_sebum: "sebum",
-      q_sensitivity: "sensitivity",
-      q_pigmentation: "pigmentation",
-      q_aging: "aging",
-      q_barrier: "barrier"
-    }
-  },
-  scoring: {
-    rulesetCode: "ruleset_default_jdm",
-    dimensionFusionWeights: {
-      sebum: { formWeight: 0.4, visionWeight: 0.6 },
-      acne: { formWeight: 0.3, visionWeight: 0.7 },
-      pigmentation: { formWeight: 0.4, visionWeight: 0.6 },
-      aging: { formWeight: 0.5, visionWeight: 0.5 },
-      sensitivity: { formWeight: 0.6, visionWeight: 0.4 },
-      barrier: { formWeight: 0.5, visionWeight: 0.5 }
-    }
-  },
-  matching: {
-    minEfficacyScore: 40,
-    strictContraindications: true,
-    maxAmRoutineSteps: 4,
-    maxPmRoutineSteps: 4,
-    timeoutMs: 5e3
-  }
-};
-
 // src/orchestrator/pipeline-executor.ts
 function pipelineEnvFromProcess() {
   return {
     matchEngineUrl: process.env.MATCH_ENGINE_URL,
+    scoreEngineUrl: process.env.SCORE_ENGINE_URL,
     gatewayApiKey: process.env.GATEWAY_API_KEY
   };
 }
+var PipelineInputError = class extends Error {
+  constructor(missing) {
+    super(`The assessment pipeline needs ${missing.join(", ")}; none was supplied and none is assumed.`);
+    this.missing = missing;
+    this.name = "PipelineInputError";
+  }
+};
 var defaultClients = () => ({
   resolveRequiredCapabilities: resolveRequiredCapabilitiesFromDb,
   fetchSkinConditions: fetchSkinConditionsFromDb,
   dispatchCapabilities: dispatchPyTorchCapabilities,
-  fuseScores: fuseDimensionScores,
+  evaluateScore,
   fetchRegimens
 });
 function resolvePipelineConfig(payload, settings, env) {
-  return {
-    ...settings,
-    brandId: payload.brandId || settings.brandId,
-    applicationId: payload.applicationId || settings.applicationId,
-    executionStrategy: payload.configOverride?.executionStrategy || settings.executionStrategy,
+  const o = payload.configOverride || {};
+  const config = {
+    brandId: o.brandId || payload.brandId || "",
+    applicationId: o.applicationId || payload.applicationId || "",
+    executionStrategy: o.executionStrategy || settings.executionStrategy,
     vision: {
-      ...settings.vision,
+      timeoutMs: settings.vision.timeoutMs,
       // worker-models, which served capability dispatch, was retired with
       // the model registry (Seagull-core, 2026-10-03). Only a configOverride
       // can name a dispatch service now; without one the vision stage reports
       // that nothing was dispatched, and why.
-      serviceUrl: payload.configOverride?.vision?.serviceUrl || ""
+      serviceUrl: "",
+      ...o.vision
+    },
+    scoring: {
+      rulesetCode: payload.rulesetCode || "",
+      timeoutMs: settings.scoring.timeoutMs,
+      // The score engine origin when the pipeline runs on a server; otherwise
+      // the app's own path, which the dashboard proxies to the gateway.
+      serviceUrl: `${env.scoreEngineUrl || payload.baseUrl || ""}${DEFAULT_SCORE_ENGINE_PATH}`,
+      ...o.scoring
     },
     matching: {
       ...settings.matching,
-      // The match engine origin when the pipeline runs on a server; otherwise
-      // the app's own path, which the dashboard proxies to the gateway.
-      serviceUrl: env.matchEngineUrl ? `${env.matchEngineUrl}${DEFAULT_MATCH_ENGINE_PATH}` : `${payload.baseUrl || ""}${DEFAULT_MATCH_ENGINE_PATH}`
-    },
-    ...payload.configOverride || {}
+      serviceUrl: `${env.matchEngineUrl || payload.baseUrl || ""}${DEFAULT_MATCH_ENGINE_PATH}`,
+      ...o.matching
+    }
   };
+  const missing = [
+    !config.brandId && "brandId",
+    !config.applicationId && "applicationId",
+    !config.scoring.rulesetCode && "rulesetCode"
+  ].filter((m) => !!m);
+  if (missing.length) throw new PipelineInputError(missing);
+  return config;
 }
 async function executeAssessmentPipeline(payload, deps) {
   const startTime = Date.now();
@@ -290,33 +336,8 @@ async function executeAssessmentPipeline(payload, deps) {
   const config = resolvePipelineConfig(payload, deps.defaults ?? DEFAULT_PIPELINE_SETTINGS, env);
   const skinConditionsUrl = `${payload.baseUrl || ""}${deps.routes.skinConditions}`;
   const t0 = Date.now();
-  const extractedDimensions = {};
-  const detectedConditions = [];
   const answers = payload.answers || {};
-  if (Array.isArray(answers.concerns)) {
-    detectedConditions.push(...answers.concerns);
-  }
-  if (answers.skin_type) {
-    if (answers.skin_type === "oily") {
-      detectedConditions.push("concern_oiliness");
-      extractedDimensions["sebum"] = 75;
-    } else if (answers.skin_type === "dry") {
-      detectedConditions.push("concern_dryness");
-      extractedDimensions["hydration"] = 35;
-    } else if (answers.skin_type === "sensitive") {
-      detectedConditions.push("concern_redness");
-      extractedDimensions["sensitivity"] = 75;
-    } else if (answers.skin_type === "combination") {
-      detectedConditions.push("concern_oiliness");
-      extractedDimensions["sebum"] = 60;
-      extractedDimensions["hydration"] = 50;
-    }
-  }
-  for (const [ansKey, dimKey] of Object.entries(config.form.dimensionMappingRules)) {
-    if (typeof answers[ansKey] === "number") {
-      extractedDimensions[dimKey] = answers[ansKey];
-    }
-  }
+  const detectedConditions = Array.isArray(payload.concerns) ? [...payload.concerns] : [];
   timings["stage1_form_ms"] = Date.now() - t0;
   const t1 = Date.now();
   let dispatchedCaps = [];
@@ -340,93 +361,43 @@ async function executeAssessmentPipeline(payload, deps) {
   const visionSignals = visionDispatch.telemetry;
   timings["stage2_vision_ms"] = Date.now() - t1;
   const t2 = Date.now();
-  const fusedScores = clients.fuseScores(
-    config.executionStrategy === "vision_only" ? {} : extractedDimensions,
-    config.executionStrategy === "form_only" ? {} : visionSignals,
-    config.scoring.dimensionFusionWeights
-  );
-  const CODE_DIMENSIONS = ["sebum", "sensitivity", "pigmentation", "aging"];
-  const missingDimensions = CODE_DIMENSIONS.filter((d) => typeof fusedScores[d] !== "number");
-  const indeterminate = missingDimensions.length > 0;
-  const sebumScore = fusedScores.sebum;
-  const sensScore = fusedScores.sensitivity;
-  const pigScore = fusedScores.pigmentation;
-  const agingScore = fusedScores.aging;
-  const o_d = sebumScore !== void 0 && sebumScore >= 55 ? "O" : "D";
-  const s_r = sensScore !== void 0 && sensScore >= 50 ? "S" : "R";
-  const p_n = pigScore !== void 0 && pigScore >= 50 ? "P" : "N";
-  const w_t = agingScore !== void 0 && agingScore >= 45 ? "W" : "T";
-  const profileCode = indeterminate ? "" : `${o_d}${s_r}${p_n}${w_t}`;
-  const profileNames = {
-    OSNW: "Oily Sensitive Non-Pigmented Wrinkle-Prone",
-    OSNT: "Oily Sensitive Non-Pigmented Tight",
-    OSPW: "Oily Sensitive Pigmented Wrinkle-Prone",
-    OSPT: "Oily Sensitive Pigmented Tight",
-    ORNW: "Oily Resistant Non-Pigmented Wrinkle-Prone",
-    ORNT: "Oily Resistant Non-Pigmented Tight",
-    DSNW: "Dry Sensitive Non-Pigmented Wrinkle-Prone",
-    DSNT: "Dry Sensitive Non-Pigmented Tight",
-    DSPW: "Dry Sensitive Pigmented Wrinkle-Prone",
-    DSPT: "Dry Sensitive Pigmented Tight",
-    DRNW: "Dry Resistant Non-Pigmented Wrinkle-Prone",
-    DRNT: "Dry Resistant Non-Pigmented Tight"
-  };
-  const skinProfile = indeterminate ? {
-    code: "",
-    name: "Indeterminate",
-    indeterminate: true,
-    description: `No profile: ${missingDimensions.join(", ")} ${missingDimensions.length === 1 ? "was" : "were"} not scored by the form or the model server.`
-  } : {
-    code: profileCode,
-    name: profileNames[profileCode] || `Diagnostic Profile ${profileCode}`,
-    category: o_d === "O" ? "Lipid Imbalanced" : "Alipidic / Barrier Compromised",
-    description: `Clinical diagnosis reflects ${o_d === "O" ? "elevated sebum shine" : "reduced barrier moisture"} blended with ${s_r === "S" ? "reactive sensitivity" : "resilient resistance"}.`
-  };
-  const severityTiers = {};
-  if (sebumScore !== void 0) {
-    severityTiers.sebum = {
-      gradeName: sebumScore >= 70 ? "High Shine / Hyper-Seborrhea" : sebumScore >= 40 ? "Balanced Lipid" : "Dry / Alipidic",
-      severity: sebumScore >= 70 ? "severe" : sebumScore >= 50 ? "moderate" : "optimal"
-    };
+  const pipelineNotes = [];
+  if (Object.keys(visionSignals).length) {
+    pipelineNotes.push(
+      "PIPELINE: dispatched vision readings were not sent to the score engine; it reads vision only from a submitted photo."
+    );
   }
-  if (sensScore !== void 0) {
-    severityTiers.sensitivity = {
-      gradeName: sensScore >= 65 ? "Reactive Erythema" : "Tolerant Resilient",
-      severity: sensScore >= 65 ? "severe" : "optimal"
-    };
-  }
-  if (pigScore !== void 0) {
-    severityTiers.pigmentation = {
-      gradeName: pigScore >= 60 ? "Localized Melasma" : "Uniform Tone",
-      severity: pigScore >= 60 ? "moderate" : "optimal"
-    };
-  }
-  const scoredValues = CODE_DIMENSIONS.map((d) => fusedScores[d]).filter(
-    (v) => typeof v === "number"
-  );
-  const totalScore = scoredValues.length ? Math.round(scoredValues.reduce((a, b) => a + b, 0) / scoredValues.length) : 0;
+  const score = await clients.evaluateScore({
+    url: config.scoring.serviceUrl,
+    rulesetCode: config.scoring.rulesetCode,
+    brandId: config.brandId,
+    applicationId: config.applicationId,
+    // vision_only scores from no form answers; the engine says if that leaves it nothing.
+    answers: config.executionStrategy === "vision_only" ? {} : answers,
+    customerId: payload.customerId,
+    dryRun: payload.dryRun,
+    apiKey: env.gatewayApiKey,
+    timeoutMs: config.scoring.timeoutMs
+  });
   timings["stage3_scoring_ms"] = Date.now() - t2;
   const t3 = Date.now();
-  const isPregnant = payload.customerConditions?.is_pregnant ?? false;
-  const usesRetinol = payload.customerConditions?.uses_retinol ?? false;
-  const contraindicationWarnings = [];
-  if (isPregnant) {
-    contraindicationWarnings.push("Pregnancy safety constraint active: Retinoids, Salicylic Acid (>2%), and Hydroquinone excluded.");
-  }
-  if (usesRetinol) {
-    contraindicationWarnings.push("Active retinoid user: High-concentration AHA/BHA exfoliants slotted exclusively for alternate night PM use.");
-  }
-  const regimens = await clients.fetchRegimens({
+  const hasScores = Object.keys(score.dimensionScores).length > 0;
+  const regimens = hasScores ? await clients.fetchRegimens({
     url: config.matching.serviceUrl,
     brandId: config.brandId,
     applicationId: config.applicationId,
-    dimensionScores: fusedScores,
-    customerConditions: payload.customerConditions,
+    dimensionScores: score.dimensionScores,
+    skinProfile: score.skinProfile,
+    customerConditions: { ...score.customerConditions, ...payload.customerConditions },
+    strategyId: config.matching.strategyId,
     timeoutMs: config.matching.timeoutMs
-  });
-  const amRoutine = regimens.amRoutine;
-  const pmRoutine = regimens.pmRoutine;
-  contraindicationWarnings.push(...regimens.warnings);
+  }) : {
+    amRoutine: [],
+    pmRoutine: [],
+    phases: {},
+    warnings: [],
+    error: "Not requested: the score engine returned no scores to match on."
+  };
   timings["stage4_matching_ms"] = Date.now() - t3;
   timings["total_pipeline_ms"] = Date.now() - startTime;
   return {
@@ -435,7 +406,7 @@ async function executeAssessmentPipeline(payload, deps) {
     executionStrategy: config.executionStrategy,
     stages: {
       form: {
-        extractedDimensions,
+        answeredQuestions: Object.keys(answers),
         detectedConditions
       },
       vision: {
@@ -446,16 +417,20 @@ async function executeAssessmentPipeline(payload, deps) {
         ...visionDispatch.error ? { dispatchError: visionDispatch.error } : {}
       },
       scoring: {
-        fusedDimensionScores: fusedScores,
-        skinProfile,
-        severityTiers,
-        totalScore,
-        ...missingDimensions.length ? { missingDimensions: [...missingDimensions] } : {}
+        ...score.rulesetCode ? { rulesetCode: score.rulesetCode } : {},
+        fusedDimensionScores: score.dimensionScores,
+        ...score.skinProfile ? { skinProfile: score.skinProfile } : {},
+        ...score.totalScore !== void 0 ? { totalScore: score.totalScore } : {},
+        ...Object.keys(score.breakdown).length ? { dimensionBreakdown: score.breakdown } : {},
+        ...score.missingDimensions.length ? { missingDimensions: score.missingDimensions } : {},
+        ...Object.keys(score.customerConditions).length ? { customerConditions: score.customerConditions } : {},
+        warnings: [...score.warnings, ...pipelineNotes],
+        ...score.error ? { scoreError: score.error } : {}
       },
       matching: {
-        amRoutine,
-        pmRoutine,
-        contraindicationWarnings,
+        amRoutine: regimens.amRoutine,
+        pmRoutine: regimens.pmRoutine,
+        contraindicationWarnings: regimens.warnings,
         ...Object.keys(regimens.phases).length ? { phases: regimens.phases } : {},
         ...regimens.error ? { regimenError: regimens.error } : {}
       }
@@ -464,11 +439,18 @@ async function executeAssessmentPipeline(payload, deps) {
   };
 }
 
+exports.DEFAULT_MATCH_ENGINE_PATH = DEFAULT_MATCH_ENGINE_PATH;
+exports.DEFAULT_MATCH_TIMEOUT_MS = DEFAULT_MATCH_TIMEOUT_MS;
 exports.DEFAULT_PIPELINE_SETTINGS = DEFAULT_PIPELINE_SETTINGS;
+exports.DEFAULT_SCORE_ENGINE_PATH = DEFAULT_SCORE_ENGINE_PATH;
+exports.DEFAULT_SCORE_TIMEOUT_MS = DEFAULT_SCORE_TIMEOUT_MS;
+exports.DEFAULT_VISION_TIMEOUT_MS = DEFAULT_VISION_TIMEOUT_MS;
+exports.PipelineInputError = PipelineInputError;
 exports.dispatchPyTorchCapabilities = dispatchPyTorchCapabilities;
+exports.evaluateScore = evaluateScore;
 exports.executeAssessmentPipeline = executeAssessmentPipeline;
+exports.fetchRegimens = fetchRegimens;
 exports.fetchSkinConditionsFromDb = fetchSkinConditionsFromDb;
-exports.fuseDimensionScores = fuseDimensionScores;
 exports.invalidateSkinConditionCache = invalidateSkinConditionCache;
 exports.pipelineEnvFromProcess = pipelineEnvFromProcess;
 exports.resolvePipelineConfig = resolvePipelineConfig;

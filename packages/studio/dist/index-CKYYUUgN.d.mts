@@ -279,6 +279,13 @@ interface ProfileMappingTableProps {
     axes: VisualAxisConfig[];
     config: VisualProfileMappingConfig;
     onChange: (updated: VisualProfileMappingConfig) => void;
+    /** The Score Range bands of the ruleset being edited. A dimension with no
+     *  letters of its own gets the initial of each band label, as core derives
+     *  them (axisValuesFromScores). */
+    scoreRangeBands: VisualBand[];
+    /** The Severity Level bands of the ruleset being edited: the levels a
+     *  Primary Concern row can match. */
+    severityBands: VisualBand[];
     disabled?: boolean;
 }
 declare const ProfileMappingTable: React.FC<ProfileMappingTableProps>;
@@ -321,9 +328,10 @@ interface BandTableProps {
  */
 declare const BandTable: React.FC<BandTableProps>;
 
-declare function defaultConcernLabel(dimKey: string): string;
-declare const DEFAULT_STARTER_AXES: VisualAxisConfig[];
-declare const DEFAULT_STARTER_PROFILES: VisualProfileMappingConfig;
+/** The profile configuration a ruleset with no profile table starts from:
+ *  nothing. Profiles, their score ranges and their names are the ruleset
+ *  author's to set; none is filled in for them. */
+declare const EMPTY_PROFILE_CONFIG: VisualProfileMappingConfig;
 /**
  * Compiles the visual Skin Grading configuration into a JDM Decision Model.
  * The graph is intentionally minimal: one Skin Profile decision table. Score
@@ -370,9 +378,8 @@ declare const index_ClinicalAxisCard: typeof ClinicalAxisCard;
 declare const index_ClinicalDimensionCard: typeof ClinicalDimensionCard;
 declare const index_DEFAULT_SCORE_RANGE_BANDS: typeof DEFAULT_SCORE_RANGE_BANDS;
 declare const index_DEFAULT_SEVERITY_BANDS: typeof DEFAULT_SEVERITY_BANDS;
-declare const index_DEFAULT_STARTER_AXES: typeof DEFAULT_STARTER_AXES;
-declare const index_DEFAULT_STARTER_PROFILES: typeof DEFAULT_STARTER_PROFILES;
 type index_DecisionTableContent = DecisionTableContent;
+declare const index_EMPTY_PROFILE_CONFIG: typeof EMPTY_PROFILE_CONFIG;
 type index_JDMDecisionModel = JDMDecisionModel;
 declare const index_ProfileMappingTable: typeof ProfileMappingTable;
 type index_ProfileStrategyType = ProfileStrategyType;
@@ -391,9 +398,8 @@ type index_VisualSeverityTier = VisualSeverityTier;
 declare const index_compileVisualToJDM: typeof compileVisualToJDM;
 declare const index_decompileJDMToVisual: typeof decompileJDMToVisual;
 declare const index_decompileJDMToVisualComponents: typeof decompileJDMToVisualComponents;
-declare const index_defaultConcernLabel: typeof defaultConcernLabel;
 declare namespace index {
-  export { index_BandTable as BandTable, index_BlendingTab as BlendingTab, index_ClinicalAxisCard as ClinicalAxisCard, index_ClinicalDimensionCard as ClinicalDimensionCard, index_DEFAULT_SCORE_RANGE_BANDS as DEFAULT_SCORE_RANGE_BANDS, index_DEFAULT_SEVERITY_BANDS as DEFAULT_SEVERITY_BANDS, index_DEFAULT_STARTER_AXES as DEFAULT_STARTER_AXES, index_DEFAULT_STARTER_PROFILES as DEFAULT_STARTER_PROFILES, type index_DecisionTableContent as DecisionTableContent, type index_JDMDecisionModel as JDMDecisionModel, index_ProfileMappingTable as ProfileMappingTable, type index_ProfileStrategyType as ProfileStrategyType, type index_RulesetSimulationRequest as RulesetSimulationRequest, type index_RulesetSimulationResponse as RulesetSimulationResponse, type index_ScoreEvaluationResult as ScoreEvaluationResult, index_ScoreManager as ScoreManager, type index_ScoreRuleset as ScoreRuleset, index_SeverityTierTable as SeverityTierTable, type index_SkinProfileItem as SkinProfileItem, type index_VisualAxisConfig as VisualAxisConfig, type index_VisualBand as VisualBand, type index_VisualProfileEntry as VisualProfileEntry, type index_VisualProfileMappingConfig as VisualProfileMappingConfig, type index_VisualSeverityTier as VisualSeverityTier, index_compileVisualToJDM as compileVisualToJDM, index_decompileJDMToVisual as decompileJDMToVisual, index_decompileJDMToVisualComponents as decompileJDMToVisualComponents, index_defaultConcernLabel as defaultConcernLabel };
+  export { index_BandTable as BandTable, index_BlendingTab as BlendingTab, index_ClinicalAxisCard as ClinicalAxisCard, index_ClinicalDimensionCard as ClinicalDimensionCard, index_DEFAULT_SCORE_RANGE_BANDS as DEFAULT_SCORE_RANGE_BANDS, index_DEFAULT_SEVERITY_BANDS as DEFAULT_SEVERITY_BANDS, type index_DecisionTableContent as DecisionTableContent, index_EMPTY_PROFILE_CONFIG as EMPTY_PROFILE_CONFIG, type index_JDMDecisionModel as JDMDecisionModel, index_ProfileMappingTable as ProfileMappingTable, type index_ProfileStrategyType as ProfileStrategyType, type index_RulesetSimulationRequest as RulesetSimulationRequest, type index_RulesetSimulationResponse as RulesetSimulationResponse, type index_ScoreEvaluationResult as ScoreEvaluationResult, index_ScoreManager as ScoreManager, type index_ScoreRuleset as ScoreRuleset, index_SeverityTierTable as SeverityTierTable, type index_SkinProfileItem as SkinProfileItem, type index_VisualAxisConfig as VisualAxisConfig, type index_VisualBand as VisualBand, type index_VisualProfileEntry as VisualProfileEntry, type index_VisualProfileMappingConfig as VisualProfileMappingConfig, type index_VisualSeverityTier as VisualSeverityTier, index_compileVisualToJDM as compileVisualToJDM, index_decompileJDMToVisual as decompileJDMToVisual, index_decompileJDMToVisualComponents as decompileJDMToVisualComponents };
 }
 
-export { BandTable as B, ClinicalAxisCard as C, DEFAULT_SCORE_RANGE_BANDS as D, type JDMDecisionModel as J, ProfileMappingTable as P, type RulesetSimulationRequest as R, ScoreManager as S, type VisualAxisConfig as V, BlendingTab as a, ClinicalDimensionCard as b, DEFAULT_SEVERITY_BANDS as c, DEFAULT_STARTER_AXES as d, DEFAULT_STARTER_PROFILES as e, type DecisionTableContent as f, type ProfileStrategyType as g, type RulesetSimulationResponse as h, index as i, type ScoreEvaluationResult as j, type ScoreRuleset as k, SeverityTierTable as l, type SkinProfileItem as m, type VisualBand as n, type VisualProfileEntry as o, type VisualProfileMappingConfig as p, type VisualSeverityTier as q, compileVisualToJDM as r, decompileJDMToVisual as s, decompileJDMToVisualComponents as t, defaultConcernLabel as u };
+export { BandTable as B, ClinicalAxisCard as C, DEFAULT_SCORE_RANGE_BANDS as D, EMPTY_PROFILE_CONFIG as E, type JDMDecisionModel as J, ProfileMappingTable as P, type RulesetSimulationRequest as R, ScoreManager as S, type VisualAxisConfig as V, BlendingTab as a, ClinicalDimensionCard as b, DEFAULT_SEVERITY_BANDS as c, type DecisionTableContent as d, type ProfileStrategyType as e, type RulesetSimulationResponse as f, type ScoreEvaluationResult as g, type ScoreRuleset as h, index as i, SeverityTierTable as j, type SkinProfileItem as k, type VisualBand as l, type VisualProfileEntry as m, type VisualProfileMappingConfig as n, type VisualSeverityTier as o, compileVisualToJDM as p, decompileJDMToVisual as q, decompileJDMToVisualComponents as r };

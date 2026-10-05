@@ -80,41 +80,14 @@ var ConflictMatrixTab = ({
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_lucide_react.Building, { className: "h-3 w-3 text-beak" }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Brand Scope" })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
-        "select",
-        {
-          value: selectedBrand,
-          onChange: (e) => setSelectedBrand(e.target.value),
-          className: "w-full bg-secondary/50 border border-border rounded-lg p-2 text-xs font-bold text-beak focus:border-ring outline-none cursor-pointer",
-          children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: "*", className: "bg-popover text-popover-foreground", children: "All Brands (*)" }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: "wardah", className: "bg-popover text-popover-foreground", children: "Wardah Beauty" }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: "kahf", className: "bg-popover text-popover-foreground", children: "Kahf Men Care" }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: "labore", className: "bg-popover text-popover-foreground", children: "Labor\xE9 Sensitive Skin" }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: "emina", className: "bg-popover text-popover-foreground", children: "Emina Teen & Young" })
-          ]
-        }
-      )
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_shared.BrandSelect, { value: selectedBrand, onChange: setSelectedBrand, includeUniversal: true, label: "" })
     ] }),
     /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "space-y-1.5", children: [
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", { className: "text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5", children: [
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_lucide_react.Smartphone, { className: "h-3 w-3 text-sky-400" }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Channel / Application" })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
-        "select",
-        {
-          value: selectedApp,
-          onChange: (e) => setSelectedApp(e.target.value),
-          className: "w-full bg-secondary/50 border border-border rounded-lg p-2 text-xs font-bold text-sky-400 focus:border-ring outline-none cursor-pointer",
-          children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: "*", className: "bg-popover text-popover-foreground", children: "Omnichannel (*)" }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: "ecommerce_mobile", className: "bg-popover text-popover-foreground", children: "Mobile App" }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: "store_kiosk", className: "bg-popover text-popover-foreground", children: "Skin Kiosk" }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: "web_consult", className: "bg-popover text-popover-foreground", children: "Online Portal" })
-          ]
-        }
-      )
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_shared.ApplicationSelect, { value: selectedApp, onChange: setSelectedApp, includeUniversal: true, label: "" })
     ] })
   ] });
   const columns = [
@@ -249,41 +222,14 @@ var ProductGroupsTab = ({
         /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_lucide_react2.Building, { className: "h-3 w-3 text-primary" }),
         /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { children: "Brand Scope" })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
-        "select",
-        {
-          value: selectedBrand,
-          onChange: (e) => setSelectedBrand(e.target.value),
-          className: "w-full bg-secondary/50 border border-border rounded-lg p-2 text-xs font-bold text-primary focus:border-ring outline-none cursor-pointer",
-          children: [
-            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("option", { value: "*", className: "bg-popover text-popover-foreground", children: "All Brands (*)" }),
-            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("option", { value: "wardah", className: "bg-popover text-popover-foreground", children: "Wardah Beauty" }),
-            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("option", { value: "kahf", className: "bg-popover text-popover-foreground", children: "Kahf Men Care" }),
-            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("option", { value: "labore", className: "bg-popover text-popover-foreground", children: "Labor\xE9 Sensitive Skin" }),
-            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("option", { value: "emina", className: "bg-popover text-popover-foreground", children: "Emina Teen & Young" })
-          ]
-        }
-      )
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_shared2.BrandSelect, { value: selectedBrand, onChange: setSelectedBrand, includeUniversal: true, label: "" })
     ] }),
     /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "space-y-1.5", children: [
       /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("label", { className: "text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5", children: [
         /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_lucide_react2.Smartphone, { className: "h-3 w-3 text-sky-400" }),
         /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { children: "Channel / Application" })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
-        "select",
-        {
-          value: selectedApp,
-          onChange: (e) => setSelectedApp(e.target.value),
-          className: "w-full bg-secondary/50 border border-border rounded-lg p-2 text-xs font-bold text-sky-400 focus:border-ring outline-none cursor-pointer",
-          children: [
-            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("option", { value: "*", className: "bg-popover text-popover-foreground", children: "Omnichannel (*)" }),
-            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("option", { value: "ecommerce_mobile", className: "bg-popover text-popover-foreground", children: "Mobile App" }),
-            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("option", { value: "store_kiosk", className: "bg-popover text-popover-foreground", children: "Skin Kiosk" }),
-            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("option", { value: "web_consult", className: "bg-popover text-popover-foreground", children: "Online Portal" })
-          ]
-        }
-      )
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_shared2.ApplicationSelect, { value: selectedApp, onChange: setSelectedApp, includeUniversal: true, label: "" })
     ] })
   ] });
   const columns = [
@@ -529,24 +475,8 @@ var MatchSimulatorTab = ({
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "space-y-3 text-xs", children: [
         /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "space-y-1", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("label", { className: "text-muted-foreground", children: "Brand Scoping & Routine Paradigm:" }),
-          /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(
-            "select",
-            {
-              value: simBrand,
-              onChange: (e) => setSimBrand(e.target.value),
-              className: "w-full bg-muted/40 border border-border rounded px-3 py-2 text-foreground",
-              children: [
-                /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("option", { value: "*", children: "All Brands (*)" }),
-                /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("option", { value: "wardah", children: "Wardah Beauty (Clinical AM/PM)" }),
-                /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("option", { value: "makeover", children: "Make Over (Skin Prep & Complexion)" }),
-                /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("option", { value: "kahf", children: "Kahf Men Care (Daily & Post-Shave)" }),
-                /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("option", { value: "biodef", children: "Biodef (Hygiene & Barrier)" }),
-                /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("option", { value: "labore", children: "Labor\xE9 Sensitive Skin" }),
-                /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("option", { value: "emina", children: "Emina Teen & Young" })
-              ]
-            }
-          )
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("label", { className: "text-muted-foreground", children: "Brand Scope:" }),
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_shared4.BrandSelect, { value: simBrand, onChange: setSimBrand, includeUniversal: true, label: "" })
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "space-y-1", children: [
           /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("label", { className: "text-muted-foreground", children: "Skin Profile (Phenotype):" }),
@@ -1221,12 +1151,7 @@ var import_react3 = require("react");
 var import_lucide_react7 = require("lucide-react");
 var import_shared7 = require("@gateway-experience/shared");
 var import_jsx_runtime7 = require("react/jsx-runtime");
-var BRAND_OPTIONS = [
-  { value: "wardah", label: "Wardah Beauty" },
-  { value: "kahf", label: "Kahf Men Care" },
-  { value: "labore", label: "Labor\xE9 Sensitive Skin" },
-  { value: "emina", label: "Emina Teen & Young" }
-];
+var initialBrand = (defaultBrand) => defaultBrand && defaultBrand !== "*" ? defaultBrand : "";
 var ProductGroupModal = ({
   isOpen,
   onClose,
@@ -1234,7 +1159,7 @@ var ProductGroupModal = ({
   editingGroup,
   defaultBrand
 }) => {
-  const [brandId, setBrandId] = (0, import_react3.useState)(defaultBrand && defaultBrand !== "*" ? defaultBrand : "wardah");
+  const [brandId, setBrandId] = (0, import_react3.useState)(initialBrand(defaultBrand));
   const [applicationId, setApplicationId] = (0, import_react3.useState)("*");
   const [name, setName] = (0, import_react3.useState)("");
   const [code, setCode] = (0, import_react3.useState)("");
@@ -1247,6 +1172,10 @@ var ProductGroupModal = ({
   const [products, setProducts] = (0, import_react3.useState)([]);
   (0, import_react3.useEffect)(() => {
     if (!isOpen) return;
+    if (!brandId) {
+      void Promise.resolve([]).then(setProducts);
+      return;
+    }
     productsApi.listForBrand(brandId).then((list2) => {
       if (list2) setProducts(list2);
     }).catch(() => {
@@ -1263,7 +1192,7 @@ var ProductGroupModal = ({
       setCategories(editingGroup.categories || []);
       setIsActive(editingGroup.isActive ?? true);
     } else {
-      setBrandId(defaultBrand && defaultBrand !== "*" ? defaultBrand : "wardah");
+      setBrandId(initialBrand(defaultBrand));
       setApplicationId("*");
       setName("");
       setCode("");
@@ -1324,13 +1253,14 @@ var ProductGroupModal = ({
           /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "space-y-1", children: [
             /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("label", { className: "text-[#888888]", children: "Brand:" }),
             /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
-              "select",
+              import_shared7.BrandSelect,
               {
                 value: brandId,
-                onChange: (e) => setBrandId(e.target.value),
-                disabled: !!editingGroup,
-                className: "w-full bg-[#161616] border border-[#333333] rounded px-3 py-2 text-white font-mono disabled:opacity-60",
-                children: BRAND_OPTIONS.map((b) => /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("option", { value: b.value, children: b.label }, b.value))
+                onChange: setBrandId,
+                includeUniversal: false,
+                label: "",
+                placeholder: "Choose a brand\u2026",
+                disabled: !!editingGroup
               }
             )
           ] }),
@@ -1453,7 +1383,7 @@ var ProductGroupModal = ({
           "button",
           {
             type: "submit",
-            disabled: isSubmitting,
+            disabled: isSubmitting || !brandId,
             className: "px-4 py-2 bg-primary hover:opacity-90 text-primary-foreground font-bold rounded disabled:opacity-50 cursor-pointer flex items-center gap-1.5",
             children: [
               isSubmitting ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_lucide_react7.Loader2, { className: "h-3.5 w-3.5 animate-spin" }) : null,

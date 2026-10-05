@@ -24,11 +24,10 @@ var form_exports = {};
 __export(form_exports, {
   BUILTIN_TEMPLATES: () => BUILTIN_TEMPLATES,
   CALCULATION_METHODS: () => CALCULATION_METHODS,
-  FALLBACK_DIMENSIONS: () => FALLBACK_DIMENSIONS,
   FormManager: () => FormManager,
+  MissingTenantError: () => MissingTenantError,
   PFORM_EXAMPLE: () => PFORM_EXAMPLE,
   PFORM_SUGGESTED_DIMENSIONS: () => PFORM_SUGGESTED_DIMENSIONS,
-  PIXIE_OMG_SKIN_ANALYZER: () => PIXIE_OMG_SKIN_ANALYZER,
   QuestionnaireRunner: () => QuestionnaireRunner,
   applyCalculationMethod: () => applyCalculationMethod,
   applyDimensionMapping: () => applyDimensionMapping,
@@ -61,19 +60,10 @@ var import_lucide_react = require("lucide-react");
 var import_shared = require("@gateway-experience/shared");
 
 // src/form/catalog.ts
-var FALLBACK_DIMENSIONS = [
-  { code: "sebum", label: "Sebum / Oiliness", purpose: "How oily or dry the skin is." },
-  { code: "sensitivity", label: "Sensitivity / Redness", purpose: "How reactive the skin is to products and environment." },
-  { code: "pigmentation", label: "Pigment Level", purpose: "How much uneven pigment or dark spots are present." },
-  { code: "dark_spot", label: "Dark Spot Tendency", purpose: "Whether the skin scars or darkens easily." },
-  { code: "pores", label: "Pores / Texture", purpose: "How visible pores are and how rough the skin feels." },
-  { code: "acne", label: "Acne", purpose: "Presence and severity of active breakouts." },
-  { code: "wrinkle", label: "Wrinkles / Fine Lines", purpose: "Visible ageing signs such as fine lines." }
-];
-var getDimensionMeta = (code, extra = []) => [...extra, ...FALLBACK_DIMENSIONS].find((d) => d.code === code) || {
+var getDimensionMeta = (code, catalog = []) => catalog.find((d) => d.code === code) || {
   code,
   label: code,
-  purpose: "Measure this aspect of the skin."
+  purpose: ""
 };
 var CALCULATION_METHODS = [
   { value: "sum", label: "Sum", hint: "Add every answer score together." },
@@ -99,96 +89,6 @@ var applyCalculationMethod = (scores, method = "sum") => {
       return scores.length > 0 && scores.every((s) => s > 0) ? 100 : 0;
     default:
       return clamp(total);
-  }
-};
-var opt = (label, value, score) => ({ label, value, score });
-var abc = (id, label, dimension, choices) => ({
-  id,
-  type: "single_choice",
-  label,
-  dimension,
-  options: [
-    opt(choices[0], `${id}_a`, 1),
-    opt(choices[1], `${id}_b`, 2),
-    opt(choices[2], `${id}_c`, 3)
-  ]
-});
-var sebumCharacter = {
-  id: "sebum_character",
-  type: "multi_choice",
-  label: "Check every statement that matches your facial skin (select all that apply).",
-  dimension: "sebum",
-  options: [
-    opt("I can use any cleanser without feeling dry", "sebum_any_cleanser", 2),
-    opt("I do not use any product after cleansing", "sebum_no_product", 1),
-    opt("I never or only occasionally use moisturizer", "sebum_rare_moist", 2),
-    opt("I use facial moisturizer once a day", "sebum_moist_1x", -1),
-    opt("I use facial moisturizer twice a day", "sebum_moist_2x", -2),
-    opt("My facial skin is rough or dry", "sebum_rough_dry", -2),
-    opt("My facial skin is oily in some areas", "sebum_oily_areas", 2),
-    opt("My face is very oily", "sebum_very_oily", 3),
-    opt("My face feels uncomfortable without moisturizer", "sebum_uncomfortable", -2),
-    opt("I like the feel of rich creams and/or oils on my skin", "sebum_likes_rich", -3),
-    opt("None of the above", "sebum_none", 0)
-  ]
-};
-var sensitivityChecklist = {
-  id: "sensitivity_checklist",
-  type: "multi_choice",
-  label: "Tick any condition you are prone to experiencing.",
-  dimension: "sensitivity",
-  options: [
-    opt("Facial redness and/or flushing", "sens_redness", 1),
-    opt("Stinging or burning sensation on the skin", "sens_stinging", 1),
-    opt("Allergic reaction to skincare products", "sens_allergy", 1),
-    opt("Irritation when shaving the face", "sens_shaving", 1),
-    opt("None of the above", "sens_none", 0)
-  ]
-};
-var pigmentAmount = abc(
-  "pigment_amount",
-  "How much dark pigment or discoloration is visible on your face?",
-  "pigmentation",
-  ["A few faint spots", "Several visible spots", "Many clearly visible spots"]
-);
-var pigmentScars = abc(
-  "pigment_scars",
-  "What happens to acne marks or dark marks you have had?",
-  "pigmentation",
-  ["They fade quickly", "They take a long time to fade", "They are hard to remove"]
-);
-var pigmentReactivity = abc(
-  "pigment_reactivity",
-  "How easily does your skin change colour after sun, injury, or acne?",
-  "pigmentation",
-  ["Rarely gets dark marks", "Often gets dark marks", "Very easily gets dark marks"]
-);
-var darkSpotTendency = {
-  id: "dark_spot_tendency",
-  type: "single_choice",
-  label: "Do dark spots appear easily after acne, injury, or sun exposure?",
-  dimension: "dark_spot",
-  options: [opt("Yes", "ds_yes", 1), opt("No", "ds_no", 0)]
-};
-var PIXIE_OMG_SKIN_ANALYZER = {
-  code: "pixie_omg_skin_analyzer",
-  name: "Pixie / OMG Skin Analyzer",
-  description: "Questionnaire replica of the Wardah (Pixie) + OMG Skin Analyzer inputs for sebum, sensitivity, pigment level, and dark-spot tendency.",
-  status: "draft",
-  questions: [
-    sebumCharacter,
-    sensitivityChecklist,
-    pigmentAmount,
-    pigmentScars,
-    pigmentReactivity,
-    darkSpotTendency
-  ],
-  calculationMethods: {
-    sebum: "sum",
-    sensitivity: "boolean_or",
-    // Pixie: any checklist item -> "Sensitive Stinger"
-    pigmentation: "average",
-    dark_spot: "boolean_or"
   }
 };
 var pfChoice = (label, value, score) => ({
@@ -365,12 +265,6 @@ function applyDimensionMapping(q, mapping, methods = {}) {
 var cloneQuestionnaire = (q) => JSON.parse(JSON.stringify(q));
 var BUILTIN_TEMPLATES = [
   {
-    id: PIXIE_OMG_SKIN_ANALYZER.code,
-    name: PIXIE_OMG_SKIN_ANALYZER.name,
-    description: PIXIE_OMG_SKIN_ANALYZER.description,
-    build: () => cloneQuestionnaire(PIXIE_OMG_SKIN_ANALYZER)
-  },
-  {
     id: PFORM_EXAMPLE.code,
     name: PFORM_EXAMPLE.name,
     description: PFORM_EXAMPLE.description,
@@ -504,15 +398,15 @@ var QuestionnairesTab = ({
                 ] }),
                 /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "text-[10px] uppercase tracking-wide text-beak shrink-0", children: getDimensionMeta(qu.dimension).label })
               ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-1.5", children: qu.options.map((opt2, oi) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-1.5", children: qu.options.map((opt, oi) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
                 "div",
                 {
                   className: "rounded border border-border px-2 py-1 flex items-center justify-between text-xs",
                   children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "text-muted-foreground truncate pr-2", children: opt2.label }),
+                    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "text-muted-foreground truncate pr-2", children: opt.label }),
                     /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "text-foreground font-mono shrink-0", children: [
-                      (opt2.score ?? 0) > 0 ? "+" : "",
-                      opt2.score ?? 0
+                      (opt.score ?? 0) > 0 ? "+" : "",
+                      opt.score ?? 0
                     ] })
                   ]
                 },
@@ -1039,8 +933,18 @@ var import_shared3 = require("@gateway-experience/shared");
 
 // src/form/api.ts
 var FORM = "/core/form-engine";
-var DEFAULT_BRAND = "wardah";
-var DEFAULT_APP = "skinverse";
+var MissingTenantError = class extends Error {
+  constructor() {
+    super("Choose a brand and an application first \u2014 questionnaires are stored per tenant.");
+    this.name = "MissingTenantError";
+  }
+};
+function requireTenant(brandId, applicationId) {
+  const b = (brandId ?? "").trim();
+  const a = (applicationId ?? "").trim();
+  if (!b || !a) throw new MissingTenantError();
+  return { brandId: b, applicationId: a };
+}
 var tenantQuery = (brandId, applicationId) => `brand_id=${encodeURIComponent(brandId)}&application_id=${encodeURIComponent(applicationId)}`;
 function parseSchema(row) {
   const s = row?.schema;
@@ -1076,8 +980,9 @@ function rowToItem(row) {
     applicationId: row?.applicationId || row?.application_id || item.applicationId
   };
 }
-async function listRows(brandId = DEFAULT_BRAND, applicationId = DEFAULT_APP) {
-  const res = await fetch(`${FORM}/survey?${tenantQuery(brandId, applicationId)}`, {
+async function listRows(brandId, applicationId) {
+  const t = requireTenant(brandId, applicationId);
+  const res = await fetch(`${FORM}/survey?${tenantQuery(t.brandId, t.applicationId)}`, {
     cache: "no-store"
   });
   if (!res.ok) throw new Error(`form-engine list failed (${res.status})`);
@@ -1088,13 +993,13 @@ async function listRows(brandId = DEFAULT_BRAND, applicationId = DEFAULT_APP) {
   return [];
 }
 var isArchived = (r) => (r?.status ?? "") === "archived";
-async function listQuestionnaires(brandId = DEFAULT_BRAND, applicationId = DEFAULT_APP) {
+async function listQuestionnaires(brandId, applicationId) {
   return (await listRows(brandId, applicationId)).filter((r) => !isArchived(r)).map(rowToItem);
 }
-async function getQuestionnaire(code, brandId = DEFAULT_BRAND, applicationId = DEFAULT_APP) {
+async function getQuestionnaire(code, brandId, applicationId) {
   return (await listQuestionnaires(brandId, applicationId)).find((q) => q.code === code) ?? null;
 }
-async function getQuestionnaireModel(code, brandId = DEFAULT_BRAND, applicationId = DEFAULT_APP) {
+async function getQuestionnaireModel(code, brandId, applicationId) {
   const row = (await listRows(brandId, applicationId)).find(
     (r) => r.code === code && !isArchived(r)
   );
@@ -1105,14 +1010,15 @@ async function getQuestionnaireModel(code, brandId = DEFAULT_BRAND, applicationI
   }
   return { ...model, code: row.code || model.code, title: row.title || model.title };
 }
-async function saveQuestionnaire(item, brandId = DEFAULT_BRAND, applicationId = DEFAULT_APP) {
+async function saveQuestionnaire(item, brandId, applicationId) {
+  const t = requireTenant(item.brandId || brandId, item.applicationId || applicationId);
   const code = item.code || `form_${Date.now()}`;
   const res = await fetch(`${FORM}/survey`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      brand_id: item.brandId || brandId,
-      application_id: item.applicationId || applicationId,
+      brand_id: t.brandId,
+      application_id: t.applicationId,
       code,
       title: item.name || code,
       status: toColumnStatus(item.status),
@@ -1121,15 +1027,16 @@ async function saveQuestionnaire(item, brandId = DEFAULT_BRAND, applicationId = 
   });
   if (!res.ok) throw new Error(`form-engine save failed (${res.status})`);
 }
-async function deleteQuestionnaire(code, brandId = DEFAULT_BRAND, applicationId = DEFAULT_APP) {
-  const existing = (await listRows(brandId, applicationId)).find((r) => r.code === code);
+async function deleteQuestionnaire(code, brandId, applicationId) {
+  const t = requireTenant(brandId, applicationId);
+  const existing = (await listRows(t.brandId, t.applicationId)).find((r) => r.code === code);
   const schema = existing ? parseSchema(existing) : { code };
   const res = await fetch(`${FORM}/survey/${encodeURIComponent(code)}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      brand_id: existing?.brandId || existing?.brand_id || brandId,
-      application_id: existing?.applicationId || existing?.application_id || applicationId,
+      brand_id: existing?.brandId || existing?.brand_id || t.brandId,
+      application_id: existing?.applicationId || existing?.application_id || t.applicationId,
       code,
       title: existing?.title || code,
       status: "archived",
@@ -1315,8 +1222,8 @@ var QuestionnaireModal = ({
   onClose,
   onSave,
   editingQ,
-  brandId = "wardah",
-  applicationId = "skinverse"
+  brandId = "",
+  applicationId = ""
 }) => {
   const hostRoutes = (0, import_shared3.useHostRoutes)();
   const [step, setStep] = (0, import_react3.useState)("setup");
@@ -1331,6 +1238,7 @@ var QuestionnaireModal = ({
   const [questions, setQuestions] = (0, import_react3.useState)([]);
   const [calcMethods, setCalcMethods] = (0, import_react3.useState)({});
   const [apiDimensions, setApiDimensions] = (0, import_react3.useState)([]);
+  const [dimensionsSettled, setDimensionsSettled] = (0, import_react3.useState)(false);
   const [safetyFlagCatalog, setSafetyFlagCatalog] = (0, import_react3.useState)([]);
   const [filterDim, setFilterDim] = (0, import_react3.useState)("all");
   const [collapsed, setCollapsed] = (0, import_react3.useState)({});
@@ -1387,7 +1295,7 @@ var QuestionnaireModal = ({
           purpose: it.description || getDimensionMeta(it.code).purpose
         }))
       );
-    }).catch(() => setApiDimensions([]));
+    }).catch(() => setApiDimensions([])).finally(() => setDimensionsSettled(true));
   }, [isOpen, hostRoutes]);
   (0, import_react3.useEffect)(() => {
     if (!isOpen) return;
@@ -1435,7 +1343,9 @@ var QuestionnaireModal = ({
     [effectiveCode, qName, qDesc, qStatus, qBrand, qApp, questions, calcMethods, usedDimensions]
   );
   if (!isOpen) return null;
-  const dimensionList = apiDimensions.length ? apiDimensions : FALLBACK_DIMENSIONS;
+  const dimensionList = apiDimensions;
+  const dimensionsUnavailable = dimensionsSettled && dimensionList.length === 0;
+  const tenantMissing = !qBrand || !qApp;
   const metaOf = (code) => getDimensionMeta(code, dimensionList);
   const schemaJson = JSON.stringify(toSurveyModel(draftItem), null, 2);
   const createBodyJson = JSON.stringify(
@@ -1455,7 +1365,7 @@ var QuestionnaireModal = ({
     )
   );
   const addQuestion = () => {
-    const dim = filterDim !== "all" ? filterDim : usedDimensions[0] || dimensionList[0]?.code || "sebum";
+    const dim = filterDim !== "all" ? filterDim : "";
     const q = newQuestion(dim);
     setQuestions((cur) => [...cur, q]);
     setCollapsed((cur) => ({ ...cur, [q.id]: false }));
@@ -1475,7 +1385,7 @@ var QuestionnaireModal = ({
   const submit = async (e) => {
     e.preventDefault();
     const code = effectiveCode.trim();
-    if (!qName.trim() || !code) return;
+    if (!qName.trim() || !code || tenantMissing) return;
     setSubmitting(true);
     try {
       await onSave({ ...draftItem, code });
@@ -1632,7 +1542,8 @@ var QuestionnaireModal = ({
                     }
                   )
                 ] })
-              ] })
+              ] }),
+              tenantMissing && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { className: "text-[11px] text-amber-500", children: "Choose a brand and an application \u2014 the questionnaire is saved under that tenant." })
             ] }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "rounded-lg border border-border bg-card p-3 space-y-2", children: [
               /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { className: "text-foreground text-xs font-semibold", children: "Start from a template" }),
@@ -1653,6 +1564,7 @@ var QuestionnaireModal = ({
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "flex justify-end", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_shared3.Button, { type: "button", size: "sm", onClick: () => setStep("questions"), children: "Continue" }) })
           ] }),
           step === "questions" && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "space-y-3", children: [
+            dimensionsUnavailable && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-500", children: "Dimensions could not be loaded from reference data. Questions can still be written as label-only; scoring needs the dimension catalog (Reference Data \u2192 Dimensions)." }),
             usedDimensions.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "flex flex-wrap items-center gap-1.5", children: ["all", ...usedDimensions].map((d) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
               "button",
               {
@@ -1773,11 +1685,12 @@ var QuestionnaireModal = ({
                                 type: "button",
                                 role: "switch",
                                 "aria-checked": Boolean(q.dimension),
+                                disabled: !q.dimension && dimensionList.length === 0,
                                 onClick: () => updateQuestion(q.id, {
                                   dimension: q.dimension ? "" : usedDimensions[0] || dimensionList[0]?.code || ""
                                 }),
-                                title: q.dimension ? "Counts toward scoring" : "Label only \u2014 click to score it",
-                                className: `relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${q.dimension ? "bg-emerald-500" : "bg-secondary border border-border"}`,
+                                title: q.dimension ? "Counts toward scoring" : dimensionList.length === 0 ? "No dimensions loaded from reference data" : "Label only \u2014 click to score it",
+                                className: `relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full disabled:cursor-not-allowed disabled:opacity-50 border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${q.dimension ? "bg-emerald-500" : "bg-secondary border border-border"}`,
                                 children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
                                   "span",
                                   {
@@ -1786,14 +1699,20 @@ var QuestionnaireModal = ({
                                 )
                               }
                             ),
-                            q.dimension && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                            q.dimension && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
                               "select",
                               {
                                 value: q.dimension,
                                 onChange: (e) => updateQuestion(q.id, { dimension: e.target.value }),
                                 className: `${fieldSm} w-56`,
                                 style: selectStyle,
-                                children: dimensionList.map((d) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("option", { style: optionStyle, value: d.code, children: d.label }, d.code))
+                                children: [
+                                  !dimensionList.some((d) => d.code === q.dimension) && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("option", { style: optionStyle, value: q.dimension, children: [
+                                    q.dimension,
+                                    " (not in reference data)"
+                                  ] }),
+                                  dimensionList.map((d) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("option", { style: optionStyle, value: d.code, children: d.label }, d.code))
+                                ]
                               }
                             )
                           ] })
@@ -2105,7 +2024,10 @@ var QuestionnaireModal = ({
             ] }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("pre", { className: "w-full max-h-96 overflow-auto rounded-md bg-muted/40 border border-border p-2.5 text-foreground text-[11px] font-mono leading-relaxed whitespace-pre", children: schemaJson })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "flex items-center justify-end pt-3 border-t border-border", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_shared3.Button, { type: "submit", size: "sm", isLoading: submitting, disabled: !qName.trim(), children: editingQ ? "Save changes" : "Create questionnaire" }) })
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "flex items-center justify-end pt-3 border-t border-border", children: [
+            tenantMissing && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "mr-3 text-[11px] text-amber-500", children: "Pick a brand and application in Setup to save." }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_shared3.Button, { type: "submit", size: "sm", isLoading: submitting, disabled: !qName.trim() || tenantMissing, children: editingQ ? "Save changes" : "Create questionnaire" })
+          ] })
         ] })
       ]
     }
@@ -2117,8 +2039,7 @@ var import_jsx_runtime4 = require("react/jsx-runtime");
 var TENANT_KEY = "xg.formEngine.tenant";
 var readTenant = () => {
   const t = (0, import_shared4.readPersisted)(TENANT_KEY);
-  if (t?.brandId && t?.applicationId) return t;
-  return { brandId: "wardah", applicationId: "skinverse" };
+  return { brandId: t?.brandId || "", applicationId: t?.applicationId || "" };
 };
 var FormManager = () => {
   const [activeTab, setActiveTab] = (0, import_shared4.usePersistentState)("xg.formEngine.activeTab", "questionnaires");
@@ -2135,7 +2056,12 @@ var FormManager = () => {
   const [isQuestionnaireModalOpen, setIsQuestionnaireModalOpen] = (0, import_react4.useState)(false);
   const [editingQ, setEditingQ] = (0, import_react4.useState)(null);
   const [selectedQCode, setSelectedQCode] = (0, import_shared4.usePersistentState)("xg.formEngine.simulator.questionnaire", "");
+  const tenantMissing = !brandId || !applicationId;
   const loadData = () => {
+    if (tenantMissing) {
+      void Promise.resolve([]).then(setQuestionnaires);
+      return;
+    }
     listQuestionnaires(brandId, applicationId).then(setQuestionnaires).catch(() => setQuestionnaires([]));
   };
   (0, import_react4.useEffect)(() => {
@@ -2240,7 +2166,8 @@ var FormManager = () => {
             content: "Questionnaires below are scoped to this brand / application.",
             label: "About brand / application scope"
           }
-        ) })
+        ) }),
+        tenantMissing && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("p", { className: "pb-2 text-xs text-amber-500", children: "Choose a brand and an application to see their questionnaires." })
       ] }),
       activeTab === "questionnaires" && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
         QuestionnairesTab,
@@ -2338,11 +2265,13 @@ var QuestionnaireRunner = ({
     let alive = true;
     setLoading(true);
     setError(null);
-    getQuestionnaireModel(questionnaireCode, brandId, applicationId).then((m) => {
+    getQuestionnaireModel(questionnaireCode, brandId ?? "", applicationId ?? "").then((m) => {
       if (!alive) return;
       if (m) setSchema(m);
       else setError("This questionnaire is not available.");
-    }).catch(() => alive && setError("Could not load the questionnaire.")).finally(() => alive && setLoading(false));
+    }).catch(
+      (e) => alive && setError(e instanceof MissingTenantError ? e.message : "Could not load the questionnaire.")
+    ).finally(() => alive && setLoading(false));
     return () => {
       alive = false;
     };
@@ -2359,7 +2288,7 @@ var QuestionnaireRunner = ({
   }, [schema]);
   (0, import_react5.useEffect)(() => {
     if (!survey || !schema) return;
-    const onValue = (_, opt2) => onAnswer?.(opt2.name, opt2.value);
+    const onValue = (_, opt) => onAnswer?.(opt.name, opt.value);
     const onComplete_ = async (sender) => {
       const data = sender.data;
       let plain = [];
@@ -2412,11 +2341,10 @@ var QuestionnaireRunner = ({
 0 && (module.exports = {
   BUILTIN_TEMPLATES,
   CALCULATION_METHODS,
-  FALLBACK_DIMENSIONS,
   FormManager,
+  MissingTenantError,
   PFORM_EXAMPLE,
   PFORM_SUGGESTED_DIMENSIONS,
-  PIXIE_OMG_SKIN_ANALYZER,
   QuestionnaireRunner,
   applyCalculationMethod,
   applyDimensionMapping,

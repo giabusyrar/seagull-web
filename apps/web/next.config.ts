@@ -1,6 +1,6 @@
 import path from "node:path";
 import type { NextConfig } from "next";
-import { DEFAULT_CONTROL_PLANE_PORT } from "./lib/config/services";
+import { getGatewayEngineUrl } from "./lib/config/services";
 
 // Turbopack infers the workspace root from the nearest lockfile. This repo has
 // no package-lock.json yet (README: it cannot be generated honestly until
@@ -8,12 +8,9 @@ import { DEFAULT_CONTROL_PLANE_PORT } from "./lib/config/services";
 // the repo and the build fails. Pin it to the workspace root instead.
 const WORKSPACE_ROOT = path.resolve(import.meta.dirname, "..", "..");
 
-const baseHost = process.env.SERVICE_BASE_HOST || "127.0.0.1";
-const protocol = process.env.SERVICE_PROTOCOL || "http";
-
-const GATEWAY_ENGINE_URL =
-  process.env.GATEWAY_ENGINE_URL ||
-  `${protocol}://${baseHost}:${process.env.GATEWAY_ENGINE_PORT || DEFAULT_CONTROL_PLANE_PORT}`;
+// Resolved the same way as everywhere else in the app (lib/config/services.ts),
+// so the rewrites and the server proxy cannot point at different hosts.
+const GATEWAY_ENGINE_URL = getGatewayEngineUrl();
 
 const nextConfig: NextConfig = {
   output: "standalone",
@@ -30,7 +27,7 @@ const nextConfig: NextConfig = {
       //    gateway's /reference collection, with the data-plane API key a
       //    rewrite cannot attach.
 
-      // 4. Gateway Engine Endpoints (:8081) - Auth & Collections Management
+      // 4. Gateway Engine Endpoints (control plane) - Auth & Collections Management
       {
         source: "/api/v1/auth/:path*",
         destination: `${GATEWAY_ENGINE_URL}/api/v1/auth/:path*`,

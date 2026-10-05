@@ -254,6 +254,7 @@ var LEGACY_SOURCES = {
   vision: { scale: [0, 100], direction: "health" }
 };
 var AGE_FIELD = "age_over_30";
+var AGE_FIELD_CUTOFF_YEARS = 30;
 var FORM_SOURCE = "form";
 var VISION_SOURCE = "vision";
 var DEFAULT_SCORE_RANGE_BANDS = [
@@ -271,8 +272,7 @@ var DEFAULT_SEVERITY_BANDS = [
 var KNOWN_VISION_FIELDS = [
   { code: "data.inference_result.results.skin_scoring.Darkspot", label: "Darkspot", description: "results.skin_scoring.Darkspot \u2014 feeds Pigmentation." },
   { code: "data.inference_result.results.skin_scoring.Wrinkle", label: "Wrinkle", description: "results.skin_scoring.Wrinkle \u2014 feeds Aging." },
-  { code: "data.inference_result.results.skin_scoring.Pores", label: "Pores", description: "results.skin_scoring.Pores \u2014 feeds Pore Severity." },
-  { code: "age_over_30", label: "Age > 30 (from DOB)", description: "Derived from date_of_birth on the identity questionnaire, not a Q1-Q6 question. 0 if <=30, 100 if >30." }
+  { code: "data.inference_result.results.skin_scoring.Pores", label: "Pores", description: "results.skin_scoring.Pores \u2014 feeds Pore Severity." }
 ];
 
 // src/score/utils/blend.ts
@@ -372,70 +372,16 @@ function validateBlend(sources, axes) {
 
 // src/score/utils/jdm-compiler.ts
 var visionFieldLabel = (code) => KNOWN_VISION_FIELDS.find((f) => f.code === code)?.label || code;
-var DEFAULT_CONCERN_LABELS = {
-  sebum: "Minyak Berlebih",
-  oiliness: "Minyak Berlebih",
-  sensitivity: "Kulit Sensitif",
-  pigmentation: "Noda Gelap",
-  dark_spot: "Noda Gelap",
-  aging: "Garis Halus & Kerutan",
-  hydration: "Kulit Kering",
-  acne: "Jerawat",
-  pores: "Pori Besar",
-  barrier: "Barier Kulit Rusak"
-};
-function defaultConcernLabel(dimKey) {
-  const k = (dimKey || "").toLowerCase();
-  if (DEFAULT_CONCERN_LABELS[k]) return DEFAULT_CONCERN_LABELS[k];
-  return k.split("_").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+var EMPTY_PROFILE_CONFIG = { strategy: "total_score", profiles: [] };
+function scoreRangeLetters(bands) {
+  const letters = bands.slice().sort((x, y) => x.max - y.max).map((b) => b.label.trim().charAt(0).toUpperCase()).filter(Boolean);
+  return Array.from(new Set(letters));
 }
-var DEFAULT_STARTER_AXES = [
-  {
-    id: "axis_sebum",
-    axisCode: "SEBUM",
-    name: "Sebum Secretion",
-    dimensionKey: "sebum",
-    weight: 1,
-    concernLabel: "Minyak Berlebih"
-  }
-];
-var DEFAULT_STARTER_PROFILES = {
-  strategy: "total_score",
-  profiles: [
-    {
-      id: "prof_1",
-      minScore: 61,
-      maxScore: 100,
-      code: "OPTIMAL",
-      title: "Kulit Optimal",
-      category: "Optimal",
-      summary: "Kondisi kulit seimbang, tidak ada keluhan menonjol."
-    },
-    {
-      id: "prof_2",
-      minScore: 41,
-      maxScore: 60,
-      code: "MODERATE",
-      title: "Perlu Perawatan Aktif",
-      category: "Sedang",
-      summary: "Ada keluhan sedang yang perlu perawatan aktif."
-    },
-    {
-      id: "prof_3",
-      minScore: 0,
-      maxScore: 40,
-      code: "CONCERN",
-      title: "Perlu Perhatian Khusus",
-      category: "Perlu Perhatian Khusus",
-      summary: "Keluhan menonjol, perlu perhatian dan rutinitas terarah."
-    }
-  ]
-};
 var bandsToSchema = (bands) => bands.map((b) => ({ max: Math.max(0, Math.min(100, Number(b.max) || 0)), label: b.label || "" }));
 var cleanVal = (v) => `"${(v || "").replace(/"/g, "")}"`;
 var rangeCell = (min, max) => `[${Math.max(0, Math.min(100, min ?? 0))}..${Math.max(0, Math.min(100, max ?? 100))}]`;
-function compileVisualToJDM(axes, profileConfig = DEFAULT_STARTER_PROFILES, scoreRangeBands = DEFAULT_SCORE_RANGE_BANDS, severityBands = DEFAULT_SEVERITY_BANDS, existingSchema, sources) {
-  const effectiveAxes = axes.length > 0 ? axes : DEFAULT_STARTER_AXES;
+function compileVisualToJDM(axes, profileConfig = EMPTY_PROFILE_CONFIG, scoreRangeBands = DEFAULT_SCORE_RANGE_BANDS, severityBands = DEFAULT_SEVERITY_BANDS, existingSchema, sources) {
+  const effectiveAxes = axes.filter((a) => (a.dimensionKey || "").trim());
   const nodes = [
     { id: "input_node", name: "Input", type: "inputNode", position: { x: 40, y: 40 } }
   ];
@@ -524,7 +470,8 @@ function compileVisualToJDM(axes, profileConfig = DEFAULT_STARTER_PROFILES, scor
   for (const a of effectiveAxes) {
     const key = a.dimensionKey.toLowerCase();
     dimension_weights[key] = a.weight ?? 1;
-    concern_labels[key] = a.concernLabel || defaultConcernLabel(key);
+    const concern = (a.concernLabel || "").trim();
+    if (concern) concern_labels[key] = concern;
     const di = toDimensionInputs(a);
     if (di) dimension_inputs[key] = di;
     const bands = (a.bands || []).slice().sort((x, y) => x.min - y.min);
@@ -613,8 +560,8 @@ var bandsFromSchema = (raw, fallback, prefix) => {
 };
 function decompileJDMToVisualComponents(schemaStr) {
   const fallback = {
-    axes: DEFAULT_STARTER_AXES.map((a) => ({ ...a })),
-    profileConfig: DEFAULT_STARTER_PROFILES,
+    axes: [],
+    profileConfig: { ...EMPTY_PROFILE_CONFIG, profiles: [] },
     scoreRangeBands: DEFAULT_SCORE_RANGE_BANDS.map((b) => ({ ...b })),
     severityBands: DEFAULT_SEVERITY_BANDS.map((b) => ({ ...b })),
     sources: {},
@@ -694,7 +641,7 @@ function decompileJDMToVisualComponents(schemaStr) {
       name: key.split("_").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" "),
       dimensionKey: key,
       weight: typeof weights[key] === "number" ? weights[key] : 1,
-      concernLabel: concernLabels[key] || defaultConcernLabel(key),
+      concernLabel: concernLabels[key] || void 0,
       inputs: (bd?.inputs || []).map((i2) => ({ ...i2, label: i2.source === VISION_SOURCE ? visionFieldLabel(i2.field) : i2.field })),
       required: bd?.required || [],
       bands,
@@ -710,7 +657,7 @@ function decompileJDMToVisualComponents(schemaStr) {
     const c = nodeContents[idx];
     return (c?.outputs || []).some((o) => typeof o?.field === "string" && o.field.startsWith("skin_profile."));
   });
-  let profileConfig = DEFAULT_STARTER_PROFILES;
+  let profileConfig = { ...EMPTY_PROFILE_CONFIG, profiles: [] };
   if (profileNode) {
     const c = typeof profileNode.content === "string" ? safeParse(profileNode.content) : profileNode.content;
     const inputs = c?.inputs || [];
@@ -754,10 +701,10 @@ function decompileJDMToVisualComponents(schemaStr) {
       }
       return entry;
     });
-    profileConfig = { strategy, profiles: profiles.length ? profiles : DEFAULT_STARTER_PROFILES.profiles };
+    profileConfig = { strategy, profiles };
   }
   return {
-    axes: axes.length ? axes : fallback.axes,
+    axes,
     profileConfig,
     scoreRangeBands: bandsFromSchema(parsed.score_range_bands, DEFAULT_SCORE_RANGE_BANDS, "sr"),
     severityBands: bandsFromSchema(parsed.severity_bands, DEFAULT_SEVERITY_BANDS, "sv"),
@@ -854,15 +801,13 @@ var ClinicalDimensionCard = ({
 }) => {
   const [open, setOpen] = useState(defaultOpen);
   const share = typeof siblingWeightTotal === "number" && siblingWeightTotal > 0 ? Math.round(axis.weight / siblingWeightTotal * 100) : null;
-  const concern = axis.concernLabel || defaultConcernLabel(axis.dimensionKey);
+  const concern = (axis.concernLabel || "").trim() || "engine default concern name";
   const handleDimensionChange = (dimKey, dimMeta) => {
-    const wasDefault = !axis.concernLabel || axis.concernLabel === defaultConcernLabel(axis.dimensionKey);
     onUpdate({
       ...axis,
       dimensionKey: dimKey,
       axisCode: dimKey.toUpperCase(),
-      name: dimMeta?.name || dimKey.toUpperCase(),
-      concernLabel: wasDefault ? defaultConcernLabel(dimKey) : axis.concernLabel
+      name: dimMeta?.name || dimKey.toUpperCase()
     });
   };
   return /* @__PURE__ */ jsxs2("div", { className: "rounded-lg border border-border bg-card", children: [
@@ -876,6 +821,7 @@ var ClinicalDimensionCard = ({
           children: [
             open ? /* @__PURE__ */ jsx2(ChevronDown, { className: "h-4 w-4 text-muted-foreground shrink-0" }) : /* @__PURE__ */ jsx2(ChevronRight, { className: "h-4 w-4 text-muted-foreground shrink-0" }),
             /* @__PURE__ */ jsx2("span", { className: "text-sm font-semibold text-foreground", children: axis.name || axis.dimensionKey.toUpperCase() }),
+            !axis.dimensionKey && /* @__PURE__ */ jsx2("span", { className: "text-[11px] font-semibold text-amber-500", children: "no dimension picked" }),
             /* @__PURE__ */ jsx2("span", { className: "text-[11px] text-muted-foreground", children: share !== null ? `\u2248${share}% of overall` : `weight ${axis.weight}` }),
             /* @__PURE__ */ jsxs2("span", { className: "text-[11px] text-muted-foreground", children: [
               "\xB7 ",
@@ -939,7 +885,7 @@ var ClinicalDimensionCard = ({
           /* @__PURE__ */ jsx2(
             InfoTooltip,
             {
-              content: "Shown when this dimension is the customer\u2019s dominant concern.",
+              content: "Shown when this dimension is the customer\u2019s dominant concern. Left empty, the Score Engine uses its own default name for the dimension.",
               label: "About concern label",
               iconClassName: "h-3 w-3"
             }
@@ -950,9 +896,9 @@ var ClinicalDimensionCard = ({
           {
             type: "text",
             disabled,
-            value: axis.concernLabel ?? concern,
+            value: axis.concernLabel ?? "",
             onChange: (e) => onUpdate({ ...axis, concernLabel: e.target.value }),
-            placeholder: defaultConcernLabel(axis.dimensionKey),
+            placeholder: "Not set: the engine's default concern name is used",
             className: fieldCls
           }
         )
@@ -1331,6 +1277,64 @@ function safetyFlagsFromSurveys(surveys, surveyCode) {
 import { jsx as jsx4, jsxs as jsxs4 } from "react/jsx-runtime";
 var card = "rounded-lg border border-border bg-card p-4";
 var sliderCls = "w-full h-1.5 rounded appearance-none cursor-pointer bg-muted accent-[#d97706]";
+var unsetSliderCls = sliderCls + " opacity-40";
+var SCORE_MIN = 0;
+var SCORE_MAX = 100;
+var UNSET_THUMB = (SCORE_MIN + SCORE_MAX) / 2;
+var AGE_SLIDER_MIN = 13;
+var AGE_SLIDER_MAX = 70;
+var AGE_UNSET_THUMB = AGE_FIELD_CUTOFF_YEARS;
+function withValue(prev, key, v) {
+  const next = { ...prev };
+  if (v === void 0) delete next[key];
+  else next[key] = v;
+  return next;
+}
+var ScoreInput = ({ label, value, onChange }) => {
+  const set = value !== void 0;
+  const commit = (e) => onChange(Number(e.currentTarget.value));
+  return /* @__PURE__ */ jsxs4("div", { children: [
+    /* @__PURE__ */ jsxs4("div", { className: "flex items-center justify-between text-xs mb-1", children: [
+      /* @__PURE__ */ jsx4("span", { className: "text-foreground", children: label }),
+      set ? /* @__PURE__ */ jsxs4("span", { className: "flex items-center gap-1.5", children: [
+        /* @__PURE__ */ jsx4("span", { className: "text-beak font-semibold font-mono", children: value }),
+        /* @__PURE__ */ jsx4(
+          "button",
+          {
+            type: "button",
+            onClick: () => onChange(void 0),
+            className: "text-[10px] text-muted-foreground underline hover:text-foreground",
+            title: "Unset: send this dimension as not answered",
+            children: "clear"
+          }
+        )
+      ] }) : /* @__PURE__ */ jsx4("span", { className: "text-[10px] italic text-muted-foreground", title: "Not sent to /simulate", children: "not set" })
+    ] }),
+    /* @__PURE__ */ jsx4(
+      "input",
+      {
+        type: "range",
+        min: SCORE_MIN,
+        max: SCORE_MAX,
+        value: value ?? UNSET_THUMB,
+        onChange: commit,
+        onPointerUp: commit,
+        "aria-label": set ? `${label}: ${value}` : `${label}: not set`,
+        className: set ? sliderCls : unsetSliderCls
+      }
+    ),
+    /* @__PURE__ */ jsxs4("div", { className: "flex items-center justify-between text-[10px] text-muted-foreground mt-0.5", children: [
+      /* @__PURE__ */ jsxs4("span", { children: [
+        SCORE_MIN,
+        " = parah"
+      ] }),
+      /* @__PURE__ */ jsxs4("span", { children: [
+        SCORE_MAX,
+        " = sehat"
+      ] })
+    ] })
+  ] });
+};
 var ScoreSimulatorTab = ({
   rulesets,
   selectedRuleset,
@@ -1392,7 +1396,10 @@ var ScoreSimulatorTab = ({
     "xg.scoreEngine.simulator.visionValues",
     {}
   );
-  const [respondentAge, setRespondentAge] = usePersistentState("xg.scoreEngine.simulator.respondentAge", 25);
+  const [respondentAge, setRespondentAge] = usePersistentState(
+    "xg.scoreEngine.simulator.respondentAgeYears",
+    null
+  );
   const rulesetSafetyFlags = useMemo3(() => {
     if (!activeRuleset?.schema) return [];
     try {
@@ -1457,15 +1464,15 @@ var ScoreSimulatorTab = ({
   const [copiedReq, setCopiedReq] = useState3(false);
   const formScores = useMemo3(() => {
     const out = {};
-    for (const d of formDims) out[d] = questionnaireValues[d] ?? 50;
+    for (const d of formDims) if (questionnaireValues[d] !== void 0) out[d] = questionnaireValues[d];
     return out;
   }, [formDims, questionnaireValues]);
   const visionScores = useMemo3(() => {
     const out = {};
-    for (const d of visionDims) out[d] = visionValues[d] ?? 50;
+    for (const d of visionDims) if (visionValues[d] !== void 0) out[d] = visionValues[d];
     return out;
   }, [visionDims, visionValues]);
-  const ageYears = ageAxisKeys.length > 0 ? respondentAge : void 0;
+  const ageYears = ageAxisKeys.length > 0 && respondentAge !== null ? respondentAge : void 0;
   const requestBody = useMemo3(
     () => JSON.stringify(
       {
@@ -1511,8 +1518,8 @@ var ScoreSimulatorTab = ({
   const skinProfile = result?.skin_profile;
   const subClassification = result?.sub_classification || {};
   const warnings = result?.warnings || [];
-  const totalScore = Math.round(result?.total_score || 0);
-  const profileCode = skinProfile?.code || "CUSTOM";
+  const totalScore = typeof result?.total_score === "number" ? Math.round(result.total_score) : null;
+  const profileCode = skinProfile?.code || "\u2014";
   const profileName = skinProfile?.name || "Answer to see a profile";
   return /* @__PURE__ */ jsxs4("div", { className: "flex flex-col lg:flex-row gap-5 items-start", children: [
     /* @__PURE__ */ jsxs4("div", { className: "w-full lg:w-80 lg:shrink-0 space-y-3 min-w-0", children: [
@@ -1545,34 +1552,56 @@ var ScoreSimulatorTab = ({
           /* @__PURE__ */ jsx4(
             InfoTooltip3,
             {
-              content: "Bukan slider form biasa \u2014 dihitung dari date_of_birth di kuisioner data pribadi, bukan Q1-Q6. Dikirim sebagai age_years, dipakai axis: aging.",
+              content: `Bukan slider form biasa \u2014 dihitung dari date_of_birth di kuisioner data pribadi, bukan Q1-Q6. Dikirim sebagai age_years dan dinilai oleh cek AgeOverThirty di core, dipakai axis: ${ageAxisKeys.join(", ")}.`,
               label: "About Usia"
             }
           )
         ] }),
         /* @__PURE__ */ jsxs4("div", { className: "flex items-center justify-between text-xs mb-1", children: [
           /* @__PURE__ */ jsx4("span", { className: "text-foreground", children: "Umur (tahun)" }),
-          /* @__PURE__ */ jsxs4("span", { className: "text-beak font-semibold font-mono", children: [
-            respondentAge,
-            " (",
-            respondentAge <= 30 ? "sehat" : "faktor W",
-            ")"
-          ] })
+          respondentAge !== null ? /* @__PURE__ */ jsxs4("span", { className: "flex items-center gap-1.5", children: [
+            /* @__PURE__ */ jsxs4("span", { className: "text-beak font-semibold font-mono", children: [
+              respondentAge,
+              " (",
+              respondentAge <= AGE_FIELD_CUTOFF_YEARS ? "sehat" : "faktor W",
+              ")"
+            ] }),
+            /* @__PURE__ */ jsx4(
+              "button",
+              {
+                type: "button",
+                onClick: () => setRespondentAge(null),
+                className: "text-[10px] text-muted-foreground underline hover:text-foreground",
+                title: "Unset: send no age_years",
+                children: "clear"
+              }
+            )
+          ] }) : /* @__PURE__ */ jsx4("span", { className: "text-[10px] italic text-muted-foreground", title: "No age_years is sent", children: "not set" })
         ] }),
         /* @__PURE__ */ jsx4(
           "input",
           {
             type: "range",
-            min: 13,
-            max: 70,
-            value: respondentAge,
-            onChange: (e) => setRespondentAge(Number(e.target.value)),
-            className: sliderCls
+            min: AGE_SLIDER_MIN,
+            max: AGE_SLIDER_MAX,
+            value: respondentAge ?? AGE_UNSET_THUMB,
+            onChange: (e) => setRespondentAge(Number(e.currentTarget.value)),
+            onPointerUp: (e) => setRespondentAge(Number(e.currentTarget.value)),
+            "aria-label": respondentAge !== null ? `Umur: ${respondentAge}` : "Umur: not set",
+            className: respondentAge !== null ? sliderCls : unsetSliderCls
           }
         ),
         /* @__PURE__ */ jsxs4("div", { className: "flex items-center justify-between text-[10px] text-muted-foreground mt-0.5", children: [
-          /* @__PURE__ */ jsx4("span", { children: "\u226430 = sehat" }),
-          /* @__PURE__ */ jsx4("span", { children: ">30 = faktor W" })
+          /* @__PURE__ */ jsxs4("span", { children: [
+            "\u2264",
+            AGE_FIELD_CUTOFF_YEARS,
+            " = sehat"
+          ] }),
+          /* @__PURE__ */ jsxs4("span", { children: [
+            ">",
+            AGE_FIELD_CUTOFF_YEARS,
+            " = faktor W"
+          ] })
         ] })
       ] }),
       formDims.length > 0 && /* @__PURE__ */ jsxs4("div", { className: card + " space-y-3", children: [
@@ -1580,54 +1609,30 @@ var ScoreSimulatorTab = ({
           /* @__PURE__ */ jsx4("h3", { className: "text-sm font-bold text-foreground", children: "Questionnaire result" }),
           /* @__PURE__ */ jsx4(InfoTooltip3, { content: "Per-dimensi, hanya yang dihitung dari kuisioner (form_source). 0 = parah, 100 = sehat.", label: "About questionnaire result" })
         ] }),
-        /* @__PURE__ */ jsx4("div", { className: "space-y-3", children: formDims.map((dimKey) => /* @__PURE__ */ jsxs4("div", { children: [
-          /* @__PURE__ */ jsxs4("div", { className: "flex items-center justify-between text-xs mb-1", children: [
-            /* @__PURE__ */ jsx4("span", { className: "text-foreground", children: dimKey }),
-            /* @__PURE__ */ jsx4("span", { className: "text-beak font-semibold font-mono", children: questionnaireValues[dimKey] ?? 50 })
-          ] }),
-          /* @__PURE__ */ jsx4(
-            "input",
-            {
-              type: "range",
-              min: 0,
-              max: 100,
-              value: questionnaireValues[dimKey] ?? 50,
-              onChange: (e) => setQuestionnaireValues((p) => ({ ...p, [dimKey]: Number(e.target.value) })),
-              className: sliderCls
-            }
-          ),
-          /* @__PURE__ */ jsxs4("div", { className: "flex items-center justify-between text-[10px] text-muted-foreground mt-0.5", children: [
-            /* @__PURE__ */ jsx4("span", { children: "0 = parah" }),
-            /* @__PURE__ */ jsx4("span", { children: "100 = sehat" })
-          ] })
-        ] }, dimKey)) })
+        /* @__PURE__ */ jsx4("div", { className: "space-y-3", children: formDims.map((dimKey) => /* @__PURE__ */ jsx4(
+          ScoreInput,
+          {
+            label: dimKey,
+            value: questionnaireValues[dimKey],
+            onChange: (v) => setQuestionnaireValues((p) => withValue(p, dimKey, v))
+          },
+          dimKey
+        )) })
       ] }),
       visionDims.length > 0 && /* @__PURE__ */ jsxs4("div", { className: card + " space-y-3", children: [
         /* @__PURE__ */ jsxs4("div", { className: "flex items-center gap-1.5", children: [
           /* @__PURE__ */ jsx4("h3", { className: "text-sm font-bold text-foreground", children: "Vision result" }),
           /* @__PURE__ */ jsx4(InfoTooltip3, { content: "Per-dimensi, hanya yang dihitung dari foto vendor (vision_source). 0 = parah, 100 = sehat.", label: "About vision result" })
         ] }),
-        /* @__PURE__ */ jsx4("div", { className: "space-y-3", children: visionDims.map((dimKey) => /* @__PURE__ */ jsxs4("div", { children: [
-          /* @__PURE__ */ jsxs4("div", { className: "flex items-center justify-between text-xs mb-1", children: [
-            /* @__PURE__ */ jsx4("span", { className: "text-foreground", children: dimKey }),
-            /* @__PURE__ */ jsx4("span", { className: "text-beak font-semibold font-mono", children: visionValues[dimKey] ?? 50 })
-          ] }),
-          /* @__PURE__ */ jsx4(
-            "input",
-            {
-              type: "range",
-              min: 0,
-              max: 100,
-              value: visionValues[dimKey] ?? 50,
-              onChange: (e) => setVisionValues((p) => ({ ...p, [dimKey]: Number(e.target.value) })),
-              className: sliderCls
-            }
-          ),
-          /* @__PURE__ */ jsxs4("div", { className: "flex items-center justify-between text-[10px] text-muted-foreground mt-0.5", children: [
-            /* @__PURE__ */ jsx4("span", { children: "0 = parah" }),
-            /* @__PURE__ */ jsx4("span", { children: "100 = sehat" })
-          ] })
-        ] }, dimKey)) })
+        /* @__PURE__ */ jsx4("div", { className: "space-y-3", children: visionDims.map((dimKey) => /* @__PURE__ */ jsx4(
+          ScoreInput,
+          {
+            label: dimKey,
+            value: visionValues[dimKey],
+            onChange: (v) => setVisionValues((p) => withValue(p, dimKey, v))
+          },
+          dimKey
+        )) })
       ] }),
       otherSources.length > 0 && /* @__PURE__ */ jsxs4("div", { className: card + " text-[11px] text-muted-foreground", children: [
         "The simulator cannot send ",
@@ -1706,7 +1711,7 @@ var ScoreSimulatorTab = ({
         ] }),
         /* @__PURE__ */ jsxs4("div", { className: "mt-4 rounded-md border border-border bg-muted/20 p-2.5", children: [
           /* @__PURE__ */ jsx4("div", { className: "text-[10px] text-muted-foreground", children: "Overall score" }),
-          /* @__PURE__ */ jsx4("div", { className: "text-sm font-bold text-foreground font-mono mt-0.5", children: totalScore }),
+          /* @__PURE__ */ jsx4("div", { className: "text-sm font-bold text-foreground font-mono mt-0.5", children: totalScore ?? "\u2014" }),
           /* @__PURE__ */ jsx4("div", { className: "text-[10px] text-muted-foreground", children: "100 = sehat" })
         ] }),
         warnings.length > 0 && /* @__PURE__ */ jsxs4("div", { className: "mt-3 rounded-md border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs space-y-1", children: [
@@ -1859,7 +1864,7 @@ var BandTable = ({
 };
 
 // src/score/components/reusable/ProfileMappingTable.tsx
-import React5, { useState as useState4 } from "react";
+import React5, { useMemo as useMemo4, useState as useState4 } from "react";
 import { Plus as Plus4, Trash2 as Trash24, ChevronRight as ChevronRight2, ChevronDown as ChevronDown2 } from "lucide-react";
 import { ScoreRangeInput, DimensionSelect as DimensionSelect2, SeveritySelect, InfoTooltip as InfoTooltip4 } from "@gateway-experience/shared";
 import { Fragment, jsx as jsx6, jsxs as jsxs6 } from "react/jsx-runtime";
@@ -1867,9 +1872,17 @@ var ProfileMappingTable = ({
   axes,
   config,
   onChange,
+  scoreRangeBands,
+  severityBands,
   disabled = false
 }) => {
   const { strategy, profiles } = config;
+  const rangeLetters = useMemo4(() => scoreRangeLetters(scoreRangeBands), [scoreRangeBands]);
+  const lettersOf = (a) => axisLetters(a, rangeLetters);
+  const severityLabels = useMemo4(
+    () => severityBands.slice().sort((x, y) => x.max - y.max).map((b) => b.label.trim()).filter(Boolean),
+    [severityBands]
+  );
   const [expandedRows, setExpandedRows] = useState4({});
   const [cache, setCache] = useState4({});
   const wide = strategy === "combination_matrix";
@@ -1882,23 +1895,17 @@ var ProfileMappingTable = ({
     const cached = cache[newStrategy];
     let initialProfiles = cached ?? [];
     if (!cached) {
-      if (newStrategy === "total_score") {
-        initialProfiles = [
-          { id: `prof_${Date.now()}_1`, minScore: 80, maxScore: 100, code: "OPTIMAL_RESILIENT", title: "Optimal Vitality", category: "Resilient Barrier", summary: "Healthy barrier balance." },
-          { id: `prof_${Date.now()}_2`, minScore: 50, maxScore: 79, code: "MODERATE_FATIGUE", title: "Moderate Fatigue", category: "Early Stress", summary: "Mild cellular stress." },
-          { id: `prof_${Date.now()}_3`, minScore: 0, maxScore: 49, code: "ACCELERATED_DEFICIT", title: "Accelerated Deficit", category: "High Concern", summary: "Elevated concern." }
-        ];
-      } else if (newStrategy === "combination_matrix") {
-        initialProfiles = generateCartesianCombinations(axes);
+      if (newStrategy === "combination_matrix") {
+        initialProfiles = generateCartesianCombinations(axes, rangeLetters);
       } else if (newStrategy === "primary_concern") {
-        initialProfiles = axes.map((a, idx) => ({
+        initialProfiles = axes.filter((a) => a.dimensionKey).map((a, idx) => ({
           id: `prof_${Date.now()}_${idx + 1}`,
           primaryDimension: a.dimensionKey,
-          severityLevel: "Sangat Parah",
-          code: `${a.dimensionKey.toUpperCase()}_CRITICAL`,
-          title: `${a.name} Critical Concern`,
-          category: "Acute Concern",
-          summary: `Acute focus required on ${a.name}.`
+          severityLevel: "",
+          code: `${a.dimensionKey.toUpperCase()}_CONCERN`,
+          title: `${a.name || a.dimensionKey} concern`,
+          category: "",
+          summary: ""
         }));
       }
     }
@@ -1912,7 +1919,7 @@ var ProfileMappingTable = ({
     const pIdx = profiles.length + 1;
     if (strategy === "total_score") {
       const last = profiles[profiles.length - 1];
-      const max = last && last.minScore !== void 0 ? Math.max(0, last.minScore - 1) : 49;
+      const max = last && last.minScore !== void 0 ? Math.max(0, last.minScore - 1) : 100;
       newEntry = {
         id: `prof_${Date.now()}`,
         minScore: 0,
@@ -1925,7 +1932,8 @@ var ProfileMappingTable = ({
     } else if (strategy === "combination_matrix") {
       const dimCodes = {};
       axes.forEach((a) => {
-        dimCodes[a.dimensionKey] = axisLetters(a)[0];
+        const first = lettersOf(a)[0];
+        if (a.dimensionKey && first) dimCodes[a.dimensionKey] = first;
       });
       newEntry = {
         id: `prof_${Date.now()}`,
@@ -1938,8 +1946,8 @@ var ProfileMappingTable = ({
     } else {
       newEntry = {
         id: `prof_${Date.now()}`,
-        primaryDimension: axes[0]?.dimensionKey || "sebum",
-        severityLevel: "Parah",
+        primaryDimension: "",
+        severityLevel: "",
         code: `CONCERN_${pIdx}`,
         title: `Concern Profile ${pIdx}`,
         category: "Targeted",
@@ -1978,7 +1986,7 @@ var ProfileMappingTable = ({
     onChange({ ...config, profiles: updated });
   };
   const handleAutoGenerateMatrix = () => {
-    const generated = generateCartesianCombinations(axes);
+    const generated = generateCartesianCombinations(axes, rangeLetters);
     onChange({
       ...config,
       profiles: generated
@@ -2075,8 +2083,7 @@ var ProfileMappingTable = ({
               /* @__PURE__ */ jsx6("th", { className: "py-2.5 px-3 text-center", style: { width: 40 }, children: "#" }),
               strategy === "total_score" && /* @__PURE__ */ jsx6("th", { className: "py-2.5 px-3", style: { minWidth: 160 }, children: "Trigger range" }),
               strategy === "combination_matrix" && axes.map((a) => {
-                const letters = axisLetters(a);
-                const bipolar = !!(a.axisCodeLow?.trim() && a.axisCodeHigh?.trim());
+                const letters = lettersOf(a);
                 return /* @__PURE__ */ jsxs6(
                   "th",
                   {
@@ -2084,7 +2091,7 @@ var ProfileMappingTable = ({
                     style: { minWidth: 120 },
                     children: [
                       a.name || a.dimensionKey,
-                      /* @__PURE__ */ jsx6("span", { className: "block text-[10px] font-normal text-muted-foreground", children: bipolar ? letters.join(" / ") : "O / S / P" })
+                      /* @__PURE__ */ jsx6("span", { className: "block text-[10px] font-normal text-muted-foreground", children: letters.length ? letters.join(" / ") : "no letters" })
                     ]
                   },
                   a.id
@@ -2118,7 +2125,7 @@ var ProfileMappingTable = ({
                     }
                   ) }),
                   strategy === "combination_matrix" && axes.map((a) => {
-                    const codeVal = p.dimensionCodes?.[a.dimensionKey] || p.dimensionCodes?.[a.axisCode] || axisLetters(a)[0];
+                    const codeVal = p.dimensionCodes?.[a.dimensionKey] || p.dimensionCodes?.[a.axisCode] || "";
                     return /* @__PURE__ */ jsx6("td", { className: "py-2.5 px-3 text-center", children: /* @__PURE__ */ jsx6(
                       "input",
                       {
@@ -2126,7 +2133,7 @@ var ProfileMappingTable = ({
                         disabled,
                         value: codeVal,
                         onChange: (e) => handleUpdateDimCode(p.id, a.dimensionKey, e.target.value),
-                        placeholder: "D",
+                        placeholder: "any",
                         className: "w-12 px-1.5 py-1 bg-muted/40 border border-border rounded text-beak font-bold text-center focus:outline-none focus:border-ring disabled:opacity-50 text-xs"
                       }
                     ) }, a.id);
@@ -2136,7 +2143,8 @@ var ProfileMappingTable = ({
                       DimensionSelect2,
                       {
                         label: "",
-                        value: p.primaryDimension || axes[0]?.dimensionKey || "sebum",
+                        value: p.primaryDimension || "",
+                        placeholder: "Any dimension",
                         disabled,
                         onChange: (dimKey) => handleUpdateProfile(p.id, "primaryDimension", dimKey)
                       }
@@ -2144,7 +2152,9 @@ var ProfileMappingTable = ({
                     /* @__PURE__ */ jsx6("td", { className: "py-2 px-3 align-middle", children: /* @__PURE__ */ jsx6(
                       SeveritySelect,
                       {
-                        value: p.severityLevel || "Parah",
+                        value: p.severityLevel || "",
+                        options: severityLabels,
+                        emptyLabel: "Any level",
                         disabled,
                         onChange: (sev) => handleUpdateProfile(p.id, "severityLevel", sev)
                       }
@@ -2261,16 +2271,18 @@ var ProfileMappingTable = ({
   ] });
 };
 var MAX_COMBINATIONS = 64;
-var SCORE_RANGE_CODES = ["O", "S", "P"];
-function axisLetters(a) {
+function axisLetters(a, rangeLetters) {
+  const own = Array.from(new Set((a.bands || []).map((b) => (b.letter || "").trim().toUpperCase()).filter(Boolean)));
+  if (own.length) return own;
   const low = (a.axisCodeLow || "").trim().toUpperCase();
   const high = (a.axisCodeHigh || "").trim().toUpperCase();
-  return low && high ? [low, high] : SCORE_RANGE_CODES;
+  return low && high ? [low, high] : rangeLetters;
 }
-function generateCartesianCombinations(axes) {
-  if (axes.length === 0) return [];
-  const dimTierArrays = axes.map((a) => {
-    return axisLetters(a).map((code) => ({ dimKey: a.dimensionKey, code }));
+function generateCartesianCombinations(axes, rangeLetters) {
+  const lettered = axes.filter((a) => a.dimensionKey && axisLetters(a, rangeLetters).length > 0);
+  if (lettered.length === 0) return [];
+  const dimTierArrays = lettered.map((a) => {
+    return axisLetters(a, rangeLetters).map((code) => ({ dimKey: a.dimensionKey, code }));
   });
   let combinations = [[]];
   for (const curr of dimTierArrays) {
@@ -2312,6 +2324,7 @@ function generateCartesianCombinations(axes) {
 import { jsx as jsx7, jsxs as jsxs7 } from "react/jsx-runtime";
 var inputCls = "w-full h-9 rounded-md bg-muted/40 border border-border px-3 text-foreground text-sm placeholder:text-muted-foreground outline-none focus:border-ring disabled:opacity-50";
 var labelCls = "block text-xs font-semibold text-foreground mb-1.5";
+var SIMULATE_SCORE_PLACEHOLDER = "<health score 0-100, or remove if not answered>";
 var slugify = (v) => v.toLowerCase().trim().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 var RulesetModal = ({
   isOpen,
@@ -2330,8 +2343,8 @@ var RulesetModal = ({
   const [formSurveyCode, setFormSurveyCode] = useState5("");
   const [visionSourceCode, setVisionSourceCode] = useState5("");
   const [surveys, setSurveys] = useState5([]);
-  const [axes, setAxes] = useState5(DEFAULT_STARTER_AXES);
-  const [profileConfig, setProfileConfig] = useState5(DEFAULT_STARTER_PROFILES);
+  const [axes, setAxes] = useState5([]);
+  const [profileConfig, setProfileConfig] = useState5(EMPTY_PROFILE_CONFIG);
   const [scoreRangeBands, setScoreRangeBands] = useState5(DEFAULT_SCORE_RANGE_BANDS);
   const [severityBands, setSeverityBands] = useState5(DEFAULT_SEVERITY_BANDS);
   const [tab, setTab] = useState5("setup");
@@ -2379,8 +2392,8 @@ var RulesetModal = ({
       setBrandId("*");
       setApplicationId("*");
       setStatus("ACTIVE");
-      setAxes(DEFAULT_STARTER_AXES);
-      setProfileConfig(DEFAULT_STARTER_PROFILES);
+      setAxes([]);
+      setProfileConfig({ ...EMPTY_PROFILE_CONFIG, profiles: [] });
       setScoreRangeBands(DEFAULT_SCORE_RANGE_BANDS);
       setSeverityBands(DEFAULT_SEVERITY_BANDS);
       setIsLegacy(false);
@@ -2405,11 +2418,10 @@ var RulesetModal = ({
       ...prev,
       {
         id: `axis_${Date.now()}`,
-        axisCode: `DIM_${n}`,
+        axisCode: "",
         name: `Dimension ${n}`,
-        dimensionKey: "sensitivity",
-        weight: 1,
-        concernLabel: defaultConcernLabel("sensitivity")
+        dimensionKey: "",
+        weight: 1
       }
     ]);
   };
@@ -2434,6 +2446,14 @@ var RulesetModal = ({
     if (!effectiveCode) {
       setTab("setup");
       return setFormError("Could not derive a code \u2014 set one manually.");
+    }
+    if (axes.length === 0) {
+      setTab("dimensions");
+      return setFormError("Add at least one dimension.");
+    }
+    if (axes.some((a) => !(a.dimensionKey || "").trim())) {
+      setTab("dimensions");
+      return setFormError("Pick a dimension for every row before saving.");
     }
     setIsSubmitting(true);
     try {
@@ -2473,9 +2493,10 @@ var RulesetModal = ({
   const simulateRequestBody = JSON.stringify(
     {
       schema: jsonText,
-      dimension_scores: Object.fromEntries(
-        axes.map((a) => [a.dimensionKey.toLowerCase(), 50])
+      form_scores: Object.fromEntries(
+        axes.filter((a) => a.dimensionKey).map((a) => [a.dimensionKey.toLowerCase(), SIMULATE_SCORE_PLACEHOLDER])
       ),
+      vision_scores: {},
       customer_condition: {}
     },
     null,
@@ -2531,7 +2552,7 @@ var RulesetModal = ({
                     required: true,
                     value: name,
                     onChange: (e) => setName(e.target.value),
-                    placeholder: "e.g. Wardah Skinverse grading",
+                    placeholder: "e.g. Brand skin grading",
                     className: inputCls
                   }
                 ),
@@ -2700,23 +2721,20 @@ var RulesetModal = ({
                   }
                 )
               ] }),
+              axes.length === 0 && /* @__PURE__ */ jsx7("p", { className: "rounded-md border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground", children: "No dimensions yet. Add one and pick it from reference data." }),
               axes.map((axis, i) => /* @__PURE__ */ jsx7(
                 ClinicalAxisCard,
                 {
                   axis,
                   index: i,
-                  defaultOpen: axes.length === 1,
+                  defaultOpen: axes.length === 1 || !axis.dimensionKey,
                   siblingWeightTotal: totalWeight,
                   onUpdate: (updated) => setAxes((prev) => prev.map((a) => a.id === axis.id ? updated : a)),
                   onDelete: () => {
-                    if (axes.length <= 1) {
-                      setFormError("Keep at least one dimension.");
-                      return;
-                    }
                     setAxes((prev) => prev.filter((a) => a.id !== axis.id));
                     setFormError(null);
                   },
-                  canDelete: axes.length > 1
+                  canDelete: true
                 },
                 axis.id
               ))
@@ -2774,7 +2792,16 @@ var RulesetModal = ({
                     }
                   )
                 ] }),
-                /* @__PURE__ */ jsx7(ProfileMappingTable, { axes, config: profileConfig, onChange: setProfileConfig })
+                /* @__PURE__ */ jsx7(
+                  ProfileMappingTable,
+                  {
+                    axes,
+                    config: profileConfig,
+                    onChange: setProfileConfig,
+                    scoreRangeBands,
+                    severityBands
+                  }
+                )
               ] })
             ] })
           ] }),
@@ -3184,14 +3211,12 @@ export {
   ClinicalDimensionCard,
   DEFAULT_SCORE_RANGE_BANDS,
   DEFAULT_SEVERITY_BANDS,
-  DEFAULT_STARTER_AXES,
-  DEFAULT_STARTER_PROFILES,
+  EMPTY_PROFILE_CONFIG,
   ProfileMappingTable,
   ScoreManager,
   SeverityTierTable,
   compileVisualToJDM,
   decompileJDMToVisual,
-  decompileJDMToVisualComponents,
-  defaultConcernLabel
+  decompileJDMToVisualComponents
 };
 //# sourceMappingURL=index.mjs.map

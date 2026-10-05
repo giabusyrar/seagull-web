@@ -5,7 +5,6 @@ import { Trash2, ChevronRight, ChevronDown, Plus } from 'lucide-react';
 import { DimensionSelect, InfoTooltip, useHostRoutes } from '@gateway-experience/shared';
 import type { VisualAxisConfig, ThresholdBand } from '../../types';
 import { FORM_SOURCE, VISION_SOURCE } from '../../types';
-import { defaultConcernLabel } from '../../utils/jdm-compiler';
 import { listSkinConditions } from '../../api';
 
 /** One selectable CV capability, flattened from ref_skin_conditions —
@@ -119,16 +118,16 @@ export const ClinicalDimensionCard: React.FC<ClinicalDimensionCardProps> = ({
       ? Math.round((axis.weight / siblingWeightTotal) * 100)
       : null;
 
-  const concern = axis.concernLabel || defaultConcernLabel(axis.dimensionKey);
+  // No concern label set: core names the concern itself (its own default
+  // per dimension), so the editor says so instead of guessing that name.
+  const concern = (axis.concernLabel || '').trim() || 'engine default concern name';
 
   const handleDimensionChange = (dimKey: string, dimMeta?: { code: string; name: string }) => {
-    const wasDefault = !axis.concernLabel || axis.concernLabel === defaultConcernLabel(axis.dimensionKey);
     onUpdate({
       ...axis,
       dimensionKey: dimKey,
       axisCode: dimKey.toUpperCase(),
       name: dimMeta?.name || dimKey.toUpperCase(),
-      concernLabel: wasDefault ? defaultConcernLabel(dimKey) : axis.concernLabel,
     });
   };
 
@@ -149,6 +148,9 @@ export const ClinicalDimensionCard: React.FC<ClinicalDimensionCardProps> = ({
           <span className="text-sm font-semibold text-foreground">
             {axis.name || axis.dimensionKey.toUpperCase()}
           </span>
+          {!axis.dimensionKey && (
+            <span className="text-[11px] font-semibold text-amber-500">no dimension picked</span>
+          )}
           <span className="text-[11px] text-muted-foreground">
             {share !== null ? `≈${share}% of overall` : `weight ${axis.weight}`}
           </span>
@@ -208,7 +210,7 @@ export const ClinicalDimensionCard: React.FC<ClinicalDimensionCardProps> = ({
                 Concern label
               </label>
               <InfoTooltip
-                content="Shown when this dimension is the customer’s dominant concern."
+                content="Shown when this dimension is the customer’s dominant concern. Left empty, the Score Engine uses its own default name for the dimension."
                 label="About concern label"
                 iconClassName="h-3 w-3"
               />
@@ -216,9 +218,9 @@ export const ClinicalDimensionCard: React.FC<ClinicalDimensionCardProps> = ({
             <input
               type="text"
               disabled={disabled}
-              value={axis.concernLabel ?? concern}
+              value={axis.concernLabel ?? ''}
               onChange={(e) => onUpdate({ ...axis, concernLabel: e.target.value })}
-              placeholder={defaultConcernLabel(axis.dimensionKey)}
+              placeholder="Not set: the engine's default concern name is used"
               className={fieldCls}
             />
           </div>

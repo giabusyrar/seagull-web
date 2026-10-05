@@ -4,30 +4,35 @@ import { useState, useEffect, useMemo } from 'react';
 import { SearchableSelect } from '../SearchableSelect';
 import { extractReferenceList } from './extractReferenceList';
 import { NO_REFERENCE_SOURCE_PLACEHOLDER, useReferenceDataSource } from './ReferenceDataProvider';
+/** Shown when the reference dimensions request fails. */
+const DIMENSIONS_UNAVAILABLE_PLACEHOLDER = 'Dimensions could not be loaded from reference data';
+/** Shown when reference data answers with an empty dimension catalog. */
+const DIMENSIONS_EMPTY_PLACEHOLDER = 'No dimensions defined in reference data';
 export const DimensionSelect = ({ value, onChange, label = 'Target Dimension', placeholder = 'Select Dimension...', disabled = false, className = '', }) => {
-    const [dimensions, setDimensions] = useState([
-        { code: 'sebum', name: 'Sebum Secretion' },
-        { code: 'sensitivity', name: 'Epidermal Reactivity' },
-        { code: 'pigmentation', name: 'Melanogenesis & Spots' },
-        { code: 'aging', name: 'Elasticity & Wrinkles' },
-        { code: 'barrier', name: 'Moisture Barrier' },
-        { code: 'hydration', name: 'Skin Hydration' },
-    ]);
+    // The catalog comes only from reference data. There is no built-in list to
+    // fall back on: dimension keys are data, and a stand-in list would look like
+    // the real catalog. When it cannot load, the picker says so.
+    const [dimensions, setDimensions] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [loadError, setLoadError] = useState(null);
     const source = useReferenceDataSource();
     useEffect(() => {
         if (!source)
             return;
         setIsLoading(true);
+        setLoadError(null);
         source
             .dimensions()
             .then((data) => {
             const list = extractReferenceList(data, 'dimensions');
-            if (list.length > 0) {
-                setDimensions(list.map((d) => ({ code: d.code, name: d.name || d.code, category: d.category })));
-            }
+            setDimensions(list.map((d) => ({ code: d.code, name: d.name || d.code, category: d.category })));
+            if (list.length === 0)
+                setLoadError(DIMENSIONS_EMPTY_PLACEHOLDER);
         })
-            .catch(() => { })
+            .catch(() => {
+            setDimensions([]);
+            setLoadError(DIMENSIONS_UNAVAILABLE_PLACEHOLDER);
+        })
             .finally(() => setIsLoading(false));
     }, [source]);
     const options = useMemo(() => {
@@ -50,5 +55,5 @@ export const DimensionSelect = ({ value, onChange, label = 'Target Dimension', p
         const matched = dimensions.find((d) => d.code === dimKey);
         onChange(dimKey, matched);
     };
-    return (_jsxs("div", { className: `space-y-1 ${className}`, children: [label && (_jsx("label", { className: "block text-xs font-semibold text-slate-400 uppercase tracking-wider text-[10px] mb-1", children: label })), _jsx(SearchableSelect, { options: options, value: value, onChange: handleChange, disabled: disabled || isLoading, placeholder: !source ? NO_REFERENCE_SOURCE_PLACEHOLDER : isLoading ? 'Loading dimensions...' : placeholder, searchPlaceholder: "Search dimensions..." })] }));
+    return (_jsxs("div", { className: `space-y-1 ${className}`, children: [label && (_jsx("label", { className: "block text-xs font-semibold text-slate-400 uppercase tracking-wider text-[10px] mb-1", children: label })), _jsx(SearchableSelect, { options: options, value: value, onChange: handleChange, disabled: disabled || isLoading, placeholder: !source ? NO_REFERENCE_SOURCE_PLACEHOLDER : isLoading ? 'Loading dimensions...' : placeholder, searchPlaceholder: "Search dimensions..." }), source && loadError && !isLoading && (_jsx("p", { role: "alert", className: "text-[10px] text-amber-500", children: loadError }))] }));
 };

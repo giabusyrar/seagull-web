@@ -35,7 +35,7 @@ var REFERENCE_ENTITY_CONFIGS = {
     fields: [
       { key: "name", label: "Brand Name", type: "text", required: true },
       { key: "code", label: "Brand Code", type: "text" },
-      { key: "website", label: "Website URL (e.g. wardahbeauty.com)", type: "text" },
+      { key: "website", label: "Website URL (e.g. brand.example.com)", type: "text" },
       { key: "colorCode", label: "Color Code (Hex e.g. #10b981)", type: "text" },
       { key: "description", label: "Description", type: "textarea" }
     ]
@@ -203,7 +203,7 @@ REFERENCE_ENTITY_CONFIGS["application"] = REFERENCE_ENTITY_CONFIGS["applications
 
 // src/reference/components/ReferenceTable.tsx
 import { Edit2, Trash2, Sparkles, Globe, ExternalLink, Target } from "lucide-react";
-import { DataTable, EmptyState, BrandTag, getDomainFromUrl } from "@gateway-experience/shared";
+import { DataTable, EmptyState, BrandTag, getDomainFromUrl, getBrandColorTheme } from "@gateway-experience/shared";
 import { jsx, jsxs } from "react/jsx-runtime";
 var ReferenceTable = ({
   config,
@@ -316,12 +316,11 @@ var ReferenceTable = ({
         key: "colorCode",
         header: "Color Code",
         render: (item) => {
-          const lower = (item.name || "").toLowerCase();
-          const defaultHex = lower.includes("wardah") ? "#10b981" : lower.includes("makeover") || lower.includes("make over") ? "#f43f5e" : lower.includes("emina") ? "#ec4899" : lower.includes("kahf") ? "#f59e0b" : lower.includes("biodef") ? "#06b6d4" : lower.includes("somethinc") ? "#8b5cf6" : lower.includes("wonderly") ? "#a855f7" : lower.includes("omg") ? "#f97316" : "#eab308";
-          const hex = item.colorCode || defaultHex;
+          const stored = item.colorCode || void 0;
+          const hex = stored || getBrandColorTheme(item.code || item.id || item.name || "").hex;
           return /* @__PURE__ */ jsxs("span", { className: "flex items-center gap-1.5 font-mono text-[11px] font-bold text-foreground bg-secondary/60 border border-border px-2 py-0.5 rounded w-fit whitespace-nowrap", children: [
             /* @__PURE__ */ jsx("span", { className: "h-3.5 w-3.5 rounded-full shrink-0 border border-border shadow-xs", style: { backgroundColor: hex } }),
-            /* @__PURE__ */ jsx("span", { children: hex })
+            stored ? /* @__PURE__ */ jsx("span", { children: hex }) : /* @__PURE__ */ jsx("span", { className: "font-normal italic text-muted-foreground", title: "No colour code set \u2014 colour derived from the brand id", children: "not set" })
           ] });
         }
       }
@@ -410,7 +409,7 @@ var ReferenceTable = ({
         header: "Target Dimension",
         render: (item) => /* @__PURE__ */ jsxs("span", { className: "px-2 py-0.5 bg-blue-500/15 border border-blue-500/40 text-blue-600 text-[10px] font-bold rounded flex items-center gap-1 w-fit whitespace-nowrap", children: [
           /* @__PURE__ */ jsx(Target, { className: "h-3 w-3" }),
-          /* @__PURE__ */ jsx("span", { children: item.dimensionCode || item.dimension_code || "sebum" })
+          /* @__PURE__ */ jsx("span", { children: item.dimensionCode || item.dimension_code || "\u2014" })
         ] })
       }
     ] : [],
@@ -594,7 +593,7 @@ var ReferenceFormModal = ({
                 value: formData[field2.key] || field2.options?.[0]?.value || "",
                 onChange: (e) => setFormData({ ...formData, [field2.key]: e.target.value }),
                 className: "w-full h-9 bg-background border border-border rounded-lg px-3 text-foreground outline-none focus:border-ring transition cursor-pointer",
-                children: field2.options?.map((opt2) => /* @__PURE__ */ jsx2("option", { value: opt2.value, children: opt2.label }, opt2.value))
+                children: field2.options?.map((opt) => /* @__PURE__ */ jsx2("option", { value: opt.value, children: opt.label }, opt.value))
               }
             ),
             field2.type === "relation" && field2.relationEntity && (() => {
@@ -616,9 +615,9 @@ var ReferenceFormModal = ({
               return /* @__PURE__ */ jsx2(
                 SearchableSelect,
                 {
-                  options: opts.map((opt2) => ({
-                    value: isCodeBased && opt2.code ? opt2.code : opt2.id,
-                    label: isCodeBased && opt2.code ? `${opt2.name} (${opt2.code})` : opt2.name
+                  options: opts.map((opt) => ({
+                    value: isCodeBased && opt.code ? opt.code : opt.id,
+                    label: isCodeBased && opt.code ? `${opt.name} (${opt.code})` : opt.name
                   })),
                   value: currentVal,
                   onChange: (val) => setFormData({ ...formData, [field2.key]: val }),
@@ -642,9 +641,9 @@ var ReferenceFormModal = ({
                 SearchableSelect,
                 {
                   multiple: true,
-                  options: opts.map((opt2) => ({
-                    value: isCodeBased && opt2.code ? opt2.code : opt2.id,
-                    label: isCodeBased && opt2.code ? `${opt2.name} (${opt2.code})` : opt2.name
+                  options: opts.map((opt) => ({
+                    value: isCodeBased && opt.code ? opt.code : opt.id,
+                    label: isCodeBased && opt.code ? `${opt.name} (${opt.code})` : opt.name
                   })),
                   value: selectedValues,
                   onChange: (vals) => {
@@ -1361,11 +1360,10 @@ var form_exports = {};
 __export(form_exports, {
   BUILTIN_TEMPLATES: () => BUILTIN_TEMPLATES,
   CALCULATION_METHODS: () => CALCULATION_METHODS,
-  FALLBACK_DIMENSIONS: () => FALLBACK_DIMENSIONS,
   FormManager: () => FormManager,
+  MissingTenantError: () => MissingTenantError,
   PFORM_EXAMPLE: () => PFORM_EXAMPLE,
   PFORM_SUGGESTED_DIMENSIONS: () => PFORM_SUGGESTED_DIMENSIONS,
-  PIXIE_OMG_SKIN_ANALYZER: () => PIXIE_OMG_SKIN_ANALYZER,
   QuestionnaireRunner: () => QuestionnaireRunner,
   applyCalculationMethod: () => applyCalculationMethod,
   applyDimensionMapping: () => applyDimensionMapping,
@@ -1407,19 +1405,10 @@ import { FileText, Pencil, Trash2 as Trash23, ChevronDown, ChevronUp, Plus as Pl
 import { SearchFilterBar as SearchFilterBar3, EmptyState as EmptyState2 } from "@gateway-experience/shared";
 
 // src/form/catalog.ts
-var FALLBACK_DIMENSIONS = [
-  { code: "sebum", label: "Sebum / Oiliness", purpose: "How oily or dry the skin is." },
-  { code: "sensitivity", label: "Sensitivity / Redness", purpose: "How reactive the skin is to products and environment." },
-  { code: "pigmentation", label: "Pigment Level", purpose: "How much uneven pigment or dark spots are present." },
-  { code: "dark_spot", label: "Dark Spot Tendency", purpose: "Whether the skin scars or darkens easily." },
-  { code: "pores", label: "Pores / Texture", purpose: "How visible pores are and how rough the skin feels." },
-  { code: "acne", label: "Acne", purpose: "Presence and severity of active breakouts." },
-  { code: "wrinkle", label: "Wrinkles / Fine Lines", purpose: "Visible ageing signs such as fine lines." }
-];
-var getDimensionMeta = (code, extra = []) => [...extra, ...FALLBACK_DIMENSIONS].find((d) => d.code === code) || {
+var getDimensionMeta = (code, catalog = []) => catalog.find((d) => d.code === code) || {
   code,
   label: code,
-  purpose: "Measure this aspect of the skin."
+  purpose: ""
 };
 var CALCULATION_METHODS = [
   { value: "sum", label: "Sum", hint: "Add every answer score together." },
@@ -1445,96 +1434,6 @@ var applyCalculationMethod = (scores, method = "sum") => {
       return scores.length > 0 && scores.every((s) => s > 0) ? 100 : 0;
     default:
       return clamp(total);
-  }
-};
-var opt = (label, value, score) => ({ label, value, score });
-var abc = (id, label, dimension, choices) => ({
-  id,
-  type: "single_choice",
-  label,
-  dimension,
-  options: [
-    opt(choices[0], `${id}_a`, 1),
-    opt(choices[1], `${id}_b`, 2),
-    opt(choices[2], `${id}_c`, 3)
-  ]
-});
-var sebumCharacter = {
-  id: "sebum_character",
-  type: "multi_choice",
-  label: "Check every statement that matches your facial skin (select all that apply).",
-  dimension: "sebum",
-  options: [
-    opt("I can use any cleanser without feeling dry", "sebum_any_cleanser", 2),
-    opt("I do not use any product after cleansing", "sebum_no_product", 1),
-    opt("I never or only occasionally use moisturizer", "sebum_rare_moist", 2),
-    opt("I use facial moisturizer once a day", "sebum_moist_1x", -1),
-    opt("I use facial moisturizer twice a day", "sebum_moist_2x", -2),
-    opt("My facial skin is rough or dry", "sebum_rough_dry", -2),
-    opt("My facial skin is oily in some areas", "sebum_oily_areas", 2),
-    opt("My face is very oily", "sebum_very_oily", 3),
-    opt("My face feels uncomfortable without moisturizer", "sebum_uncomfortable", -2),
-    opt("I like the feel of rich creams and/or oils on my skin", "sebum_likes_rich", -3),
-    opt("None of the above", "sebum_none", 0)
-  ]
-};
-var sensitivityChecklist = {
-  id: "sensitivity_checklist",
-  type: "multi_choice",
-  label: "Tick any condition you are prone to experiencing.",
-  dimension: "sensitivity",
-  options: [
-    opt("Facial redness and/or flushing", "sens_redness", 1),
-    opt("Stinging or burning sensation on the skin", "sens_stinging", 1),
-    opt("Allergic reaction to skincare products", "sens_allergy", 1),
-    opt("Irritation when shaving the face", "sens_shaving", 1),
-    opt("None of the above", "sens_none", 0)
-  ]
-};
-var pigmentAmount = abc(
-  "pigment_amount",
-  "How much dark pigment or discoloration is visible on your face?",
-  "pigmentation",
-  ["A few faint spots", "Several visible spots", "Many clearly visible spots"]
-);
-var pigmentScars = abc(
-  "pigment_scars",
-  "What happens to acne marks or dark marks you have had?",
-  "pigmentation",
-  ["They fade quickly", "They take a long time to fade", "They are hard to remove"]
-);
-var pigmentReactivity = abc(
-  "pigment_reactivity",
-  "How easily does your skin change colour after sun, injury, or acne?",
-  "pigmentation",
-  ["Rarely gets dark marks", "Often gets dark marks", "Very easily gets dark marks"]
-);
-var darkSpotTendency = {
-  id: "dark_spot_tendency",
-  type: "single_choice",
-  label: "Do dark spots appear easily after acne, injury, or sun exposure?",
-  dimension: "dark_spot",
-  options: [opt("Yes", "ds_yes", 1), opt("No", "ds_no", 0)]
-};
-var PIXIE_OMG_SKIN_ANALYZER = {
-  code: "pixie_omg_skin_analyzer",
-  name: "Pixie / OMG Skin Analyzer",
-  description: "Questionnaire replica of the Wardah (Pixie) + OMG Skin Analyzer inputs for sebum, sensitivity, pigment level, and dark-spot tendency.",
-  status: "draft",
-  questions: [
-    sebumCharacter,
-    sensitivityChecklist,
-    pigmentAmount,
-    pigmentScars,
-    pigmentReactivity,
-    darkSpotTendency
-  ],
-  calculationMethods: {
-    sebum: "sum",
-    sensitivity: "boolean_or",
-    // Pixie: any checklist item -> "Sensitive Stinger"
-    pigmentation: "average",
-    dark_spot: "boolean_or"
   }
 };
 var pfChoice = (label, value, score) => ({
@@ -1711,12 +1610,6 @@ function applyDimensionMapping(q, mapping, methods = {}) {
 var cloneQuestionnaire = (q) => JSON.parse(JSON.stringify(q));
 var BUILTIN_TEMPLATES = [
   {
-    id: PIXIE_OMG_SKIN_ANALYZER.code,
-    name: PIXIE_OMG_SKIN_ANALYZER.name,
-    description: PIXIE_OMG_SKIN_ANALYZER.description,
-    build: () => cloneQuestionnaire(PIXIE_OMG_SKIN_ANALYZER)
-  },
-  {
     id: PFORM_EXAMPLE.code,
     name: PFORM_EXAMPLE.name,
     description: PFORM_EXAMPLE.description,
@@ -1850,15 +1743,15 @@ var QuestionnairesTab = ({
                 ] }),
                 /* @__PURE__ */ jsx6("span", { className: "text-[10px] uppercase tracking-wide text-beak shrink-0", children: getDimensionMeta(qu.dimension).label })
               ] }),
-              /* @__PURE__ */ jsx6("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-1.5", children: qu.options.map((opt2, oi) => /* @__PURE__ */ jsxs5(
+              /* @__PURE__ */ jsx6("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-1.5", children: qu.options.map((opt, oi) => /* @__PURE__ */ jsxs5(
                 "div",
                 {
                   className: "rounded border border-border px-2 py-1 flex items-center justify-between text-xs",
                   children: [
-                    /* @__PURE__ */ jsx6("span", { className: "text-muted-foreground truncate pr-2", children: opt2.label }),
+                    /* @__PURE__ */ jsx6("span", { className: "text-muted-foreground truncate pr-2", children: opt.label }),
                     /* @__PURE__ */ jsxs5("span", { className: "text-foreground font-mono shrink-0", children: [
-                      (opt2.score ?? 0) > 0 ? "+" : "",
-                      opt2.score ?? 0
+                      (opt.score ?? 0) > 0 ? "+" : "",
+                      opt.score ?? 0
                     ] })
                   ]
                 },
@@ -2385,8 +2278,18 @@ import { Modal as Modal3, Button, BrandSelect, ApplicationSelect, InfoTooltip, u
 
 // src/form/api.ts
 var FORM = "/core/form-engine";
-var DEFAULT_BRAND = "wardah";
-var DEFAULT_APP = "skinverse";
+var MissingTenantError = class extends Error {
+  constructor() {
+    super("Choose a brand and an application first \u2014 questionnaires are stored per tenant.");
+    this.name = "MissingTenantError";
+  }
+};
+function requireTenant(brandId, applicationId) {
+  const b = (brandId ?? "").trim();
+  const a = (applicationId ?? "").trim();
+  if (!b || !a) throw new MissingTenantError();
+  return { brandId: b, applicationId: a };
+}
 var tenantQuery = (brandId, applicationId) => `brand_id=${encodeURIComponent(brandId)}&application_id=${encodeURIComponent(applicationId)}`;
 function parseSchema(row) {
   const s = row?.schema;
@@ -2422,8 +2325,9 @@ function rowToItem(row) {
     applicationId: row?.applicationId || row?.application_id || item.applicationId
   };
 }
-async function listRows(brandId = DEFAULT_BRAND, applicationId = DEFAULT_APP) {
-  const res = await fetch(`${FORM}/survey?${tenantQuery(brandId, applicationId)}`, {
+async function listRows(brandId, applicationId) {
+  const t = requireTenant(brandId, applicationId);
+  const res = await fetch(`${FORM}/survey?${tenantQuery(t.brandId, t.applicationId)}`, {
     cache: "no-store"
   });
   if (!res.ok) throw new Error(`form-engine list failed (${res.status})`);
@@ -2434,13 +2338,13 @@ async function listRows(brandId = DEFAULT_BRAND, applicationId = DEFAULT_APP) {
   return [];
 }
 var isArchived = (r) => (r?.status ?? "") === "archived";
-async function listQuestionnaires(brandId = DEFAULT_BRAND, applicationId = DEFAULT_APP) {
+async function listQuestionnaires(brandId, applicationId) {
   return (await listRows(brandId, applicationId)).filter((r) => !isArchived(r)).map(rowToItem);
 }
-async function getQuestionnaire(code, brandId = DEFAULT_BRAND, applicationId = DEFAULT_APP) {
+async function getQuestionnaire(code, brandId, applicationId) {
   return (await listQuestionnaires(brandId, applicationId)).find((q) => q.code === code) ?? null;
 }
-async function getQuestionnaireModel(code, brandId = DEFAULT_BRAND, applicationId = DEFAULT_APP) {
+async function getQuestionnaireModel(code, brandId, applicationId) {
   const row = (await listRows(brandId, applicationId)).find(
     (r) => r.code === code && !isArchived(r)
   );
@@ -2451,14 +2355,15 @@ async function getQuestionnaireModel(code, brandId = DEFAULT_BRAND, applicationI
   }
   return { ...model, code: row.code || model.code, title: row.title || model.title };
 }
-async function saveQuestionnaire(item, brandId = DEFAULT_BRAND, applicationId = DEFAULT_APP) {
+async function saveQuestionnaire(item, brandId, applicationId) {
+  const t = requireTenant(item.brandId || brandId, item.applicationId || applicationId);
   const code = item.code || `form_${Date.now()}`;
   const res = await fetch(`${FORM}/survey`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      brand_id: item.brandId || brandId,
-      application_id: item.applicationId || applicationId,
+      brand_id: t.brandId,
+      application_id: t.applicationId,
       code,
       title: item.name || code,
       status: toColumnStatus(item.status),
@@ -2467,15 +2372,16 @@ async function saveQuestionnaire(item, brandId = DEFAULT_BRAND, applicationId = 
   });
   if (!res.ok) throw new Error(`form-engine save failed (${res.status})`);
 }
-async function deleteQuestionnaire(code, brandId = DEFAULT_BRAND, applicationId = DEFAULT_APP) {
-  const existing = (await listRows(brandId, applicationId)).find((r) => r.code === code);
+async function deleteQuestionnaire(code, brandId, applicationId) {
+  const t = requireTenant(brandId, applicationId);
+  const existing = (await listRows(t.brandId, t.applicationId)).find((r) => r.code === code);
   const schema = existing ? parseSchema(existing) : { code };
   const res = await fetch(`${FORM}/survey/${encodeURIComponent(code)}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      brand_id: existing?.brandId || existing?.brand_id || brandId,
-      application_id: existing?.applicationId || existing?.application_id || applicationId,
+      brand_id: existing?.brandId || existing?.brand_id || t.brandId,
+      application_id: existing?.applicationId || existing?.application_id || t.applicationId,
       code,
       title: existing?.title || code,
       status: "archived",
@@ -2661,8 +2567,8 @@ var QuestionnaireModal = ({
   onClose,
   onSave,
   editingQ,
-  brandId = "wardah",
-  applicationId = "skinverse"
+  brandId = "",
+  applicationId = ""
 }) => {
   const hostRoutes = useHostRoutes3();
   const [step, setStep] = useState6("setup");
@@ -2677,6 +2583,7 @@ var QuestionnaireModal = ({
   const [questions, setQuestions] = useState6([]);
   const [calcMethods, setCalcMethods] = useState6({});
   const [apiDimensions, setApiDimensions] = useState6([]);
+  const [dimensionsSettled, setDimensionsSettled] = useState6(false);
   const [safetyFlagCatalog, setSafetyFlagCatalog] = useState6([]);
   const [filterDim, setFilterDim] = useState6("all");
   const [collapsed, setCollapsed] = useState6({});
@@ -2733,7 +2640,7 @@ var QuestionnaireModal = ({
           purpose: it.description || getDimensionMeta(it.code).purpose
         }))
       );
-    }).catch(() => setApiDimensions([]));
+    }).catch(() => setApiDimensions([])).finally(() => setDimensionsSettled(true));
   }, [isOpen, hostRoutes]);
   useEffect5(() => {
     if (!isOpen) return;
@@ -2781,7 +2688,9 @@ var QuestionnaireModal = ({
     [effectiveCode, qName, qDesc, qStatus, qBrand, qApp, questions, calcMethods, usedDimensions]
   );
   if (!isOpen) return null;
-  const dimensionList = apiDimensions.length ? apiDimensions : FALLBACK_DIMENSIONS;
+  const dimensionList = apiDimensions;
+  const dimensionsUnavailable = dimensionsSettled && dimensionList.length === 0;
+  const tenantMissing = !qBrand || !qApp;
   const metaOf = (code) => getDimensionMeta(code, dimensionList);
   const schemaJson = JSON.stringify(toSurveyModel(draftItem), null, 2);
   const createBodyJson = JSON.stringify(
@@ -2801,7 +2710,7 @@ var QuestionnaireModal = ({
     )
   );
   const addQuestion = () => {
-    const dim = filterDim !== "all" ? filterDim : usedDimensions[0] || dimensionList[0]?.code || "sebum";
+    const dim = filterDim !== "all" ? filterDim : "";
     const q = newQuestion(dim);
     setQuestions((cur) => [...cur, q]);
     setCollapsed((cur) => ({ ...cur, [q.id]: false }));
@@ -2821,7 +2730,7 @@ var QuestionnaireModal = ({
   const submit = async (e) => {
     e.preventDefault();
     const code = effectiveCode.trim();
-    if (!qName.trim() || !code) return;
+    if (!qName.trim() || !code || tenantMissing) return;
     setSubmitting(true);
     try {
       await onSave({ ...draftItem, code });
@@ -2978,7 +2887,8 @@ var QuestionnaireModal = ({
                     }
                   )
                 ] })
-              ] })
+              ] }),
+              tenantMissing && /* @__PURE__ */ jsx8("p", { className: "text-[11px] text-amber-500", children: "Choose a brand and an application \u2014 the questionnaire is saved under that tenant." })
             ] }),
             /* @__PURE__ */ jsxs7("div", { className: "rounded-lg border border-border bg-card p-3 space-y-2", children: [
               /* @__PURE__ */ jsx8("p", { className: "text-foreground text-xs font-semibold", children: "Start from a template" }),
@@ -2999,6 +2909,7 @@ var QuestionnaireModal = ({
             /* @__PURE__ */ jsx8("div", { className: "flex justify-end", children: /* @__PURE__ */ jsx8(Button, { type: "button", size: "sm", onClick: () => setStep("questions"), children: "Continue" }) })
           ] }),
           step === "questions" && /* @__PURE__ */ jsxs7("div", { className: "space-y-3", children: [
+            dimensionsUnavailable && /* @__PURE__ */ jsx8("div", { className: "rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-500", children: "Dimensions could not be loaded from reference data. Questions can still be written as label-only; scoring needs the dimension catalog (Reference Data \u2192 Dimensions)." }),
             usedDimensions.length > 0 && /* @__PURE__ */ jsx8("div", { className: "flex flex-wrap items-center gap-1.5", children: ["all", ...usedDimensions].map((d) => /* @__PURE__ */ jsx8(
               "button",
               {
@@ -3119,11 +3030,12 @@ var QuestionnaireModal = ({
                                 type: "button",
                                 role: "switch",
                                 "aria-checked": Boolean(q.dimension),
+                                disabled: !q.dimension && dimensionList.length === 0,
                                 onClick: () => updateQuestion(q.id, {
                                   dimension: q.dimension ? "" : usedDimensions[0] || dimensionList[0]?.code || ""
                                 }),
-                                title: q.dimension ? "Counts toward scoring" : "Label only \u2014 click to score it",
-                                className: `relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${q.dimension ? "bg-emerald-500" : "bg-secondary border border-border"}`,
+                                title: q.dimension ? "Counts toward scoring" : dimensionList.length === 0 ? "No dimensions loaded from reference data" : "Label only \u2014 click to score it",
+                                className: `relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full disabled:cursor-not-allowed disabled:opacity-50 border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${q.dimension ? "bg-emerald-500" : "bg-secondary border border-border"}`,
                                 children: /* @__PURE__ */ jsx8(
                                   "span",
                                   {
@@ -3132,14 +3044,20 @@ var QuestionnaireModal = ({
                                 )
                               }
                             ),
-                            q.dimension && /* @__PURE__ */ jsx8(
+                            q.dimension && /* @__PURE__ */ jsxs7(
                               "select",
                               {
                                 value: q.dimension,
                                 onChange: (e) => updateQuestion(q.id, { dimension: e.target.value }),
                                 className: `${fieldSm} w-56`,
                                 style: selectStyle,
-                                children: dimensionList.map((d) => /* @__PURE__ */ jsx8("option", { style: optionStyle, value: d.code, children: d.label }, d.code))
+                                children: [
+                                  !dimensionList.some((d) => d.code === q.dimension) && /* @__PURE__ */ jsxs7("option", { style: optionStyle, value: q.dimension, children: [
+                                    q.dimension,
+                                    " (not in reference data)"
+                                  ] }),
+                                  dimensionList.map((d) => /* @__PURE__ */ jsx8("option", { style: optionStyle, value: d.code, children: d.label }, d.code))
+                                ]
                               }
                             )
                           ] })
@@ -3451,7 +3369,10 @@ var QuestionnaireModal = ({
             ] }),
             /* @__PURE__ */ jsx8("pre", { className: "w-full max-h-96 overflow-auto rounded-md bg-muted/40 border border-border p-2.5 text-foreground text-[11px] font-mono leading-relaxed whitespace-pre", children: schemaJson })
           ] }),
-          /* @__PURE__ */ jsx8("div", { className: "flex items-center justify-end pt-3 border-t border-border", children: /* @__PURE__ */ jsx8(Button, { type: "submit", size: "sm", isLoading: submitting, disabled: !qName.trim(), children: editingQ ? "Save changes" : "Create questionnaire" }) })
+          /* @__PURE__ */ jsxs7("div", { className: "flex items-center justify-end pt-3 border-t border-border", children: [
+            tenantMissing && /* @__PURE__ */ jsx8("span", { className: "mr-3 text-[11px] text-amber-500", children: "Pick a brand and application in Setup to save." }),
+            /* @__PURE__ */ jsx8(Button, { type: "submit", size: "sm", isLoading: submitting, disabled: !qName.trim() || tenantMissing, children: editingQ ? "Save changes" : "Create questionnaire" })
+          ] })
         ] })
       ]
     }
@@ -3463,8 +3384,7 @@ import { jsx as jsx9, jsxs as jsxs8 } from "react/jsx-runtime";
 var TENANT_KEY = "xg.formEngine.tenant";
 var readTenant = () => {
   const t = readPersisted2(TENANT_KEY);
-  if (t?.brandId && t?.applicationId) return t;
-  return { brandId: "wardah", applicationId: "skinverse" };
+  return { brandId: t?.brandId || "", applicationId: t?.applicationId || "" };
 };
 var FormManager = () => {
   const [activeTab, setActiveTab] = usePersistentState2("xg.formEngine.activeTab", "questionnaires");
@@ -3481,7 +3401,12 @@ var FormManager = () => {
   const [isQuestionnaireModalOpen, setIsQuestionnaireModalOpen] = useState7(false);
   const [editingQ, setEditingQ] = useState7(null);
   const [selectedQCode, setSelectedQCode] = usePersistentState2("xg.formEngine.simulator.questionnaire", "");
+  const tenantMissing = !brandId || !applicationId;
   const loadData = () => {
+    if (tenantMissing) {
+      void Promise.resolve([]).then(setQuestionnaires);
+      return;
+    }
     listQuestionnaires(brandId, applicationId).then(setQuestionnaires).catch(() => setQuestionnaires([]));
   };
   useEffect6(() => {
@@ -3586,7 +3511,8 @@ var FormManager = () => {
             content: "Questionnaires below are scoped to this brand / application.",
             label: "About brand / application scope"
           }
-        ) })
+        ) }),
+        tenantMissing && /* @__PURE__ */ jsx9("p", { className: "pb-2 text-xs text-amber-500", children: "Choose a brand and an application to see their questionnaires." })
       ] }),
       activeTab === "questionnaires" && /* @__PURE__ */ jsx9(
         QuestionnairesTab,
@@ -3684,11 +3610,13 @@ var QuestionnaireRunner = ({
     let alive = true;
     setLoading(true);
     setError(null);
-    getQuestionnaireModel(questionnaireCode, brandId, applicationId).then((m) => {
+    getQuestionnaireModel(questionnaireCode, brandId ?? "", applicationId ?? "").then((m) => {
       if (!alive) return;
       if (m) setSchema(m);
       else setError("This questionnaire is not available.");
-    }).catch(() => alive && setError("Could not load the questionnaire.")).finally(() => alive && setLoading(false));
+    }).catch(
+      (e) => alive && setError(e instanceof MissingTenantError ? e.message : "Could not load the questionnaire.")
+    ).finally(() => alive && setLoading(false));
     return () => {
       alive = false;
     };
@@ -3705,7 +3633,7 @@ var QuestionnaireRunner = ({
   }, [schema]);
   useEffect7(() => {
     if (!survey || !schema) return;
-    const onValue = (_, opt2) => onAnswer?.(opt2.name, opt2.value);
+    const onValue = (_, opt) => onAnswer?.(opt.name, opt.value);
     const onComplete_ = async (sender) => {
       const data = sender.data;
       let plain = [];
@@ -3764,15 +3692,13 @@ __export(score_exports, {
   ClinicalDimensionCard: () => ClinicalDimensionCard,
   DEFAULT_SCORE_RANGE_BANDS: () => DEFAULT_SCORE_RANGE_BANDS,
   DEFAULT_SEVERITY_BANDS: () => DEFAULT_SEVERITY_BANDS,
-  DEFAULT_STARTER_AXES: () => DEFAULT_STARTER_AXES,
-  DEFAULT_STARTER_PROFILES: () => DEFAULT_STARTER_PROFILES,
+  EMPTY_PROFILE_CONFIG: () => EMPTY_PROFILE_CONFIG,
   ProfileMappingTable: () => ProfileMappingTable,
   ScoreManager: () => ScoreManager,
   SeverityTierTable: () => SeverityTierTable,
   compileVisualToJDM: () => compileVisualToJDM,
   decompileJDMToVisual: () => decompileJDMToVisual,
-  decompileJDMToVisualComponents: () => decompileJDMToVisualComponents,
-  defaultConcernLabel: () => defaultConcernLabel
+  decompileJDMToVisualComponents: () => decompileJDMToVisualComponents
 });
 
 // src/score/components/ScoreManager.tsx
@@ -4029,6 +3955,7 @@ var LEGACY_SOURCES = {
   vision: { scale: [0, 100], direction: "health" }
 };
 var AGE_FIELD = "age_over_30";
+var AGE_FIELD_CUTOFF_YEARS = 30;
 var FORM_SOURCE = "form";
 var VISION_SOURCE = "vision";
 var DEFAULT_SCORE_RANGE_BANDS = [
@@ -4046,8 +3973,7 @@ var DEFAULT_SEVERITY_BANDS = [
 var KNOWN_VISION_FIELDS = [
   { code: "data.inference_result.results.skin_scoring.Darkspot", label: "Darkspot", description: "results.skin_scoring.Darkspot \u2014 feeds Pigmentation." },
   { code: "data.inference_result.results.skin_scoring.Wrinkle", label: "Wrinkle", description: "results.skin_scoring.Wrinkle \u2014 feeds Aging." },
-  { code: "data.inference_result.results.skin_scoring.Pores", label: "Pores", description: "results.skin_scoring.Pores \u2014 feeds Pore Severity." },
-  { code: "age_over_30", label: "Age > 30 (from DOB)", description: "Derived from date_of_birth on the identity questionnaire, not a Q1-Q6 question. 0 if <=30, 100 if >30." }
+  { code: "data.inference_result.results.skin_scoring.Pores", label: "Pores", description: "results.skin_scoring.Pores \u2014 feeds Pore Severity." }
 ];
 
 // src/score/utils/blend.ts
@@ -4147,70 +4073,16 @@ function validateBlend(sources, axes) {
 
 // src/score/utils/jdm-compiler.ts
 var visionFieldLabel = (code) => KNOWN_VISION_FIELDS.find((f) => f.code === code)?.label || code;
-var DEFAULT_CONCERN_LABELS = {
-  sebum: "Minyak Berlebih",
-  oiliness: "Minyak Berlebih",
-  sensitivity: "Kulit Sensitif",
-  pigmentation: "Noda Gelap",
-  dark_spot: "Noda Gelap",
-  aging: "Garis Halus & Kerutan",
-  hydration: "Kulit Kering",
-  acne: "Jerawat",
-  pores: "Pori Besar",
-  barrier: "Barier Kulit Rusak"
-};
-function defaultConcernLabel(dimKey) {
-  const k = (dimKey || "").toLowerCase();
-  if (DEFAULT_CONCERN_LABELS[k]) return DEFAULT_CONCERN_LABELS[k];
-  return k.split("_").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+var EMPTY_PROFILE_CONFIG = { strategy: "total_score", profiles: [] };
+function scoreRangeLetters(bands) {
+  const letters = bands.slice().sort((x, y) => x.max - y.max).map((b) => b.label.trim().charAt(0).toUpperCase()).filter(Boolean);
+  return Array.from(new Set(letters));
 }
-var DEFAULT_STARTER_AXES = [
-  {
-    id: "axis_sebum",
-    axisCode: "SEBUM",
-    name: "Sebum Secretion",
-    dimensionKey: "sebum",
-    weight: 1,
-    concernLabel: "Minyak Berlebih"
-  }
-];
-var DEFAULT_STARTER_PROFILES = {
-  strategy: "total_score",
-  profiles: [
-    {
-      id: "prof_1",
-      minScore: 61,
-      maxScore: 100,
-      code: "OPTIMAL",
-      title: "Kulit Optimal",
-      category: "Optimal",
-      summary: "Kondisi kulit seimbang, tidak ada keluhan menonjol."
-    },
-    {
-      id: "prof_2",
-      minScore: 41,
-      maxScore: 60,
-      code: "MODERATE",
-      title: "Perlu Perawatan Aktif",
-      category: "Sedang",
-      summary: "Ada keluhan sedang yang perlu perawatan aktif."
-    },
-    {
-      id: "prof_3",
-      minScore: 0,
-      maxScore: 40,
-      code: "CONCERN",
-      title: "Perlu Perhatian Khusus",
-      category: "Perlu Perhatian Khusus",
-      summary: "Keluhan menonjol, perlu perhatian dan rutinitas terarah."
-    }
-  ]
-};
 var bandsToSchema = (bands) => bands.map((b) => ({ max: Math.max(0, Math.min(100, Number(b.max) || 0)), label: b.label || "" }));
 var cleanVal = (v) => `"${(v || "").replace(/"/g, "")}"`;
 var rangeCell = (min, max) => `[${Math.max(0, Math.min(100, min ?? 0))}..${Math.max(0, Math.min(100, max ?? 100))}]`;
-function compileVisualToJDM(axes, profileConfig = DEFAULT_STARTER_PROFILES, scoreRangeBands = DEFAULT_SCORE_RANGE_BANDS, severityBands = DEFAULT_SEVERITY_BANDS, existingSchema, sources) {
-  const effectiveAxes = axes.length > 0 ? axes : DEFAULT_STARTER_AXES;
+function compileVisualToJDM(axes, profileConfig = EMPTY_PROFILE_CONFIG, scoreRangeBands = DEFAULT_SCORE_RANGE_BANDS, severityBands = DEFAULT_SEVERITY_BANDS, existingSchema, sources) {
+  const effectiveAxes = axes.filter((a) => (a.dimensionKey || "").trim());
   const nodes = [
     { id: "input_node", name: "Input", type: "inputNode", position: { x: 40, y: 40 } }
   ];
@@ -4299,7 +4171,8 @@ function compileVisualToJDM(axes, profileConfig = DEFAULT_STARTER_PROFILES, scor
   for (const a of effectiveAxes) {
     const key = a.dimensionKey.toLowerCase();
     dimension_weights[key] = a.weight ?? 1;
-    concern_labels[key] = a.concernLabel || defaultConcernLabel(key);
+    const concern = (a.concernLabel || "").trim();
+    if (concern) concern_labels[key] = concern;
     const di = toDimensionInputs(a);
     if (di) dimension_inputs[key] = di;
     const bands = (a.bands || []).slice().sort((x, y) => x.min - y.min);
@@ -4388,8 +4261,8 @@ var bandsFromSchema = (raw, fallback, prefix) => {
 };
 function decompileJDMToVisualComponents(schemaStr) {
   const fallback = {
-    axes: DEFAULT_STARTER_AXES.map((a) => ({ ...a })),
-    profileConfig: DEFAULT_STARTER_PROFILES,
+    axes: [],
+    profileConfig: { ...EMPTY_PROFILE_CONFIG, profiles: [] },
     scoreRangeBands: DEFAULT_SCORE_RANGE_BANDS.map((b) => ({ ...b })),
     severityBands: DEFAULT_SEVERITY_BANDS.map((b) => ({ ...b })),
     sources: {},
@@ -4469,7 +4342,7 @@ function decompileJDMToVisualComponents(schemaStr) {
       name: key.split("_").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" "),
       dimensionKey: key,
       weight: typeof weights[key] === "number" ? weights[key] : 1,
-      concernLabel: concernLabels[key] || defaultConcernLabel(key),
+      concernLabel: concernLabels[key] || void 0,
       inputs: (bd?.inputs || []).map((i2) => ({ ...i2, label: i2.source === VISION_SOURCE ? visionFieldLabel(i2.field) : i2.field })),
       required: bd?.required || [],
       bands,
@@ -4485,7 +4358,7 @@ function decompileJDMToVisualComponents(schemaStr) {
     const c = nodeContents[idx];
     return (c?.outputs || []).some((o) => typeof o?.field === "string" && o.field.startsWith("skin_profile."));
   });
-  let profileConfig = DEFAULT_STARTER_PROFILES;
+  let profileConfig = { ...EMPTY_PROFILE_CONFIG, profiles: [] };
   if (profileNode) {
     const c = typeof profileNode.content === "string" ? safeParse(profileNode.content) : profileNode.content;
     const inputs = c?.inputs || [];
@@ -4529,10 +4402,10 @@ function decompileJDMToVisualComponents(schemaStr) {
       }
       return entry;
     });
-    profileConfig = { strategy, profiles: profiles.length ? profiles : DEFAULT_STARTER_PROFILES.profiles };
+    profileConfig = { strategy, profiles };
   }
   return {
-    axes: axes.length ? axes : fallback.axes,
+    axes,
     profileConfig,
     scoreRangeBands: bandsFromSchema(parsed.score_range_bands, DEFAULT_SCORE_RANGE_BANDS, "sr"),
     severityBands: bandsFromSchema(parsed.severity_bands, DEFAULT_SEVERITY_BANDS, "sv"),
@@ -4629,15 +4502,13 @@ var ClinicalDimensionCard = ({
 }) => {
   const [open, setOpen] = useState9(defaultOpen);
   const share = typeof siblingWeightTotal === "number" && siblingWeightTotal > 0 ? Math.round(axis.weight / siblingWeightTotal * 100) : null;
-  const concern = axis.concernLabel || defaultConcernLabel(axis.dimensionKey);
+  const concern = (axis.concernLabel || "").trim() || "engine default concern name";
   const handleDimensionChange = (dimKey, dimMeta) => {
-    const wasDefault = !axis.concernLabel || axis.concernLabel === defaultConcernLabel(axis.dimensionKey);
     onUpdate({
       ...axis,
       dimensionKey: dimKey,
       axisCode: dimKey.toUpperCase(),
-      name: dimMeta?.name || dimKey.toUpperCase(),
-      concernLabel: wasDefault ? defaultConcernLabel(dimKey) : axis.concernLabel
+      name: dimMeta?.name || dimKey.toUpperCase()
     });
   };
   return /* @__PURE__ */ jsxs11("div", { className: "rounded-lg border border-border bg-card", children: [
@@ -4651,6 +4522,7 @@ var ClinicalDimensionCard = ({
           children: [
             open ? /* @__PURE__ */ jsx12(ChevronDown4, { className: "h-4 w-4 text-muted-foreground shrink-0" }) : /* @__PURE__ */ jsx12(ChevronRight3, { className: "h-4 w-4 text-muted-foreground shrink-0" }),
             /* @__PURE__ */ jsx12("span", { className: "text-sm font-semibold text-foreground", children: axis.name || axis.dimensionKey.toUpperCase() }),
+            !axis.dimensionKey && /* @__PURE__ */ jsx12("span", { className: "text-[11px] font-semibold text-amber-500", children: "no dimension picked" }),
             /* @__PURE__ */ jsx12("span", { className: "text-[11px] text-muted-foreground", children: share !== null ? `\u2248${share}% of overall` : `weight ${axis.weight}` }),
             /* @__PURE__ */ jsxs11("span", { className: "text-[11px] text-muted-foreground", children: [
               "\xB7 ",
@@ -4714,7 +4586,7 @@ var ClinicalDimensionCard = ({
           /* @__PURE__ */ jsx12(
             InfoTooltip3,
             {
-              content: "Shown when this dimension is the customer\u2019s dominant concern.",
+              content: "Shown when this dimension is the customer\u2019s dominant concern. Left empty, the Score Engine uses its own default name for the dimension.",
               label: "About concern label",
               iconClassName: "h-3 w-3"
             }
@@ -4725,9 +4597,9 @@ var ClinicalDimensionCard = ({
           {
             type: "text",
             disabled,
-            value: axis.concernLabel ?? concern,
+            value: axis.concernLabel ?? "",
             onChange: (e) => onUpdate({ ...axis, concernLabel: e.target.value }),
-            placeholder: defaultConcernLabel(axis.dimensionKey),
+            placeholder: "Not set: the engine's default concern name is used",
             className: fieldCls
           }
         )
@@ -5093,6 +4965,64 @@ function safetyFlagsFromSurveys(surveys, surveyCode) {
 import { jsx as jsx14, jsxs as jsxs13 } from "react/jsx-runtime";
 var card = "rounded-lg border border-border bg-card p-4";
 var sliderCls = "w-full h-1.5 rounded appearance-none cursor-pointer bg-muted accent-[#d97706]";
+var unsetSliderCls = sliderCls + " opacity-40";
+var SCORE_MIN = 0;
+var SCORE_MAX = 100;
+var UNSET_THUMB = (SCORE_MIN + SCORE_MAX) / 2;
+var AGE_SLIDER_MIN = 13;
+var AGE_SLIDER_MAX = 70;
+var AGE_UNSET_THUMB = AGE_FIELD_CUTOFF_YEARS;
+function withValue(prev, key, v) {
+  const next = { ...prev };
+  if (v === void 0) delete next[key];
+  else next[key] = v;
+  return next;
+}
+var ScoreInput = ({ label, value, onChange }) => {
+  const set = value !== void 0;
+  const commit = (e) => onChange(Number(e.currentTarget.value));
+  return /* @__PURE__ */ jsxs13("div", { children: [
+    /* @__PURE__ */ jsxs13("div", { className: "flex items-center justify-between text-xs mb-1", children: [
+      /* @__PURE__ */ jsx14("span", { className: "text-foreground", children: label }),
+      set ? /* @__PURE__ */ jsxs13("span", { className: "flex items-center gap-1.5", children: [
+        /* @__PURE__ */ jsx14("span", { className: "text-beak font-semibold font-mono", children: value }),
+        /* @__PURE__ */ jsx14(
+          "button",
+          {
+            type: "button",
+            onClick: () => onChange(void 0),
+            className: "text-[10px] text-muted-foreground underline hover:text-foreground",
+            title: "Unset: send this dimension as not answered",
+            children: "clear"
+          }
+        )
+      ] }) : /* @__PURE__ */ jsx14("span", { className: "text-[10px] italic text-muted-foreground", title: "Not sent to /simulate", children: "not set" })
+    ] }),
+    /* @__PURE__ */ jsx14(
+      "input",
+      {
+        type: "range",
+        min: SCORE_MIN,
+        max: SCORE_MAX,
+        value: value ?? UNSET_THUMB,
+        onChange: commit,
+        onPointerUp: commit,
+        "aria-label": set ? `${label}: ${value}` : `${label}: not set`,
+        className: set ? sliderCls : unsetSliderCls
+      }
+    ),
+    /* @__PURE__ */ jsxs13("div", { className: "flex items-center justify-between text-[10px] text-muted-foreground mt-0.5", children: [
+      /* @__PURE__ */ jsxs13("span", { children: [
+        SCORE_MIN,
+        " = parah"
+      ] }),
+      /* @__PURE__ */ jsxs13("span", { children: [
+        SCORE_MAX,
+        " = sehat"
+      ] })
+    ] })
+  ] });
+};
 var ScoreSimulatorTab = ({
   rulesets,
   selectedRuleset,
@@ -5154,7 +5084,10 @@ var ScoreSimulatorTab = ({
     "xg.scoreEngine.simulator.visionValues",
     {}
   );
-  const [respondentAge, setRespondentAge] = usePersistentState3("xg.scoreEngine.simulator.respondentAge", 25);
+  const [respondentAge, setRespondentAge] = usePersistentState3(
+    "xg.scoreEngine.simulator.respondentAgeYears",
+    null
+  );
   const rulesetSafetyFlags = useMemo7(() => {
     if (!activeRuleset?.schema) return [];
     try {
@@ -5219,15 +5152,15 @@ var ScoreSimulatorTab = ({
   const [copiedReq, setCopiedReq] = useState11(false);
   const formScores = useMemo7(() => {
     const out = {};
-    for (const d of formDims) out[d] = questionnaireValues[d] ?? 50;
+    for (const d of formDims) if (questionnaireValues[d] !== void 0) out[d] = questionnaireValues[d];
     return out;
   }, [formDims, questionnaireValues]);
   const visionScores = useMemo7(() => {
     const out = {};
-    for (const d of visionDims) out[d] = visionValues[d] ?? 50;
+    for (const d of visionDims) if (visionValues[d] !== void 0) out[d] = visionValues[d];
     return out;
   }, [visionDims, visionValues]);
-  const ageYears = ageAxisKeys.length > 0 ? respondentAge : void 0;
+  const ageYears = ageAxisKeys.length > 0 && respondentAge !== null ? respondentAge : void 0;
   const requestBody = useMemo7(
     () => JSON.stringify(
       {
@@ -5273,8 +5206,8 @@ var ScoreSimulatorTab = ({
   const skinProfile = result?.skin_profile;
   const subClassification = result?.sub_classification || {};
   const warnings = result?.warnings || [];
-  const totalScore = Math.round(result?.total_score || 0);
-  const profileCode = skinProfile?.code || "CUSTOM";
+  const totalScore = typeof result?.total_score === "number" ? Math.round(result.total_score) : null;
+  const profileCode = skinProfile?.code || "\u2014";
   const profileName = skinProfile?.name || "Answer to see a profile";
   return /* @__PURE__ */ jsxs13("div", { className: "flex flex-col lg:flex-row gap-5 items-start", children: [
     /* @__PURE__ */ jsxs13("div", { className: "w-full lg:w-80 lg:shrink-0 space-y-3 min-w-0", children: [
@@ -5307,34 +5240,56 @@ var ScoreSimulatorTab = ({
           /* @__PURE__ */ jsx14(
             InfoTooltip5,
             {
-              content: "Bukan slider form biasa \u2014 dihitung dari date_of_birth di kuisioner data pribadi, bukan Q1-Q6. Dikirim sebagai age_years, dipakai axis: aging.",
+              content: `Bukan slider form biasa \u2014 dihitung dari date_of_birth di kuisioner data pribadi, bukan Q1-Q6. Dikirim sebagai age_years dan dinilai oleh cek AgeOverThirty di core, dipakai axis: ${ageAxisKeys.join(", ")}.`,
               label: "About Usia"
             }
           )
         ] }),
         /* @__PURE__ */ jsxs13("div", { className: "flex items-center justify-between text-xs mb-1", children: [
           /* @__PURE__ */ jsx14("span", { className: "text-foreground", children: "Umur (tahun)" }),
-          /* @__PURE__ */ jsxs13("span", { className: "text-beak font-semibold font-mono", children: [
-            respondentAge,
-            " (",
-            respondentAge <= 30 ? "sehat" : "faktor W",
-            ")"
-          ] })
+          respondentAge !== null ? /* @__PURE__ */ jsxs13("span", { className: "flex items-center gap-1.5", children: [
+            /* @__PURE__ */ jsxs13("span", { className: "text-beak font-semibold font-mono", children: [
+              respondentAge,
+              " (",
+              respondentAge <= AGE_FIELD_CUTOFF_YEARS ? "sehat" : "faktor W",
+              ")"
+            ] }),
+            /* @__PURE__ */ jsx14(
+              "button",
+              {
+                type: "button",
+                onClick: () => setRespondentAge(null),
+                className: "text-[10px] text-muted-foreground underline hover:text-foreground",
+                title: "Unset: send no age_years",
+                children: "clear"
+              }
+            )
+          ] }) : /* @__PURE__ */ jsx14("span", { className: "text-[10px] italic text-muted-foreground", title: "No age_years is sent", children: "not set" })
         ] }),
         /* @__PURE__ */ jsx14(
           "input",
           {
             type: "range",
-            min: 13,
-            max: 70,
-            value: respondentAge,
-            onChange: (e) => setRespondentAge(Number(e.target.value)),
-            className: sliderCls
+            min: AGE_SLIDER_MIN,
+            max: AGE_SLIDER_MAX,
+            value: respondentAge ?? AGE_UNSET_THUMB,
+            onChange: (e) => setRespondentAge(Number(e.currentTarget.value)),
+            onPointerUp: (e) => setRespondentAge(Number(e.currentTarget.value)),
+            "aria-label": respondentAge !== null ? `Umur: ${respondentAge}` : "Umur: not set",
+            className: respondentAge !== null ? sliderCls : unsetSliderCls
           }
         ),
         /* @__PURE__ */ jsxs13("div", { className: "flex items-center justify-between text-[10px] text-muted-foreground mt-0.5", children: [
-          /* @__PURE__ */ jsx14("span", { children: "\u226430 = sehat" }),
-          /* @__PURE__ */ jsx14("span", { children: ">30 = faktor W" })
+          /* @__PURE__ */ jsxs13("span", { children: [
+            "\u2264",
+            AGE_FIELD_CUTOFF_YEARS,
+            " = sehat"
+          ] }),
+          /* @__PURE__ */ jsxs13("span", { children: [
+            ">",
+            AGE_FIELD_CUTOFF_YEARS,
+            " = faktor W"
+          ] })
         ] })
       ] }),
       formDims.length > 0 && /* @__PURE__ */ jsxs13("div", { className: card + " space-y-3", children: [
@@ -5342,54 +5297,30 @@ var ScoreSimulatorTab = ({
           /* @__PURE__ */ jsx14("h3", { className: "text-sm font-bold text-foreground", children: "Questionnaire result" }),
           /* @__PURE__ */ jsx14(InfoTooltip5, { content: "Per-dimensi, hanya yang dihitung dari kuisioner (form_source). 0 = parah, 100 = sehat.", label: "About questionnaire result" })
         ] }),
-        /* @__PURE__ */ jsx14("div", { className: "space-y-3", children: formDims.map((dimKey) => /* @__PURE__ */ jsxs13("div", { children: [
-          /* @__PURE__ */ jsxs13("div", { className: "flex items-center justify-between text-xs mb-1", children: [
-            /* @__PURE__ */ jsx14("span", { className: "text-foreground", children: dimKey }),
-            /* @__PURE__ */ jsx14("span", { className: "text-beak font-semibold font-mono", children: questionnaireValues[dimKey] ?? 50 })
-          ] }),
-          /* @__PURE__ */ jsx14(
-            "input",
-            {
-              type: "range",
-              min: 0,
-              max: 100,
-              value: questionnaireValues[dimKey] ?? 50,
-              onChange: (e) => setQuestionnaireValues((p) => ({ ...p, [dimKey]: Number(e.target.value) })),
-              className: sliderCls
-            }
-          ),
-          /* @__PURE__ */ jsxs13("div", { className: "flex items-center justify-between text-[10px] text-muted-foreground mt-0.5", children: [
-            /* @__PURE__ */ jsx14("span", { children: "0 = parah" }),
-            /* @__PURE__ */ jsx14("span", { children: "100 = sehat" })
-          ] })
-        ] }, dimKey)) })
+        /* @__PURE__ */ jsx14("div", { className: "space-y-3", children: formDims.map((dimKey) => /* @__PURE__ */ jsx14(
+          ScoreInput,
+          {
+            label: dimKey,
+            value: questionnaireValues[dimKey],
+            onChange: (v) => setQuestionnaireValues((p) => withValue(p, dimKey, v))
+          },
+          dimKey
+        )) })
       ] }),
       visionDims.length > 0 && /* @__PURE__ */ jsxs13("div", { className: card + " space-y-3", children: [
         /* @__PURE__ */ jsxs13("div", { className: "flex items-center gap-1.5", children: [
           /* @__PURE__ */ jsx14("h3", { className: "text-sm font-bold text-foreground", children: "Vision result" }),
           /* @__PURE__ */ jsx14(InfoTooltip5, { content: "Per-dimensi, hanya yang dihitung dari foto vendor (vision_source). 0 = parah, 100 = sehat.", label: "About vision result" })
         ] }),
-        /* @__PURE__ */ jsx14("div", { className: "space-y-3", children: visionDims.map((dimKey) => /* @__PURE__ */ jsxs13("div", { children: [
-          /* @__PURE__ */ jsxs13("div", { className: "flex items-center justify-between text-xs mb-1", children: [
-            /* @__PURE__ */ jsx14("span", { className: "text-foreground", children: dimKey }),
-            /* @__PURE__ */ jsx14("span", { className: "text-beak font-semibold font-mono", children: visionValues[dimKey] ?? 50 })
-          ] }),
-          /* @__PURE__ */ jsx14(
-            "input",
-            {
-              type: "range",
-              min: 0,
-              max: 100,
-              value: visionValues[dimKey] ?? 50,
-              onChange: (e) => setVisionValues((p) => ({ ...p, [dimKey]: Number(e.target.value) })),
-              className: sliderCls
-            }
-          ),
-          /* @__PURE__ */ jsxs13("div", { className: "flex items-center justify-between text-[10px] text-muted-foreground mt-0.5", children: [
-            /* @__PURE__ */ jsx14("span", { children: "0 = parah" }),
-            /* @__PURE__ */ jsx14("span", { children: "100 = sehat" })
-          ] })
-        ] }, dimKey)) })
+        /* @__PURE__ */ jsx14("div", { className: "space-y-3", children: visionDims.map((dimKey) => /* @__PURE__ */ jsx14(
+          ScoreInput,
+          {
+            label: dimKey,
+            value: visionValues[dimKey],
+            onChange: (v) => setVisionValues((p) => withValue(p, dimKey, v))
+          },
+          dimKey
+        )) })
       ] }),
       otherSources.length > 0 && /* @__PURE__ */ jsxs13("div", { className: card + " text-[11px] text-muted-foreground", children: [
         "The simulator cannot send ",
@@ -5468,7 +5399,7 @@ var ScoreSimulatorTab = ({
         ] }),
         /* @__PURE__ */ jsxs13("div", { className: "mt-4 rounded-md border border-border bg-muted/20 p-2.5", children: [
           /* @__PURE__ */ jsx14("div", { className: "text-[10px] text-muted-foreground", children: "Overall score" }),
-          /* @__PURE__ */ jsx14("div", { className: "text-sm font-bold text-foreground font-mono mt-0.5", children: totalScore }),
+          /* @__PURE__ */ jsx14("div", { className: "text-sm font-bold text-foreground font-mono mt-0.5", children: totalScore ?? "\u2014" }),
           /* @__PURE__ */ jsx14("div", { className: "text-[10px] text-muted-foreground", children: "100 = sehat" })
         ] }),
         warnings.length > 0 && /* @__PURE__ */ jsxs13("div", { className: "mt-3 rounded-md border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs space-y-1", children: [
@@ -5621,7 +5552,7 @@ var BandTable = ({
 };
 
 // src/score/components/reusable/ProfileMappingTable.tsx
-import React13, { useState as useState12 } from "react";
+import React13, { useMemo as useMemo8, useState as useState12 } from "react";
 import { Plus as Plus7, Trash2 as Trash28, ChevronRight as ChevronRight4, ChevronDown as ChevronDown5 } from "lucide-react";
 import { ScoreRangeInput, DimensionSelect as DimensionSelect2, SeveritySelect, InfoTooltip as InfoTooltip6 } from "@gateway-experience/shared";
 import { Fragment as Fragment2, jsx as jsx16, jsxs as jsxs15 } from "react/jsx-runtime";
@@ -5629,9 +5560,17 @@ var ProfileMappingTable = ({
   axes,
   config,
   onChange,
+  scoreRangeBands,
+  severityBands,
   disabled = false
 }) => {
   const { strategy, profiles } = config;
+  const rangeLetters = useMemo8(() => scoreRangeLetters(scoreRangeBands), [scoreRangeBands]);
+  const lettersOf = (a) => axisLetters(a, rangeLetters);
+  const severityLabels = useMemo8(
+    () => severityBands.slice().sort((x, y) => x.max - y.max).map((b) => b.label.trim()).filter(Boolean),
+    [severityBands]
+  );
   const [expandedRows, setExpandedRows] = useState12({});
   const [cache, setCache] = useState12({});
   const wide = strategy === "combination_matrix";
@@ -5644,23 +5583,17 @@ var ProfileMappingTable = ({
     const cached = cache[newStrategy];
     let initialProfiles = cached ?? [];
     if (!cached) {
-      if (newStrategy === "total_score") {
-        initialProfiles = [
-          { id: `prof_${Date.now()}_1`, minScore: 80, maxScore: 100, code: "OPTIMAL_RESILIENT", title: "Optimal Vitality", category: "Resilient Barrier", summary: "Healthy barrier balance." },
-          { id: `prof_${Date.now()}_2`, minScore: 50, maxScore: 79, code: "MODERATE_FATIGUE", title: "Moderate Fatigue", category: "Early Stress", summary: "Mild cellular stress." },
-          { id: `prof_${Date.now()}_3`, minScore: 0, maxScore: 49, code: "ACCELERATED_DEFICIT", title: "Accelerated Deficit", category: "High Concern", summary: "Elevated concern." }
-        ];
-      } else if (newStrategy === "combination_matrix") {
-        initialProfiles = generateCartesianCombinations(axes);
+      if (newStrategy === "combination_matrix") {
+        initialProfiles = generateCartesianCombinations(axes, rangeLetters);
       } else if (newStrategy === "primary_concern") {
-        initialProfiles = axes.map((a, idx) => ({
+        initialProfiles = axes.filter((a) => a.dimensionKey).map((a, idx) => ({
           id: `prof_${Date.now()}_${idx + 1}`,
           primaryDimension: a.dimensionKey,
-          severityLevel: "Sangat Parah",
-          code: `${a.dimensionKey.toUpperCase()}_CRITICAL`,
-          title: `${a.name} Critical Concern`,
-          category: "Acute Concern",
-          summary: `Acute focus required on ${a.name}.`
+          severityLevel: "",
+          code: `${a.dimensionKey.toUpperCase()}_CONCERN`,
+          title: `${a.name || a.dimensionKey} concern`,
+          category: "",
+          summary: ""
         }));
       }
     }
@@ -5674,7 +5607,7 @@ var ProfileMappingTable = ({
     const pIdx = profiles.length + 1;
     if (strategy === "total_score") {
       const last = profiles[profiles.length - 1];
-      const max = last && last.minScore !== void 0 ? Math.max(0, last.minScore - 1) : 49;
+      const max = last && last.minScore !== void 0 ? Math.max(0, last.minScore - 1) : 100;
       newEntry = {
         id: `prof_${Date.now()}`,
         minScore: 0,
@@ -5687,7 +5620,8 @@ var ProfileMappingTable = ({
     } else if (strategy === "combination_matrix") {
       const dimCodes = {};
       axes.forEach((a) => {
-        dimCodes[a.dimensionKey] = axisLetters(a)[0];
+        const first = lettersOf(a)[0];
+        if (a.dimensionKey && first) dimCodes[a.dimensionKey] = first;
       });
       newEntry = {
         id: `prof_${Date.now()}`,
@@ -5700,8 +5634,8 @@ var ProfileMappingTable = ({
     } else {
       newEntry = {
         id: `prof_${Date.now()}`,
-        primaryDimension: axes[0]?.dimensionKey || "sebum",
-        severityLevel: "Parah",
+        primaryDimension: "",
+        severityLevel: "",
         code: `CONCERN_${pIdx}`,
         title: `Concern Profile ${pIdx}`,
         category: "Targeted",
@@ -5740,7 +5674,7 @@ var ProfileMappingTable = ({
     onChange({ ...config, profiles: updated });
   };
   const handleAutoGenerateMatrix = () => {
-    const generated = generateCartesianCombinations(axes);
+    const generated = generateCartesianCombinations(axes, rangeLetters);
     onChange({
       ...config,
       profiles: generated
@@ -5837,8 +5771,7 @@ var ProfileMappingTable = ({
               /* @__PURE__ */ jsx16("th", { className: "py-2.5 px-3 text-center", style: { width: 40 }, children: "#" }),
               strategy === "total_score" && /* @__PURE__ */ jsx16("th", { className: "py-2.5 px-3", style: { minWidth: 160 }, children: "Trigger range" }),
               strategy === "combination_matrix" && axes.map((a) => {
-                const letters = axisLetters(a);
-                const bipolar = !!(a.axisCodeLow?.trim() && a.axisCodeHigh?.trim());
+                const letters = lettersOf(a);
                 return /* @__PURE__ */ jsxs15(
                   "th",
                   {
@@ -5846,7 +5779,7 @@ var ProfileMappingTable = ({
                     style: { minWidth: 120 },
                     children: [
                       a.name || a.dimensionKey,
-                      /* @__PURE__ */ jsx16("span", { className: "block text-[10px] font-normal text-muted-foreground", children: bipolar ? letters.join(" / ") : "O / S / P" })
+                      /* @__PURE__ */ jsx16("span", { className: "block text-[10px] font-normal text-muted-foreground", children: letters.length ? letters.join(" / ") : "no letters" })
                     ]
                   },
                   a.id
@@ -5880,7 +5813,7 @@ var ProfileMappingTable = ({
                     }
                   ) }),
                   strategy === "combination_matrix" && axes.map((a) => {
-                    const codeVal = p.dimensionCodes?.[a.dimensionKey] || p.dimensionCodes?.[a.axisCode] || axisLetters(a)[0];
+                    const codeVal = p.dimensionCodes?.[a.dimensionKey] || p.dimensionCodes?.[a.axisCode] || "";
                     return /* @__PURE__ */ jsx16("td", { className: "py-2.5 px-3 text-center", children: /* @__PURE__ */ jsx16(
                       "input",
                       {
@@ -5888,7 +5821,7 @@ var ProfileMappingTable = ({
                         disabled,
                         value: codeVal,
                         onChange: (e) => handleUpdateDimCode(p.id, a.dimensionKey, e.target.value),
-                        placeholder: "D",
+                        placeholder: "any",
                         className: "w-12 px-1.5 py-1 bg-muted/40 border border-border rounded text-beak font-bold text-center focus:outline-none focus:border-ring disabled:opacity-50 text-xs"
                       }
                     ) }, a.id);
@@ -5898,7 +5831,8 @@ var ProfileMappingTable = ({
                       DimensionSelect2,
                       {
                         label: "",
-                        value: p.primaryDimension || axes[0]?.dimensionKey || "sebum",
+                        value: p.primaryDimension || "",
+                        placeholder: "Any dimension",
                         disabled,
                         onChange: (dimKey) => handleUpdateProfile(p.id, "primaryDimension", dimKey)
                       }
@@ -5906,7 +5840,9 @@ var ProfileMappingTable = ({
                     /* @__PURE__ */ jsx16("td", { className: "py-2 px-3 align-middle", children: /* @__PURE__ */ jsx16(
                       SeveritySelect,
                       {
-                        value: p.severityLevel || "Parah",
+                        value: p.severityLevel || "",
+                        options: severityLabels,
+                        emptyLabel: "Any level",
                         disabled,
                         onChange: (sev) => handleUpdateProfile(p.id, "severityLevel", sev)
                       }
@@ -6023,16 +5959,18 @@ var ProfileMappingTable = ({
   ] });
 };
 var MAX_COMBINATIONS = 64;
-var SCORE_RANGE_CODES = ["O", "S", "P"];
-function axisLetters(a) {
+function axisLetters(a, rangeLetters) {
+  const own = Array.from(new Set((a.bands || []).map((b) => (b.letter || "").trim().toUpperCase()).filter(Boolean)));
+  if (own.length) return own;
   const low = (a.axisCodeLow || "").trim().toUpperCase();
   const high = (a.axisCodeHigh || "").trim().toUpperCase();
-  return low && high ? [low, high] : SCORE_RANGE_CODES;
+  return low && high ? [low, high] : rangeLetters;
 }
-function generateCartesianCombinations(axes) {
-  if (axes.length === 0) return [];
-  const dimTierArrays = axes.map((a) => {
-    return axisLetters(a).map((code) => ({ dimKey: a.dimensionKey, code }));
+function generateCartesianCombinations(axes, rangeLetters) {
+  const lettered = axes.filter((a) => a.dimensionKey && axisLetters(a, rangeLetters).length > 0);
+  if (lettered.length === 0) return [];
+  const dimTierArrays = lettered.map((a) => {
+    return axisLetters(a, rangeLetters).map((code) => ({ dimKey: a.dimensionKey, code }));
   });
   let combinations = [[]];
   for (const curr of dimTierArrays) {
@@ -6074,6 +6012,7 @@ function generateCartesianCombinations(axes) {
 import { jsx as jsx17, jsxs as jsxs16 } from "react/jsx-runtime";
 var inputCls = "w-full h-9 rounded-md bg-muted/40 border border-border px-3 text-foreground text-sm placeholder:text-muted-foreground outline-none focus:border-ring disabled:opacity-50";
 var labelCls = "block text-xs font-semibold text-foreground mb-1.5";
+var SIMULATE_SCORE_PLACEHOLDER = "<health score 0-100, or remove if not answered>";
 var slugify2 = (v) => v.toLowerCase().trim().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 var RulesetModal = ({
   isOpen,
@@ -6092,8 +6031,8 @@ var RulesetModal = ({
   const [formSurveyCode, setFormSurveyCode] = useState13("");
   const [visionSourceCode, setVisionSourceCode] = useState13("");
   const [surveys, setSurveys] = useState13([]);
-  const [axes, setAxes] = useState13(DEFAULT_STARTER_AXES);
-  const [profileConfig, setProfileConfig] = useState13(DEFAULT_STARTER_PROFILES);
+  const [axes, setAxes] = useState13([]);
+  const [profileConfig, setProfileConfig] = useState13(EMPTY_PROFILE_CONFIG);
   const [scoreRangeBands, setScoreRangeBands] = useState13(DEFAULT_SCORE_RANGE_BANDS);
   const [severityBands, setSeverityBands] = useState13(DEFAULT_SEVERITY_BANDS);
   const [tab, setTab] = useState13("setup");
@@ -6141,8 +6080,8 @@ var RulesetModal = ({
       setBrandId("*");
       setApplicationId("*");
       setStatus("ACTIVE");
-      setAxes(DEFAULT_STARTER_AXES);
-      setProfileConfig(DEFAULT_STARTER_PROFILES);
+      setAxes([]);
+      setProfileConfig({ ...EMPTY_PROFILE_CONFIG, profiles: [] });
       setScoreRangeBands(DEFAULT_SCORE_RANGE_BANDS);
       setSeverityBands(DEFAULT_SEVERITY_BANDS);
       setIsLegacy(false);
@@ -6167,11 +6106,10 @@ var RulesetModal = ({
       ...prev,
       {
         id: `axis_${Date.now()}`,
-        axisCode: `DIM_${n}`,
+        axisCode: "",
         name: `Dimension ${n}`,
-        dimensionKey: "sensitivity",
-        weight: 1,
-        concernLabel: defaultConcernLabel("sensitivity")
+        dimensionKey: "",
+        weight: 1
       }
     ]);
   };
@@ -6196,6 +6134,14 @@ var RulesetModal = ({
     if (!effectiveCode) {
       setTab("setup");
       return setFormError("Could not derive a code \u2014 set one manually.");
+    }
+    if (axes.length === 0) {
+      setTab("dimensions");
+      return setFormError("Add at least one dimension.");
+    }
+    if (axes.some((a) => !(a.dimensionKey || "").trim())) {
+      setTab("dimensions");
+      return setFormError("Pick a dimension for every row before saving.");
     }
     setIsSubmitting(true);
     try {
@@ -6235,9 +6181,10 @@ var RulesetModal = ({
   const simulateRequestBody = JSON.stringify(
     {
       schema: jsonText,
-      dimension_scores: Object.fromEntries(
-        axes.map((a) => [a.dimensionKey.toLowerCase(), 50])
+      form_scores: Object.fromEntries(
+        axes.filter((a) => a.dimensionKey).map((a) => [a.dimensionKey.toLowerCase(), SIMULATE_SCORE_PLACEHOLDER])
       ),
+      vision_scores: {},
       customer_condition: {}
     },
     null,
@@ -6293,7 +6240,7 @@ var RulesetModal = ({
                     required: true,
                     value: name,
                     onChange: (e) => setName(e.target.value),
-                    placeholder: "e.g. Wardah Skinverse grading",
+                    placeholder: "e.g. Brand skin grading",
                     className: inputCls
                   }
                 ),
@@ -6462,23 +6409,20 @@ var RulesetModal = ({
                   }
                 )
               ] }),
+              axes.length === 0 && /* @__PURE__ */ jsx17("p", { className: "rounded-md border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground", children: "No dimensions yet. Add one and pick it from reference data." }),
               axes.map((axis, i) => /* @__PURE__ */ jsx17(
                 ClinicalAxisCard,
                 {
                   axis,
                   index: i,
-                  defaultOpen: axes.length === 1,
+                  defaultOpen: axes.length === 1 || !axis.dimensionKey,
                   siblingWeightTotal: totalWeight,
                   onUpdate: (updated) => setAxes((prev) => prev.map((a) => a.id === axis.id ? updated : a)),
                   onDelete: () => {
-                    if (axes.length <= 1) {
-                      setFormError("Keep at least one dimension.");
-                      return;
-                    }
                     setAxes((prev) => prev.filter((a) => a.id !== axis.id));
                     setFormError(null);
                   },
-                  canDelete: axes.length > 1
+                  canDelete: true
                 },
                 axis.id
               ))
@@ -6536,7 +6480,16 @@ var RulesetModal = ({
                     }
                   )
                 ] }),
-                /* @__PURE__ */ jsx17(ProfileMappingTable, { axes, config: profileConfig, onChange: setProfileConfig })
+                /* @__PURE__ */ jsx17(
+                  ProfileMappingTable,
+                  {
+                    axes,
+                    config: profileConfig,
+                    onChange: setProfileConfig,
+                    scoreRangeBands,
+                    severityBands
+                  }
+                )
               ] })
             ] })
           ] }),
@@ -6953,7 +6906,7 @@ import { PageHeader as PageHeader4, TabNav as TabNav3, ConfirmDialog as ConfirmD
 
 // src/match/components/tabs/ConflictMatrixTab.tsx
 import { ShieldAlert as ShieldAlert2, Pencil as Pencil3, Trash2 as Trash210, Building, Smartphone } from "lucide-react";
-import { SearchFilterBar as SearchFilterBar5, DataTable as DataTable2, Button as Button5 } from "@gateway-experience/shared";
+import { SearchFilterBar as SearchFilterBar5, DataTable as DataTable2, Button as Button5, BrandSelect as BrandSelect4, ApplicationSelect as ApplicationSelect4 } from "@gateway-experience/shared";
 import { jsx as jsx20, jsxs as jsxs19 } from "react/jsx-runtime";
 var ConflictMatrixTab = ({
   conflicts,
@@ -7000,41 +6953,14 @@ var ConflictMatrixTab = ({
         /* @__PURE__ */ jsx20(Building, { className: "h-3 w-3 text-beak" }),
         /* @__PURE__ */ jsx20("span", { children: "Brand Scope" })
       ] }),
-      /* @__PURE__ */ jsxs19(
-        "select",
-        {
-          value: selectedBrand,
-          onChange: (e) => setSelectedBrand(e.target.value),
-          className: "w-full bg-secondary/50 border border-border rounded-lg p-2 text-xs font-bold text-beak focus:border-ring outline-none cursor-pointer",
-          children: [
-            /* @__PURE__ */ jsx20("option", { value: "*", className: "bg-popover text-popover-foreground", children: "All Brands (*)" }),
-            /* @__PURE__ */ jsx20("option", { value: "wardah", className: "bg-popover text-popover-foreground", children: "Wardah Beauty" }),
-            /* @__PURE__ */ jsx20("option", { value: "kahf", className: "bg-popover text-popover-foreground", children: "Kahf Men Care" }),
-            /* @__PURE__ */ jsx20("option", { value: "labore", className: "bg-popover text-popover-foreground", children: "Labor\xE9 Sensitive Skin" }),
-            /* @__PURE__ */ jsx20("option", { value: "emina", className: "bg-popover text-popover-foreground", children: "Emina Teen & Young" })
-          ]
-        }
-      )
+      /* @__PURE__ */ jsx20(BrandSelect4, { value: selectedBrand, onChange: setSelectedBrand, includeUniversal: true, label: "" })
     ] }),
     /* @__PURE__ */ jsxs19("div", { className: "space-y-1.5", children: [
       /* @__PURE__ */ jsxs19("label", { className: "text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5", children: [
         /* @__PURE__ */ jsx20(Smartphone, { className: "h-3 w-3 text-sky-400" }),
         /* @__PURE__ */ jsx20("span", { children: "Channel / Application" })
       ] }),
-      /* @__PURE__ */ jsxs19(
-        "select",
-        {
-          value: selectedApp,
-          onChange: (e) => setSelectedApp(e.target.value),
-          className: "w-full bg-secondary/50 border border-border rounded-lg p-2 text-xs font-bold text-sky-400 focus:border-ring outline-none cursor-pointer",
-          children: [
-            /* @__PURE__ */ jsx20("option", { value: "*", className: "bg-popover text-popover-foreground", children: "Omnichannel (*)" }),
-            /* @__PURE__ */ jsx20("option", { value: "ecommerce_mobile", className: "bg-popover text-popover-foreground", children: "Mobile App" }),
-            /* @__PURE__ */ jsx20("option", { value: "store_kiosk", className: "bg-popover text-popover-foreground", children: "Skin Kiosk" }),
-            /* @__PURE__ */ jsx20("option", { value: "web_consult", className: "bg-popover text-popover-foreground", children: "Online Portal" })
-          ]
-        }
-      )
+      /* @__PURE__ */ jsx20(ApplicationSelect4, { value: selectedApp, onChange: setSelectedApp, includeUniversal: true, label: "" })
     ] })
   ] });
   const columns = [
@@ -7122,7 +7048,7 @@ var ConflictMatrixTab = ({
 
 // src/match/components/tabs/ProductGroupsTab.tsx
 import { Boxes, Pencil as Pencil4, Trash2 as Trash211, Building as Building2, Smartphone as Smartphone2, CheckCircle2, XCircle } from "lucide-react";
-import { SearchFilterBar as SearchFilterBar6, DataTable as DataTable3, Button as Button6 } from "@gateway-experience/shared";
+import { SearchFilterBar as SearchFilterBar6, DataTable as DataTable3, Button as Button6, BrandSelect as BrandSelect5, ApplicationSelect as ApplicationSelect5 } from "@gateway-experience/shared";
 import { jsx as jsx21, jsxs as jsxs20 } from "react/jsx-runtime";
 var ProductGroupsTab = ({
   groups,
@@ -7169,41 +7095,14 @@ var ProductGroupsTab = ({
         /* @__PURE__ */ jsx21(Building2, { className: "h-3 w-3 text-primary" }),
         /* @__PURE__ */ jsx21("span", { children: "Brand Scope" })
       ] }),
-      /* @__PURE__ */ jsxs20(
-        "select",
-        {
-          value: selectedBrand,
-          onChange: (e) => setSelectedBrand(e.target.value),
-          className: "w-full bg-secondary/50 border border-border rounded-lg p-2 text-xs font-bold text-primary focus:border-ring outline-none cursor-pointer",
-          children: [
-            /* @__PURE__ */ jsx21("option", { value: "*", className: "bg-popover text-popover-foreground", children: "All Brands (*)" }),
-            /* @__PURE__ */ jsx21("option", { value: "wardah", className: "bg-popover text-popover-foreground", children: "Wardah Beauty" }),
-            /* @__PURE__ */ jsx21("option", { value: "kahf", className: "bg-popover text-popover-foreground", children: "Kahf Men Care" }),
-            /* @__PURE__ */ jsx21("option", { value: "labore", className: "bg-popover text-popover-foreground", children: "Labor\xE9 Sensitive Skin" }),
-            /* @__PURE__ */ jsx21("option", { value: "emina", className: "bg-popover text-popover-foreground", children: "Emina Teen & Young" })
-          ]
-        }
-      )
+      /* @__PURE__ */ jsx21(BrandSelect5, { value: selectedBrand, onChange: setSelectedBrand, includeUniversal: true, label: "" })
     ] }),
     /* @__PURE__ */ jsxs20("div", { className: "space-y-1.5", children: [
       /* @__PURE__ */ jsxs20("label", { className: "text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5", children: [
         /* @__PURE__ */ jsx21(Smartphone2, { className: "h-3 w-3 text-sky-400" }),
         /* @__PURE__ */ jsx21("span", { children: "Channel / Application" })
       ] }),
-      /* @__PURE__ */ jsxs20(
-        "select",
-        {
-          value: selectedApp,
-          onChange: (e) => setSelectedApp(e.target.value),
-          className: "w-full bg-secondary/50 border border-border rounded-lg p-2 text-xs font-bold text-sky-400 focus:border-ring outline-none cursor-pointer",
-          children: [
-            /* @__PURE__ */ jsx21("option", { value: "*", className: "bg-popover text-popover-foreground", children: "Omnichannel (*)" }),
-            /* @__PURE__ */ jsx21("option", { value: "ecommerce_mobile", className: "bg-popover text-popover-foreground", children: "Mobile App" }),
-            /* @__PURE__ */ jsx21("option", { value: "store_kiosk", className: "bg-popover text-popover-foreground", children: "Skin Kiosk" }),
-            /* @__PURE__ */ jsx21("option", { value: "web_consult", className: "bg-popover text-popover-foreground", children: "Online Portal" })
-          ]
-        }
-      )
+      /* @__PURE__ */ jsx21(ApplicationSelect5, { value: selectedApp, onChange: setSelectedApp, includeUniversal: true, label: "" })
     ] })
   ] });
   const columns = [
@@ -7374,7 +7273,7 @@ var ShadesTab = ({
 
 // src/match/components/tabs/MatchSimulatorTab.tsx
 import { Play as Play5, Sparkles as Sparkles3, AlertTriangle as AlertTriangle3, ShieldCheck, Sun, Moon, Zap, Layers as Layers2, Tag } from "lucide-react";
-import { EmptyState as EmptyState6 } from "@gateway-experience/shared";
+import { EmptyState as EmptyState6, BrandSelect as BrandSelect6 } from "@gateway-experience/shared";
 import { Fragment as Fragment3, jsx as jsx23, jsxs as jsxs22 } from "react/jsx-runtime";
 var MatchSimulatorTab = ({
   simBrand,
@@ -7449,24 +7348,8 @@ var MatchSimulatorTab = ({
       ] }),
       /* @__PURE__ */ jsxs22("div", { className: "space-y-3 text-xs", children: [
         /* @__PURE__ */ jsxs22("div", { className: "space-y-1", children: [
-          /* @__PURE__ */ jsx23("label", { className: "text-muted-foreground", children: "Brand Scoping & Routine Paradigm:" }),
-          /* @__PURE__ */ jsxs22(
-            "select",
-            {
-              value: simBrand,
-              onChange: (e) => setSimBrand(e.target.value),
-              className: "w-full bg-muted/40 border border-border rounded px-3 py-2 text-foreground",
-              children: [
-                /* @__PURE__ */ jsx23("option", { value: "*", children: "All Brands (*)" }),
-                /* @__PURE__ */ jsx23("option", { value: "wardah", children: "Wardah Beauty (Clinical AM/PM)" }),
-                /* @__PURE__ */ jsx23("option", { value: "makeover", children: "Make Over (Skin Prep & Complexion)" }),
-                /* @__PURE__ */ jsx23("option", { value: "kahf", children: "Kahf Men Care (Daily & Post-Shave)" }),
-                /* @__PURE__ */ jsx23("option", { value: "biodef", children: "Biodef (Hygiene & Barrier)" }),
-                /* @__PURE__ */ jsx23("option", { value: "labore", children: "Labor\xE9 Sensitive Skin" }),
-                /* @__PURE__ */ jsx23("option", { value: "emina", children: "Emina Teen & Young" })
-              ]
-            }
-          )
+          /* @__PURE__ */ jsx23("label", { className: "text-muted-foreground", children: "Brand Scope:" }),
+          /* @__PURE__ */ jsx23(BrandSelect6, { value: simBrand, onChange: setSimBrand, includeUniversal: true, label: "" })
         ] }),
         /* @__PURE__ */ jsxs22("div", { className: "space-y-1", children: [
           /* @__PURE__ */ jsx23("label", { className: "text-muted-foreground", children: "Skin Profile (Phenotype):" }),
@@ -8128,16 +8011,11 @@ var ConflictRuleModal = ({
 };
 
 // src/match/components/modals/ProductGroupModal.tsx
-import { useState as useState18, useEffect as useEffect15, useMemo as useMemo8 } from "react";
+import { useState as useState18, useEffect as useEffect15, useMemo as useMemo9 } from "react";
 import { Boxes as Boxes2, Loader2 as Loader25, X as X3 } from "lucide-react";
-import { Modal as Modal6, SearchableSelect as SearchableSelect2, InfoTooltip as InfoTooltip8 } from "@gateway-experience/shared";
+import { Modal as Modal6, SearchableSelect as SearchableSelect2, InfoTooltip as InfoTooltip8, BrandSelect as BrandSelect7 } from "@gateway-experience/shared";
 import { jsx as jsx26, jsxs as jsxs25 } from "react/jsx-runtime";
-var BRAND_OPTIONS = [
-  { value: "wardah", label: "Wardah Beauty" },
-  { value: "kahf", label: "Kahf Men Care" },
-  { value: "labore", label: "Labor\xE9 Sensitive Skin" },
-  { value: "emina", label: "Emina Teen & Young" }
-];
+var initialBrand = (defaultBrand) => defaultBrand && defaultBrand !== "*" ? defaultBrand : "";
 var ProductGroupModal = ({
   isOpen,
   onClose,
@@ -8145,7 +8023,7 @@ var ProductGroupModal = ({
   editingGroup,
   defaultBrand
 }) => {
-  const [brandId, setBrandId] = useState18(defaultBrand && defaultBrand !== "*" ? defaultBrand : "wardah");
+  const [brandId, setBrandId] = useState18(initialBrand(defaultBrand));
   const [applicationId, setApplicationId] = useState18("*");
   const [name, setName] = useState18("");
   const [code, setCode] = useState18("");
@@ -8158,6 +8036,10 @@ var ProductGroupModal = ({
   const [products, setProducts] = useState18([]);
   useEffect15(() => {
     if (!isOpen) return;
+    if (!brandId) {
+      void Promise.resolve([]).then(setProducts);
+      return;
+    }
     productsApi.listForBrand(brandId).then((list2) => {
       if (list2) setProducts(list2);
     }).catch(() => {
@@ -8174,7 +8056,7 @@ var ProductGroupModal = ({
       setCategories(editingGroup.categories || []);
       setIsActive(editingGroup.isActive ?? true);
     } else {
-      setBrandId(defaultBrand && defaultBrand !== "*" ? defaultBrand : "wardah");
+      setBrandId(initialBrand(defaultBrand));
       setApplicationId("*");
       setName("");
       setCode("");
@@ -8185,11 +8067,11 @@ var ProductGroupModal = ({
     }
     setCategoryDraft("");
   }, [editingGroup, isOpen, defaultBrand]);
-  const productOptions = useMemo8(
+  const productOptions = useMemo9(
     () => products.map((p) => ({ value: p.id, label: p.name, description: p.category })),
     [products]
   );
-  const availableCategories = useMemo8(
+  const availableCategories = useMemo9(
     () => Array.from(new Set(products.map((p) => p.category).filter(Boolean))),
     [products]
   );
@@ -8235,13 +8117,14 @@ var ProductGroupModal = ({
           /* @__PURE__ */ jsxs25("div", { className: "space-y-1", children: [
             /* @__PURE__ */ jsx26("label", { className: "text-[#888888]", children: "Brand:" }),
             /* @__PURE__ */ jsx26(
-              "select",
+              BrandSelect7,
               {
                 value: brandId,
-                onChange: (e) => setBrandId(e.target.value),
-                disabled: !!editingGroup,
-                className: "w-full bg-[#161616] border border-[#333333] rounded px-3 py-2 text-white font-mono disabled:opacity-60",
-                children: BRAND_OPTIONS.map((b) => /* @__PURE__ */ jsx26("option", { value: b.value, children: b.label }, b.value))
+                onChange: setBrandId,
+                includeUniversal: false,
+                label: "",
+                placeholder: "Choose a brand\u2026",
+                disabled: !!editingGroup
               }
             )
           ] }),
@@ -8364,7 +8247,7 @@ var ProductGroupModal = ({
           "button",
           {
             type: "submit",
-            disabled: isSubmitting,
+            disabled: isSubmitting || !brandId,
             className: "px-4 py-2 bg-primary hover:opacity-90 text-primary-foreground font-bold rounded disabled:opacity-50 cursor-pointer flex items-center gap-1.5",
             children: [
               isSubmitting ? /* @__PURE__ */ jsx26(Loader25, { className: "h-3.5 w-3.5 animate-spin" }) : null,

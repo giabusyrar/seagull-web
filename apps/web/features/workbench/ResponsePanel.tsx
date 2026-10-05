@@ -85,13 +85,23 @@ export const ResponsePanel: React.FC<ResponsePanelProps> = ({ response }) => {
 
         {/* Status Code & Metrics Badge */}
         {response && (() => {
-          const statusColor = getStatusColorClass(response.status || 200);
+          // No status means no response arrived; never show that as 200 OK.
+          if (response.status === null) {
+            return (
+              <div className="flex items-center gap-3 font-mono text-xs">
+                <span className="font-semibold px-2 py-0.5 rounded text-[11px] bg-destructive/10 text-destructive border border-destructive/40">
+                  No response
+                </span>
+              </div>
+            );
+          }
+          const statusColor = getStatusColorClass(response.status);
           return (
             <div className="flex items-center gap-3 font-mono text-xs">
               <div className="flex items-center gap-1.5">
                 <span className="text-muted-foreground">Status:</span>
                 <span className={`font-semibold px-2 py-0.5 rounded text-[11px] ${statusColor.bg} ${statusColor.text} border ${statusColor.border}`}>
-                  {response.status || 200} {response.statusText || 'OK'}
+                  {response.status} {response.statusText || ''}
                 </span>
               </div>
             </div>
@@ -170,6 +180,10 @@ export const ResponsePanel: React.FC<ResponsePanelProps> = ({ response }) => {
         {!response ? (
           <div className="h-full flex items-center justify-center text-muted-foreground italic text-xs">
             Click &quot;Try&quot; or &quot;Send&quot; above to execute request.
+          </div>
+        ) : response.error ? (
+          <div className="p-4 text-destructive whitespace-pre-wrap break-words">
+            The request failed before any response arrived: {response.error}
           </div>
         ) : activeResTab === 'headers' ? (
           <div className="p-4 space-y-1">

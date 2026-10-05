@@ -195,7 +195,6 @@ export const RouteEditor: React.FC<RouteEditorProps> = ({
   const [collectionEnvs, setCollectionEnvs] = useState<{ id: string; name: string; targetHost: string }[]>([]);
   const [globalEnvs, setGlobalEnvs] = useState<Environment[]>(globalEnvironments || []);
   const [activeCollectionEnvId, setActiveCollectionEnvId] = useState<string>(collection.activeEnvironmentId || '');
-  const [visPreset] = useState<'latest' | '200' | '500' | '429'>('latest');
   const [collectionParams, setCollectionParams] = useState<{ kind: string; key: string; value: string; enabled: boolean }[]>([]);
   const [collectionGlobalVars, setCollectionGlobalVars] = useState<{ id: string; key: string; value: string; enabled: boolean }[]>([]);
 
@@ -258,7 +257,8 @@ export const RouteEditor: React.FC<RouteEditorProps> = ({
       return publicGateway;
     }
     const { protocol, hostname } = window.location;
-    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.includes('local')) {
+    // Local development only: a hostname that merely contains "local" is not one.
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]' || hostname.endsWith('.localhost')) {
       return `${protocol}//${hostname}:${DEFAULT_DATA_PLANE_PORT}`;
     }
     return `${protocol}//${hostname}`;
@@ -636,41 +636,7 @@ export const RouteEditor: React.FC<RouteEditorProps> = ({
 
   const methods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD', 'ANY'];
 
-  const sampleResponses: Record<string, ResponseData> = {
-    '200': {
-      status: 200,
-      statusText: '200 OK',
-      latency: 128,
-      size: '482 B',
-      headers: {
-        'content-type': 'application/json; charset=utf-8',
-        'x-environment': activeColEnv?.name || 'Production',
-      },
-      body: JSON.stringify({ success: true, message: 'Response simulated successfully' }, null, 2),
-      error: null,
-    },
-    '500': {
-      status: 500,
-      statusText: '500 Server Error',
-      latency: 320,
-      size: '210 B',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ success: false, error: 'Target host database down' }, null, 2),
-      error: 'Downstream server error',
-    },
-    '429': {
-      status: 429,
-      statusText: '429 Too Many Requests',
-      latency: 14,
-      size: '164 B',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ success: false, error: 'Rate limit exceeded' }, null, 2),
-      error: 'Rate limit exceeded',
-    },
-  };
-
-  const activeResponse: ResponseData | null =
-    visPreset === 'latest' ? tryResponse : sampleResponses[visPreset] || null;
+  const activeResponse: ResponseData | null = tryResponse;
 
   return (
     <div className="flex-1 flex flex-col bg-background text-foreground select-none h-full min-w-0 overflow-hidden">
@@ -826,7 +792,7 @@ export const RouteEditor: React.FC<RouteEditorProps> = ({
                 <label className="block text-muted-foreground font-medium text-xs">Target Downstream Subpath</label>
                 <div className="flex items-center bg-white border border-border rounded overflow-hidden focus-within:border-ring">
                   <span className="px-2.5 py-1.5 bg-muted text-emerald-700 text-xs font-mono border-r border-border shrink-0 max-w-[200px] truncate font-semibold">
-                    {activeTargetHost || 'https://target-host.com'}
+                    {activeTargetHost || <span className="italic font-normal text-muted-foreground">no target host set</span>}
                   </span>
                   <input
                     value={targetPattern}

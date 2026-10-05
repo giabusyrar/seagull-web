@@ -11,7 +11,7 @@ var REFERENCE_ENTITY_CONFIGS = {
     fields: [
       { key: "name", label: "Brand Name", type: "text", required: true },
       { key: "code", label: "Brand Code", type: "text" },
-      { key: "website", label: "Website URL (e.g. wardahbeauty.com)", type: "text" },
+      { key: "website", label: "Website URL (e.g. brand.example.com)", type: "text" },
       { key: "colorCode", label: "Color Code (Hex e.g. #10b981)", type: "text" },
       { key: "description", label: "Description", type: "textarea" }
     ]

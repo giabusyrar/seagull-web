@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { ShieldAlert, Pencil, Trash2, Building, Smartphone } from 'lucide-react';
-import { SearchFilterBar, DataTable, Button, type ColumnDef } from '@gateway-experience/shared';
+import { SearchFilterBar, DataTable, Button, type ColumnDef, BrandSelect, ApplicationSelect } from '@gateway-experience/shared';
 import type { ConflictMatrixRule } from '../../types';
 
 interface ConflictMatrixTabProps {
@@ -72,17 +72,7 @@ export const ConflictMatrixTab: React.FC<ConflictMatrixTabProps> = ({
           <Building className="h-3 w-3 text-beak" />
           <span>Brand Scope</span>
         </label>
-        <select
-          value={selectedBrand}
-          onChange={(e) => setSelectedBrand(e.target.value)}
-          className="w-full bg-secondary/50 border border-border rounded-lg p-2 text-xs font-bold text-beak focus:border-ring outline-none cursor-pointer"
-        >
-          <option value="*" className="bg-popover text-popover-foreground">All Brands (*)</option>
-          <option value="wardah" className="bg-popover text-popover-foreground">Wardah Beauty</option>
-          <option value="kahf" className="bg-popover text-popover-foreground">Kahf Men Care</option>
-          <option value="labore" className="bg-popover text-popover-foreground">Laboré Sensitive Skin</option>
-          <option value="emina" className="bg-popover text-popover-foreground">Emina Teen & Young</option>
-        </select>
+        <BrandSelect value={selectedBrand} onChange={setSelectedBrand} includeUniversal label="" />
       </div>
 
       <div className="space-y-1.5">
@@ -90,16 +80,7 @@ export const ConflictMatrixTab: React.FC<ConflictMatrixTabProps> = ({
           <Smartphone className="h-3 w-3 text-sky-400" />
           <span>Channel / Application</span>
         </label>
-        <select
-          value={selectedApp}
-          onChange={(e) => setSelectedApp(e.target.value)}
-          className="w-full bg-secondary/50 border border-border rounded-lg p-2 text-xs font-bold text-sky-400 focus:border-ring outline-none cursor-pointer"
-        >
-          <option value="*" className="bg-popover text-popover-foreground">Omnichannel (*)</option>
-          <option value="ecommerce_mobile" className="bg-popover text-popover-foreground">Mobile App</option>
-          <option value="store_kiosk" className="bg-popover text-popover-foreground">Skin Kiosk</option>
-          <option value="web_consult" className="bg-popover text-popover-foreground">Online Portal</option>
-        </select>
+        <ApplicationSelect value={selectedApp} onChange={setSelectedApp} includeUniversal label="" />
       </div>
     </div>
   );

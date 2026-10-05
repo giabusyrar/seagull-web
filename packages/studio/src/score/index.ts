@@ -8,9 +8,7 @@ export {
   compileVisualToJDM,
   decompileJDMToVisual,
   decompileJDMToVisualComponents,
-  defaultConcernLabel,
-  DEFAULT_STARTER_AXES,
-  DEFAULT_STARTER_PROFILES,
+  EMPTY_PROFILE_CONFIG,
 } from './utils/jdm-compiler';
 export {
   DEFAULT_SCORE_RANGE_BANDS,

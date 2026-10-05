@@ -19,9 +19,29 @@ import { type SurveyJSModel, toSurveyModel, fromSurveyModel } from './surveyjs';
  */
 
 const FORM = '/core/form-engine';
-// Fallback tenant when the Form Manager selector / questionnaire carry none.
-const DEFAULT_BRAND = 'wardah';
-const DEFAULT_APP = 'skinverse';
+
+/**
+ * Thrown when a questionnaire call is made without a brand / application.
+ * There is no default tenant: a call without one would otherwise read or write
+ * some real tenant's questionnaires. Callers show the message and ask the user
+ * to pick a tenant.
+ */
+export class MissingTenantError extends Error {
+  constructor() {
+    super('Choose a brand and an application first — questionnaires are stored per tenant.');
+    this.name = 'MissingTenantError';
+  }
+}
+
+function requireTenant(brandId: string | undefined, applicationId: string | undefined): {
+  brandId: string;
+  applicationId: string;
+} {
+  const b = (brandId ?? '').trim();
+  const a = (applicationId ?? '').trim();
+  if (!b || !a) throw new MissingTenantError();
+  return { brandId: b, applicationId: a };
+}
 
 const tenantQuery = (brandId: string, applicationId: string) =>
   `brand_id=${encodeURIComponent(brandId)}&application_id=${encodeURIComponent(applicationId)}`;
@@ -76,11 +96,9 @@ function rowToItem(row: SurveyRow): QuestionnaireItem {
   };
 }
 
-async function listRows(
-  brandId = DEFAULT_BRAND,
-  applicationId = DEFAULT_APP
-): Promise<SurveyRow[]> {
-  const res = await fetch(`${FORM}/survey?${tenantQuery(brandId, applicationId)}`, {
+async function listRows(brandId: string, applicationId: string): Promise<SurveyRow[]> {
+  const t = requireTenant(brandId, applicationId);
+  const res = await fetch(`${FORM}/survey?${tenantQuery(t.brandId, t.applicationId)}`, {
     cache: 'no-store',
   });
   if (!res.ok) throw new Error(`form-engine list failed (${res.status})`);
@@ -94,8 +112,8 @@ async function listRows(
 const isArchived = (r: SurveyRow) => (r?.status ?? '') === 'archived';
 
 export async function listQuestionnaires(
-  brandId = DEFAULT_BRAND,
-  applicationId = DEFAULT_APP
+  brandId: string,
+  applicationId: string
 ): Promise<QuestionnaireItem[]> {
   return (await listRows(brandId, applicationId))
     .filter((r) => !isArchived(r))
@@ -104,8 +122,8 @@ export async function listQuestionnaires(
 
 export async function getQuestionnaire(
   code: string,
-  brandId = DEFAULT_BRAND,
-  applicationId = DEFAULT_APP
+  brandId: string,
+  applicationId: string
 ): Promise<QuestionnaireItem | null> {
   return (
     (await listQuestionnaires(brandId, applicationId)).find((q) => q.code === code) ?? null
@@ -115,8 +133,8 @@ export async function getQuestionnaire(
 /** Raw SurveyJS model for a questionnaire — used by QuestionnaireRunner. */
 export async function getQuestionnaireModel(
   code: string,
-  brandId = DEFAULT_BRAND,
-  applicationId = DEFAULT_APP
+  brandId: string,
+  applicationId: string
 ): Promise<SurveyJSModel | null> {
   const row = (await listRows(brandId, applicationId)).find(
     (r) => r.code === code && !isArchived(r)
@@ -131,16 +149,18 @@ export async function getQuestionnaireModel(
 
 export async function saveQuestionnaire(
   item: QuestionnaireItem,
-  brandId = DEFAULT_BRAND,
-  applicationId = DEFAULT_APP
+  brandId?: string,
+  applicationId?: string
 ): Promise<void> {
+  // The questionnaire's own tenant wins; the argument is the selector's.
+  const t = requireTenant(item.brandId || brandId, item.applicationId || applicationId);
   const code = item.code || `form_${Date.now()}`;
   const res = await fetch(`${FORM}/survey`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      brand_id: item.brandId || brandId,
-      application_id: item.applicationId || applicationId,
+      brand_id: t.brandId,
+      application_id: t.applicationId,
       code,
       title: item.name || code,
       status: toColumnStatus(item.status),
@@ -152,19 +172,20 @@ export async function saveQuestionnaire(
 
 export async function deleteQuestionnaire(
   code: string,
-  brandId = DEFAULT_BRAND,
-  applicationId = DEFAULT_APP
+  brandId: string,
+  applicationId: string
 ): Promise<void> {
   // Form Engine has no delete route — soft-delete by archiving. Keep the existing
   // schema so the questionnaire can be restored later.
-  const existing = (await listRows(brandId, applicationId)).find((r) => r.code === code);
+  const t = requireTenant(brandId, applicationId);
+  const existing = (await listRows(t.brandId, t.applicationId)).find((r) => r.code === code);
   const schema = existing ? parseSchema(existing) : { code };
   const res = await fetch(`${FORM}/survey/${encodeURIComponent(code)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      brand_id: existing?.brandId || existing?.brand_id || brandId,
-      application_id: existing?.applicationId || existing?.application_id || applicationId,
+      brand_id: existing?.brandId || existing?.brand_id || t.brandId,
+      application_id: existing?.applicationId || existing?.application_id || t.applicationId,
       code,
       title: existing?.title || code,
       status: 'archived',

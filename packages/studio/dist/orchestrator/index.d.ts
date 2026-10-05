@@ -8,48 +8,66 @@ interface VisionCapabilityInfo {
     triggerKeys: string[];
     outputDimensions: string[];
 }
+/**
+ * The effective pipeline config. The tenant (brand, application) and the
+ * scoring ruleset have no defaults: the caller names them, and the pipeline
+ * refuses to run without them rather than guess a tenant.
+ */
 interface OrchestratorPipelineConfig {
-    id: string;
     brandId: string;
     applicationId: string;
-    channel: 'kiosk' | 'mobile_app' | 'web_widget';
     executionStrategy: PipelineExecutionStrategy;
     vision: {
         serviceUrl: string;
         timeoutMs: number;
-        inputMode: 'single_image' | 'multi_view' | 'video_keyframe';
-        confidenceThreshold: number;
-        enabledCapabilities: string[];
-    };
-    form: {
-        questionnaireCode: string;
-        dimensionMappingRules: Record<string, string>;
     };
     scoring: {
+        /** The core-engine ruleset that scores the answers; its linked questionnaire interprets them. */
         rulesetCode: string;
-        dimensionFusionWeights: Record<string, {
-            formWeight: number;
-            visionWeight: number;
-        }>;
-    };
-    matching: {
-        minEfficacyScore: number;
-        strictContraindications: boolean;
-        maxAmRoutineSteps: number;
-        maxPmRoutineSteps: number;
-        /** Match engine endpoint; relative paths work in the browser only. */
+        /** Score engine evaluate endpoint, without the ruleset code; relative paths work in the browser only. */
         serviceUrl: string;
         timeoutMs: number;
     };
+    matching: {
+        /** Match engine endpoint; relative paths work in the browser only. */
+        serviceUrl: string;
+        timeoutMs: number;
+        /** A match strategy the brand configured; the engine picks its own when absent. */
+        strategyId?: string;
+    };
 }
+/** A configOverride may replace any section, or only part of one. */
+type PipelineConfigOverride = Partial<Omit<OrchestratorPipelineConfig, 'vision' | 'scoring' | 'matching'> & {
+    vision: Partial<OrchestratorPipelineConfig['vision']>;
+    scoring: Partial<OrchestratorPipelineConfig['scoring']>;
+    matching: Partial<OrchestratorPipelineConfig['matching']>;
+}>;
 interface AssessmentPayload {
     brandId: string;
     applicationId: string;
-    answers: Record<string, any>;
+    /**
+     * Raw questionnaire answers, keyed as the ruleset's linked questionnaire
+     * names its questions. They reach the score engine as answers; the
+     * pipeline does not turn them into numbers itself.
+     */
+    answers: Record<string, unknown>;
+    /** Skin-condition codes the customer named, used to pick vision capabilities. */
+    concerns?: string[];
+    /** The scoring ruleset; a configOverride.scoring.rulesetCode wins over it. */
+    rulesetCode?: string;
+    /** Required by the score engine unless the run is a dry run. */
+    customerId?: string;
+    /** Sends X-Dry-Run: true, so core-engine scores without a customer record. */
+    dryRun?: boolean;
     images?: {
         view: 'front' | 'left' | 'right';
         data: string;
     }[];
+    /**
+     * Safety flags for the match engine. The score engine takes none: it
+     * derives customer conditions from the answers (each choice's
+     * condition_map), so these are added to what it derived, for matching only.
+     */
     customerConditions?: Record<string, boolean>;
     userAge?: number;
     /**
@@ -58,7 +76,18 @@ interface AssessmentPayload {
      * caller (the API route) supplies its own origin.
      */
     baseUrl?: string;
-    configOverride?: Partial<OrchestratorPipelineConfig>;
+    configOverride?: PipelineConfigOverride;
+}
+/** One dimension's entry in core-engine's dimension_breakdown (HEALTH space, 100 = healthy). */
+interface ScoreDimensionBreakdown {
+    scored: boolean;
+    score?: number;
+    contributions: Record<string, {
+        score: number;
+        weight: number;
+    }>;
+    missing: string[];
+    reason?: string;
 }
 interface UnifiedAssessmentResponse {
     success: boolean;
@@ -66,12 +95,17 @@ interface UnifiedAssessmentResponse {
     executionStrategy: PipelineExecutionStrategy;
     stages: {
         form: {
-            extractedDimensions: Record<string, number>;
+            /** The question keys the caller answered, passed to the score engine unchanged. */
+            answeredQuestions: string[];
+            /** The concern codes the caller named. */
             detectedConditions: string[];
         };
         vision: {
             dispatchedCapabilities: string[];
-            /** Measured signals only. A capability with no model is absent here. */
+            /**
+             * Measured signals only, keyed by the capability that produced them.
+             * A capability with no model is absent here.
+             */
             telemetrySignals: Record<string, number>;
             spatialZones?: Record<string, Record<string, number>>;
             /** Capabilities the model server could not run, with its reason. */
@@ -81,36 +115,45 @@ interface UnifiedAssessmentResponse {
             /** Why nothing was dispatched at all. */
             dispatchError?: string;
         };
+        /** core-engine's score engine result for the configured ruleset. */
         scoring: {
+            /** The ruleset that actually scored (core may report a different one than requested). */
+            rulesetCode?: string;
+            /** Per-dimension HEALTH scores (100 = healthy), scored dimensions only. Empty on an error. */
             fusedDimensionScores: Record<string, number>;
-            skinProfile: {
+            /** Absent when the engine did not score. `complete` is false when an axis had no data. */
+            skinProfile?: {
                 code: string;
                 name: string;
                 category?: string;
                 description?: string;
-                /** True when a dimension the code needs was never scored. */
-                indeterminate?: boolean;
+                complete: boolean;
+                axisValues?: Record<string, string>;
             };
-            severityTiers: Record<string, {
-                gradeName: string;
-                severity: string;
-            }>;
-            /** Averaged over the dimensions that were scored; see missingDimensions. */
-            totalScore: number;
-            /** Dimensions with no score, so nothing downstream reads one into them. */
+            /** The engine's total over its axis dimensions; absent when none was scored. */
+            totalScore?: number;
+            /** Every dimension the ruleset blends, scored or not, with each source's contribution. */
+            dimensionBreakdown?: Record<string, ScoreDimensionBreakdown>;
+            /** Dimensions the ruleset registers that were not scored this run. */
             missingDimensions?: string[];
+            /** Conditions the engine derived from the answers. */
+            customerConditions?: Record<string, boolean>;
+            /** The engine's warnings, plus the pipeline's own notes about what it did not send. */
+            warnings: string[];
+            /** Why there are no scores: unreachable, refused, or not configured. */
+            scoreError?: string;
         };
         matching: {
             amRoutine: Array<{
                 step: string;
                 productName: string;
-                matchScore: number;
+                matchScore?: number;
                 reason: string;
             }>;
             pmRoutine: Array<{
                 step: string;
                 productName: string;
-                matchScore: number;
+                matchScore?: number;
                 reason: string;
             }>;
             contraindicationWarnings: string[];
@@ -118,7 +161,7 @@ interface UnifiedAssessmentResponse {
             phases?: Record<string, Array<{
                 step: string;
                 productName: string;
-                matchScore: number;
+                matchScore?: number;
                 reason: string;
             }>>;
             /** Why there is no regimen; absent when one was returned. */
@@ -158,7 +201,7 @@ declare function resolveRequiredCapabilities(detectedConditions: string[], skinC
 
 interface CapabilityDispatchResult {
     /**
-     * Measured values only, keyed by display metric. A capability the model
+     * Measured values only, keyed by capability. A capability the model
      * server did not score is absent — never filled in with a stand-in, so a
      * caller cannot mistake a guess for a measurement.
      */
@@ -196,15 +239,49 @@ declare function dispatchPyTorchCapabilities(params: {
     apiKey?: string;
 }): Promise<CapabilityDispatchResult>;
 
-declare function fuseDimensionScores(formScores: Record<string, number>, visionScores: Record<string, number>, weights?: Record<string, {
-    formWeight: number;
-    visionWeight: number;
-}>): Record<string, number>;
+/** Where the score engine's evaluate endpoint is; the ruleset code is appended. */
+declare const DEFAULT_SCORE_ENGINE_PATH = "/core/score-engine/evaluate";
+interface ScoreResult {
+    rulesetCode?: string;
+    /** HEALTH scores (100 = healthy), scored dimensions only. */
+    dimensionScores: Record<string, number>;
+    totalScore?: number;
+    skinProfile?: {
+        code: string;
+        name: string;
+        category?: string;
+        description?: string;
+        complete: boolean;
+        axisValues?: Record<string, string>;
+    };
+    breakdown: Record<string, ScoreDimensionBreakdown>;
+    missingDimensions: string[];
+    customerConditions: Record<string, boolean>;
+    warnings: string[];
+    /** Why there are no scores; absent when the engine scored. */
+    error?: string;
+}
+declare function evaluateScore(params: {
+    /** The evaluate endpoint without the ruleset code. */
+    url: string;
+    rulesetCode: string;
+    brandId: string;
+    applicationId: string;
+    answers: Record<string, unknown>;
+    customerId?: string;
+    dryRun?: boolean;
+    /** Sources other than form and vision, as the ruleset declares them. */
+    sourceSignals?: Record<string, Record<string, number>>;
+    /** Data-plane key when the engine is reached through the gateway directly. Server-side only. */
+    apiKey?: string;
+    timeoutMs?: number;
+}): Promise<ScoreResult>;
 
 interface RoutineStep {
     step: string;
     productName: string;
-    matchScore: number;
+    /** The engine's own score; absent when it sent none. */
+    matchScore?: number;
     reason: string;
 }
 interface RegimenResult {
@@ -220,100 +297,87 @@ interface RegimenResult {
     /** Why there is no regimen — unreachable, refused, or simply none returned. */
     error?: string;
 }
+/** Where the match engine is, for a caller that cannot use a relative path. */
+declare const DEFAULT_MATCH_ENGINE_PATH = "/core/match-engine/evaluate";
 declare function fetchRegimens(params: {
     url: string;
     brandId: string;
     applicationId: string;
+    /** The score engine's HEALTH scores, passed through unchanged. */
     dimensionScores: Record<string, number>;
+    /**
+     * The score engine's skin_profile. The match engine takes its skin type
+     * from it and does not classify skin itself.
+     */
+    skinProfile?: {
+        code: string;
+        name: string;
+        category?: string;
+        description?: string;
+        axisValues?: Record<string, string>;
+    };
     customerConditions?: Record<string, boolean>;
     strategyId?: string;
     timeoutMs?: number;
 }): Promise<RegimenResult>;
 
 /**
- * The pipeline settings used when the caller supplies none. Every value here
- * is the one the executor has always applied inline; they were collected
- * into this object, unchanged, so a deployment can replace them through
- * `executeAssessmentPipeline(payload, { defaults })` or a payload
- * `configOverride`.
+ * How long the pipeline waits on each service before giving up. These are
+ * client-side waits, not engine policy and not a property of any tenant: a
+ * timeout only decides when "no answer yet" becomes "no answer", and the
+ * stage then reports that it timed out rather than returning a value.
+ * A deployment can replace them through `defaults` or a configOverride.
+ */
+declare const DEFAULT_VISION_TIMEOUT_MS = 3000;
+declare const DEFAULT_SCORE_TIMEOUT_MS = 5000;
+declare const DEFAULT_MATCH_TIMEOUT_MS = 5000;
+/**
+ * The pipeline settings used where the caller is silent. Only mechanical
+ * values live here: the execution strategy and the timeouts above.
  *
- * None of these are measurements or calibrated values. The brand and
- * application ids are the demo tenant; the fusion weights, efficacy floor
- * and routine-step limits are policy that has no recorded source. Treat
- * them as placeholders until a deployment's own pipeline config replaces
- * them. Service URLs are not here: they come from the environment (see
- * `PipelineEnv`).
+ * There is deliberately no tenant, questionnaire or ruleset. These used to
+ * default to a demo brand and application, a questionnaire code, a ruleset
+ * code, answer-to-dimension mappings, fusion weights and matching limits —
+ * none of them grounded, and a run that forgot its tenant silently scored
+ * against the demo one. The caller now names brand, application and
+ * ruleset (`PipelineInputError` otherwise); the ruleset owns everything that
+ * used to be guessed here. Service URLs come from the environment
+ * (see `PipelineEnv`).
  */
 declare const DEFAULT_PIPELINE_SETTINGS: {
-    id: string;
-    brandId: string;
-    applicationId: string;
-    channel: "kiosk";
     executionStrategy: "dynamic_capability_dispatch";
     vision: {
         timeoutMs: number;
-        inputMode: "single_image";
-        confidenceThreshold: number;
-        enabledCapabilities: never[];
-    };
-    form: {
-        questionnaireCode: string;
-        dimensionMappingRules: {
-            q_sebum: string;
-            q_sensitivity: string;
-            q_pigmentation: string;
-            q_aging: string;
-            q_barrier: string;
-        };
     };
     scoring: {
-        rulesetCode: string;
-        dimensionFusionWeights: {
-            sebum: {
-                formWeight: number;
-                visionWeight: number;
-            };
-            acne: {
-                formWeight: number;
-                visionWeight: number;
-            };
-            pigmentation: {
-                formWeight: number;
-                visionWeight: number;
-            };
-            aging: {
-                formWeight: number;
-                visionWeight: number;
-            };
-            sensitivity: {
-                formWeight: number;
-                visionWeight: number;
-            };
-            barrier: {
-                formWeight: number;
-                visionWeight: number;
-            };
-        };
+        timeoutMs: number;
     };
     matching: {
-        minEfficacyScore: number;
-        strictContraindications: true;
-        maxAmRoutineSteps: number;
-        maxPmRoutineSteps: number;
         timeoutMs: number;
     };
 };
-/** A pipeline config without its service URLs, which come from `PipelineEnv`. */
-type PipelineSettings = Omit<OrchestratorPipelineConfig, 'vision' | 'matching'> & {
-    vision: Omit<OrchestratorPipelineConfig['vision'], 'serviceUrl'>;
-    matching: Omit<OrchestratorPipelineConfig['matching'], 'serviceUrl'>;
-};
+/** What a deployment may default: everything but the tenant, the ruleset and the service URLs. */
+interface PipelineSettings {
+    executionStrategy: OrchestratorPipelineConfig['executionStrategy'];
+    vision: {
+        timeoutMs: number;
+    };
+    scoring: {
+        timeoutMs: number;
+    };
+    matching: {
+        timeoutMs: number;
+        strategyId?: string;
+    };
+}
 
 /** Deployment values the pipeline reads from its environment. */
 interface PipelineEnv {
     /** Match engine origin; when absent the payload's baseUrl is used. */
     matchEngineUrl?: string;
-    /** Sent to a capability dispatch service a configOverride names. Server-side only. */
+    /** Score engine origin; when absent the payload's baseUrl is used. */
+    scoreEngineUrl?: string;
+    /** Sent to the score engine and to a dispatch service a configOverride names. Server-side only. */
     gatewayApiKey?: string;
 }
 /**
@@ -326,7 +390,7 @@ interface PipelineClients {
     resolveRequiredCapabilities: typeof resolveRequiredCapabilitiesFromDb;
     fetchSkinConditions: typeof fetchSkinConditionsFromDb;
     dispatchCapabilities: typeof dispatchPyTorchCapabilities;
-    fuseScores: typeof fuseDimensionScores;
+    evaluateScore: typeof evaluateScore;
     fetchRegimens: typeof fetchRegimens;
 }
 interface PipelineDeps {
@@ -339,8 +403,20 @@ interface PipelineDeps {
     /** Any client left out uses the package's own HTTP client. */
     clients?: Partial<PipelineClients>;
 }
-/** The effective config: settings, plus service URLs from env, under the payload's override. */
+/**
+ * The caller left out something the pipeline will not guess: the tenant or
+ * the scoring ruleset. An API route answers it with a 400.
+ */
+declare class PipelineInputError extends Error {
+    readonly missing: string[];
+    constructor(missing: string[]);
+}
+/**
+ * The effective config: settings, plus service URLs from env, under the
+ * payload's override. Throws `PipelineInputError` when brand, application
+ * or ruleset is missing.
+ */
 declare function resolvePipelineConfig(payload: AssessmentPayload, settings: PipelineSettings, env: PipelineEnv): OrchestratorPipelineConfig;
 declare function executeAssessmentPipeline(payload: AssessmentPayload, deps: PipelineDeps): Promise<UnifiedAssessmentResponse>;
 
-export { type AssessmentPayload, type CapabilityDispatchResult, DEFAULT_PIPELINE_SETTINGS, type DbSkinConditionRecord, type OrchestratorPipelineConfig, type PipelineClients, type PipelineDeps, type PipelineEnv, type PipelineExecutionStrategy, type PipelineSettings, type UnifiedAssessmentResponse, type VisionCapabilityInfo, dispatchPyTorchCapabilities, executeAssessmentPipeline, fetchSkinConditionsFromDb, fuseDimensionScores, invalidateSkinConditionCache, pipelineEnvFromProcess, resolvePipelineConfig, resolveRequiredCapabilities, resolveRequiredCapabilitiesFromDb };
+export { type AssessmentPayload, type CapabilityDispatchResult, DEFAULT_MATCH_ENGINE_PATH, DEFAULT_MATCH_TIMEOUT_MS, DEFAULT_PIPELINE_SETTINGS, DEFAULT_SCORE_ENGINE_PATH, DEFAULT_SCORE_TIMEOUT_MS, DEFAULT_VISION_TIMEOUT_MS, type DbSkinConditionRecord, type OrchestratorPipelineConfig, type PipelineClients, type PipelineConfigOverride, type PipelineDeps, type PipelineEnv, type PipelineExecutionStrategy, PipelineInputError, type PipelineSettings, type RegimenResult, type RoutineStep, type ScoreDimensionBreakdown, type ScoreResult, type UnifiedAssessmentResponse, type VisionCapabilityInfo, dispatchPyTorchCapabilities, evaluateScore, executeAssessmentPipeline, fetchRegimens, fetchSkinConditionsFromDb, invalidateSkinConditionCache, pipelineEnvFromProcess, resolvePipelineConfig, resolveRequiredCapabilities, resolveRequiredCapabilitiesFromDb };

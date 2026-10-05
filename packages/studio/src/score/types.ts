@@ -113,6 +113,15 @@ export const LEGACY_SOURCES: Readonly<Record<'form' | 'vision', SourceSpec>> = {
  *  field_mapping.form naming it is the one form mapping core actually read. */
 export const AGE_FIELD = 'age_over_30';
 
+/** The age, in whole years, above which AGE_FIELD reads 100 (concern) rather
+ *  than 0. Not a policy of this repo: it is core's AgeOverThirty check
+ *  (seagull-core apps/core-engine/internal/form/domain/vision_mapping.go,
+ *  `age > 30`, evaluated in Asia/Jakarta — someone turning exactly 30 today is
+ *  not over). The Studio never applies it: /simulate and /evaluate run core's
+ *  check. It exists only to label the simulator's age input, and must change
+ *  if core's does. */
+export const AGE_FIELD_CUTOFF_YEARS = 30;
+
 /** The sources whose fields have a registered catalog to pick from. Any other
  *  declared source (a device, a lab) names its fields directly. */
 export const FORM_SOURCE = 'form';
@@ -149,7 +158,7 @@ export interface VisualSeverityTier {
  *  catalog entry — never free text — so the picker in the UI and the
  *  field_mapping this compiles to both stay meaningful: 'form' references a
  *  reference-service dimension code (Q1-Q6, or a DOB-derived one like
- *  age_over_30 — DOB is still fundamentally a questionnaire answer, just
+ *  AGE_FIELD — DOB is still fundamentally a questionnaire answer, just
  *  from a different form than Q1-Q6); 'vision' references a known CV output
  *  field (see KNOWN_VISION_FIELDS). */
 export interface InputSource {
@@ -194,7 +203,6 @@ export const KNOWN_VISION_FIELDS: VisionFieldMeta[] = [
   { code: 'data.inference_result.results.skin_scoring.Darkspot', label: 'Darkspot', description: 'results.skin_scoring.Darkspot — feeds Pigmentation.' },
   { code: 'data.inference_result.results.skin_scoring.Wrinkle', label: 'Wrinkle', description: 'results.skin_scoring.Wrinkle — feeds Aging.' },
   { code: 'data.inference_result.results.skin_scoring.Pores', label: 'Pores', description: 'results.skin_scoring.Pores — feeds Pore Severity.' },
-  { code: 'age_over_30', label: 'Age > 30 (from DOB)', description: 'Derived from date_of_birth on the identity questionnaire, not a Q1-Q6 question. 0 if <=30, 100 if >30.' },
 ];
 
 /** One source feeding an axis. `weight` is a percentage (0-100); an axis's

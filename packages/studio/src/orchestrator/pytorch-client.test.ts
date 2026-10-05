@@ -18,16 +18,16 @@ afterEach(() => {
 });
 
 describe('dispatchPyTorchCapabilities', () => {
-  it('maps a scored capability onto its display metrics', async () => {
+  it('keys a reading by the capability that produced it, renaming nothing', async () => {
     mockFetch(200, { telemetry: { sebum_shine_detector: 81.2 } });
     const r = await dispatchPyTorchCapabilities({ serviceUrl: 'http://models.test', timeoutMs: 100, capabilities: CAPS });
-    expect(r.telemetry).toEqual({ sebum: 81.2 });
+    expect(r.telemetry).toEqual({ sebum_shine_detector: 81.2 });
   });
 
   it('invents nothing for a capability the server did not score', async () => {
     mockFetch(200, { telemetry: { sebum_shine_detector: 81.2 } });
     const r = await dispatchPyTorchCapabilities({ serviceUrl: 'http://models.test', timeoutMs: 100, capabilities: CAPS });
-    expect(r.telemetry).not.toHaveProperty('aging');
+    expect(r.telemetry).not.toHaveProperty('wrinkle_depth_estimator');
     expect(r.missing).toEqual(['wrinkle_depth_estimator']);
   });
 

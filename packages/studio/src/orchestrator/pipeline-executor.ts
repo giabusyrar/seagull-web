@@ -2,18 +2,17 @@ import type { HostRoutes } from '@gateway-experience/shared';
 import { AssessmentPayload, UnifiedAssessmentResponse, OrchestratorPipelineConfig } from './types';
 import { resolveRequiredCapabilitiesFromDb, fetchSkinConditionsFromDb } from './capability-registry';
 import { dispatchPyTorchCapabilities } from './pytorch-client';
-import { fuseDimensionScores } from './score-fusion';
+import { evaluateScore, DEFAULT_SCORE_ENGINE_PATH } from './score-client';
 import { fetchRegimens, DEFAULT_MATCH_ENGINE_PATH } from './match-client';
-import {
-  DEFAULT_PIPELINE_SETTINGS,
-  type PipelineSettings,
-} from './pipeline-defaults';
+import { DEFAULT_PIPELINE_SETTINGS, type PipelineSettings } from './pipeline-defaults';
 
 /** Deployment values the pipeline reads from its environment. */
 export interface PipelineEnv {
   /** Match engine origin; when absent the payload's baseUrl is used. */
   matchEngineUrl?: string;
-  /** Sent to a capability dispatch service a configOverride names. Server-side only. */
+  /** Score engine origin; when absent the payload's baseUrl is used. */
+  scoreEngineUrl?: string;
+  /** Sent to the score engine and to a dispatch service a configOverride names. Server-side only. */
   gatewayApiKey?: string;
 }
 
@@ -24,6 +23,7 @@ export interface PipelineEnv {
 export function pipelineEnvFromProcess(): PipelineEnv {
   return {
     matchEngineUrl: process.env.MATCH_ENGINE_URL,
+    scoreEngineUrl: process.env.SCORE_ENGINE_URL,
     gatewayApiKey: process.env.GATEWAY_API_KEY,
   };
 }
@@ -33,7 +33,7 @@ export interface PipelineClients {
   resolveRequiredCapabilities: typeof resolveRequiredCapabilitiesFromDb;
   fetchSkinConditions: typeof fetchSkinConditionsFromDb;
   dispatchCapabilities: typeof dispatchPyTorchCapabilities;
-  fuseScores: typeof fuseDimensionScores;
+  evaluateScore: typeof evaluateScore;
   fetchRegimens: typeof fetchRegimens;
 }
 
@@ -48,43 +48,72 @@ export interface PipelineDeps {
   clients?: Partial<PipelineClients>;
 }
 
+/**
+ * The caller left out something the pipeline will not guess: the tenant or
+ * the scoring ruleset. An API route answers it with a 400.
+ */
+export class PipelineInputError extends Error {
+  constructor(public readonly missing: string[]) {
+    super(`The assessment pipeline needs ${missing.join(', ')}; none was supplied and none is assumed.`);
+    this.name = 'PipelineInputError';
+  }
+}
+
 const defaultClients = (): PipelineClients => ({
   resolveRequiredCapabilities: resolveRequiredCapabilitiesFromDb,
   fetchSkinConditions: fetchSkinConditionsFromDb,
   dispatchCapabilities: dispatchPyTorchCapabilities,
-  fuseScores: fuseDimensionScores,
+  evaluateScore,
   fetchRegimens,
 });
 
-/** The effective config: settings, plus service URLs from env, under the payload's override. */
+/**
+ * The effective config: settings, plus service URLs from env, under the
+ * payload's override. Throws `PipelineInputError` when brand, application
+ * or ruleset is missing.
+ */
 export function resolvePipelineConfig(
   payload: AssessmentPayload,
   settings: PipelineSettings,
   env: PipelineEnv,
 ): OrchestratorPipelineConfig {
-  return {
-    ...settings,
-    brandId: payload.brandId || settings.brandId,
-    applicationId: payload.applicationId || settings.applicationId,
-    executionStrategy: payload.configOverride?.executionStrategy || settings.executionStrategy,
+  const o = payload.configOverride || {};
+  const config: OrchestratorPipelineConfig = {
+    brandId: o.brandId || payload.brandId || '',
+    applicationId: o.applicationId || payload.applicationId || '',
+    executionStrategy: o.executionStrategy || settings.executionStrategy,
     vision: {
-      ...settings.vision,
+      timeoutMs: settings.vision.timeoutMs,
       // worker-models, which served capability dispatch, was retired with
       // the model registry (Seagull-core, 2026-10-03). Only a configOverride
       // can name a dispatch service now; without one the vision stage reports
       // that nothing was dispatched, and why.
-      serviceUrl: payload.configOverride?.vision?.serviceUrl || '',
+      serviceUrl: '',
+      ...o.vision,
+    },
+    scoring: {
+      rulesetCode: payload.rulesetCode || '',
+      timeoutMs: settings.scoring.timeoutMs,
+      // The score engine origin when the pipeline runs on a server; otherwise
+      // the app's own path, which the dashboard proxies to the gateway.
+      serviceUrl: `${env.scoreEngineUrl || payload.baseUrl || ''}${DEFAULT_SCORE_ENGINE_PATH}`,
+      ...o.scoring,
     },
     matching: {
       ...settings.matching,
-      // The match engine origin when the pipeline runs on a server; otherwise
-      // the app's own path, which the dashboard proxies to the gateway.
-      serviceUrl: env.matchEngineUrl
-        ? `${env.matchEngineUrl}${DEFAULT_MATCH_ENGINE_PATH}`
-        : `${payload.baseUrl || ''}${DEFAULT_MATCH_ENGINE_PATH}`,
+      serviceUrl: `${env.matchEngineUrl || payload.baseUrl || ''}${DEFAULT_MATCH_ENGINE_PATH}`,
+      ...o.matching,
     },
-    ...(payload.configOverride || {}),
   };
+
+  const missing = [
+    !config.brandId && 'brandId',
+    !config.applicationId && 'applicationId',
+    !config.scoring.rulesetCode && 'rulesetCode',
+  ].filter((m): m is string => !!m);
+  if (missing.length) throw new PipelineInputError(missing);
+
+  return config;
 }
 
 export async function executeAssessmentPipeline(
@@ -99,43 +128,17 @@ export async function executeAssessmentPipeline(
   const skinConditionsUrl = `${payload.baseUrl || ''}${deps.routes.skinConditions}`;
 
   // -------------------------------------------------------------
-  // STAGE 1: FORM PARSING & CONCERN EXTRACTION
+  // STAGE 1: FORM INPUT
+  // The answers are passed to the score engine as answers; the ruleset's
+  // linked questionnaire interprets them. Nothing is scored here.
   // -------------------------------------------------------------
   const t0 = Date.now();
-  const extractedDimensions: Record<string, number> = {};
-  const detectedConditions: string[] = [];
-
   const answers = payload.answers || {};
-  if (Array.isArray(answers.concerns)) {
-    detectedConditions.push(...answers.concerns);
-  }
-  if (answers.skin_type) {
-    if (answers.skin_type === 'oily') {
-      detectedConditions.push('concern_oiliness');
-      extractedDimensions['sebum'] = 75;
-    } else if (answers.skin_type === 'dry') {
-      detectedConditions.push('concern_dryness');
-      extractedDimensions['hydration'] = 35;
-    } else if (answers.skin_type === 'sensitive') {
-      detectedConditions.push('concern_redness');
-      extractedDimensions['sensitivity'] = 75;
-    } else if (answers.skin_type === 'combination') {
-      detectedConditions.push('concern_oiliness');
-      extractedDimensions['sebum'] = 60;
-      extractedDimensions['hydration'] = 50;
-    }
-  }
-
-  for (const [ansKey, dimKey] of Object.entries(config.form.dimensionMappingRules)) {
-    if (typeof answers[ansKey] === 'number') {
-      extractedDimensions[dimKey] = answers[ansKey];
-    }
-  }
-
+  const detectedConditions = Array.isArray(payload.concerns) ? [...payload.concerns] : [];
   timings['stage1_form_ms'] = Date.now() - t0;
 
   // -------------------------------------------------------------
-  // STAGE 2: DYNAMIC PYTORCH CAPABILITY DISPATCH
+  // STAGE 2: CAPABILITY DISPATCH
   // -------------------------------------------------------------
   const t1 = Date.now();
   let dispatchedCaps: string[] = [];
@@ -166,129 +169,56 @@ export async function executeAssessmentPipeline(
   timings['stage2_vision_ms'] = Date.now() - t1;
 
   // -------------------------------------------------------------
-  // STAGE 3: SCORE FUSION & DECISION MODEL
+  // STAGE 3: SCORING (core-engine score engine, the configured ruleset)
   // -------------------------------------------------------------
   const t2 = Date.now();
-  const fusedScores = clients.fuseScores(
-    config.executionStrategy === 'vision_only' ? {} : extractedDimensions,
-    config.executionStrategy === 'form_only' ? {} : visionSignals,
-    config.scoring.dimensionFusionWeights
-  );
-
-  // The four dimensions the Baumann code is built from. A dimension with no
-  // score used to fall back to a fixed number (50 / 40 / 35 / 30), which
-  // decided a letter of the code on no evidence at all. Missing is now
-  // missing: the code is only computed when all four were scored.
-  const CODE_DIMENSIONS = ['sebum', 'sensitivity', 'pigmentation', 'aging'] as const;
-  const missingDimensions = CODE_DIMENSIONS.filter((d) => typeof fusedScores[d] !== 'number');
-  const indeterminate = missingDimensions.length > 0;
-
-  const sebumScore = fusedScores.sebum;
-  const sensScore = fusedScores.sensitivity;
-  const pigScore = fusedScores.pigmentation;
-  const agingScore = fusedScores.aging;
-
-  // Determine Baumann 4-letter Code: [O/D]-[S/R]-[P/N]-[W/T]
-  const o_d = sebumScore !== undefined && sebumScore >= 55 ? 'O' : 'D';
-  const s_r = sensScore !== undefined && sensScore >= 50 ? 'S' : 'R';
-  const p_n = pigScore !== undefined && pigScore >= 50 ? 'P' : 'N';
-  const w_t = agingScore !== undefined && agingScore >= 45 ? 'W' : 'T';
-  const profileCode = indeterminate ? '' : `${o_d}${s_r}${p_n}${w_t}`;
-
-  const profileNames: Record<string, string> = {
-    OSNW: 'Oily Sensitive Non-Pigmented Wrinkle-Prone',
-    OSNT: 'Oily Sensitive Non-Pigmented Tight',
-    OSPW: 'Oily Sensitive Pigmented Wrinkle-Prone',
-    OSPT: 'Oily Sensitive Pigmented Tight',
-    ORNW: 'Oily Resistant Non-Pigmented Wrinkle-Prone',
-    ORNT: 'Oily Resistant Non-Pigmented Tight',
-    DSNW: 'Dry Sensitive Non-Pigmented Wrinkle-Prone',
-    DSNT: 'Dry Sensitive Non-Pigmented Tight',
-    DSPW: 'Dry Sensitive Pigmented Wrinkle-Prone',
-    DSPT: 'Dry Sensitive Pigmented Tight',
-    DRNW: 'Dry Resistant Non-Pigmented Wrinkle-Prone',
-    DRNT: 'Dry Resistant Non-Pigmented Tight',
-  };
-
-  const skinProfile = indeterminate
-    ? {
-        code: '',
-        name: 'Indeterminate',
-        indeterminate: true,
-        description: `No profile: ${missingDimensions.join(', ')} ${
-          missingDimensions.length === 1 ? 'was' : 'were'
-        } not scored by the form or the model server.`,
-      }
-    : {
-        code: profileCode,
-        name: profileNames[profileCode] || `Diagnostic Profile ${profileCode}`,
-        category: o_d === 'O' ? 'Lipid Imbalanced' : 'Alipidic / Barrier Compromised',
-        description: `Clinical diagnosis reflects ${o_d === 'O' ? 'elevated sebum shine' : 'reduced barrier moisture'} blended with ${s_r === 'S' ? 'reactive sensitivity' : 'resilient resistance'}.`,
-      };
-
-  // A tier is graded only for a dimension that was scored; an unscored one is
-  // left out rather than graded against a stand-in.
-  const severityTiers: Record<string, { gradeName: string; severity: string }> = {};
-  if (sebumScore !== undefined) {
-    severityTiers.sebum = {
-      gradeName: sebumScore >= 70 ? 'High Shine / Hyper-Seborrhea' : sebumScore >= 40 ? 'Balanced Lipid' : 'Dry / Alipidic',
-      severity: sebumScore >= 70 ? 'severe' : sebumScore >= 50 ? 'moderate' : 'optimal',
-    };
+  const pipelineNotes: string[] = [];
+  if (Object.keys(visionSignals).length) {
+    // The evaluate endpoint reads vision only from a photo it submits to the
+    // ruleset's own vision provider; it takes no pre-computed readings.
+    pipelineNotes.push(
+      'PIPELINE: dispatched vision readings were not sent to the score engine; it reads vision only from a submitted photo.',
+    );
   }
-  if (sensScore !== undefined) {
-    severityTiers.sensitivity = {
-      gradeName: sensScore >= 65 ? 'Reactive Erythema' : 'Tolerant Resilient',
-      severity: sensScore >= 65 ? 'severe' : 'optimal',
-    };
-  }
-  if (pigScore !== undefined) {
-    severityTiers.pigmentation = {
-      gradeName: pigScore >= 60 ? 'Localized Melasma' : 'Uniform Tone',
-      severity: pigScore >= 60 ? 'moderate' : 'optimal',
-    };
-  }
-
-  // Averaged over the dimensions that were actually scored. Averaging a
-  // stand-in 50 into the total was how an unmeasured dimension still moved
-  // the number.
-  const scoredValues = CODE_DIMENSIONS.map((d) => fusedScores[d]).filter(
-    (v): v is number => typeof v === 'number',
-  );
-  const totalScore = scoredValues.length
-    ? Math.round(scoredValues.reduce((a, b) => a + b, 0) / scoredValues.length)
-    : 0;
-
+  const score = await clients.evaluateScore({
+    url: config.scoring.serviceUrl,
+    rulesetCode: config.scoring.rulesetCode,
+    brandId: config.brandId,
+    applicationId: config.applicationId,
+    // vision_only scores from no form answers; the engine says if that leaves it nothing.
+    answers: config.executionStrategy === 'vision_only' ? {} : answers,
+    customerId: payload.customerId,
+    dryRun: payload.dryRun,
+    apiKey: env.gatewayApiKey,
+    timeoutMs: config.scoring.timeoutMs,
+  });
   timings['stage3_scoring_ms'] = Date.now() - t2;
 
   // -------------------------------------------------------------
   // STAGE 4: MATCH ENGINE & ROUTINE GENERATION
   // -------------------------------------------------------------
   const t3 = Date.now();
-  const isPregnant = payload.customerConditions?.is_pregnant ?? false;
-  const usesRetinol = payload.customerConditions?.uses_retinol ?? false;
-  const contraindicationWarnings: string[] = [];
-
-  if (isPregnant) {
-    contraindicationWarnings.push('Pregnancy safety constraint active: Retinoids, Salicylic Acid (>2%), and Hydroquinone excluded.');
-  }
-  if (usesRetinol) {
-    contraindicationWarnings.push('Active retinoid user: High-concentration AHA/BHA exfoliants slotted exclusively for alternate night PM use.');
-  }
-
-  // Routines come from the match engine. They used to be literals in this
-  // file — fixed product names and fixed scores dressed as engine output —
-  // which meant the dashboard showed recommendations no catalogue had made.
-  const regimens = await clients.fetchRegimens({
-    url: config.matching.serviceUrl,
-    brandId: config.brandId,
-    applicationId: config.applicationId,
-    dimensionScores: fusedScores,
-    customerConditions: payload.customerConditions,
-    timeoutMs: config.matching.timeoutMs,
-  });
-  const amRoutine = regimens.amRoutine;
-  const pmRoutine = regimens.pmRoutine;
-  contraindicationWarnings.push(...regimens.warnings);
+  const hasScores = Object.keys(score.dimensionScores).length > 0;
+  // Routines come from the match engine, matched on the score engine's
+  // result. Without scores there is nothing to match on, so it is not asked.
+  const regimens = hasScores
+    ? await clients.fetchRegimens({
+        url: config.matching.serviceUrl,
+        brandId: config.brandId,
+        applicationId: config.applicationId,
+        dimensionScores: score.dimensionScores,
+        skinProfile: score.skinProfile,
+        customerConditions: { ...score.customerConditions, ...payload.customerConditions },
+        strategyId: config.matching.strategyId,
+        timeoutMs: config.matching.timeoutMs,
+      })
+    : {
+        amRoutine: [],
+        pmRoutine: [],
+        phases: {},
+        warnings: [],
+        error: 'Not requested: the score engine returned no scores to match on.',
+      };
 
   timings['stage4_matching_ms'] = Date.now() - t3;
   timings['total_pipeline_ms'] = Date.now() - startTime;
@@ -299,7 +229,7 @@ export async function executeAssessmentPipeline(
     executionStrategy: config.executionStrategy,
     stages: {
       form: {
-        extractedDimensions,
+        answeredQuestions: Object.keys(answers),
         detectedConditions,
       },
       vision: {
@@ -312,16 +242,20 @@ export async function executeAssessmentPipeline(
         ...(visionDispatch.error ? { dispatchError: visionDispatch.error } : {}),
       },
       scoring: {
-        fusedDimensionScores: fusedScores,
-        skinProfile,
-        severityTiers,
-        totalScore,
-        ...(missingDimensions.length ? { missingDimensions: [...missingDimensions] } : {}),
+        ...(score.rulesetCode ? { rulesetCode: score.rulesetCode } : {}),
+        fusedDimensionScores: score.dimensionScores,
+        ...(score.skinProfile ? { skinProfile: score.skinProfile } : {}),
+        ...(score.totalScore !== undefined ? { totalScore: score.totalScore } : {}),
+        ...(Object.keys(score.breakdown).length ? { dimensionBreakdown: score.breakdown } : {}),
+        ...(score.missingDimensions.length ? { missingDimensions: score.missingDimensions } : {}),
+        ...(Object.keys(score.customerConditions).length ? { customerConditions: score.customerConditions } : {}),
+        warnings: [...score.warnings, ...pipelineNotes],
+        ...(score.error ? { scoreError: score.error } : {}),
       },
       matching: {
-        amRoutine,
-        pmRoutine,
-        contraindicationWarnings,
+        amRoutine: regimens.amRoutine,
+        pmRoutine: regimens.pmRoutine,
+        contraindicationWarnings: regimens.warnings,
         ...(Object.keys(regimens.phases).length ? { phases: regimens.phases } : {}),
         ...(regimens.error ? { regimenError: regimens.error } : {}),
       },

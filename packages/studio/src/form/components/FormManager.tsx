@@ -17,10 +17,11 @@ import {
 import type { QuestionnaireItem } from '../types';
 
 const TENANT_KEY = 'xg.formEngine.tenant';
+// The last tenant picked in the selector. With none stored, both are empty and
+// the page asks the user to choose — there is no default tenant.
 const readTenant = (): { brandId: string; applicationId: string } => {
   const t = readPersisted<{ brandId?: string; applicationId?: string } | null>(TENANT_KEY);
-  if (t?.brandId && t?.applicationId) return t as { brandId: string; applicationId: string };
-  return { brandId: 'wardah', applicationId: 'skinverse' };
+  return { brandId: t?.brandId || '', applicationId: t?.applicationId || '' };
 };
 
 import { QuestionnairesTab } from './tabs/QuestionnairesTab';
@@ -61,9 +62,17 @@ export const FormManager: React.FC = () => {
   // Simulator State — Form Engine only calculates; no Score Engine call.
   const [selectedQCode, setSelectedQCode] = usePersistentState('xg.formEngine.simulator.questionnaire', '');
 
+  const tenantMissing = !brandId || !applicationId;
+
   const loadData = () => {
     // Questionnaires are served by the Form Engine via /core/form-engine/survey,
-    // scoped to the active brand / application tenant.
+    // scoped to the active brand / application tenant. Nothing is listed until
+    // both are chosen.
+    // No tenant: an empty list, delivered like a loaded one.
+    if (tenantMissing) {
+      void Promise.resolve([]).then(setQuestionnaires);
+      return;
+    }
     listQuestionnaires(brandId, applicationId)
       .then(setQuestionnaires)
       .catch(() => setQuestionnaires([]));
@@ -167,6 +176,11 @@ export const FormManager: React.FC = () => {
               label="About brand / application scope"
             />
           </div>
+          {tenantMissing && (
+            <p className="pb-2 text-xs text-amber-500">
+              Choose a brand and an application to see their questionnaires.
+            </p>
+          )}
         </div>
 
         {activeTab === 'questionnaires' && (

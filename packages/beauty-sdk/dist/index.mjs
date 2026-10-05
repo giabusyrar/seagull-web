@@ -346,37 +346,48 @@ var DimensionSelector = ({
     }) })
   ] });
 };
+var SEVERITY_TONES = {
+  optimal: "good",
+  mild: "good",
+  moderate: "warning",
+  severe: "bad",
+  critical: "bad"
+};
+var BADGE_CLASSES = {
+  good: "bg-emerald-100 text-emerald-800 border-emerald-200",
+  warning: "bg-amber-100 text-amber-800 border-amber-200",
+  bad: "bg-rose-100 text-rose-800 border-rose-200",
+  neutral: "bg-gray-100 text-gray-700 border-gray-200"
+};
+var BAR_CLASSES = {
+  good: "bg-emerald-500",
+  warning: "bg-amber-500",
+  bad: "bg-rose-500",
+  neutral: "bg-gray-400"
+};
 var DimensionScoreCard = ({
   dimension,
   title,
   score,
   gradeName,
-  severity = "moderate",
+  severity,
+  tone,
   variant = "spectrum-bar",
   className = ""
 }) => {
   const displayTitle = title || dimension.replace(/_/g, " ");
   const normalizedScore = Math.min(100, Math.max(0, Math.round(score)));
-  const getSeverityBadge = () => {
-    switch (severity.toLowerCase()) {
-      case "mild":
-        return "bg-emerald-100 text-emerald-800 border-emerald-200";
-      case "severe":
-      case "critical":
-        return "bg-rose-100 text-rose-800 border-rose-200";
-      default:
-        return "bg-amber-100 text-amber-800 border-amber-200";
-    }
-  };
+  const resolvedTone = tone ?? (severity ? SEVERITY_TONES[severity.toLowerCase()] : void 0) ?? "neutral";
   return /* @__PURE__ */ jsxs(
     "div",
     {
       className: `dimension-score-card p-4 rounded-2xl bg-white border border-gray-100 shadow-sm space-y-3 ${className}`,
       "data-dimension": dimension,
+      "data-tone": resolvedTone,
       children: [
         /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between", children: [
           /* @__PURE__ */ jsx("h4", { className: "font-semibold text-gray-800 text-sm", children: displayTitle }),
-          gradeName && /* @__PURE__ */ jsx("span", { className: `text-xs px-2.5 py-0.5 rounded-full border font-medium ${getSeverityBadge()}`, children: gradeName })
+          gradeName && /* @__PURE__ */ jsx("span", { className: `text-xs px-2.5 py-0.5 rounded-full border font-medium ${BADGE_CLASSES[resolvedTone]}`, children: gradeName })
         ] }),
         /* @__PURE__ */ jsxs("div", { className: "flex items-baseline justify-between", children: [
           /* @__PURE__ */ jsx("span", { className: "text-3xl font-bold tracking-tight text-gray-900", children: normalizedScore }),
@@ -385,7 +396,7 @@ var DimensionScoreCard = ({
         variant === "spectrum-bar" && /* @__PURE__ */ jsx("div", { className: "w-full bg-gray-100 h-2 rounded-full overflow-hidden", children: /* @__PURE__ */ jsx(
           "div",
           {
-            className: `h-full transition-all duration-500 rounded-full ${normalizedScore > 70 ? "bg-rose-500" : normalizedScore >= 35 ? "bg-amber-500" : "bg-emerald-500"}`,
+            className: `h-full transition-all duration-500 rounded-full ${BAR_CLASSES[resolvedTone]}`,
             style: { width: `${normalizedScore}%` }
           }
         ) })
@@ -598,26 +609,25 @@ var BeautyExperienceWidget = ({
   applicationId,
   onComplete,
   onAddToCart,
-  initialAge = 28,
-  initialUvIndex = 8.5,
+  dimensions,
+  initialAge,
+  initialUvIndex,
   className = ""
 }) => {
   const [client] = useState(() => new BeautyClient({ gatewayUrl, apiKey, token, brandId, applicationId }));
-  const [currentAge, setCurrentAge] = useState(initialAge);
-  const [uvIndex, setUvIndex] = useState(initialUvIndex);
   const [imagePreview, setImagePreview] = useState(null);
   const [currentFile, setCurrentFile] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState(null);
   const [selectedZone, setSelectedZone] = useState(null);
   const fileInputRef = useRef(null);
-  const runAnalysis = async (file, ageToAnalyze, uviToAnalyze) => {
+  const runAnalysis = async (file) => {
     setIsAnalyzing(true);
     try {
       const result = await client.analyzeImage(file, {
-        dimensions: ["acne", "wrinkles", "pigment", "uv_defense", "aging"],
-        chronologicalAge: ageToAnalyze,
-        uvIndex: uviToAnalyze
+        dimensions,
+        chronologicalAge: initialAge,
+        uvIndex: initialUvIndex
       });
       setAnalysisResult(result);
       if (onComplete) onComplete(result);
@@ -634,7 +644,7 @@ var BeautyExperienceWidget = ({
     const previewUrl = URL.createObjectURL(file);
     setImagePreview(previewUrl);
     setAnalysisResult(null);
-    await runAnalysis(file, currentAge, uvIndex);
+    await runAnalysis(file);
   };
   return /* @__PURE__ */ jsxs("div", { className: `rounded-3xl border border-white/10 bg-neutral-950 p-6 md:p-8 text-white shadow-2xl ${className}`, children: [
     /* @__PURE__ */ jsxs("div", { className: "flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-6", children: [

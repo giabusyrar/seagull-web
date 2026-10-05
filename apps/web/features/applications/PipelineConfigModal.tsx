@@ -1,14 +1,19 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Modal } from '@gateway-experience/shared';
+import { BrandSelect, Modal } from '@gateway-experience/shared';
 import { Loader2 } from 'lucide-react';
 import { getPipelineConfig, savePipelineConfig } from './api';
 
 interface PipelineConfigModalProps {
   isOpen: boolean;
   onClose: () => void;
-  brandId: string;
+  /**
+   * Brand whose pipeline for this application is configured. Applications do
+   * not belong to a brand, so with none given the modal asks for one; nothing
+   * is loaded or saved until a brand is chosen.
+   */
+  brandId?: string;
   applicationId: string;
   applicationName: string;
   onSuccess?: () => void;
@@ -17,31 +22,31 @@ interface PipelineConfigModalProps {
 export const PipelineConfigModal: React.FC<PipelineConfigModalProps> = ({
   isOpen,
   onClose,
-  brandId,
+  brandId: initialBrandId = '',
   applicationId,
   applicationName,
   onSuccess,
 }) => {
+  const [brandId, setBrandId] = useState(initialBrandId);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formEnabled, setFormEnabled] = useState(true);
-  const [questionnaireCode, setQuestionnaireCode] = useState('skinverse_longevity_v1');
+  // No default questionnaire or vision pipeline: an empty code is "not set".
+  const [questionnaireCode, setQuestionnaireCode] = useState('');
   const [visionEnabled, setVisionEnabled] = useState(true);
-  const [visionPipelineCode, setVisionPipelineCode] = useState('uv_aging_full');
+  const [visionPipelineCode, setVisionPipelineCode] = useState('');
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   const fetchConfig = async () => {
-    if (!isOpen || !applicationId) return;
+    if (!isOpen || !applicationId || !brandId) return;
     setLoading(true);
     setStatusMessage(null);
     try {
       const c = await getPipelineConfig(brandId, applicationId);
-      if (c) {
-        setFormEnabled(c.formEnabled ?? true);
-        setQuestionnaireCode(c.questionnaireCode || 'skinverse_longevity_v1');
-        setVisionEnabled(c.visionEnabled ?? true);
-        setVisionPipelineCode(c.visionPipelineCode || 'uv_aging_full');
-      }
+      setFormEnabled(c?.formEnabled ?? true);
+      setQuestionnaireCode(c?.questionnaireCode || '');
+      setVisionEnabled(c?.visionEnabled ?? true);
+      setVisionPipelineCode(c?.visionPipelineCode || '');
     } catch (err: any) {
       console.error('Failed to load pipeline config', err);
     } finally {
@@ -56,6 +61,10 @@ export const PipelineConfigModal: React.FC<PipelineConfigModalProps> = ({
   }, [isOpen, applicationId, brandId]);
 
   const handleSave = async () => {
+    if (!brandId) {
+      setStatusMessage('Choose a brand first — pipeline configuration is stored per brand and application.');
+      return;
+    }
     setSaving(true);
     setStatusMessage(null);
     try {
@@ -96,6 +105,19 @@ export const PipelineConfigModal: React.FC<PipelineConfigModalProps> = ({
         <div className="py-12 text-center text-sm text-muted-foreground">Loading configuration...</div>
       ) : (
         <div className="space-y-6 py-2 text-sm text-foreground">
+          <BrandSelect
+            value={brandId}
+            includeUniversal={false}
+            label="Brand"
+            placeholder="Choose the brand to configure…"
+            onChange={setBrandId}
+          />
+          {!brandId && (
+            <p className="text-xs text-muted-foreground">
+              Applications are shared across brands — choose which brand&apos;s pipeline to configure.
+            </p>
+          )}
+
           {/* Status Message */}
           {statusMessage && (
             <div className="rounded border border-border bg-slate-50 px-3 py-2 text-xs text-foreground">
@@ -125,7 +147,7 @@ export const PipelineConfigModal: React.FC<PipelineConfigModalProps> = ({
                   type="text"
                   value={questionnaireCode}
                   onChange={(e) => setQuestionnaireCode(e.target.value)}
-                  placeholder="e.g. skinverse_longevity_v1"
+                  placeholder="survey code"
                   className="w-full rounded border border-border bg-white px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none"
                 />
               </div>
@@ -172,7 +194,7 @@ export const PipelineConfigModal: React.FC<PipelineConfigModalProps> = ({
             <button
               type="button"
               onClick={handleSave}
-              disabled={saving}
+              disabled={saving || !brandId}
               className="rounded bg-primary px-4 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
             >
               {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Boxes, Loader2, X } from 'lucide-react';
-import { Modal, SearchableSelect, InfoTooltip } from '@gateway-experience/shared';
+import { Modal, SearchableSelect, InfoTooltip, BrandSelect } from '@gateway-experience/shared';
 import type { ProductGroup, ProductCatalogItem } from '../../types';
 import { productsApi } from '../../api';
 
@@ -11,15 +11,12 @@ interface ProductGroupModalProps {
   onClose: () => void;
   onSave: (data: Omit<ProductGroup, 'id' | 'createdAt'> & { id?: string }) => Promise<void>;
   editingGroup: ProductGroup | null;
+  /** The page's brand filter. A concrete brand preselects it; `*` or none leaves the pick to the user. */
   defaultBrand?: string;
 }
 
-const BRAND_OPTIONS = [
-  { value: 'wardah', label: 'Wardah Beauty' },
-  { value: 'kahf', label: 'Kahf Men Care' },
-  { value: 'labore', label: 'Laboré Sensitive Skin' },
-  { value: 'emina', label: 'Emina Teen & Young' },
-];
+// A group belongs to one brand: the wildcard filter is not a brand to save under.
+const initialBrand = (defaultBrand?: string) => (defaultBrand && defaultBrand !== '*' ? defaultBrand : '');
 
 export const ProductGroupModal: React.FC<ProductGroupModalProps> = ({
   isOpen,
@@ -28,7 +25,7 @@ export const ProductGroupModal: React.FC<ProductGroupModalProps> = ({
   editingGroup,
   defaultBrand,
 }) => {
-  const [brandId, setBrandId] = useState(defaultBrand && defaultBrand !== '*' ? defaultBrand : 'wardah');
+  const [brandId, setBrandId] = useState(initialBrand(defaultBrand));
   const [applicationId, setApplicationId] = useState('*');
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
@@ -43,6 +40,11 @@ export const ProductGroupModal: React.FC<ProductGroupModalProps> = ({
 
   useEffect(() => {
     if (!isOpen) return;
+    // No brand: no products, delivered like a loaded (empty) list.
+    if (!brandId) {
+      void Promise.resolve([] as ProductCatalogItem[]).then(setProducts);
+      return;
+    }
     productsApi
       .listForBrand(brandId)
       .then((list) => {
@@ -62,7 +64,7 @@ export const ProductGroupModal: React.FC<ProductGroupModalProps> = ({
       setCategories(editingGroup.categories || []);
       setIsActive(editingGroup.isActive ?? true);
     } else {
-      setBrandId(defaultBrand && defaultBrand !== '*' ? defaultBrand : 'wardah');
+      setBrandId(initialBrand(defaultBrand));
       setApplicationId('*');
       setName('');
       setCode('');
@@ -128,16 +130,14 @@ export const ProductGroupModal: React.FC<ProductGroupModalProps> = ({
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1">
             <label className="text-[#888888]">Brand:</label>
-            <select
+            <BrandSelect
               value={brandId}
-              onChange={(e) => setBrandId(e.target.value)}
+              onChange={setBrandId}
+              includeUniversal={false}
+              label=""
+              placeholder="Choose a brand…"
               disabled={!!editingGroup}
-              className="w-full bg-[#161616] border border-[#333333] rounded px-3 py-2 text-white font-mono disabled:opacity-60"
-            >
-              {BRAND_OPTIONS.map((b) => (
-                <option key={b.value} value={b.value}>{b.label}</option>
-              ))}
-            </select>
+            />
           </div>
           <div className="space-y-1">
             <label className="text-[#888888]">Group Name:</label>
@@ -248,7 +248,7 @@ export const ProductGroupModal: React.FC<ProductGroupModalProps> = ({
         <div className="flex justify-end pt-2">
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || !brandId}
             className="px-4 py-2 bg-primary hover:opacity-90 text-primary-foreground font-bold rounded disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
           >
             {isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}

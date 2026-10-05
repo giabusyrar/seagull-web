@@ -14,9 +14,15 @@
 // it further (e.g. CAPTCHA, IP-based throttling) is out of scope for this
 // pass.
 
-const MAX_ATTEMPTS = 5;
-const WINDOW_MS = 15 * 60 * 1000;
-const LOCKOUT_MS = 15 * 60 * 1000;
+// Lockout policy. A deployment may tighten or relax it through the
+// environment; these defaults are the values the dashboard has always used.
+const positiveInt = (name: string, fallback: number) => {
+  const v = Number(process.env[name]);
+  return Number.isInteger(v) && v > 0 ? v : fallback;
+};
+const MAX_ATTEMPTS = positiveInt('LOGIN_MAX_ATTEMPTS', 5);
+const WINDOW_MS = positiveInt('LOGIN_WINDOW_MINUTES', 15) * 60 * 1000;
+const LOCKOUT_MS = positiveInt('LOGIN_LOCKOUT_MINUTES', 15) * 60 * 1000;
 
 // Bounds memory under a flood of distinct fake usernames. Once at capacity,
 // new usernames aren't tracked (fail-open on tracking, auth check still

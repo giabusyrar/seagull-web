@@ -491,7 +491,9 @@ export function ApiClientApp() {
 
       setConsoleLogs((prev) => [
         ...prev,
-        `[${timeStr}] Response ${res.status} ${res.statusText} (${res.latency}ms, ${res.size})`,
+        res.error
+          ? `[${timeStr}] Request failed, no response (${res.latency}ms): ${res.error}`
+          : `[${timeStr}] Response ${res.status} ${res.statusText} (${res.latency}ms, ${res.size})`,
       ]);
 
       setHistory((prev) => [

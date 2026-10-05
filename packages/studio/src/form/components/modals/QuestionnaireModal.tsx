@@ -13,7 +13,6 @@ import type {
 import {
   BUILTIN_TEMPLATES,
   CALCULATION_METHODS,
-  FALLBACK_DIMENSIONS,
   getDimensionMeta,
   type DimensionMeta,
 } from "../../catalog";
@@ -51,7 +50,11 @@ interface QuestionnaireModalProps {
   onClose: () => void;
   onSave: (data: QuestionnaireItem) => Promise<void>;
   editingQ: QuestionnaireItem | null;
-  /** Active tenant from the Form Manager selector — the default for a new questionnaire. */
+  /**
+   * Active tenant from the Form Manager selector — the default for a new
+   * questionnaire. Empty means none was chosen: the Setup step asks for one and
+   * the questionnaire cannot be saved until both are picked.
+   */
   brandId?: string;
   applicationId?: string;
 }
@@ -216,8 +219,8 @@ export const QuestionnaireModal: React.FC<QuestionnaireModalProps> = ({
   onClose,
   onSave,
   editingQ,
-  brandId = "wardah",
-  applicationId = "skinverse",
+  brandId = "",
+  applicationId = "",
 }) => {
   const hostRoutes = useHostRoutes();
   const [step, setStep] = useState<"setup" | "questions" | "calculation" | "json">("setup");
@@ -232,6 +235,9 @@ export const QuestionnaireModal: React.FC<QuestionnaireModalProps> = ({
   const [questions, setQuestions] = useState<QuestionItem[]>([]);
   const [calcMethods, setCalcMethods] = useState<Record<string, CalculationMethod>>({});
   const [apiDimensions, setApiDimensions] = useState<DimensionMeta[]>([]);
+  // False until the reference dimension catalog request settles, so an empty
+  // list can be told apart from one still loading.
+  const [dimensionsSettled, setDimensionsSettled] = useState(false);
   const [safetyFlagCatalog, setSafetyFlagCatalog] = useState<SafetyFlagRow[]>([]);
   const [filterDim, setFilterDim] = useState<string>("all");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
@@ -282,8 +288,9 @@ export const QuestionnaireModal: React.FC<QuestionnaireModalProps> = ({
 
   useEffect(() => {
     if (!isOpen) return;
-    // Falls back to the built-in catalog (FALLBACK_DIMENSIONS) when the route
-    // is unavailable, so the builder still works offline.
+    // Dimensions come only from reference data. When the catalog is empty or
+    // unreachable the builder says so (see dimensionsUnavailable) rather than
+    // offering a built-in list that may not match this deployment.
     getDimensions(hostRoutes)
       .then((raw) => {
         setApiDimensions(
@@ -296,7 +303,8 @@ export const QuestionnaireModal: React.FC<QuestionnaireModalProps> = ({
             })),
         );
       })
-      .catch(() => setApiDimensions([]));
+      .catch(() => setApiDimensions([]))
+      .finally(() => setDimensionsSettled(true));
   }, [isOpen, hostRoutes]);
 
   useEffect(() => {
@@ -362,7 +370,9 @@ export const QuestionnaireModal: React.FC<QuestionnaireModalProps> = ({
 
   if (!isOpen) return null;
 
-  const dimensionList = apiDimensions.length ? apiDimensions : FALLBACK_DIMENSIONS;
+  const dimensionList = apiDimensions;
+  const dimensionsUnavailable = dimensionsSettled && dimensionList.length === 0;
+  const tenantMissing = !qBrand || !qApp;
   const metaOf = (code: string) => getDimensionMeta(code, dimensionList);
 
   const schemaJson = JSON.stringify(toSurveyModel(draftItem), null, 2);
@@ -398,7 +408,9 @@ export const QuestionnaireModal: React.FC<QuestionnaireModalProps> = ({
     );
 
   const addQuestion = () => {
-    const dim = filterDim !== "all" ? filterDim : usedDimensions[0] || dimensionList[0]?.code || "sebum";
+    // A new question starts unscored unless the list is filtered to one
+    // dimension; scoring it is an explicit pick from the reference catalog.
+    const dim = filterDim !== "all" ? filterDim : "";
     const q = newQuestion(dim);
     setQuestions((cur) => [...cur, q]);
     setCollapsed((cur) => ({ ...cur, [q.id]: false }));
@@ -421,7 +433,7 @@ export const QuestionnaireModal: React.FC<QuestionnaireModalProps> = ({
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const code = effectiveCode.trim();
-    if (!qName.trim() || !code) return;
+    if (!qName.trim() || !code || tenantMissing) return;
     setSubmitting(true);
     try {
       await onSave({ ...draftItem, code });
@@ -569,6 +581,11 @@ export const QuestionnaireModal: React.FC<QuestionnaireModalProps> = ({
                   />
                 </div>
               </div>
+              {tenantMissing && (
+                <p className="text-[11px] text-amber-500">
+                  Choose a brand and an application — the questionnaire is saved under that tenant.
+                </p>
+              )}
             </div>
 
             <div className="rounded-lg border border-border bg-card p-3 space-y-2">
@@ -599,6 +616,13 @@ export const QuestionnaireModal: React.FC<QuestionnaireModalProps> = ({
         {/* STEP 2 — QUESTIONS (flat list + dimension filter) */}
         {step === "questions" && (
           <div className="space-y-3">
+            {dimensionsUnavailable && (
+              <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-500">
+                Dimensions could not be loaded from reference data. Questions can still be
+                written as label-only; scoring needs the dimension catalog (Reference Data →
+                Dimensions).
+              </div>
+            )}
             {usedDimensions.length > 0 && (
               <div className="flex flex-wrap items-center gap-1.5">
                 {(["all", ...usedDimensions] as string[]).map((d) => (
@@ -723,6 +747,7 @@ export const QuestionnaireModal: React.FC<QuestionnaireModalProps> = ({
                                 type="button"
                                 role="switch"
                                 aria-checked={Boolean(q.dimension)}
+                                disabled={!q.dimension && dimensionList.length === 0}
                                 onClick={() =>
                                   updateQuestion(q.id, {
                                     dimension: q.dimension
@@ -730,8 +755,14 @@ export const QuestionnaireModal: React.FC<QuestionnaireModalProps> = ({
                                       : usedDimensions[0] || dimensionList[0]?.code || "",
                                   })
                                 }
-                                title={q.dimension ? "Counts toward scoring" : "Label only — click to score it"}
-                                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                title={
+                                  q.dimension
+                                    ? "Counts toward scoring"
+                                    : dimensionList.length === 0
+                                      ? "No dimensions loaded from reference data"
+                                      : "Label only — click to score it"
+                                }
+                                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full disabled:cursor-not-allowed disabled:opacity-50 border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
                                   q.dimension ? "bg-emerald-500" : "bg-secondary border border-border"
                                 }`}
                               >
@@ -748,6 +779,11 @@ export const QuestionnaireModal: React.FC<QuestionnaireModalProps> = ({
                                   className={`${fieldSm} w-56`}
                                   style={selectStyle}
                                 >
+                                  {!dimensionList.some((d) => d.code === q.dimension) && (
+                                    <option style={optionStyle} value={q.dimension}>
+                                      {q.dimension} (not in reference data)
+                                    </option>
+                                  )}
                                   {dimensionList.map((d) => (
                                     <option key={d.code} style={optionStyle} value={d.code}>
                                       {d.label}
@@ -1084,7 +1120,10 @@ export const QuestionnaireModal: React.FC<QuestionnaireModalProps> = ({
         )}
 
         <div className="flex items-center justify-end pt-3 border-t border-border">
-          <Button type="submit" size="sm" isLoading={submitting} disabled={!qName.trim()}>
+          {tenantMissing && (
+            <span className="mr-3 text-[11px] text-amber-500">Pick a brand and application in Setup to save.</span>
+          )}
+          <Button type="submit" size="sm" isLoading={submitting} disabled={!qName.trim() || tenantMissing}>
             {editingQ ? "Save changes" : "Create questionnaire"}
           </Button>
         </div>

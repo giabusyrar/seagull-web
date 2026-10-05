@@ -28,7 +28,7 @@ export interface ApiClientAIPanelProps {
 const INITIAL_AI_MESSAGE: ChatMessage = {
   id: '1',
   sender: 'ai',
-  text: 'Hello! I am your Falcon AI assistant. Ask me to generate API requests, write test scripts, format JSON, or generate test payloads.',
+  text: 'The assistant is not connected to an AI service yet, so it cannot answer. Messages you send stay in this panel only.',
   timestamp: Date.now(),
 };
 
@@ -40,7 +40,6 @@ export const ApiClientAIPanel: React.FC<ApiClientAIPanelProps> = ({
   const [messages, setMessages] = useState<ChatMessage[]>([INITIAL_AI_MESSAGE]);
   const [inputText, setInputText] = useState('');
   const [modelMode] = useState('Auto');
-  const [isTyping, setIsTyping] = useState(false);
 
   if (!isOpen) return null;
 
@@ -55,33 +54,19 @@ export const ApiClientAIPanel: React.FC<ApiClientAIPanelProps> = ({
       timestamp: Date.now(),
     };
 
-    setMessages((prev) => [...prev, userMsg]);
-    const currentInput = inputText;
+    // No AI service is wired in: say so at once, rather than "think" and
+    // return canned answers dressed as generated ones.
+    setMessages((prev) => [
+      ...prev,
+      userMsg,
+      {
+        id: (Date.now() + 1).toString(),
+        sender: 'ai',
+        text: 'Not connected: no AI service is configured for this assistant, so there is no answer to show.',
+        timestamp: Date.now(),
+      },
+    ]);
     setInputText('');
-    setIsTyping(true);
-
-    setTimeout(() => {
-      let replyText = `I analyzed your query: "${currentInput}". Here is a generated solution for your workbench.`;
-
-      if (currentInput.toLowerCase().includes('payload') || currentInput.toLowerCase().includes('user') || currentInput.toLowerCase().includes('login')) {
-        replyText = `Here is a sample JSON payload you can apply directly to your request body:\n\n{\n  "email": "user@example.com",\n  "password": "secretpassword",\n  "rememberMe": true\n}`;
-      } else if (currentInput.toLowerCase().includes('auth') || currentInput.toLowerCase().includes('token')) {
-        replyText = `For authentication endpoints, set your header to \`Authorization: Bearer {{token}}\` and use \`{{host}}/api/v1/app/auth/login\`.`;
-      } else if (currentInput.toLowerCase().includes('curl')) {
-        replyText = `cURL command:\n\ncurl -X POST "{{host}}/api/v1/app/auth/login" \\\n  -H "Content-Type: application/json" \\\n  -d '{"email":"user@example.com","password":"secret"}'`;
-      }
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: (Date.now() + 1).toString(),
-          sender: 'ai',
-          text: replyText,
-          timestamp: Date.now(),
-        },
-      ]);
-      setIsTyping(false);
-    }, 500);
   };
 
   const handleQuickApply = (msgText: string) => {
@@ -156,13 +141,6 @@ export const ApiClientAIPanel: React.FC<ApiClientAIPanelProps> = ({
             )}
           </div>
         ))}
-
-        {isTyping && (
-          <div className="flex items-center gap-2 text-muted-foreground italic text-[11px] pl-1">
-            <Sparkles className="h-3 w-3 animate-spin text-primary" />
-            <span>XG AI is thinking...</span>
-          </div>
-        )}
       </div>
 
       {/* Input Section */}

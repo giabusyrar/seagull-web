@@ -1,19 +1,28 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Plus, Trash2, ChevronRight, ChevronDown } from 'lucide-react';
 import { ScoreRangeInput, DimensionSelect, SeveritySelect, InfoTooltip } from '@gateway-experience/shared';
 import type {
   VisualAxisConfig,
+  VisualBand,
   VisualProfileMappingConfig,
   VisualProfileEntry,
   ProfileStrategyType,
 } from '../../types';
+import { scoreRangeLetters } from '../../utils/jdm-compiler';
 
 export interface ProfileMappingTableProps {
   axes: VisualAxisConfig[];
   config: VisualProfileMappingConfig;
   onChange: (updated: VisualProfileMappingConfig) => void;
+  /** The Score Range bands of the ruleset being edited. A dimension with no
+   *  letters of its own gets the initial of each band label, as core derives
+   *  them (axisValuesFromScores). */
+  scoreRangeBands: VisualBand[];
+  /** The Severity Level bands of the ruleset being edited: the levels a
+   *  Primary Concern row can match. */
+  severityBands: VisualBand[];
   disabled?: boolean;
 }
 
@@ -21,9 +30,22 @@ export const ProfileMappingTable: React.FC<ProfileMappingTableProps> = ({
   axes,
   config,
   onChange,
+  scoreRangeBands,
+  severityBands,
   disabled = false,
 }) => {
   const { strategy, profiles } = config;
+  const rangeLetters = useMemo(() => scoreRangeLetters(scoreRangeBands), [scoreRangeBands]);
+  const lettersOf = (a: VisualAxisConfig) => axisLetters(a, rangeLetters);
+  const severityLabels = useMemo(
+    () =>
+      severityBands
+        .slice()
+        .sort((x, y) => x.max - y.max)
+        .map((b) => b.label.trim())
+        .filter(Boolean),
+    [severityBands],
+  );
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
   // Remembers each method's own rows for this editing session, so switching
   // methods and switching back doesn't silently discard what you typed —
@@ -45,26 +67,27 @@ export const ProfileMappingTable: React.FC<ProfileMappingTableProps> = ({
     setCache((prev) => ({ ...prev, [strategy]: profiles }));
 
     const cached = cache[newStrategy];
+    // A method you have not filled in yet starts with no score ranges or
+    // levels chosen for you: Total Score starts empty, Combination Matrix
+    // lists the combinations of the letters the axes actually produce, and
+    // Primary Concern has one row per dimension matching any level until you
+    // pick one.
     let initialProfiles: VisualProfileEntry[] = cached ?? [];
     if (!cached) {
-      if (newStrategy === 'total_score') {
-        initialProfiles = [
-          { id: `prof_${Date.now()}_1`, minScore: 80, maxScore: 100, code: 'OPTIMAL_RESILIENT', title: 'Optimal Vitality', category: 'Resilient Barrier', summary: 'Healthy barrier balance.' },
-          { id: `prof_${Date.now()}_2`, minScore: 50, maxScore: 79, code: 'MODERATE_FATIGUE', title: 'Moderate Fatigue', category: 'Early Stress', summary: 'Mild cellular stress.' },
-          { id: `prof_${Date.now()}_3`, minScore: 0, maxScore: 49, code: 'ACCELERATED_DEFICIT', title: 'Accelerated Deficit', category: 'High Concern', summary: 'Elevated concern.' },
-        ];
-      } else if (newStrategy === 'combination_matrix') {
-        initialProfiles = generateCartesianCombinations(axes);
+      if (newStrategy === 'combination_matrix') {
+        initialProfiles = generateCartesianCombinations(axes, rangeLetters);
       } else if (newStrategy === 'primary_concern') {
-        initialProfiles = axes.map((a, idx) => ({
-          id: `prof_${Date.now()}_${idx + 1}`,
-          primaryDimension: a.dimensionKey,
-          severityLevel: 'Sangat Parah',
-          code: `${a.dimensionKey.toUpperCase()}_CRITICAL`,
-          title: `${a.name} Critical Concern`,
-          category: 'Acute Concern',
-          summary: `Acute focus required on ${a.name}.`,
-        }));
+        initialProfiles = axes
+          .filter((a) => a.dimensionKey)
+          .map((a, idx) => ({
+            id: `prof_${Date.now()}_${idx + 1}`,
+            primaryDimension: a.dimensionKey,
+            severityLevel: '',
+            code: `${a.dimensionKey.toUpperCase()}_CONCERN`,
+            title: `${a.name || a.dimensionKey} concern`,
+            category: '',
+            summary: '',
+          }));
       }
     }
 
@@ -79,8 +102,10 @@ export const ProfileMappingTable: React.FC<ProfileMappingTableProps> = ({
     const pIdx = profiles.length + 1;
 
     if (strategy === 'total_score') {
+      // The next range sits just below the last one; the first covers the
+      // whole 0-100 score until you narrow it.
       const last = profiles[profiles.length - 1];
-      const max = last && last.minScore !== undefined ? Math.max(0, last.minScore - 1) : 49;
+      const max = last && last.minScore !== undefined ? Math.max(0, last.minScore - 1) : 100;
       newEntry = {
         id: `prof_${Date.now()}`,
         minScore: 0,
@@ -93,7 +118,8 @@ export const ProfileMappingTable: React.FC<ProfileMappingTableProps> = ({
     } else if (strategy === 'combination_matrix') {
       const dimCodes: Record<string, string> = {};
       axes.forEach((a) => {
-        dimCodes[a.dimensionKey] = axisLetters(a)[0];
+        const first = lettersOf(a)[0];
+        if (a.dimensionKey && first) dimCodes[a.dimensionKey] = first;
       });
       newEntry = {
         id: `prof_${Date.now()}`,
@@ -106,8 +132,8 @@ export const ProfileMappingTable: React.FC<ProfileMappingTableProps> = ({
     } else {
       newEntry = {
         id: `prof_${Date.now()}`,
-        primaryDimension: axes[0]?.dimensionKey || 'sebum',
-        severityLevel: 'Parah',
+        primaryDimension: '',
+        severityLevel: '',
         code: `CONCERN_${pIdx}`,
         title: `Concern Profile ${pIdx}`,
         category: 'Targeted',
@@ -151,7 +177,7 @@ export const ProfileMappingTable: React.FC<ProfileMappingTableProps> = ({
   };
 
   const handleAutoGenerateMatrix = () => {
-    const generated = generateCartesianCombinations(axes);
+    const generated = generateCartesianCombinations(axes, rangeLetters);
     onChange({
       ...config,
       profiles: generated,
@@ -270,8 +296,7 @@ export const ProfileMappingTable: React.FC<ProfileMappingTableProps> = ({
 
                 {strategy === 'combination_matrix' &&
                   axes.map((a) => {
-                    const letters = axisLetters(a);
-                    const bipolar = !!(a.axisCodeLow?.trim() && a.axisCodeHigh?.trim());
+                    const letters = lettersOf(a);
                     return (
                       <th
                         key={a.id}
@@ -280,7 +305,7 @@ export const ProfileMappingTable: React.FC<ProfileMappingTableProps> = ({
                       >
                         {a.name || a.dimensionKey}
                         <span className="block text-[10px] font-normal text-muted-foreground">
-                          {bipolar ? letters.join(' / ') : 'O / S / P'}
+                          {letters.length ? letters.join(' / ') : 'no letters'}
                         </span>
                       </th>
                     );
@@ -330,7 +355,7 @@ export const ProfileMappingTable: React.FC<ProfileMappingTableProps> = ({
                           const codeVal =
                             p.dimensionCodes?.[a.dimensionKey] ||
                             p.dimensionCodes?.[a.axisCode] ||
-                            axisLetters(a)[0];
+                            '';
                           return (
                             <td key={a.id} className="py-2.5 px-3 text-center">
                               <input
@@ -338,7 +363,7 @@ export const ProfileMappingTable: React.FC<ProfileMappingTableProps> = ({
                                 disabled={disabled}
                                 value={codeVal}
                                 onChange={(e) => handleUpdateDimCode(p.id, a.dimensionKey, e.target.value)}
-                                placeholder="D"
+                                placeholder="any"
                                 className="w-12 px-1.5 py-1 bg-muted/40 border border-border rounded text-beak font-bold text-center focus:outline-none focus:border-ring disabled:opacity-50 text-xs"
                               />
                             </td>
@@ -351,14 +376,17 @@ export const ProfileMappingTable: React.FC<ProfileMappingTableProps> = ({
                           <td className="py-2 px-3 align-middle">
                             <DimensionSelect
                               label=""
-                              value={p.primaryDimension || axes[0]?.dimensionKey || 'sebum'}
+                              value={p.primaryDimension || ''}
+                              placeholder="Any dimension"
                               disabled={disabled}
                               onChange={(dimKey) => handleUpdateProfile(p.id, 'primaryDimension', dimKey)}
                             />
                           </td>
                           <td className="py-2 px-3 align-middle">
                             <SeveritySelect
-                              value={p.severityLevel || 'Parah'}
+                              value={p.severityLevel || ''}
+                              options={severityLabels}
+                              emptyLabel="Any level"
                               disabled={disabled}
                               onChange={(sev) => handleUpdateProfile(p.id, 'severityLevel', sev)}
                             />
@@ -495,23 +523,23 @@ export const ProfileMappingTable: React.FC<ProfileMappingTableProps> = ({
 // (e.g. 10 dims x 5 bands = ~9.8M rows -> the tab OOMs). Cap it: build rows one
 // dimension at a time and stop once we reach MAX_COMBINATIONS.
 const MAX_COMBINATIONS = 64;
-// Score Range buckets (Optimal / Sedang / Perlu Perhatian) -> per-dimension letter
-// codes. The engine derives the same letters from score_range_bands.
-const SCORE_RANGE_CODES = ['O', 'S', 'P'];
 
-// A dimension's valid letters: its bipolar (Baumann) pair when both are set,
-// otherwise the three Score-Range initials.
-function axisLetters(a: VisualAxisConfig): string[] {
+// A dimension's valid letters: its own bands' letters when it has bands, its
+// bipolar (Baumann) pair when both are set, otherwise the Score Range letters.
+function axisLetters(a: VisualAxisConfig, rangeLetters: string[]): string[] {
+  const own = Array.from(new Set((a.bands || []).map((b) => (b.letter || '').trim().toUpperCase()).filter(Boolean)));
+  if (own.length) return own;
   const low = (a.axisCodeLow || '').trim().toUpperCase();
   const high = (a.axisCodeHigh || '').trim().toUpperCase();
-  return low && high ? [low, high] : SCORE_RANGE_CODES;
+  return low && high ? [low, high] : rangeLetters;
 }
 
-function generateCartesianCombinations(axes: VisualAxisConfig[]): VisualProfileEntry[] {
-  if (axes.length === 0) return [];
+function generateCartesianCombinations(axes: VisualAxisConfig[], rangeLetters: string[]): VisualProfileEntry[] {
+  const lettered = axes.filter((a) => a.dimensionKey && axisLetters(a, rangeLetters).length > 0);
+  if (lettered.length === 0) return [];
 
-  const dimTierArrays = axes.map((a) => {
-    return axisLetters(a).map((code) => ({ dimKey: a.dimensionKey, code }));
+  const dimTierArrays = lettered.map((a) => {
+    return axisLetters(a, rangeLetters).map((code) => ({ dimKey: a.dimensionKey, code }));
   });
 
   let combinations: any[][] = [[]];

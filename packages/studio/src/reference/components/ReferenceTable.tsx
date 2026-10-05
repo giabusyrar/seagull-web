@@ -1,6 +1,6 @@
 import React from 'react';
 import { Edit2, Trash2, Sparkles, Globe, ExternalLink, Target } from 'lucide-react';
-import { DataTable, EmptyState, ColumnDef, BrandTag, getDomainFromUrl } from '@gateway-experience/shared';
+import { DataTable, EmptyState, ColumnDef, BrandTag, getDomainFromUrl, getBrandColorTheme } from '@gateway-experience/shared';
 import type { EntityConfig } from '../config/reference-entity-configs';
 
 
@@ -134,20 +134,20 @@ export const ReferenceTable: React.FC<ReferenceTableProps> = ({
             key: 'colorCode',
             header: 'Color Code',
             render: (item: any) => {
-              const lower = (item.name || '').toLowerCase();
-              const defaultHex = lower.includes('wardah') ? '#10b981' :
-                lower.includes('makeover') || lower.includes('make over') ? '#f43f5e' :
-                lower.includes('emina') ? '#ec4899' :
-                lower.includes('kahf') ? '#f59e0b' :
-                lower.includes('biodef') ? '#06b6d4' :
-                lower.includes('somethinc') ? '#8b5cf6' :
-                lower.includes('wonderly') ? '#a855f7' :
-                lower.includes('omg') ? '#f97316' : '#eab308';
-              const hex = item.colorCode || defaultHex;
+              // A brand without a stored colour gets one derived from its id;
+              // it is labelled as derived so it is not read as the stored value.
+              const stored: string | undefined = item.colorCode || undefined;
+              const hex = stored || getBrandColorTheme(item.code || item.id || item.name || '').hex;
               return (
                 <span className="flex items-center gap-1.5 font-mono text-[11px] font-bold text-foreground bg-secondary/60 border border-border px-2 py-0.5 rounded w-fit whitespace-nowrap">
                   <span className="h-3.5 w-3.5 rounded-full shrink-0 border border-border shadow-xs" style={{ backgroundColor: hex }} />
-                  <span>{hex}</span>
+                  {stored ? (
+                    <span>{hex}</span>
+                  ) : (
+                    <span className="font-normal italic text-muted-foreground" title="No colour code set — colour derived from the brand id">
+                      not set
+                    </span>
+                  )}
                 </span>
               );
             },
@@ -250,7 +250,7 @@ export const ReferenceTable: React.FC<ReferenceTableProps> = ({
             render: (item: any) => (
               <span className="px-2 py-0.5 bg-blue-500/15 border border-blue-500/40 text-blue-600 text-[10px] font-bold rounded flex items-center gap-1 w-fit whitespace-nowrap">
                 <Target className="h-3 w-3" />
-                <span>{item.dimensionCode || item.dimension_code || 'sebum'}</span>
+                <span>{item.dimensionCode || item.dimension_code || '—'}</span>
               </span>
             ),
           },

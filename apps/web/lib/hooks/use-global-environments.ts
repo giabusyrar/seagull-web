@@ -9,6 +9,9 @@ export function ensureHostVariable(envs: Environment[]): Environment[] {
     process.env.NEXT_PUBLIC_GATEWAY_PROXY_URL ||
     (typeof window !== 'undefined' ? window.location.origin : '');
 
+  // No environments from the gateway: offer only the local one, whose host
+  // comes from configuration. Staging/production stand-ins pointing at
+  // example.com looked like real environments and are gone.
   if (!envs || envs.length === 0) {
     return [
       {
@@ -17,20 +20,6 @@ export function ensureHostVariable(envs: Environment[]): Environment[] {
         isDefault: true,
         variables: [
           { id: 'v-host-dev', key: 'host', value: defaultHostValue, enabled: true, isSecret: false },
-        ],
-      },
-      {
-        id: 'env-staging',
-        name: 'Staging',
-        variables: [
-          { id: 'v-host-stg', key: 'host', value: 'https://staging-api.example.com', enabled: true, isSecret: false },
-        ],
-      },
-      {
-        id: 'env-prod',
-        name: 'Production',
-        variables: [
-          { id: 'v-host-prod', key: 'host', value: 'https://api.example.com', enabled: true, isSecret: false },
         ],
       },
     ];

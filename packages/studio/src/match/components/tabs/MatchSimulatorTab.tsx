@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Play, Sparkles, AlertTriangle, ShieldCheck, Sun, Moon, Zap, Layers, Tag } from 'lucide-react';
-import { EmptyState } from '@gateway-experience/shared';
+import { EmptyState, BrandSelect } from '@gateway-experience/shared';
 import type { ClinicalMatchResult, RegimenStep } from '../../types';
 
 interface MatchSimulatorTabProps {
@@ -111,20 +111,8 @@ export const MatchSimulatorTab: React.FC<MatchSimulatorTabProps> = ({
 
           <div className="space-y-3 text-xs">
             <div className="space-y-1">
-              <label className="text-muted-foreground">Brand Scoping & Routine Paradigm:</label>
-              <select
-                value={simBrand}
-                onChange={(e) => setSimBrand(e.target.value)}
-                className="w-full bg-muted/40 border border-border rounded px-3 py-2 text-foreground"
-              >
-                <option value="*">All Brands (*)</option>
-                <option value="wardah">Wardah Beauty (Clinical AM/PM)</option>
-                <option value="makeover">Make Over (Skin Prep & Complexion)</option>
-                <option value="kahf">Kahf Men Care (Daily & Post-Shave)</option>
-                <option value="biodef">Biodef (Hygiene & Barrier)</option>
-                <option value="labore">Laboré Sensitive Skin</option>
-                <option value="emina">Emina Teen & Young</option>
-              </select>
+              <label className="text-muted-foreground">Brand Scope:</label>
+              <BrandSelect value={simBrand} onChange={setSimBrand} includeUniversal label="" />
             </div>
 
             <div className="space-y-1">

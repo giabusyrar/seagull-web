@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Copy, Check } from 'lucide-react';
 import { InfoTooltip, usePersistentState, useHostRoutes } from '@gateway-experience/shared';
 import type { ScoreRuleset, RulesetSimulationResponse, DimensionBlend } from '../../types';
-import { AGE_FIELD, FORM_SOURCE, VISION_SOURCE } from '../../types';
+import { AGE_FIELD, AGE_FIELD_CUTOFF_YEARS, FORM_SOURCE, VISION_SOURCE } from '../../types';
 import { readBlend } from '../../utils/blend';
 import { getSafetyFlags } from '../../../form/api';
 import { SIMULATE_PATH, fetchTenantSurveys, simulateRuleset } from '../../api';
@@ -20,6 +20,83 @@ interface ScoreSimulatorTabProps {
 const card = 'rounded-lg border border-border bg-card p-4';
 const sliderCls =
   'w-full h-1.5 rounded appearance-none cursor-pointer bg-muted accent-[#d97706]';
+/** An input the operator has not set: drawn faded, its thumb parked mid-track
+ *  only because a range input must sit somewhere. The value is not sent. */
+const unsetSliderCls = sliderCls + ' opacity-40';
+
+/** Health-score slider bounds: the 0-100 health scale /simulate takes. */
+const SCORE_MIN = 0;
+const SCORE_MAX = 100;
+/** Where an unset slider's thumb rests. Display only — never sent. */
+const UNSET_THUMB = (SCORE_MIN + SCORE_MAX) / 2;
+/** Age slider bounds: only the span the control can be dragged across. Core
+ *  applies its own check to whatever age is sent. */
+const AGE_SLIDER_MIN = 13;
+const AGE_SLIDER_MAX = 70;
+/** Where the unset age slider's thumb rests. Display only — never sent. */
+const AGE_UNSET_THUMB = AGE_FIELD_CUTOFF_YEARS;
+
+/** Sets `key` to `v`, or removes it when `v` is undefined (unset). */
+function withValue(prev: Record<string, number>, key: string, v: number | undefined): Record<string, number> {
+  const next = { ...prev };
+  if (v === undefined) delete next[key];
+  else next[key] = v;
+  return next;
+}
+
+/**
+ * One health-score input that can be "not set". Untouched, it shows "not set"
+ * and is left out of the request, so /simulate scores the dimension the way
+ * /evaluate scores a missing answer (its weight re-shared, or not scored)
+ * instead of as if the respondent had answered a made-up value. Clicking or
+ * dragging the track sets it; "clear" unsets it again.
+ */
+const ScoreInput: React.FC<{
+  label: string;
+  value: number | undefined;
+  onChange: (v: number | undefined) => void;
+}> = ({ label, value, onChange }) => {
+  const set = value !== undefined;
+  const commit = (e: React.SyntheticEvent<HTMLInputElement>) => onChange(Number(e.currentTarget.value));
+  return (
+    <div>
+      <div className="flex items-center justify-between text-xs mb-1">
+        <span className="text-foreground">{label}</span>
+        {set ? (
+          <span className="flex items-center gap-1.5">
+            <span className="text-beak font-semibold font-mono">{value}</span>
+            <button
+              type="button"
+              onClick={() => onChange(undefined)}
+              className="text-[10px] text-muted-foreground underline hover:text-foreground"
+              title="Unset: send this dimension as not answered"
+            >
+              clear
+            </button>
+          </span>
+        ) : (
+          <span className="text-[10px] italic text-muted-foreground" title="Not sent to /simulate">
+            not set
+          </span>
+        )}
+      </div>
+      <input
+        type="range"
+        min={SCORE_MIN}
+        max={SCORE_MAX}
+        value={value ?? UNSET_THUMB}
+        onChange={commit}
+        onPointerUp={commit}
+        aria-label={set ? `${label}: ${value}` : `${label}: not set`}
+        className={set ? sliderCls : unsetSliderCls}
+      />
+      <div className="flex items-center justify-between text-[10px] text-muted-foreground mt-0.5">
+        <span>{SCORE_MIN} = parah</span>
+        <span>{SCORE_MAX} = sehat</span>
+      </div>
+    </div>
+  );
+};
 
 
 export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
@@ -99,9 +176,10 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
   );
 
   // Slider values survive a reload. Keyed by dimension and never pruned:
-  // every read goes through formDims/visionDims with a 50 default, so a
-  // value for an axis the current ruleset lacks is simply not used — and is
-  // still there when a ruleset that has it is selected again.
+  // every read goes through formDims/visionDims, so a value for an axis the
+  // current ruleset lacks is simply not used — and is still there when a
+  // ruleset that has it is selected again. A dimension with no entry is "not
+  // set" and is not sent.
   const [questionnaireValues, setQuestionnaireValues] = usePersistentState<Record<string, number>>(
     'xg.scoreEngine.simulator.questionnaireValues',
     {},
@@ -110,7 +188,13 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
     'xg.scoreEngine.simulator.visionValues',
     {},
   );
-  const [respondentAge, setRespondentAge] = usePersistentState('xg.scoreEngine.simulator.respondentAge', 25);
+  // null = not set: no age_years is sent, so the age-driven axes are scored
+  // as missing input, as /evaluate does without a date of birth. (New key:
+  // the old one held a default of 25 nobody chose.)
+  const [respondentAge, setRespondentAge] = usePersistentState<number | null>(
+    'xg.scoreEngine.simulator.respondentAgeYears',
+    null,
+  );
 
   // Safety flag keys declared directly on the ruleset schema (safety_flags),
   // same pattern as rulesetDims above.
@@ -207,17 +291,17 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
   // so this tab no longer computes a blended value itself.
   const formScores = useMemo(() => {
     const out: Record<string, number> = {};
-    for (const d of formDims) out[d] = questionnaireValues[d] ?? 50;
+    for (const d of formDims) if (questionnaireValues[d] !== undefined) out[d] = questionnaireValues[d];
     return out;
   }, [formDims, questionnaireValues]);
 
   const visionScores = useMemo(() => {
     const out: Record<string, number> = {};
-    for (const d of visionDims) out[d] = visionValues[d] ?? 50;
+    for (const d of visionDims) if (visionValues[d] !== undefined) out[d] = visionValues[d];
     return out;
   }, [visionDims, visionValues]);
 
-  const ageYears = ageAxisKeys.length > 0 ? respondentAge : undefined;
+  const ageYears = ageAxisKeys.length > 0 && respondentAge !== null ? respondentAge : undefined;
 
   // The exact body this tab POSTs — offered as a copy so the same run can be
   // replayed from the API client / Workbench or shared with the team.
@@ -271,8 +355,8 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
   const skinProfile = result?.skin_profile;
   const subClassification = result?.sub_classification || {};
   const warnings = result?.warnings || [];
-  const totalScore = Math.round(result?.total_score || 0);
-  const profileCode = skinProfile?.code || 'CUSTOM';
+  const totalScore = typeof result?.total_score === 'number' ? Math.round(result.total_score) : null;
+  const profileCode = skinProfile?.code || '—';
   const profileName = skinProfile?.name || 'Answer to see a profile';
 
   return (
@@ -303,27 +387,45 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
             <div className="flex items-center gap-1.5">
               <h3 className="text-sm font-bold text-foreground">Usia</h3>
               <InfoTooltip
-                content="Bukan slider form biasa — dihitung dari date_of_birth di kuisioner data pribadi, bukan Q1-Q6. Dikirim sebagai age_years, dipakai axis: aging."
+                content={`Bukan slider form biasa — dihitung dari date_of_birth di kuisioner data pribadi, bukan Q1-Q6. Dikirim sebagai age_years dan dinilai oleh cek AgeOverThirty di core, dipakai axis: ${ageAxisKeys.join(', ')}.`}
                 label="About Usia"
               />
             </div>
             <div className="flex items-center justify-between text-xs mb-1">
               <span className="text-foreground">Umur (tahun)</span>
-              <span className="text-beak font-semibold font-mono">
-                {respondentAge} ({respondentAge <= 30 ? 'sehat' : 'faktor W'})
-              </span>
+              {respondentAge !== null ? (
+                <span className="flex items-center gap-1.5">
+                  <span className="text-beak font-semibold font-mono">
+                    {respondentAge} ({respondentAge <= AGE_FIELD_CUTOFF_YEARS ? 'sehat' : 'faktor W'})
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setRespondentAge(null)}
+                    className="text-[10px] text-muted-foreground underline hover:text-foreground"
+                    title="Unset: send no age_years"
+                  >
+                    clear
+                  </button>
+                </span>
+              ) : (
+                <span className="text-[10px] italic text-muted-foreground" title="No age_years is sent">
+                  not set
+                </span>
+              )}
             </div>
             <input
               type="range"
-              min={13}
-              max={70}
-              value={respondentAge}
-              onChange={(e) => setRespondentAge(Number(e.target.value))}
-              className={sliderCls}
+              min={AGE_SLIDER_MIN}
+              max={AGE_SLIDER_MAX}
+              value={respondentAge ?? AGE_UNSET_THUMB}
+              onChange={(e) => setRespondentAge(Number(e.currentTarget.value))}
+              onPointerUp={(e) => setRespondentAge(Number(e.currentTarget.value))}
+              aria-label={respondentAge !== null ? `Umur: ${respondentAge}` : 'Umur: not set'}
+              className={respondentAge !== null ? sliderCls : unsetSliderCls}
             />
             <div className="flex items-center justify-between text-[10px] text-muted-foreground mt-0.5">
-              <span>≤30 = sehat</span>
-              <span>&gt;30 = faktor W</span>
+              <span>≤{AGE_FIELD_CUTOFF_YEARS} = sehat</span>
+              <span>&gt;{AGE_FIELD_CUTOFF_YEARS} = faktor W</span>
             </div>
           </div>
         )}
@@ -336,24 +438,12 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
             </div>
             <div className="space-y-3">
               {formDims.map((dimKey) => (
-                <div key={dimKey}>
-                  <div className="flex items-center justify-between text-xs mb-1">
-                    <span className="text-foreground">{dimKey}</span>
-                    <span className="text-beak font-semibold font-mono">{questionnaireValues[dimKey] ?? 50}</span>
-                  </div>
-                  <input
-                    type="range"
-                    min={0}
-                    max={100}
-                    value={questionnaireValues[dimKey] ?? 50}
-                    onChange={(e) => setQuestionnaireValues((p) => ({ ...p, [dimKey]: Number(e.target.value) }))}
-                    className={sliderCls}
-                  />
-                  <div className="flex items-center justify-between text-[10px] text-muted-foreground mt-0.5">
-                    <span>0 = parah</span>
-                    <span>100 = sehat</span>
-                  </div>
-                </div>
+                <ScoreInput
+                  key={dimKey}
+                  label={dimKey}
+                  value={questionnaireValues[dimKey]}
+                  onChange={(v) => setQuestionnaireValues((p) => withValue(p, dimKey, v))}
+                />
               ))}
             </div>
           </div>
@@ -367,24 +457,12 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
             </div>
             <div className="space-y-3">
               {visionDims.map((dimKey) => (
-                <div key={dimKey}>
-                  <div className="flex items-center justify-between text-xs mb-1">
-                    <span className="text-foreground">{dimKey}</span>
-                    <span className="text-beak font-semibold font-mono">{visionValues[dimKey] ?? 50}</span>
-                  </div>
-                  <input
-                    type="range"
-                    min={0}
-                    max={100}
-                    value={visionValues[dimKey] ?? 50}
-                    onChange={(e) => setVisionValues((p) => ({ ...p, [dimKey]: Number(e.target.value) }))}
-                    className={sliderCls}
-                  />
-                  <div className="flex items-center justify-between text-[10px] text-muted-foreground mt-0.5">
-                    <span>0 = parah</span>
-                    <span>100 = sehat</span>
-                  </div>
-                </div>
+                <ScoreInput
+                  key={dimKey}
+                  label={dimKey}
+                  value={visionValues[dimKey]}
+                  onChange={(v) => setVisionValues((p) => withValue(p, dimKey, v))}
+                />
               ))}
             </div>
           </div>
@@ -500,7 +578,7 @@ export const ScoreSimulatorTab: React.FC<ScoreSimulatorTabProps> = ({
 
           <div className="mt-4 rounded-md border border-border bg-muted/20 p-2.5">
             <div className="text-[10px] text-muted-foreground">Overall score</div>
-            <div className="text-sm font-bold text-foreground font-mono mt-0.5">{totalScore}</div>
+            <div className="text-sm font-bold text-foreground font-mono mt-0.5">{totalScore ?? '—'}</div>
             <div className="text-[10px] text-muted-foreground">100 = sehat</div>
           </div>
 

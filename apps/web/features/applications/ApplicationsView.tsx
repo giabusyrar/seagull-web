@@ -401,7 +401,6 @@ export const ApplicationsView: React.FC = () => {
         <PipelineConfigModal
           isOpen={!!pipelineModalApp}
           onClose={() => setPipelineModalApp(null)}
-          brandId="wardah"
           applicationId={pipelineModalApp.key}
           applicationName={pipelineModalApp.name}
           onSuccess={fetchApplications}

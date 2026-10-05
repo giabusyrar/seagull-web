@@ -72,6 +72,19 @@ describe('fetchRegimens', () => {
     expect(r.error).toMatch(/no regimen/i);
   });
 
+  it('passes the score engine profile through to the engine', async () => {
+    const fn = mockFetch(200, { regimens: {} });
+    await fetchRegimens({ ...base, skinProfile: { code: 'XY', name: 'Test', axisValues: { A: 'X' } } });
+    const body = JSON.parse(fn.mock.calls[0][1].body);
+    expect(body.skin_profile).toEqual({ code: 'XY', name: 'Test', axis_values: { A: 'X' } });
+  });
+
+  it('leaves a match score out when the engine sent none, rather than showing 0', async () => {
+    mockFetch(200, { regimens: { am_routine: [{ step_name: 'Cleanse', primary_product: { name: 'P' } }] } });
+    const r = await fetchRegimens(base);
+    expect(r.amRoutine[0]).not.toHaveProperty('matchScore');
+  });
+
   it('drops a step the engine returned without a product', async () => {
     mockFetch(200, { regimens: { am_routine: [{ step_name: 'Cleanse', primary_product: null }] } });
     expect((await fetchRegimens(base)).amRoutine).toEqual([]);

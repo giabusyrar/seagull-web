@@ -7,10 +7,13 @@
 // anything. They are gone; when the engine cannot be reached, the pipeline
 // returns no routine and says why.
 
+import { DEFAULT_MATCH_TIMEOUT_MS } from './pipeline-defaults';
+
 export interface RoutineStep {
   step: string;
   productName: string;
-  matchScore: number;
+  /** The engine's own score; absent when it sent none. */
+  matchScore?: number;
   reason: string;
 }
 
@@ -53,7 +56,7 @@ function toRoutine(steps: EngineStep[] | undefined): RoutineStep[] {
       step: s.step_name || (s.step_number ? `Step ${s.step_number}` : s.category || 'Step'),
       productName: s.primary_product?.name || '',
       // The engine's own score. Absent rather than invented when it sends none.
-      matchScore: typeof s.primary_product?.match_score === 'number' ? s.primary_product.match_score : 0,
+      ...(typeof s.primary_product?.match_score === 'number' ? { matchScore: s.primary_product.match_score } : {}),
       reason: (s.primary_product?.why_selected || []).join('; '),
     }));
 }
@@ -62,12 +65,18 @@ export async function fetchRegimens(params: {
   url: string;
   brandId: string;
   applicationId: string;
+  /** The score engine's HEALTH scores, passed through unchanged. */
   dimensionScores: Record<string, number>;
+  /**
+   * The score engine's skin_profile. The match engine takes its skin type
+   * from it and does not classify skin itself.
+   */
+  skinProfile?: { code: string; name: string; category?: string; description?: string; axisValues?: Record<string, string> };
   customerConditions?: Record<string, boolean>;
   strategyId?: string;
   timeoutMs?: number;
 }): Promise<RegimenResult> {
-  const { url, brandId, applicationId, dimensionScores, customerConditions, strategyId, timeoutMs } = params;
+  const { url, brandId, applicationId, dimensionScores, skinProfile, customerConditions, strategyId, timeoutMs } = params;
   const none = (error: string): RegimenResult => ({
     amRoutine: [],
     pmRoutine: [],
@@ -80,7 +89,7 @@ export async function fetchRegimens(params: {
 
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs || 5000);
+    const timeout = setTimeout(() => controller.abort(), timeoutMs || DEFAULT_MATCH_TIMEOUT_MS);
 
     const res = await fetch(url, {
       method: 'POST',
@@ -89,6 +98,17 @@ export async function fetchRegimens(params: {
         brand_id: brandId,
         application_id: applicationId,
         dimension_scores: dimensionScores,
+        ...(skinProfile
+          ? {
+              skin_profile: {
+                code: skinProfile.code,
+                name: skinProfile.name,
+                ...(skinProfile.description ? { description: skinProfile.description } : {}),
+                ...(skinProfile.category ? { category: skinProfile.category } : {}),
+                ...(skinProfile.axisValues ? { axis_values: skinProfile.axisValues } : {}),
+              },
+            }
+          : {}),
         ...(customerConditions ? { customer_conditions: customerConditions } : {}),
         ...(strategyId ? { strategy_id: strategyId } : {}),
       }),

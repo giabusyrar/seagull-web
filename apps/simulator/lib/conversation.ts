@@ -1,16 +1,17 @@
 // The conversation engine (seagull-core apps/services/conversation): HTTP
 // session calls through the /svc/conv rewrite, and a pure reducer for the
 // events its live WebSocket sends.
-import { svcPath } from './services';
+import { SERVICES, svcPath } from './services';
 import type { Brand, BuiltRequest } from './photo';
 import { piiFields, type Respondent } from './form';
 
 /**
  * Where the browser opens the live socket. Next's rewrites carry HTTP only,
  * so the socket goes to the engine directly. The default is the engine's
- * local-development port; deployments set NEXT_PUBLIC_SIM_CONVERSATION_WS.
+ * local-development address from lib/services (one definition), as ws://;
+ * deployments set NEXT_PUBLIC_SIM_CONVERSATION_WS.
  */
-export const CONVERSATION_WS_BASE = process.env.NEXT_PUBLIC_SIM_CONVERSATION_WS || 'ws://localhost:8098';
+export const CONVERSATION_WS_BASE = process.env.NEXT_PUBLIC_SIM_CONVERSATION_WS || SERVICES.conv.defaultUrl.replace(/^http/, 'ws');
 
 /** A session and the form it was opened for (a different form needs a new session). */
 export interface ConvSession { id: string; owner: string; survey?: string }

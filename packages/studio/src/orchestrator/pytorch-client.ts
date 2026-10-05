@@ -1,19 +1,15 @@
-// Maps a capability (backed by an uploaded ONNX model, one score 0-100 per
-// capability) to the display metric key(s) it feeds.
-const CAPABILITY_METRIC_MAP: Record<string, string[]> = {
-  sebum_shine_detector: ['sebum'],
-  comedone_pore_detector: ['acne', 'pores'],
-  acne_lesion_classifier: ['acne'],
-  hyperpigmentation_net: ['pigmentation'],
-  hypopigmentation_net: ['hypopigmentation'],
-  wrinkle_depth_estimator: ['aging'],
-  erythema_vascular_net: ['sensitivity', 'barrier'],
-  texture_desquamation_net: ['hydration', 'barrier'],
-};
+import { DEFAULT_VISION_TIMEOUT_MS } from './pipeline-defaults';
+
+// Readings are keyed by the capability that produced them, exactly as the
+// model server returned them. This file used to rename them onto dimension
+// keys through its own capability -> dimension table (sebum_shine_detector
+// -> sebum ...), a mapping no data source backed; ref_skin_conditions is
+// where a capability's dimension lives (capability-registry.ts), and scoring
+// is core-engine's, which reads vision through the ruleset's own mapping.
 
 export interface CapabilityDispatchResult {
   /**
-   * Measured values only, keyed by display metric. A capability the model
+   * Measured values only, keyed by capability. A capability the model
    * server did not score is absent — never filled in with a stand-in, so a
    * caller cannot mistake a guess for a measurement.
    */
@@ -62,7 +58,7 @@ export async function dispatchPyTorchCapabilities(params: {
 
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs || 3000);
+    const timeout = setTimeout(() => controller.abort(), timeoutMs || DEFAULT_VISION_TIMEOUT_MS);
 
     const res = await fetch(serviceUrl, {
       method: 'POST',
@@ -88,10 +84,8 @@ export async function dispatchPyTorchCapabilities(params: {
     const telemetry: Record<string, number> = {};
     const missing: string[] = [];
     for (const cap of capabilities) {
-      if (cap in scored) {
-        for (const metricKey of CAPABILITY_METRIC_MAP[cap] || []) {
-          telemetry[metricKey] = scored[cap];
-        }
+      if (typeof scored[cap] === 'number') {
+        telemetry[cap] = scored[cap];
       } else if (!(cap in unavailable)) {
         missing.push(cap);
       }

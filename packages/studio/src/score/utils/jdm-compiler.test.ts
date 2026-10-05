@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { decompileJDMToVisualComponents, compileVisualToJDM } from './jdm-compiler';
+import { decompileJDMToVisualComponents, compileVisualToJDM, scoreRangeLetters } from './jdm-compiler';
+import { DEFAULT_SCORE_RANGE_BANDS } from '../types';
 
 // A minimal but structurally real schema: 4 axis_codes-driven dimensions
 // (aging/sebum/sensitivity/pigmentation, all represented in the visual
@@ -161,5 +162,47 @@ describe('hand-authored band nodes', () => {
     const node = after.nodes.find((n: { id: string }) => n.id === 'sebum-band');
     expect(node.content.outputs[0].field).toBe('axis_values.SEBUM');
     expect(node.content.rules).toHaveLength(3);
+  });
+});
+
+describe('nothing is filled in for the author', () => {
+  it('an empty schema decompiles to no dimensions and no profiles', () => {
+    const d = decompileJDMToVisualComponents('');
+    expect(d.axes).toEqual([]);
+    expect(d.profileConfig.profiles).toEqual([]);
+  });
+
+  it('a profile table with no rows stays empty', () => {
+    const d = decompileJDMToVisualComponents(JSON.stringify({
+      nodes: [{ id: 'profile', type: 'decisionTableNode', content: { inputs: [{ id: 'in', field: 'total_score' }], outputs: [{ id: 'code', field: 'skin_profile.code' }], rules: [] } }],
+      dimension_weights: { sebum: 1 },
+    }));
+    expect(d.profileConfig.profiles).toEqual([]);
+  });
+
+  it('writes a concern label only when the author set one (core names the rest)', () => {
+    const axes = [
+      { id: 'a', axisCode: 'SEBUM', name: 'Sebum', dimensionKey: 'sebum', weight: 1 },
+      { id: 'b', axisCode: 'ACNE', name: 'Acne', dimensionKey: 'acne', weight: 1, concernLabel: 'Breakouts' },
+    ];
+    const out = JSON.parse(compileVisualToJDM(axes));
+    expect(out.concern_labels).toEqual({ acne: 'Breakouts' });
+    expect(decompileJDMToVisualComponents(JSON.stringify(out)).axes.find((a) => a.dimensionKey === 'sebum')?.concernLabel).toBeUndefined();
+  });
+
+  it('does not compile an axis whose dimension is not picked yet', () => {
+    const out = JSON.parse(compileVisualToJDM([{ id: 'a', axisCode: '', name: 'Dimension 1', dimensionKey: '', weight: 1 }]));
+    expect(out.dimension_weights).toEqual({});
+  });
+});
+
+describe('scoreRangeLetters', () => {
+  // core axisValuesFromScores: strings.ToUpper(label[:1]) of the band a score falls in.
+  it('is the initial of each Score Range band label, lowest band first', () => {
+    expect(scoreRangeLetters(DEFAULT_SCORE_RANGE_BANDS)).toEqual(['P', 'S', 'O']);
+  });
+
+  it('follows the ruleset’s own bands', () => {
+    expect(scoreRangeLetters([{ id: 'x', max: 100, label: 'high' }, { id: 'y', max: 50, label: 'low' }])).toEqual(['L', 'H']);
   });
 });

@@ -87,7 +87,7 @@ export async function handleApiProxy(
         { status: 410 },
       );
     } else if (cleanPath.startsWith('api/')) {
-      // Gateway Engine Control Plane (:8081) — Admin, Collections, Auth, Environments, Users, etc.
+      // Gateway Engine control plane — Admin, Collections, Auth, Environments, Users, etc.
       targetUrl = `${getGatewayEngineUrl()}/${cleanPath}${search}`;
     } else {
       // Any other custom collection path (e.g. /nasa/*, /weather/*) -> the data plane (APISIX)

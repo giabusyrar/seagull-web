@@ -20,7 +20,7 @@ var REFERENCE_ENTITY_CONFIGS = {
     fields: [
       { key: "name", label: "Brand Name", type: "text", required: true },
       { key: "code", label: "Brand Code", type: "text" },
-      { key: "website", label: "Website URL (e.g. wardahbeauty.com)", type: "text" },
+      { key: "website", label: "Website URL (e.g. brand.example.com)", type: "text" },
       { key: "colorCode", label: "Color Code (Hex e.g. #10b981)", type: "text" },
       { key: "description", label: "Description", type: "textarea" }
     ]
@@ -188,7 +188,7 @@ REFERENCE_ENTITY_CONFIGS["application"] = REFERENCE_ENTITY_CONFIGS["applications
 
 // src/reference/components/ReferenceTable.tsx
 import { Edit2, Trash2, Sparkles, Globe, ExternalLink, Target } from "lucide-react";
-import { DataTable, EmptyState, BrandTag, getDomainFromUrl } from "@gateway-experience/shared";
+import { DataTable, EmptyState, BrandTag, getDomainFromUrl, getBrandColorTheme } from "@gateway-experience/shared";
 import { jsx, jsxs } from "react/jsx-runtime";
 var ReferenceTable = ({
   config,
@@ -301,12 +301,11 @@ var ReferenceTable = ({
         key: "colorCode",
         header: "Color Code",
         render: (item) => {
-          const lower = (item.name || "").toLowerCase();
-          const defaultHex = lower.includes("wardah") ? "#10b981" : lower.includes("makeover") || lower.includes("make over") ? "#f43f5e" : lower.includes("emina") ? "#ec4899" : lower.includes("kahf") ? "#f59e0b" : lower.includes("biodef") ? "#06b6d4" : lower.includes("somethinc") ? "#8b5cf6" : lower.includes("wonderly") ? "#a855f7" : lower.includes("omg") ? "#f97316" : "#eab308";
-          const hex = item.colorCode || defaultHex;
+          const stored = item.colorCode || void 0;
+          const hex = stored || getBrandColorTheme(item.code || item.id || item.name || "").hex;
           return /* @__PURE__ */ jsxs("span", { className: "flex items-center gap-1.5 font-mono text-[11px] font-bold text-foreground bg-secondary/60 border border-border px-2 py-0.5 rounded w-fit whitespace-nowrap", children: [
             /* @__PURE__ */ jsx("span", { className: "h-3.5 w-3.5 rounded-full shrink-0 border border-border shadow-xs", style: { backgroundColor: hex } }),
-            /* @__PURE__ */ jsx("span", { children: hex })
+            stored ? /* @__PURE__ */ jsx("span", { children: hex }) : /* @__PURE__ */ jsx("span", { className: "font-normal italic text-muted-foreground", title: "No colour code set \u2014 colour derived from the brand id", children: "not set" })
           ] });
         }
       }
@@ -395,7 +394,7 @@ var ReferenceTable = ({
         header: "Target Dimension",
         render: (item) => /* @__PURE__ */ jsxs("span", { className: "px-2 py-0.5 bg-blue-500/15 border border-blue-500/40 text-blue-600 text-[10px] font-bold rounded flex items-center gap-1 w-fit whitespace-nowrap", children: [
           /* @__PURE__ */ jsx(Target, { className: "h-3 w-3" }),
-          /* @__PURE__ */ jsx("span", { children: item.dimensionCode || item.dimension_code || "sebum" })
+          /* @__PURE__ */ jsx("span", { children: item.dimensionCode || item.dimension_code || "\u2014" })
         ] })
       }
     ] : [],

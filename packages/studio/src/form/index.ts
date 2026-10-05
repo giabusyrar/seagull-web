@@ -13,6 +13,7 @@ export {
   getQuestionnaireModel,
   saveQuestionnaire,
   deleteQuestionnaire,
+  MissingTenantError,
   getDimensions,
   type DimensionRow,
   getSafetyFlags,
@@ -35,14 +36,12 @@ export {
 } from './surveyjs';
 export {
   BUILTIN_TEMPLATES,
-  PIXIE_OMG_SKIN_ANALYZER,
   PFORM_EXAMPLE,
   PFORM_SUGGESTED_DIMENSIONS,
   fromPFormSchema,
   applyDimensionMapping,
   CALCULATION_METHODS,
   applyCalculationMethod,
-  FALLBACK_DIMENSIONS,
   getDimensionMeta,
   type BuiltinTemplate,
   type DimensionMeta,

@@ -5,7 +5,7 @@ import { Model } from 'survey-core';
 import { Survey } from 'survey-react-ui';
 import type { CalculationMethod, QuestionnaireItem } from './types';
 import { applyCalculationMethod } from './catalog';
-import { getQuestionnaireModel } from './api';
+import { getQuestionnaireModel, MissingTenantError } from './api';
 import {
   type SurveyJSModel,
   scoreSurveyAnswers,
@@ -66,6 +66,11 @@ export interface QuestionnaireRunnerProps {
   questionnaire?: QuestionnaireItem;
   /** Opaque customer id (supplied by the integrating client), forwarded verbatim into the payload. */
   customerId?: string;
+  /**
+   * Tenant the questionnaire is stored under. Required to fetch by
+   * `questionnaireCode`; without it the runner shows an error rather than
+   * loading some other tenant's form.
+   */
   brandId?: string;
   applicationId?: string;
   /** Fired once, with the computed payload, when the respondent submits. */
@@ -126,13 +131,16 @@ export const QuestionnaireRunner: React.FC<QuestionnaireRunnerProps> = ({
     let alive = true;
     setLoading(true);
     setError(null);
-    getQuestionnaireModel(questionnaireCode, brandId, applicationId)
+    getQuestionnaireModel(questionnaireCode, brandId ?? '', applicationId ?? '')
       .then((m) => {
         if (!alive) return;
         if (m) setSchema(m);
         else setError('This questionnaire is not available.');
       })
-      .catch(() => alive && setError('Could not load the questionnaire.'))
+      .catch((e) =>
+        alive &&
+        setError(e instanceof MissingTenantError ? e.message : 'Could not load the questionnaire.')
+      )
       .finally(() => alive && setLoading(false));
     return () => {
       alive = false;

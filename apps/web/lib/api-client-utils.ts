@@ -214,42 +214,17 @@ export async function executeHttpRequest(
       error: null,
       timestamp: Date.now(),
     };
-  } catch {
-    const latency = Date.now() - startTime;
-    const mockResponseBody = JSON.stringify(
-      {
-        data: {
-          expireIn: 1800,
-          refreshExpireIn: 28800,
-          token: "{{supabase_service_role_api_key_0y2u}}",
-          refreshToken: "{{supabase_service_role_api_key_0v28}}",
-          userData: {
-            id: 5,
-            email: "johndoe@example.com",
-            name: "John Doee",
-            phone: "628123456789",
-            gender: "M"
-          }
-        }
-      },
-      null,
-      2
-    );
-
-    const byteSize = new Blob([mockResponseBody]).size;
+  } catch (err) {
+    // No response at all (unreachable host, CORS, DNS, aborted). Report it as
+    // that: no status, no body, and why.
     return {
-      status: 200,
-      statusText: 'OK',
-      latency: Math.max(latency, 78),
-      size: `${byteSize} B`,
-      headers: {
-        'content-type': 'application/json; charset=utf-8',
-        'cache-control': 'no-cache',
-        'x-xg-version': '1.4.2',
-        server: 'xg-gateway/2.1',
-      },
-      body: mockResponseBody,
-      error: null,
+      status: null,
+      statusText: null,
+      latency: Date.now() - startTime,
+      size: null,
+      headers: {},
+      body: null,
+      error: err instanceof Error ? err.message : String(err),
       timestamp: Date.now(),
     };
   }

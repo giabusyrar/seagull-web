@@ -21,71 +21,23 @@ const visionFieldLabel = (code: string) => KNOWN_VISION_FIELDS.find((f) => f.cod
 // Severity Level and Skin Concern are derived from total_score by the engine;
 // the JDM only maps total_score -> Skin Profile.
 
-const DEFAULT_CONCERN_LABELS: Record<string, string> = {
-  sebum: 'Minyak Berlebih',
-  oiliness: 'Minyak Berlebih',
-  sensitivity: 'Kulit Sensitif',
-  pigmentation: 'Noda Gelap',
-  dark_spot: 'Noda Gelap',
-  aging: 'Garis Halus & Kerutan',
-  hydration: 'Kulit Kering',
-  acne: 'Jerawat',
-  pores: 'Pori Besar',
-  barrier: 'Barier Kulit Rusak',
-};
+/** The profile configuration a ruleset with no profile table starts from:
+ *  nothing. Profiles, their score ranges and their names are the ruleset
+ *  author's to set; none is filled in for them. */
+export const EMPTY_PROFILE_CONFIG: VisualProfileMappingConfig = { strategy: 'total_score', profiles: [] };
 
-export function defaultConcernLabel(dimKey: string): string {
-  const k = (dimKey || '').toLowerCase();
-  if (DEFAULT_CONCERN_LABELS[k]) return DEFAULT_CONCERN_LABELS[k];
-  return k
-    .split('_')
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ');
+/** The per-dimension letters core falls back to when an axis has none of its
+ *  own: the upper-cased initial of each Score Range band label, in band order
+ *  (core's axisValuesFromScores). Read from the ruleset being edited, so a
+ *  ruleset with different bands gets its own letters. */
+export function scoreRangeLetters(bands: VisualBand[]): string[] {
+  const letters = bands
+    .slice()
+    .sort((x, y) => x.max - y.max)
+    .map((b) => b.label.trim().charAt(0).toUpperCase())
+    .filter(Boolean);
+  return Array.from(new Set(letters));
 }
-
-export const DEFAULT_STARTER_AXES: VisualAxisConfig[] = [
-  {
-    id: 'axis_sebum',
-    axisCode: 'SEBUM',
-    name: 'Sebum Secretion',
-    dimensionKey: 'sebum',
-    weight: 1,
-    concernLabel: 'Minyak Berlebih',
-  },
-];
-
-export const DEFAULT_STARTER_PROFILES: VisualProfileMappingConfig = {
-  strategy: 'total_score',
-  profiles: [
-    {
-      id: 'prof_1',
-      minScore: 61,
-      maxScore: 100,
-      code: 'OPTIMAL',
-      title: 'Kulit Optimal',
-      category: 'Optimal',
-      summary: 'Kondisi kulit seimbang, tidak ada keluhan menonjol.',
-    },
-    {
-      id: 'prof_2',
-      minScore: 41,
-      maxScore: 60,
-      code: 'MODERATE',
-      title: 'Perlu Perawatan Aktif',
-      category: 'Sedang',
-      summary: 'Ada keluhan sedang yang perlu perawatan aktif.',
-    },
-    {
-      id: 'prof_3',
-      minScore: 0,
-      maxScore: 40,
-      code: 'CONCERN',
-      title: 'Perlu Perhatian Khusus',
-      category: 'Perlu Perhatian Khusus',
-      summary: 'Keluhan menonjol, perlu perhatian dan rutinitas terarah.',
-    },
-  ],
-};
 
 const bandsToSchema = (bands: VisualBand[]) =>
   bands.map((b) => ({ max: Math.max(0, Math.min(100, Number(b.max) || 0)), label: b.label || '' }));
@@ -102,7 +54,7 @@ const rangeCell = (min?: number, max?: number) =>
  */
 export function compileVisualToJDM(
   axes: VisualAxisConfig[],
-  profileConfig: VisualProfileMappingConfig = DEFAULT_STARTER_PROFILES,
+  profileConfig: VisualProfileMappingConfig = EMPTY_PROFILE_CONFIG,
   scoreRangeBands: VisualBand[] = DEFAULT_SCORE_RANGE_BANDS,
   severityBands: VisualBand[] = DEFAULT_SEVERITY_BANDS,
   /** The schema being edited, if any. Any node in it that this function
@@ -117,7 +69,9 @@ export function compileVisualToJDM(
    *  being converted. */
   sources?: Record<string, SourceSpec>,
 ): string {
-  const effectiveAxes = axes.length > 0 ? axes : DEFAULT_STARTER_AXES;
+  // An axis whose dimension has not been picked yet is not compiled: it has
+  // no key to write under. The editor refuses to save until every axis has one.
+  const effectiveAxes = axes.filter((a) => (a.dimensionKey || '').trim());
 
   const nodes: JDMNode[] = [
     { id: 'input_node', name: 'Input', type: 'inputNode', position: { x: 40, y: 40 } },
@@ -217,7 +171,11 @@ export function compileVisualToJDM(
   for (const a of effectiveAxes) {
     const key = a.dimensionKey.toLowerCase();
     dimension_weights[key] = a.weight ?? 1;
-    concern_labels[key] = a.concernLabel || defaultConcernLabel(key);
+    // Only a label the author set is written. Without one, core applies its
+    // own default concern name (score_service.go concernLabel), so this
+    // editor keeps no second copy of those names.
+    const concern = (a.concernLabel || '').trim();
+    if (concern) concern_labels[key] = concern;
 
     const di = toDimensionInputs(a);
     if (di) dimension_inputs[key] = di;
@@ -354,8 +312,8 @@ const bandsFromSchema = (raw: any, fallback: VisualBand[], prefix: string): Visu
  */
 export function decompileJDMToVisualComponents(schemaStr: string): DecompiledGrading {
   const fallback: DecompiledGrading = {
-    axes: DEFAULT_STARTER_AXES.map((a) => ({ ...a })),
-    profileConfig: DEFAULT_STARTER_PROFILES,
+    axes: [],
+    profileConfig: { ...EMPTY_PROFILE_CONFIG, profiles: [] },
     scoreRangeBands: DEFAULT_SCORE_RANGE_BANDS.map((b) => ({ ...b })),
     severityBands: DEFAULT_SEVERITY_BANDS.map((b) => ({ ...b })),
     sources: {},
@@ -490,7 +448,7 @@ export function decompileJDMToVisualComponents(schemaStr: string): DecompiledGra
         .join(' '),
       dimensionKey: key,
       weight: typeof weights[key] === 'number' ? weights[key] : 1,
-      concernLabel: concernLabels[key] || defaultConcernLabel(key),
+      concernLabel: concernLabels[key] || undefined,
       inputs: (bd?.inputs || []).map((i) => ({ ...i, label: i.source === VISION_SOURCE ? visionFieldLabel(i.field) : i.field })),
       required: bd?.required || [],
       bands,
@@ -511,7 +469,7 @@ export function decompileJDMToVisualComponents(schemaStr: string): DecompiledGra
     return (c?.outputs || []).some((o: any) => typeof o?.field === 'string' && o.field.startsWith('skin_profile.'));
   });
 
-  let profileConfig: VisualProfileMappingConfig = DEFAULT_STARTER_PROFILES;
+  let profileConfig: VisualProfileMappingConfig = { ...EMPTY_PROFILE_CONFIG, profiles: [] };
   if (profileNode) {
     const c = typeof profileNode.content === 'string' ? safeParse(profileNode.content) : profileNode.content;
     const inputs: any[] = c?.inputs || [];
@@ -561,11 +519,11 @@ export function decompileJDMToVisualComponents(schemaStr: string): DecompiledGra
       return entry;
     });
 
-    profileConfig = { strategy, profiles: profiles.length ? profiles : DEFAULT_STARTER_PROFILES.profiles };
+    profileConfig = { strategy, profiles };
   }
 
   return {
-    axes: axes.length ? axes : fallback.axes,
+    axes,
     profileConfig,
     scoreRangeBands: bandsFromSchema(parsed.score_range_bands, DEFAULT_SCORE_RANGE_BANDS, 'sr'),
     severityBands: bandsFromSchema(parsed.severity_bands, DEFAULT_SEVERITY_BANDS, 'sv'),

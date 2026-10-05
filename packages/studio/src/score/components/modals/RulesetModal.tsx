@@ -13,9 +13,7 @@ import { DEFAULT_SCORE_RANGE_BANDS, DEFAULT_SEVERITY_BANDS } from '../../types';
 import {
   compileVisualToJDM,
   decompileJDMToVisualComponents,
-  defaultConcernLabel,
-  DEFAULT_STARTER_AXES,
-  DEFAULT_STARTER_PROFILES,
+  EMPTY_PROFILE_CONFIG,
 } from '../../utils/jdm-compiler';
 import { ClinicalAxisCard } from '../reusable/ClinicalAxisCard';
 import { fetchTenantSurveys, surveyList } from '../../api';
@@ -32,6 +30,9 @@ interface RulesetModalProps {
 const inputCls =
   'w-full h-9 rounded-md bg-muted/40 border border-border px-3 text-foreground text-sm placeholder:text-muted-foreground outline-none focus:border-ring disabled:opacity-50';
 const labelCls = 'block text-xs font-semibold text-foreground mb-1.5';
+
+/** Stands in for each score in the copied /simulate template. */
+const SIMULATE_SCORE_PLACEHOLDER = '<health score 0-100, or remove if not answered>';
 
 const slugify = (v: string) =>
   v.toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
@@ -54,8 +55,10 @@ export const RulesetModal: React.FC<RulesetModalProps> = ({
   const [visionSourceCode, setVisionSourceCode] = useState('');
   const [surveys, setSurveys] = useState<Array<{ code: string; title?: string; name?: string }>>([]);
 
-  const [axes, setAxes] = useState<VisualAxisConfig[]>(DEFAULT_STARTER_AXES);
-  const [profileConfig, setProfileConfig] = useState<VisualProfileMappingConfig>(DEFAULT_STARTER_PROFILES);
+  // A new grading model starts with no dimensions and no profiles: which
+  // dimensions it grades and how is the author's to set, not a template's.
+  const [axes, setAxes] = useState<VisualAxisConfig[]>([]);
+  const [profileConfig, setProfileConfig] = useState<VisualProfileMappingConfig>(EMPTY_PROFILE_CONFIG);
   const [scoreRangeBands, setScoreRangeBands] = useState<VisualBand[]>(DEFAULT_SCORE_RANGE_BANDS);
   const [severityBands, setSeverityBands] = useState<VisualBand[]>(DEFAULT_SEVERITY_BANDS);
 
@@ -109,8 +112,8 @@ export const RulesetModal: React.FC<RulesetModalProps> = ({
       setBrandId('*');
       setApplicationId('*');
       setStatus('ACTIVE');
-      setAxes(DEFAULT_STARTER_AXES);
-      setProfileConfig(DEFAULT_STARTER_PROFILES);
+      setAxes([]);
+      setProfileConfig({ ...EMPTY_PROFILE_CONFIG, profiles: [] });
       setScoreRangeBands(DEFAULT_SCORE_RANGE_BANDS);
       setSeverityBands(DEFAULT_SEVERITY_BANDS);
       setIsLegacy(false);
@@ -140,15 +143,16 @@ export const RulesetModal: React.FC<RulesetModalProps> = ({
 
   const addAxis = () => {
     const n = axes.length + 1;
+    // No dimension is pre-selected: the author picks one from reference data
+    // before the model can be saved.
     setAxes((prev) => [
       ...prev,
       {
         id: `axis_${Date.now()}`,
-        axisCode: `DIM_${n}`,
+        axisCode: '',
         name: `Dimension ${n}`,
-        dimensionKey: 'sensitivity',
+        dimensionKey: '',
         weight: 1,
-        concernLabel: defaultConcernLabel('sensitivity'),
       },
     ]);
   };
@@ -179,6 +183,14 @@ export const RulesetModal: React.FC<RulesetModalProps> = ({
     if (!effectiveCode) {
       setTab('setup');
       return setFormError('Could not derive a code — set one manually.');
+    }
+    if (axes.length === 0) {
+      setTab('dimensions');
+      return setFormError('Add at least one dimension.');
+    }
+    if (axes.some((a) => !(a.dimensionKey || '').trim())) {
+      setTab('dimensions');
+      return setFormError('Pick a dimension for every row before saving.');
     }
 
     setIsSubmitting(true);
@@ -221,12 +233,18 @@ export const RulesetModal: React.FC<RulesetModalProps> = ({
     null,
     2,
   );
+  // A template, not a run: every score is a placeholder string the caller
+  // must replace (or drop, to send the dimension as not answered), so the
+  // copy cannot be replayed with made-up numbers by accident.
   const simulateRequestBody = JSON.stringify(
     {
       schema: jsonText,
-      dimension_scores: Object.fromEntries(
-        axes.map((a) => [a.dimensionKey.toLowerCase(), 50]),
+      form_scores: Object.fromEntries(
+        axes
+          .filter((a) => a.dimensionKey)
+          .map((a) => [a.dimensionKey.toLowerCase(), SIMULATE_SCORE_PLACEHOLDER]),
       ),
+      vision_scores: {},
       customer_condition: {},
     },
     null,
@@ -296,7 +314,7 @@ export const RulesetModal: React.FC<RulesetModalProps> = ({
                     required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="e.g. Wardah Skinverse grading"
+                    placeholder="e.g. Brand skin grading"
                     className={inputCls}
                   />
                   <p className="mt-1 text-[11px] text-muted-foreground">
@@ -446,25 +464,26 @@ export const RulesetModal: React.FC<RulesetModalProps> = ({
                     Add dimension
                   </Button>
                 </div>
+                {axes.length === 0 && (
+                  <p className="rounded-md border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground">
+                    No dimensions yet. Add one and pick it from reference data.
+                  </p>
+                )}
                 {axes.map((axis, i) => (
                   <ClinicalAxisCard
                     key={axis.id}
                     axis={axis}
                     index={i}
-                    defaultOpen={axes.length === 1}
+                    defaultOpen={axes.length === 1 || !axis.dimensionKey}
                     siblingWeightTotal={totalWeight}
                     onUpdate={(updated) =>
                       setAxes((prev) => prev.map((a) => (a.id === axis.id ? updated : a)))
                     }
                     onDelete={() => {
-                      if (axes.length <= 1) {
-                        setFormError('Keep at least one dimension.');
-                        return;
-                      }
                       setAxes((prev) => prev.filter((a) => a.id !== axis.id));
                       setFormError(null);
                     }}
-                    canDelete={axes.length > 1}
+                    canDelete
                   />
                 ))}
               </div>
@@ -519,7 +538,13 @@ export const RulesetModal: React.FC<RulesetModalProps> = ({
                       label="About profile method"
                     />
                   </div>
-                  <ProfileMappingTable axes={axes} config={profileConfig} onChange={setProfileConfig} />
+                  <ProfileMappingTable
+                    axes={axes}
+                    config={profileConfig}
+                    onChange={setProfileConfig}
+                    scoreRangeBands={scoreRangeBands}
+                    severityBands={severityBands}
+                  />
                 </div>
               </div>
             )}

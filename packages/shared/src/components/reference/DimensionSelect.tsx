@@ -5,6 +5,11 @@ import { SearchableSelect, type SelectOption } from '../SearchableSelect';
 import { extractReferenceList } from './extractReferenceList';
 import { NO_REFERENCE_SOURCE_PLACEHOLDER, useReferenceDataSource } from './ReferenceDataProvider';
 
+/** Shown when the reference dimensions request fails. */
+const DIMENSIONS_UNAVAILABLE_PLACEHOLDER = 'Dimensions could not be loaded from reference data';
+/** Shown when reference data answers with an empty dimension catalog. */
+const DIMENSIONS_EMPTY_PLACEHOLDER = 'No dimensions defined in reference data';
+
 export interface DimensionSelectProps {
   value: string;
   onChange: (dimensionKey: string, dimension?: { code: string; name: string }) => void;
@@ -22,30 +27,30 @@ export const DimensionSelect: React.FC<DimensionSelectProps> = ({
   disabled = false,
   className = '',
 }) => {
-  const [dimensions, setDimensions] = useState<Array<{ code: string; name: string; category?: string }>>([
-    { code: 'sebum', name: 'Sebum Secretion' },
-    { code: 'sensitivity', name: 'Epidermal Reactivity' },
-    { code: 'pigmentation', name: 'Melanogenesis & Spots' },
-    { code: 'aging', name: 'Elasticity & Wrinkles' },
-    { code: 'barrier', name: 'Moisture Barrier' },
-    { code: 'hydration', name: 'Skin Hydration' },
-  ]);
+  // The catalog comes only from reference data. There is no built-in list to
+  // fall back on: dimension keys are data, and a stand-in list would look like
+  // the real catalog. When it cannot load, the picker says so.
+  const [dimensions, setDimensions] = useState<Array<{ code: string; name: string; category?: string }>>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const source = useReferenceDataSource();
 
   useEffect(() => {
     if (!source) return;
     setIsLoading(true);
+    setLoadError(null);
     source
       .dimensions()
       .then((data) => {
         const list = extractReferenceList(data, 'dimensions');
-        if (list.length > 0) {
-          setDimensions(list.map((d: any) => ({ code: d.code, name: d.name || d.code, category: d.category })));
-        }
+        setDimensions(list.map((d: any) => ({ code: d.code, name: d.name || d.code, category: d.category })));
+        if (list.length === 0) setLoadError(DIMENSIONS_EMPTY_PLACEHOLDER);
       })
-      .catch(() => {})
+      .catch(() => {
+        setDimensions([]);
+        setLoadError(DIMENSIONS_UNAVAILABLE_PLACEHOLDER);
+      })
       .finally(() => setIsLoading(false));
   }, [source]);
 
@@ -86,6 +91,11 @@ export const DimensionSelect: React.FC<DimensionSelectProps> = ({
         placeholder={!source ? NO_REFERENCE_SOURCE_PLACEHOLDER : isLoading ? 'Loading dimensions...' : placeholder}
         searchPlaceholder="Search dimensions..."
       />
+      {source && loadError && !isLoading && (
+        <p role="alert" className="text-[10px] text-amber-500">
+          {loadError}
+        </p>
+      )}
     </div>
   );
 };

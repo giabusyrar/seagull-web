@@ -8,7 +8,13 @@ import type { VisionAnalysisResponse, BeautyClientConfig } from '../../core/type
 export interface BeautyExperienceWidgetProps extends BeautyClientConfig {
   onComplete?: (result: VisionAnalysisResponse) => void;
   onAddToCart?: (sku: string) => void;
+  /** Dimension codes to analyse, as the tenant's reference data names them.
+   *  Omitted: no `dimensions` field is sent and the engine applies the
+   *  application's own configuration. */
+  dimensions?: string[];
+  /** The customer's age in years, if known. Omitted: not sent. */
   initialAge?: number;
+  /** The UV index at the customer's location, if known. Omitted: not sent. */
   initialUvIndex?: number;
   className?: string;
 }
@@ -21,13 +27,12 @@ export const BeautyExperienceWidget: React.FC<BeautyExperienceWidgetProps> = ({
   applicationId,
   onComplete,
   onAddToCart,
-  initialAge = 28,
-  initialUvIndex = 8.5,
+  dimensions,
+  initialAge,
+  initialUvIndex,
   className = '',
 }) => {
   const [client] = useState(() => new BeautyClient({ gatewayUrl, apiKey, token, brandId, applicationId }));
-  const [currentAge, setCurrentAge] = useState<number>(initialAge);
-  const [uvIndex, setUvIndex] = useState<number>(initialUvIndex);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [currentFile, setCurrentFile] = useState<File | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -35,13 +40,15 @@ export const BeautyExperienceWidget: React.FC<BeautyExperienceWidgetProps> = ({
   const [selectedZone, setSelectedZone] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const runAnalysis = async (file: File, ageToAnalyze: number, uviToAnalyze: number) => {
+  // Only what the integrator supplied is sent; the client drops undefined
+  // fields, so nothing here stands in for a value nobody provided.
+  const runAnalysis = async (file: File) => {
     setIsAnalyzing(true);
     try {
       const result = await client.analyzeImage(file, {
-        dimensions: ['acne', 'wrinkles', 'pigment', 'uv_defense', 'aging'],
-        chronologicalAge: ageToAnalyze,
-        uvIndex: uviToAnalyze,
+        dimensions,
+        chronologicalAge: initialAge,
+        uvIndex: initialUvIndex,
       });
       setAnalysisResult(result);
       if (onComplete) onComplete(result);
@@ -61,7 +68,7 @@ export const BeautyExperienceWidget: React.FC<BeautyExperienceWidgetProps> = ({
     setImagePreview(previewUrl);
     setAnalysisResult(null);
 
-    await runAnalysis(file, currentAge, uvIndex);
+    await runAnalysis(file);
   };
 
   return (

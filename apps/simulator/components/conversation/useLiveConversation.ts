@@ -11,6 +11,17 @@ import type { Respondent } from '@/lib/form';
 import { MicStream, Player } from './audio-io';
 import { useLang } from '@/lib/i18n';
 
+/** WebSocket close codes for an ordinary close (RFC 6455 §7.4.1): not an error to show. */
+const WS_NORMAL_CLOSURE = 1000;
+const WS_NO_STATUS_RECEIVED = 1005;
+
+/**
+ * How long after sending a view/action note an "Unknown message type." error
+ * is taken as the engine's answer to that note (an engine that predates
+ * them), rather than a problem to show the customer.
+ */
+const NOTE_REPLY_WINDOW_MS = 3000;
+
 /**
  * One conversation session and its live socket. The session (id + owner
  * token) and what was said survive a reload in localStorage, so the page can
@@ -104,7 +115,7 @@ export function useLiveConversation() {
       if (reconnectAsked) { void connectRef.current?.(s); return; }
       stopMic(false);
       setConn('closed');
-      setLive((st) => ({ ...st, errors: e.code === 1000 || e.code === 1005 ? st.errors : [...st.errors, `${tRef.current('Connection closed', 'Koneksi ditutup')} (${e.code}${e.reason ? `: ${e.reason}` : ''}).`] }));
+      setLive((st) => ({ ...st, errors: e.code === WS_NORMAL_CLOSURE || e.code === WS_NO_STATUS_RECEIVED ? st.errors : [...st.errors, `${tRef.current('Connection closed', 'Koneksi ditutup')} (${e.code}${e.reason ? `: ${e.reason}` : ''}).`] }));
     };
     sock.onmessage = (m) => {
       let msg: Record<string, unknown>;
@@ -117,7 +128,7 @@ export function useLiveConversation() {
       if (msg.type === 'interrupted') { player.current?.interrupt(); return; }
       if (msg.type === 'reconnect') { reconnectAsked = true; return; }
       // An engine without `view`/`action` answers them with this error; that is not the customer's problem.
-      if (msg.type === 'error' && msg.message === 'Unknown message type.' && Date.now() - lastNoteAt.current < 3000) {
+      if (msg.type === 'error' && msg.message === 'Unknown message type.' && Date.now() - lastNoteAt.current < NOTE_REPLY_WINDOW_MS) {
         notesSupported.current = false;
         return;
       }
