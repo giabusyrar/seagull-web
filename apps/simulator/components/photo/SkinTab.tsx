@@ -1,27 +1,48 @@
 'use client';
 import type { MetricValue, StructuredWarning, VisionAnalysisResult, ZoneDiagnosticMetric } from '@/lib/types/skin';
-import { zoneMetricCount } from '@/lib/types/skin';
+import { metricDisplay, zoneMetricCount } from '@/lib/types/skin';
 import { card } from '@/components/ui';
 import { useLang } from '@/lib/i18n';
 import { ScoreRing } from './ScoreRing';
 import { Pill, Section, TabShell, dash, entries, humanize, list, num, severityTone, type TabState } from './TabShell';
 
-/** One concern per card: its score as the backend gave it and its severity word. No scale is assumed. */
+/**
+ * One concern per card: its score and severity word as the backend gave them,
+ * or, when it measured but could not score (no calibration yet), the raw
+ * reading in its own unit, marked uncalibrated and never on a score scale.
+ */
 function MetricGrid({ title, items }: { title: string; items: unknown }) {
+  const { t } = useLang();
   const rows = entries<MetricValue>(items);
   return (
     <Section title={title} aside={<span className="text-[11px] text-zinc-400">{rows.length}</span>}>
       {rows.length === 0 ? <p className="text-xs text-zinc-500">—</p> : (
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-          {rows.map(([k, m]) => (
-            <div key={k} className={`${card} flex flex-col gap-2 p-3.5`} title={k}>
-              <span className="truncate text-xs font-medium text-zinc-600">{humanize(k)}</span>
-              <div className="flex items-end justify-between gap-2">
-                <span className="text-2xl font-semibold tabular-nums tracking-tight">{num(m.score)}</span>
-                {m.severity && <Pill className={severityTone(m.severity)}>{dash(m.severity)}</Pill>}
+          {rows.map(([k, m]) => {
+            const d = metricDisplay(m);
+            return (
+              <div key={k} className={`${card} flex flex-col gap-2 p-3.5`} title={k}>
+                <span className="truncate text-xs font-medium text-zinc-600">{humanize(k)}</span>
+                {d.kind === 'score' && (
+                  <div className="flex items-end justify-between gap-2">
+                    <span className="text-2xl font-semibold tabular-nums tracking-tight">{num(d.score)}</span>
+                    {d.severity && <Pill className={severityTone(d.severity)}>{dash(d.severity)}</Pill>}
+                  </div>
+                )}
+                {d.kind === 'measurement' && (
+                  <>
+                    <div className="flex flex-wrap items-baseline gap-1.5">
+                      <span className="text-lg font-semibold tabular-nums tracking-tight">{num(d.value, 2)}</span>
+                      {d.unit && <span className="text-[11px] text-zinc-500">{d.unit}</span>}
+                    </div>
+                    <Pill className="self-start bg-zinc-100 text-zinc-600 ring-1 ring-inset ring-zinc-200">{t('Not calibrated — raw measurement', 'Belum terkalibrasi — pengukuran mentah')}</Pill>
+                    {d.proxy && <span className="text-[11px] leading-snug text-amber-700">{t('Proxy', 'Proksi')}: {d.proxy}</span>}
+                  </>
+                )}
+                {d.kind === 'none' && <span className="text-sm text-zinc-400">{t('not scored', 'tidak dinilai')}</span>}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </Section>
