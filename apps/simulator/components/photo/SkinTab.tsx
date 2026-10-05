@@ -33,10 +33,10 @@ function MetricGrid({ title, items }: { title: string; items: unknown }) {
                   <>
                     <div className="flex flex-wrap items-baseline gap-1.5">
                       <span className="text-lg font-semibold tabular-nums tracking-tight">{num(d.value, 2)}</span>
-                      {d.unit && <span className="text-[11px] text-zinc-500">{d.unit}</span>}
+                      {d.unit && <span className="min-w-0 text-[11px] text-zinc-500 [overflow-wrap:anywhere]">{d.unit}</span>}
                     </div>
                     <Pill className="self-start bg-zinc-100 text-zinc-600 ring-1 ring-inset ring-zinc-200">{t('Not calibrated — raw measurement', 'Belum terkalibrasi — pengukuran mentah')}</Pill>
-                    {d.proxy && <span className="text-[11px] leading-snug text-amber-700">{t('Proxy', 'Proksi')}: {d.proxy}</span>}
+                    {d.proxy && <span className="text-[11px] leading-snug text-amber-700 [overflow-wrap:anywhere]">{t('Proxy', 'Proksi')}: {d.proxy}</span>}
                   </>
                 )}
                 {d.kind === 'none' && <span className="text-sm text-zinc-400">{t('not scored', 'tidak dinilai')}</span>}
@@ -85,7 +85,7 @@ export function SkinResult({ r }: { r: VisionAnalysisResult }) {
       </Section>
       {warnings.length > 0 && (
         <Section title={t('Warnings', 'Peringatan')} aside={<span className="text-[11px] text-zinc-400">{warnings.length}</span>}>
-          <ul className="flex flex-col gap-1.5 rounded-xl border border-amber-200 bg-amber-50/70 p-3.5 text-xs text-amber-900">
+          <ul className="flex flex-col gap-1.5 rounded-xl border border-amber-200 bg-amber-50/70 p-3.5 text-xs text-amber-900 [overflow-wrap:anywhere]">
             {warnings.map((w, i) => <li key={i}><span className="font-mono font-semibold">{dash(w.code)}</span>{w.zoneCode ? ` (${dash(w.zoneCode)})` : ''}: {dash(w.message)}</li>)}
           </ul>
         </Section>

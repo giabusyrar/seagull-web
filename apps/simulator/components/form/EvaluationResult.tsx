@@ -58,7 +58,7 @@ export function EvaluationResult({ r }: { r: EvaluationOutput }) {
       </div>
 
       {shown.length > 0 && (
-        <ul className="flex flex-col gap-1 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] text-amber-900">
+        <ul className="flex flex-col gap-1 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] text-amber-900 [overflow-wrap:anywhere]">
           {shown.map((w, i) => <li key={`${w.code}-${i}`}><span className="font-mono">{w.code}</span>{w.message ? ` — ${w.message}` : ''}</li>)}
         </ul>
       )}

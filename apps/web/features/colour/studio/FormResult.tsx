@@ -75,7 +75,7 @@ export function FormResult({ run, onRestart }: { run: FormRun; onRestart: () => 
             </div>
           )}
           {warnings.length > 0 && (
-            <ul className="space-y-1 rounded-lg border border-amber-200 bg-amber-50 p-2 text-[11px] text-amber-900">
+            <ul className="space-y-1 rounded-lg border border-amber-200 bg-amber-50 p-2 text-[11px] text-amber-900 [overflow-wrap:anywhere]">
               {warnings.map((w, i) => (
                 <li key={i}>
                   <span className="font-mono">{w.code}</span>
