@@ -1,15 +1,15 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePersistentState } from '@gateway-experience/shared';
-import { call, type CallResult } from '@/lib/http';
-import type { Brand } from '@/lib/photo';
+import { call, type CallResult } from '../../lib/http';
+import type { Brand } from '../../lib/photo';
 import {
-  CONVERSATION_WS_BASE, INITIAL_LIVE, actionMessage, answersSupported, cancelPhoto, refusal, createSession, deleteSession, reduceLive, uploadPhoto, viewMessage, wsTicket, wsUrl,
+  conversationWsBase, INITIAL_LIVE, actionMessage, answersSupported, cancelPhoto, refusal, createSession, deleteSession, reduceLive, uploadPhoto, viewMessage, wsTicket, wsUrl,
   type Action, type ConvSession, type LiveState, type View,
-} from '@/lib/conversation';
-import type { Respondent } from '@/lib/form';
+} from '../../lib/conversation';
+import type { Respondent } from '../../lib/form';
 import { MicStream, Player } from './audio-io';
-import { useLang } from '@/lib/i18n';
+import { useLang } from '../../lib/i18n';
 
 /** WebSocket close codes for an ordinary close (RFC 6455 §7.4.1): not an error to show. */
 const WS_NORMAL_CLOSURE = 1000;
@@ -105,7 +105,7 @@ export function useLiveConversation() {
       return;
     }
     player.current = new Player(setSpeaking);
-    const sock = new WebSocket(wsUrl(CONVERSATION_WS_BASE, s.id, ticket));
+    const sock = new WebSocket(wsUrl(conversationWsBase(), s.id, ticket));
     ws.current = sock;
     notesSupported.current = null;
     // Gemini ends long live connections (go_away); the engine then asks for a reconnect and closes.

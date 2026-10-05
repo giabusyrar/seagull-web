@@ -1,12 +1,12 @@
 'use client';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { useBrand } from '@/lib/brand';
-import { usePhotos } from '@/lib/photos';
-import { useLang } from '@/lib/i18n';
+import { useBrand } from '../../lib/brand';
+import { usePhotos } from '../../lib/photos';
+import { useLang } from '../../lib/i18n';
 import { usePersistentState } from '@gateway-experience/shared';
-import { useBlobUrl } from '@/lib/blob';
-import { call } from '@/lib/http';
-import { analyzeColour, faceArchitecture, faceHead, skinAnalyze, toggleShade, type Brand, type BuiltRequest, type Selection } from '@/lib/photo';
+import { useBlobUrl } from '../../lib/blob';
+import { call } from '../../lib/http';
+import { analyzeColour, faceArchitecture, faceHead, skinAnalyze, toggleShade, type Brand, type BuiltRequest, type Selection } from '../../lib/photo';
 import { FrontPicker, PhotoTips, Questions, SideShots, type YesNo } from './PhotoInput';
 import { PhotoStage } from './PhotoStage';
 import { ColourTab } from './ColourTab';
@@ -14,7 +14,7 @@ import { FaceTab } from './FaceTab';
 import { SkinTab } from './SkinTab';
 import { IDLE, type TabState } from './TabShell';
 import { useTryOn } from './useTryOn';
-import { btnPrimarySm, card, cardPad } from '@/components/ui';
+import { btnPrimarySm, card, cardPad, pageSub, pageTitle } from '../ui';
 
 export type PhotoPhase = 'capture' | 'questions' | 'result';
 
@@ -122,8 +122,8 @@ export function PhotoSimulator({ onPhase, onAnalyze, before = [], after = [] }: 
   return (
     <section className="flex w-full flex-col gap-5">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">{current === 'result' ? t('Results', 'Hasil') : t('Photo', 'Foto')}</h1>
-        <p className="mt-0.5 text-sm text-zinc-500">
+        <h1 className={pageTitle}>{current === 'result' ? t('Results', 'Hasil') : t('Photo', 'Foto')}</h1>
+        <p className={pageSub}>
           {current === 'result'
             ? <>{t('For', 'Untuk')} <span className="font-medium text-zinc-700">{analyzed?.brandId} / {analyzed?.applicationId}</span></>
             : t('Colour, face, skin and a 3D head from one photo.', 'Warna, wajah, kulit dan kepala 3D dari satu foto.')}

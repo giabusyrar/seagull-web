@@ -1,9 +1,9 @@
 'use client';
 /* eslint-disable @next/next/no-img-element -- blob/object URLs, not optimisable */
-import { CameraCapture } from '@/components/CameraCapture';
-import { useFileSrc } from '@/lib/blob';
-import { btnPrimary, btnSecondary, cardPad, eyebrow, segItem, segTrack } from '@/components/ui';
-import { useLang } from '@/lib/i18n';
+import { CameraCapture } from '../CameraCapture';
+import { useFileSrc } from '../../lib/blob';
+import { btnPrimary, btnSecondary, cardPad, eyebrow, segItem, segTrack } from '../ui';
+import { useLang } from '../../lib/i18n';
 
 export type YesNo = 'yes' | 'no' | '';
 

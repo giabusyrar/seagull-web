@@ -13,6 +13,8 @@ const WORKSPACE_ROOT = path.resolve(import.meta.dirname, "..", "..");
 const GATEWAY_ENGINE_URL = getGatewayEngineUrl();
 
 const nextConfig: NextConfig = {
+  // Simulator Studio renders the simulator's screens from source.
+  transpilePackages: ['@gateway-experience/simulator-kit'],
   output: "standalone",
   devIndicators: false,
   turbopack: { root: WORKSPACE_ROOT },

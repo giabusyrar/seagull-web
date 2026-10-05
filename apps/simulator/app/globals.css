@@ -1,4 +1,6 @@
 @import "tailwindcss";
+/* The screens live in the shared package; scan them too. */
+@source "../../../packages/simulator-kit/src";
 
 @theme {
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;

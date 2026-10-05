@@ -1,15 +1,17 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { SERVICES, svcPath, type ServiceId } from '@/lib/services';
-import { call } from '@/lib/http';
+import { services, svcPath, type ServiceId } from '../lib/services';
+import { call } from '../lib/http';
 
 export function HealthPills() {
   const [state, setState] = useState<Partial<Record<ServiceId, { status: number; down: boolean }>>>({});
+  // Only services the host gave a health check; the others have no pill rather than a guessed state.
+  const checked = services().filter((s) => s.healthPath !== null);
   useEffect(() => {
     let alive = true;
     const poll = async () => {
-      const entries = await Promise.all(Object.values(SERVICES).map(async (s) => {
-        const r = await call({ url: svcPath(s.id, s.healthPath), init: { method: 'GET', cache: 'no-store' } });
+      const entries = await Promise.all(checked.map(async (s) => {
+        const r = await call({ url: svcPath(s.id, s.healthPath as string), init: { method: 'GET', cache: 'no-store' } });
         return [s.id, { status: r.status, down: r.status === 0 || !!r.hint }] as const;
       }));
       if (alive) setState(Object.fromEntries(entries));
@@ -17,10 +19,12 @@ export function HealthPills() {
     poll();
     const t = setInterval(poll, 10_000);
     return () => { alive = false; clearInterval(t); };
+    // The host's configuration is fixed before the first render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return (
     <div className="flex flex-wrap gap-1.5">
-      {Object.values(SERVICES).map((s) => {
+      {checked.map((s) => {
         const h = state[s.id];
         const st = h?.status;
         const ok = st !== undefined && st >= 200 && st < 300;

@@ -1,9 +1,9 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { call } from '@/lib/http';
-import { svcPath } from '@/lib/services';
-import { useBrand } from '@/lib/brand';
-import { useLang } from '@/lib/i18n';
+import { call } from '../lib/http';
+import { svcPath } from '../lib/services';
+import { useBrand } from '../lib/brand';
+import { useLang } from '../lib/i18n';
 import { eyebrow, field } from './ui';
 
 type Opt = { value: string; label: string };

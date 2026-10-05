@@ -1,6 +1,6 @@
 'use client';
 import { useEffect } from 'react';
-import { useLang, type Lang } from '@/lib/i18n';
+import { useLang, type Lang } from '../lib/i18n';
 import { segItem, segTrack } from './ui';
 
 /** EN / ID switch; also keeps <html lang> in step for screen readers. */

@@ -1,8 +1,8 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { call } from '@/lib/http';
-import { listSurveys, selectableSurveys, type SurveyRow } from '@/lib/form';
-import type { Brand } from '@/lib/photo';
+import { call } from '../../lib/http';
+import { listSurveys, selectableSurveys, type SurveyRow } from '../../lib/form';
+import type { Brand } from '../../lib/photo';
 
 interface Loaded { scope: string; rows: SurveyRow[]; error: string | null }
 

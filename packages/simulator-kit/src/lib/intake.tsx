@@ -1,12 +1,12 @@
 'use client';
 import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
 import { readPersisted, usePersistentState, writePersisted } from '@gateway-experience/shared';
-import { useLiveConversation } from '@/components/conversation/useLiveConversation';
+import { useLiveConversation } from '../components/conversation/useLiveConversation';
 import { call } from './http';
 import { evaluateSurvey, type Respondent } from './form';
 import { photoRequested } from './conversation';
 import type { Brand } from './photo';
-import { IDLE, type TabState } from '@/components/photo/TabShell';
+import { IDLE, type TabState } from '../components/photo/TabShell';
 
 /** A new run's customer: no details yet, nothing consented to. */
 export const EMPTY_RESPONDENT: Respondent = { consentDataProcessing: false, consentMarketing: false };

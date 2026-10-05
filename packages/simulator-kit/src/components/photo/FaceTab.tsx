@@ -1,8 +1,8 @@
 'use client';
-import type { CallResult } from '@/lib/http';
-import { CLASSIFICATION_STATUS_LABEL, TRAIT_STATUS_LABEL, errorEntries, type Classification, type FaceArchitectureResult, type FaceQuality, type Measurement, type Trait } from '@/lib/types/face';
-import { card } from '@/components/ui';
-import { useLang } from '@/lib/i18n';
+import type { CallResult } from '../../lib/http';
+import { CLASSIFICATION_STATUS_LABEL, TRAIT_STATUS_LABEL, errorEntries, type Classification, type FaceArchitectureResult, type FaceQuality, type Measurement, type Trait } from '../../lib/types/face';
+import { card } from '../ui';
+import { useLang } from '../../lib/i18n';
 import { Pill, Section, TabShell, Tile, dash, entries, humanize, list, num, type TabState } from './TabShell';
 
 // Values and band edges are a number, or a list of numbers for list-shaped measurements.

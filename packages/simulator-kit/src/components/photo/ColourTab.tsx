@@ -1,10 +1,10 @@
 'use client';
 import { useMemo } from 'react';
-import { groupShades, type Selection } from '@/lib/photo';
-import { catalogOf, FLAG_TEXT, QC_ADVICE, type AnalyzeResult } from '@/lib/types/colour';
+import { groupShades, type Selection } from '../../lib/photo';
+import { catalogOf, FLAG_TEXT, QC_ADVICE, type AnalyzeResult } from '../../lib/types/colour';
 import { ShadeSwatches } from './ShadeSwatches';
-import { card, eyebrow } from '@/components/ui';
-import { useLang } from '@/lib/i18n';
+import { card, eyebrow } from '../ui';
+import { useLang } from '../../lib/i18n';
 import { Pill, Section, TabShell, Tile, list, type TabState } from './TabShell';
 
 /** The colour analysis; with `tryOn` it also offers the shade picker that drives the photo's try-on. */

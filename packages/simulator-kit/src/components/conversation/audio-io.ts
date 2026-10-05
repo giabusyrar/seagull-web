@@ -1,5 +1,5 @@
 'use client';
-import { base64ToPcm16, bytesToBase64, floatToPcm16, MIC_SAMPLE_RATE, pcm16ToFloat, rateOf } from '@/lib/audio';
+import { base64ToPcm16, bytesToBase64, floatToPcm16, MIC_SAMPLE_RATE, pcm16ToFloat, rateOf } from '../../lib/audio';
 
 // Collects raw microphone frames on the audio thread and posts them to the page.
 const WORKLET = `

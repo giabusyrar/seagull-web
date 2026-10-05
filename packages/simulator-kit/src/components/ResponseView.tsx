@@ -1,9 +1,8 @@
 'use client';
 import { useState } from 'react';
-import dynamic from 'next/dynamic';
-import type { CallResult } from '@/lib/http';
+import { LazyGlbViewer as GlbViewer } from './LazyGlbViewer';
+import type { CallResult } from '../lib/http';
 
-const GlbViewer = dynamic(() => import('./GlbViewer').then((m) => m.GlbViewer), { ssr: false });
 
 export function ResponseView({ result }: { result: CallResult }) {
   const tabs = [

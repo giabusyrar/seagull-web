@@ -1,10 +1,10 @@
 'use client';
 import { severityToneOf, type SeverityTone } from '@gateway-experience/shared';
 import { Component, useState, type ReactNode } from 'react';
-import type { CallResult } from '@/lib/http';
-import { ResponseView } from '@/components/ResponseView';
-import { btnGhost, card, eyebrow } from '@/components/ui';
-import { useLang } from '@/lib/i18n';
+import type { CallResult } from '../../lib/http';
+import { ResponseView } from '../ResponseView';
+import { btnGhost, card, eyebrow } from '../ui';
+import { useLang } from '../../lib/i18n';
 
 /** One analysis request's lifecycle. `error` is a client-side failure (no request was sent). */
 export interface TabState { loading: boolean; result?: CallResult; error?: string }

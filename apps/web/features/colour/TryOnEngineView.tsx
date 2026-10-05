@@ -3,15 +3,13 @@
 import Link from 'next/link';
 import { ExternalLink, Palette } from 'lucide-react';
 import { PageHeader } from '@gateway-experience/shared';
-import { ColourStudioView } from './ColourStudioView';
+import { SimulatorStudio } from './SimulatorStudio';
 
 /**
- * Simulator Studio: the simulator's flow inside the API Workbench — the
- * customer, an optional form, and colour analysis, try-on and face
- * architecture from one photo (localhost:3000, next to Form, Score and
- * Matching). Formerly the Try-On Engine, then the Vision Engine. It is
- * the same view as the standalone page /colour-analysis, which stays for
- * full-screen and phone-width testing.
+ * Simulator Studio: the simulator itself inside the API Workbench — the same
+ * screens as the simulator app (@gateway-experience/simulator-kit), reaching
+ * the services through the dashboard's gateway proxy. Formerly the Try-On
+ * Engine, then the Vision Engine. /colour-analysis shows it full screen.
  */
 export function TryOnEngineView() {
   return (
@@ -20,7 +18,7 @@ export function TryOnEngineView() {
         icon={<Palette className="h-5 w-5 text-primary" />}
         breadcrumbs={[{ label: 'Workbench', href: '/' }, { label: 'Core Engines' }, { label: 'Simulator Studio' }]}
         title="Simulator Studio"
-        description="The simulator flow: customer, an optional form, then colour analysis (WCPA), makeup try-on and face architecture from one photo. Every call is a dry run. The same view runs full screen at /colour-analysis."
+        description="The simulator: customer, questionnaire with the live advisor, photo, then colour, face, skin and try-on results. Every call is a dry run. The same view runs full screen at /colour-analysis."
       >
         <Link
           href="/colour-analysis"
@@ -32,8 +30,8 @@ export function TryOnEngineView() {
           Open full page
         </Link>
       </PageHeader>
-      <div className="flex-1 min-h-0 flex">
-        <ColourStudioView />
+      <div className="flex-1 min-h-0 overflow-auto">
+        <SimulatorStudio />
       </div>
     </div>
   );

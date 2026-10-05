@@ -1,5 +1,5 @@
-import { Simulator } from '@/components/Simulator';
+import { SimulatorRoot } from './SimulatorRoot';
 
 export default function Home() {
-  return <Simulator />;
+  return <SimulatorRoot />;
 }

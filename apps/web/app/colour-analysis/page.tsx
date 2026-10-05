@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { ColourStudioView } from '@/features/colour';
+import { SimulatorStudio } from '@/features/colour/SimulatorStudio';
 
 export default function ColourAnalysisPage() {
   return (
@@ -13,8 +13,8 @@ export default function ColourAnalysisPage() {
           ← Back to Gateway Console
         </Link>
       </div>
-      <div className="flex-1 flex overflow-hidden">
-        <ColourStudioView />
+      <div className="flex-1 overflow-auto">
+        <SimulatorStudio />
       </div>
     </div>
   );

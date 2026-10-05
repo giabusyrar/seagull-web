@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { btnPrimarySm, btnSecondary } from './ui';
-import { useLang } from '@/lib/i18n';
+import { useLang } from '../lib/i18n';
 
 /** Webcam snapshot as a JPEG File. No face-quality check; the backend judges the photo. */
 export function CameraCapture({ onShot, primary }: { onShot: (f: File) => void; primary?: boolean }) {

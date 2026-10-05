@@ -5,15 +5,23 @@ import { Survey } from 'survey-react-ui';
 import 'survey-core/survey-core.css';
 import 'survey-core/i18n/indonesian';
 import plainLight from 'survey-core/themes/plain-light-panelless';
+
 import { readPersisted, writePersisted } from '@gateway-experience/shared';
-import { useBrand } from '@/lib/brand';
-import { useIntake, answersKey } from '@/lib/intake';
-import { useLang } from '@/lib/i18n';
-import { answerAsText } from '@/lib/conversation';
-import { surveySchema, type SurveyRow } from '@/lib/form';
-import { useSurveys } from '@/components/form/useSurveys';
-import { useFlowSurveys } from '@/components/conversation/useFlowSurveys';
-import { btnGhost, btnPrimary, btnSecondary, card, cardPad, eyebrow, field } from '@/components/ui';
+import { useBrand } from '../../lib/brand';
+import { useIntake, answersKey } from '../../lib/intake';
+import { useLang } from '../../lib/i18n';
+import { answerAsText } from '../../lib/conversation';
+import { surveySchema, type SurveyRow } from '../../lib/form';
+import { useSurveys } from '../form/useSurveys';
+import { useFlowSurveys } from '../conversation/useFlowSurveys';
+import { btnGhost, btnPrimary, btnSecondary, card, cardPad, eyebrow, field, pageSub, pageTitle } from '../ui';
+
+/** The simulator's accent (rose-500 / rose-600), on SurveyJS 3's brand variables (blue by default). */
+const SURVEY_ACCENT: Record<string, string> = {
+  '--sjs2-color-project-brand-600': 'rgba(244, 63, 94, 1)',
+  '--sjs2-color-bg-brand-primary-dim': 'rgba(225, 29, 72, 1)',
+  '--sjs2-color-bg-brand-secondary': 'rgba(244, 63, 94, 0.1)',
+};
 
 /** Debounce for telling the advisor about a form edit, so ticking several boxes sends one answer. */
 const SYNC_DELAY_MS = 1200;
@@ -68,7 +76,8 @@ export function IntakeStep({ active, onContinue, onSkip }: { active: boolean; on
   const survey = useMemo(() => {
     if (!schema) return null;
     const m = new Model(schema);
-    m.applyTheme(plainLight as never);
+    // SurveyJS's plain theme with the simulator's accent.
+    m.applyTheme({ ...plainLight, cssVariables: { ...plainLight.cssVariables, ...SURVEY_ACCENT } } as never);
     m.locale = lang;
     m.showCompleteButton = false;
     m.showCompletedPage = false;
@@ -183,8 +192,8 @@ export function IntakeStep({ active, onContinue, onSkip }: { active: boolean; on
     <section className="flex w-full flex-col gap-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">{t('Questionnaire', 'Kuesioner')}</h1>
-          <p className="mt-0.5 text-sm text-zinc-500">{t('Fill in the form, talk it through with the advisor, or both — answers stay in sync.', 'Isi form, ngobrol dengan advisor, atau keduanya — jawaban tetap sinkron.')}</p>
+          <h1 className={pageTitle}>{t('Questionnaire', 'Kuesioner')}</h1>
+          <p className={pageSub}>{t('Fill in the form, talk it through with the advisor, or both — answers stay in sync.', 'Isi form, ngobrol dengan advisor, atau keduanya — jawaban tetap sinkron.')}</p>
         </div>
         <div className="flex w-full flex-col gap-1 sm:w-80">
           <span className={eyebrow}>{t('Form', 'Form')}</span>
@@ -211,7 +220,7 @@ export function IntakeStep({ active, onContinue, onSkip }: { active: boolean; on
         <div className="flex items-center gap-2">
           {!ready && survey && <span className="text-xs text-zinc-500">{missing} {t('required question(s) left', 'pertanyaan wajib tersisa')}</span>}
           <button type="button" className={btnSecondary} onClick={() => { sendAction('skip_questionnaire', survey?.currentElementName || undefined); onSkip(); }}>{t('Skip', 'Lewati')}</button>
-          <button type="button" className={`${btnPrimary} rounded-full`} disabled={!ready} onClick={() => { sendAction('continue_to_photo'); onContinue(); }}>{t('Continue to photo', 'Lanjut ke foto')} →</button>
+          <button type="button" className={btnPrimary} disabled={!ready} onClick={() => { sendAction('continue_to_photo'); onContinue(); }}>{t('Continue to photo', 'Lanjut ke foto')} →</button>
         </div>
       </div>
     </section>

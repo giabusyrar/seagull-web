@@ -1,11 +1,11 @@
 'use client';
 import { useEffect, useRef } from 'react';
 import { usePersistentState } from '@gateway-experience/shared';
-import { photoRequested } from '@/lib/conversation';
-import { useIntake } from '@/lib/intake';
-import { useLang } from '@/lib/i18n';
-import type { Brand } from '@/lib/photo';
-import { btnPrimary, btnPrimarySm, card, field } from '@/components/ui';
+import { photoRequested } from '../../lib/conversation';
+import { useIntake } from '../../lib/intake';
+import { useLang } from '../../lib/i18n';
+import type { Brand } from '../../lib/photo';
+import { accentGradient, btnPrimary, btnPrimarySm, card, field } from '../ui';
 import { Bubble, ProgressBar, ResumeDivider } from './parts';
 
 /**
@@ -40,7 +40,7 @@ export function ConversationPanel({ brand, code, canStart, onGoPhoto }: {
   const callBase = 'relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-white shadow-md transition-all disabled:cursor-not-allowed disabled:bg-zinc-200 disabled:text-zinc-400 disabled:shadow-none';
   const callButton = conn === 'ready' ? (
     <button type="button" onClick={c.toggleMic} aria-pressed={c.micOn} aria-label={c.micOn ? t('Stop talking', 'Berhenti bicara') : t('Talk', 'Bicara')}
-      className={`${callBase} ${c.micOn ? 'bg-red-500 hover:bg-red-600' : 'bg-zinc-900 hover:bg-zinc-800'}`}>
+      className={`${callBase} ${c.micOn ? 'bg-red-500 hover:bg-red-600' : `${accentGradient} shadow-rose-500/30 hover:brightness-105`}`}>
       {c.micOn && <span className="absolute inset-0 rounded-full bg-red-400" style={{ transform: `scale(${1 + Math.min(0.35, c.level * 1.5)})`, opacity: 0.35 }} />}
       <svg viewBox="0 0 24 24" className="relative h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
         <rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
@@ -103,7 +103,7 @@ export function ConversationPanel({ brand, code, canStart, onGoPhoto }: {
       <form className="flex gap-2 border-t border-zinc-100 p-3" onSubmit={(e) => { e.preventDefault(); send(); }}>
         <input className={`${field} h-10 flex-1 rounded-full px-4 text-sm`} placeholder={conn === 'ready' ? t('Type your answer…', 'Ketik jawaban…') : t('Connect first to type', 'Tersambung dulu untuk mengetik')}
           value={draft} onChange={(e) => setDraft(e.target.value)} disabled={conn !== 'ready'} />
-        <button type="submit" className={`${btnPrimary} rounded-full`} disabled={conn !== 'ready' || !draft.trim()}>{t('Send', 'Kirim')}</button>
+        <button type="submit" className={btnPrimary} disabled={conn !== 'ready' || !draft.trim()}>{t('Send', 'Kirim')}</button>
       </form>
     </div>
   );

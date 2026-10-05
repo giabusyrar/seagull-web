@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { SERVICES, serviceRewrites } from '@/lib/services';
+import { SERVICES, serviceRewrites } from './services';
 
 describe('serviceRewrites', () => {
   it('uses localhost defaults', () => {

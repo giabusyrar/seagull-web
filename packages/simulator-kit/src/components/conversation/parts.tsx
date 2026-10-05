@@ -1,8 +1,8 @@
 'use client';
-import type { Turn } from '@/lib/conversation';
-import { useLang } from '@/lib/i18n';
-import { eyebrow } from '@/components/ui';
-import { Pill, humanize } from '@/components/photo/TabShell';
+import type { Turn } from '../../lib/conversation';
+import { useLang } from '../../lib/i18n';
+import { eyebrow } from '../ui';
+import { Pill, humanize } from '../photo/TabShell';
 
 export function Bubble({ t }: { t: Turn }) {
   const me = t.speaker === 'Customer';

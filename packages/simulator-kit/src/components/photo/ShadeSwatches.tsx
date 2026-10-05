@@ -1,9 +1,9 @@
 'use client';
 import { useState } from 'react';
-import type { Selection, ShadeGroup } from '@/lib/photo';
-import { isKept } from '@/lib/types/colour';
-import { btnGhost, segItem, segTrack } from '@/components/ui';
-import { useLang } from '@/lib/i18n';
+import type { Selection, ShadeGroup } from '../../lib/photo';
+import { isKept } from '../../lib/types/colour';
+import { btnGhost, segItem, segTrack } from '../ui';
+import { useLang } from '../../lib/i18n';
 
 /** Shades grouped by category; one pick per category. Kept (suited) shades carry a dot. */
 export function ShadeSwatches({ groups, selection, onToggle, onClear, tryOnState }: {

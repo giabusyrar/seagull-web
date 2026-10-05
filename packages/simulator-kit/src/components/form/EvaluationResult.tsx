@@ -1,9 +1,9 @@
 'use client';
-import type { EvaluationOutput, GradingTier } from '@/lib/types/form';
-import { dimensionRows } from '@/lib/breakdown';
-import { card, eyebrow } from '@/components/ui';
-import { useLang } from '@/lib/i18n';
-import { Pill, Section, dash, humanize, list, num, severityTone } from '@/components/photo/TabShell';
+import type { EvaluationOutput, GradingTier } from '../../lib/types/form';
+import { dimensionRows } from '../../lib/breakdown';
+import { card, eyebrow } from '../ui';
+import { useLang } from '../../lib/i18n';
+import { Pill, Section, dash, humanize, list, num, severityTone } from '../photo/TabShell';
 
 /**
  * A form evaluation: profile, total, per-dimension scores with their grade,

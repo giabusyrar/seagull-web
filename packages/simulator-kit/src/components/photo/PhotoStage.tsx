@@ -1,13 +1,11 @@
 'use client';
 /* eslint-disable @next/next/no-img-element -- blob/object URLs, not optimisable */
 import { useState } from 'react';
-import dynamic from 'next/dynamic';
-import { useFileSrc } from '@/lib/blob';
-import { btnGhost, btnSecondary, segItem, segTrack } from '@/components/ui';
+import { LazyGlbViewer as GlbViewer } from '../LazyGlbViewer';
+import { useFileSrc } from '../../lib/blob';
+import { btnGhost, btnSecondary, segItem, segTrack } from '../ui';
 import { ErrorBox, type TabState } from './TabShell';
-import { useLang } from '@/lib/i18n';
-
-const GlbViewer = dynamic(() => import('@/components/GlbViewer').then((m) => m.GlbViewer), { ssr: false });
+import { useLang } from '../../lib/i18n';
 
 const FRAME = 'relative overflow-hidden rounded-xl bg-zinc-100';
 const IMG = 'mx-auto block max-h-[62vh] w-full object-contain';

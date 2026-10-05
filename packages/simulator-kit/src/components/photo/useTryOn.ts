@@ -1,8 +1,8 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { call, type CallResult } from '@/lib/http';
-import { tryOn } from '@/lib/photo';
-import { useBlobUrl } from '@/lib/blob';
+import { call, type CallResult } from '../../lib/http';
+import { tryOn } from '../../lib/photo';
+import { useBlobUrl } from '../../lib/blob';
 
 const DEBOUNCE_MS = 250;
 

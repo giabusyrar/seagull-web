@@ -1,8 +1,8 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { call } from '@/lib/http';
-import { activeFlowSurveys, listFlows } from '@/lib/conversation';
-import type { Brand } from '@/lib/photo';
+import { call } from '../../lib/http';
+import { activeFlowSurveys, listFlows } from '../../lib/conversation';
+import type { Brand } from '../../lib/photo';
 
 /**
  * Survey codes that have an active conversation flow for the scope. `codes`

@@ -1,8 +1,8 @@
 'use client';
-import type { MetricValue, StructuredWarning, VisionAnalysisResult, ZoneDiagnosticMetric } from '@/lib/types/skin';
-import { metricDisplay, zoneMetricCount } from '@/lib/types/skin';
-import { card } from '@/components/ui';
-import { useLang } from '@/lib/i18n';
+import type { MetricValue, StructuredWarning, VisionAnalysisResult, ZoneDiagnosticMetric } from '../../lib/types/skin';
+import { metricDisplay, zoneMetricCount } from '../../lib/types/skin';
+import { card } from '../ui';
+import { useLang } from '../../lib/i18n';
 import { ScoreRing } from './ScoreRing';
 import { Pill, Section, TabShell, dash, entries, humanize, list, num, severityTone, type TabState } from './TabShell';
 

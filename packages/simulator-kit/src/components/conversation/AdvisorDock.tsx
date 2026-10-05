@@ -1,11 +1,11 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { usePersistentState } from '@gateway-experience/shared';
-import { useBrand } from '@/lib/brand';
-import { useIntake } from '@/lib/intake';
-import { useLang } from '@/lib/i18n';
-import { photoRequested, transcriptJson, transcriptText, type TranscriptMeta } from '@/lib/conversation';
-import { btnGhost } from '@/components/ui';
+import { useBrand } from '../../lib/brand';
+import { useIntake } from '../../lib/intake';
+import { useLang } from '../../lib/i18n';
+import { photoRequested, transcriptJson, transcriptText, type TranscriptMeta } from '../../lib/conversation';
+import { accentGradient, btnGhost } from '../ui';
 import { useFlowSurveys } from './useFlowSurveys';
 import { ConversationPanel } from './ConversationPanel';
 
@@ -83,7 +83,7 @@ export function AdvisorDock({ onGoPhoto, onOpenChange }: { onGoPhoto(): void; on
       )}
 
       <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} aria-label={open ? t('Hide advisor', 'Sembunyikan advisor') : t('Open advisor', 'Buka advisor')}
-        className={`fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full text-white shadow-lg transition-transform hover:scale-105 ${open ? 'bg-zinc-700 lg:hidden' : 'bg-zinc-900'}`}>
+        className={`fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full text-white shadow-lg shadow-rose-500/30 transition-transform hover:scale-105 ${open ? 'bg-zinc-700 lg:hidden' : accentGradient}`}>
         {conv.speaking && !open && <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400/40" />}
         <svg viewBox="0 0 24 24" className="relative h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           {open ? <path d="M6 6l12 12M18 6L6 18" /> : <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z" />}
