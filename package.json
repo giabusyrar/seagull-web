@@ -8,7 +8,7 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "concurrently -k -n web,sim -c blue,magenta \"npm:dev:web\" \"npm:dev:simulator\"",
+    "dev": "concurrently -n web,sim -c blue,magenta \"npm:dev:web\" \"npm:dev:simulator\"",
     "dev:web": "npm run dev --workspace=apps/web",
     "dev:simulator": "npm run dev --workspace=apps/simulator",
     "build:packages": "npm run build -w @gateway-experience/shared && npm run build -w @gateway-experience/beauty-sdk && npm run build -w @gateway-experience/studio",
