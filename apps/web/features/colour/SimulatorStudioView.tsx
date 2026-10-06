@@ -9,9 +9,10 @@ import { SimulatorStudio } from './SimulatorStudio';
  * Simulator Studio: the simulator itself inside the API Workbench — the same
  * screens as the simulator app (@gateway-experience/simulator-kit), reaching
  * the services through the dashboard's gateway proxy. Formerly the Try-On
- * Engine, then the Vision Engine. /colour-analysis shows it full screen.
+ * Engine, then the Vision Engine (saved tabs of either are migrated in
+ * ApiClientApp). /colour-analysis shows it full screen.
  */
-export function TryOnEngineView() {
+export function SimulatorStudioView() {
   return (
     <div className="flex-1 min-w-0 h-full overflow-hidden bg-background text-foreground flex flex-col">
       <PageHeader

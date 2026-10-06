@@ -51,7 +51,7 @@ export interface TabItem {
   method?: HttpMethod;
   requestId?: string;
   isDirty?: boolean;
-  type: 'request' | 'overview' | 'api-keys' | 'forms' | 'scoring' | 'matching' | 'vision' | 'tryon' | 'pipeline' | 'assessments' | 'applications' | 'reference';
+  type: 'request' | 'overview' | 'api-keys' | 'forms' | 'scoring' | 'matching' | 'simulator-studio' | 'pipeline' | 'assessments' | 'applications' | 'reference';
   entity?: string;
 }
 

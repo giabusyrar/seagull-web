@@ -16,7 +16,7 @@ import { FormManager } from '@gateway-experience/studio/form';
 import { ScoreManager } from '@gateway-experience/studio/score';
 import { MatchManager } from '@gateway-experience/studio/match';
 import { ReferenceManager } from '@gateway-experience/studio/reference';
-import { TryOnEngineView } from '@/features/colour';
+import { SimulatorStudioView } from '@/features/colour';
 import { PipelineSimulatorView } from '@/features/orchestrator/PipelineSimulatorView';
 import { AssessmentRecordsView } from '@/features/assessments';
 import { ApplicationsView } from '@/features/applications/ApplicationsView';
@@ -61,8 +61,39 @@ interface PersistedWorkspace {
   activeRouteId: string | null;
 }
 
+/**
+ * Titles of the fixed tool tabs. A restored tab takes its title from here, not
+ * from what was saved, so a renamed tool is not shown under its old name.
+ */
+const TOOL_TAB_TITLE: Partial<Record<TabItem['type'], string>> = {
+  overview: 'Overview',
+  'api-keys': 'API Keys',
+  forms: 'Form Engine',
+  scoring: 'Scoring Engine',
+  matching: 'Matching Engine',
+  'simulator-studio': 'Simulator Studio',
+  assessments: 'Master Data: Assessments',
+  applications: 'Master Data: Applications',
+};
+
+/** Tab types saved by older builds: the Vision Engine and Try-On Engine tabs are now Simulator Studio. */
+const LEGACY_TAB_TYPE: Record<string, TabItem['type']> = { vision: 'simulator-studio', tryon: 'simulator-studio' };
+
+/** A saved tab as this build names it; duplicates of a tool tab (two legacy tabs) are dropped by the caller. */
+function migrateTab(t: TabItem): TabItem {
+  const type = LEGACY_TAB_TYPE[t.type as string] ?? t.type;
+  const title = TOOL_TAB_TITLE[type] ?? t.title;
+  return type === t.type && title === t.title ? t : { ...t, type, title, ...(type !== t.type ? { id: `tab-${type}` } : {}) };
+}
+
 function loadWorkspace(): PersistedWorkspace | null {
-  return readPersisted<PersistedWorkspace>(WORKSPACE_STORAGE_KEY) || null;
+  const saved = readPersisted<PersistedWorkspace>(WORKSPACE_STORAGE_KEY);
+  if (!saved) return null;
+  const byId = new Map((saved.tabs || []).map((t) => [t.id, migrateTab(t)]));
+  const seen = new Set<string>();
+  const tabs = [...byId.values()].filter((t) => (seen.has(t.id) ? false : (seen.add(t.id), true)));
+  const active = byId.get(saved.activeTabId)?.id ?? saved.activeTabId;
+  return { ...saved, tabs, activeTabId: active };
 }
 
 /**
@@ -187,7 +218,7 @@ export function ApiClientApp() {
   const initialRequest = createDefaultRequest();
   const [openRequests, setOpenRequests] = useState<ApiClientRequest[]>([]);
   const [tabs, setTabs] = useState<TabItem[]>([
-    { id: 'tab-overview', title: 'Overview', type: 'overview' },
+    { id: 'tab-overview', title: TOOL_TAB_TITLE['overview']!, type: 'overview' },
   ]);
   const [activeTabId, setActiveTabId] = useState<string>('tab-overview');
   const [activeRequest, setActiveRequest] = useState<ApiClientRequest>(initialRequest);
@@ -335,7 +366,7 @@ export function ApiClientApp() {
       setActiveTabId(existingOverviewTab.id);
     } else {
       const overviewTabId = 'tab-overview';
-      setTabs((prev) => [{ id: overviewTabId, title: 'Overview', type: 'overview' }, ...prev]);
+      setTabs((prev) => [{ id: overviewTabId, title: TOOL_TAB_TITLE['overview']!, type: 'overview' }, ...prev]);
       setActiveTabId(overviewTabId);
     }
   };
@@ -347,7 +378,7 @@ export function ApiClientApp() {
       setActiveTabId(existing.id);
     } else {
       const id = 'tab-api-keys';
-      setTabs((prev) => [...prev, { id, title: 'API Keys', type: 'api-keys' }]);
+      setTabs((prev) => [...prev, { id, title: TOOL_TAB_TITLE['api-keys']!, type: 'api-keys' }]);
       setActiveTabId(id);
     }
   };
@@ -359,7 +390,7 @@ export function ApiClientApp() {
       setActiveTabId(existing.id);
     } else {
       const id = 'tab-forms';
-      setTabs((prev) => [...prev, { id, title: 'Form Engine', type: 'forms' }]);
+      setTabs((prev) => [...prev, { id, title: TOOL_TAB_TITLE['forms']!, type: 'forms' }]);
       setActiveTabId(id);
     }
   };
@@ -371,7 +402,7 @@ export function ApiClientApp() {
       setActiveTabId(existing.id);
     } else {
       const id = 'tab-scoring';
-      setTabs((prev) => [...prev, { id, title: 'Scoring Engine', type: 'scoring' }]);
+      setTabs((prev) => [...prev, { id, title: TOOL_TAB_TITLE['scoring']!, type: 'scoring' }]);
       setActiveTabId(id);
     }
   };
@@ -383,19 +414,19 @@ export function ApiClientApp() {
       setActiveTabId(existing.id);
     } else {
       const id = 'tab-matching';
-      setTabs((prev) => [...prev, { id, title: 'Matching Engine', type: 'matching' }]);
+      setTabs((prev) => [...prev, { id, title: TOOL_TAB_TITLE['matching']!, type: 'matching' }]);
       setActiveTabId(id);
     }
   };
 
-  const handleOpenTryOn = () => {
+  const handleOpenSimulatorStudio = () => {
     setActiveRoute(null);
-    const existing = tabs.find((t) => t.type === 'tryon');
+    const existing = tabs.find((t) => t.type === 'simulator-studio');
     if (existing) {
       setActiveTabId(existing.id);
     } else {
-      const id = 'tab-tryon';
-      setTabs((prev) => [...prev, { id, title: 'Simulator Studio', type: 'tryon' }]);
+      const id = 'tab-simulator-studio';
+      setTabs((prev) => [...prev, { id, title: TOOL_TAB_TITLE['simulator-studio']!, type: 'simulator-studio' }]);
       setActiveTabId(id);
     }
   };
@@ -407,7 +438,7 @@ export function ApiClientApp() {
       setActiveTabId(existing.id);
     } else {
       const id = 'tab-assessments';
-      setTabs((prev) => [...prev, { id, title: 'Master Data: Assessments', type: 'assessments' }]);
+      setTabs((prev) => [...prev, { id, title: TOOL_TAB_TITLE['assessments']!, type: 'assessments' }]);
       setActiveTabId(id);
     }
   };
@@ -419,7 +450,7 @@ export function ApiClientApp() {
       setActiveTabId(existing.id);
     } else {
       const id = 'tab-applications';
-      setTabs((prev) => [...prev, { id, title: 'Master Data: Applications', type: 'applications' }]);
+      setTabs((prev) => [...prev, { id, title: TOOL_TAB_TITLE['applications']!, type: 'applications' }]);
       setActiveTabId(id);
     }
   };
@@ -771,7 +802,7 @@ export function ApiClientApp() {
           onOpenForms={handleOpenForms}
           onOpenScoring={handleOpenScoring}
           onOpenMatching={handleOpenMatching}
-          onOpenTryOn={handleOpenTryOn}
+          onOpenSimulatorStudio={handleOpenSimulatorStudio}
           onOpenAssessments={handleOpenAssessments}
           onOpenApplications={handleOpenApplications}
           onOpenReference={handleOpenReference}
@@ -915,8 +946,8 @@ export function ApiClientApp() {
                 <ScoreManager />
               ) : tab.type === 'matching' ? (
                 <MatchManager />
-              ) : tab.type === 'tryon' ? (
-                <TryOnEngineView />
+              ) : tab.type === 'simulator-studio' ? (
+                <SimulatorStudioView />
               ) : tab.type === 'pipeline' ? (
                 <PipelineSimulatorView />
               ) : tab.type === 'assessments' ? (

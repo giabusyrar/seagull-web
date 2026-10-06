@@ -102,7 +102,7 @@ export interface SidebarProps {
   onOpenForms?: () => void;
   onOpenScoring?: () => void;
   onOpenMatching?: () => void;
-  onOpenTryOn?: () => void;
+  onOpenSimulatorStudio?: () => void;
   onOpenAssessments?: () => void;
   onOpenApplications?: () => void;
   onOpenReference?: (entity?: string) => void;
@@ -141,7 +141,7 @@ export const ApiClientSidebar: React.FC<SidebarProps> = ({
   onOpenForms,
   onOpenScoring,
   onOpenMatching,
-  onOpenTryOn,
+  onOpenSimulatorStudio,
   onOpenAssessments,
   onOpenApplications,
   onOpenReference,
@@ -232,7 +232,7 @@ export const ApiClientSidebar: React.FC<SidebarProps> = ({
 
           <button
             type="button"
-            onClick={onOpenTryOn}
+            onClick={onOpenSimulatorStudio}
             className="p-1.5 hover:bg-sidebar-accent hover:text-sidebar-foreground rounded-md text-muted-foreground transition cursor-pointer relative group"
             title="Simulator Studio"
           >
@@ -495,11 +495,11 @@ export const ApiClientSidebar: React.FC<SidebarProps> = ({
                   <ExternalLink className="h-3 w-3 text-muted-foreground group-hover:text-foreground shrink-0 opacity-0 group-hover:opacity-100 transition" />
                 </button>
 
-                {/* Simulator Studio (was Try-On, then Vision Engine): customer, form, colour analysis, try-on, face */}
+                {/* Simulator Studio (was Try-On, then Vision Engine): the simulator's flow and results */}
                 <button
                   type="button"
                   onClick={() => {
-                    onOpenTryOn?.();
+                    onOpenSimulatorStudio?.();
                     if (isMobileOpen && onCloseMobile) onCloseMobile();
                   }}
                   className="w-full flex items-center justify-between px-2.5 py-1.5 bg-card hover:bg-sidebar-accent border border-sidebar-border hover:border-sidebar-ring/40 rounded-md text-left transition group cursor-pointer shadow-2xs"
