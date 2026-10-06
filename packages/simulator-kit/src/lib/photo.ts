@@ -91,3 +91,16 @@ export function toggleShade(selection: Selection, category: string, shadeId: str
   else next[category] = shadeId;
   return next;
 }
+
+/**
+ * UV analysis of one photo taken under UV light (~365-375 nm): spots,
+ * porphyrin, sebum and unevenness per zone (core vision-engine/uv → aging
+ * worker). include_overlay asks for the annotated copy; nothing is
+ * contributed to calibration (no `contribute`).
+ */
+export function uvAnalyze(photo: File): BuiltRequest {
+  const fd = new FormData();
+  fd.append('image', photo);
+  fd.append('include_overlay', 'true');
+  return post('/core/vision-engine/uv/analyze', fd);
+}

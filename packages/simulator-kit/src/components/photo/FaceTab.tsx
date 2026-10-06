@@ -3,6 +3,7 @@ import type { CallResult } from '../../lib/http';
 import { CLASSIFICATION_STATUS_LABEL, TRAIT_STATUS_LABEL, errorEntries, type Classification, type FaceArchitectureResult, type FaceQuality, type Measurement, type Trait } from '../../lib/types/face';
 import { card } from '../ui';
 import { faceMarks } from '../../lib/annotations';
+import type { FaceFocus } from './PhotoAnnotations';
 import { useLang } from '../../lib/i18n';
 import { Pill, Section, TabShell, Tile, dash, entries, humanize, list, num, type TabState } from './TabShell';
 
@@ -11,7 +12,19 @@ const fmt = (v: unknown): string => (Array.isArray(v) ? v.map(fmt).join(', ') : 
 const fmtValue = (m: Measurement) => (m.value === null || m.value === undefined ? '—' : fmt(m.value));
 const fmtBand = (b: unknown) => (Array.isArray(b) && b.length === 2 ? `${fmt(b[0])} – ${fmt(b[1])}` : '—');
 
-export function FaceResult({ r }: { r: FaceArchitectureResult }) {
+/** The trait's measurements as the photo labels them ("eye_width 0.453 iod"); null for an unknown trait. */
+export function traitFocus(r: FaceArchitectureResult | undefined, trait: string | null): FaceFocus | null {
+  const tr = trait ? r?.traits?.[trait] : undefined;
+  if (!trait || !tr) return null;
+  const byKey = new Map(list<Measurement>(r?.measurements).filter((m) => typeof m === 'object').map((m) => [m.key, m]));
+  const items = list<string>(tr.measurements).map(String).map((key) => {
+    const m = byKey.get(key);
+    return { key, label: m ? `${key} ${fmtValue(m)}${m.unit ? ` ${m.unit}` : ''}` : key };
+  });
+  return { title: humanize(trait), items };
+}
+
+export function FaceResult({ r, focusedTrait, onFocusTrait }: { r: FaceArchitectureResult; focusedTrait?: string | null; onFocusTrait?(trait: string | null): void }) {
   const { lang, t: tr } = useLang();
   const classes = entries<Classification>(r.classifications);
   const traits = entries<Trait>(r.traits);
@@ -20,7 +33,10 @@ export function FaceResult({ r }: { r: FaceArchitectureResult }) {
   const warnings = list<string>(q.warnings).map(String);
   const missing = list<string>(r.measurementsMissing).map(String);
   // The number each measurement carries on the photo, when it could be drawn there.
-  const markNo = new Map((faceMarks(r)?.marks ?? []).map((m) => [m.key, m.n]));
+  const marksOnPhoto = faceMarks(r);
+  const markNo = new Map((marksOnPhoto?.marks ?? []).map((m) => [m.key, m.n]));
+  const byKey = new Map(ms.map((m) => [m.key, m]));
+  const focusKeys = new Set(focusedTrait ? list<string>(r.traits?.[focusedTrait]?.measurements).map(String) : []);
   return (
     <div className="flex flex-col gap-6">
       <Section title={tr('Classification', 'Klasifikasi')}>
@@ -44,14 +60,44 @@ export function FaceResult({ r }: { r: FaceArchitectureResult }) {
       <Section title={tr('Traits', 'Ciri')}>
         {traits.length === 0 ? <p className="text-xs text-zinc-500">—</p> : (
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-            {traits.map(([name, t]) => (
-              <div key={name} className={`${card} flex flex-col gap-1 p-3.5`}>
-                <span className="truncate text-xs text-zinc-500">{humanize(name)}</span>
-                <span className="text-sm font-semibold capitalize">{dash(t.label)}</span>
-                {t.boundaryUncertain && t.alternative ? <span className="text-[11px] text-zinc-500">{tr('could also be', 'bisa juga')} {dash(t.alternative)}</span> : null}
-                {t.status !== 'assessed' && <Pill className="mt-0.5 self-start bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-200">{TRAIT_STATUS_LABEL[lang][t.status ?? ''] ?? dash(t.status)}</Pill>}
-              </div>
-            ))}
+            {traits.map(([name, t]) => {
+              const keys = list<string>(t.measurements).map(String);
+              const onPhoto = keys.some((k) => marksOnPhoto?.points[k]);
+              const open = focusedTrait === name;
+              return (
+                <button key={name} type="button" aria-pressed={open} disabled={!onFocusTrait}
+                  onClick={() => onFocusTrait?.(open ? null : name)}
+                  title={onPhoto ? tr('Show it on the photo', 'Tampilkan di foto') : tr('Its measurements have no points on the photo', 'Pengukurannya tidak punya titik di foto')}
+                  className={`${card} flex flex-col gap-1 p-3.5 text-left transition-all hover:ring-zinc-900/15 ${open ? 'col-span-2 ring-2 ring-amber-400 sm:col-span-3' : ''}`}>
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="truncate text-xs text-zinc-500">{humanize(name)}</span>
+                    {onPhoto && <span className={`text-[10px] font-semibold ${open ? 'text-amber-700' : 'text-zinc-300'}`}>{open ? tr('On photo ✓', 'Di foto ✓') : '⌖'}</span>}
+                  </span>
+                  <span className="text-sm font-semibold capitalize">{dash(t.label)}</span>
+                  {t.boundaryUncertain && t.alternative ? <span className="text-[11px] text-zinc-500">{tr('could also be', 'bisa juga')} {dash(t.alternative)}</span> : null}
+                  {t.status !== 'assessed' && <Pill className="mt-0.5 self-start bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-200">{TRAIT_STATUS_LABEL[lang][t.status ?? ''] ?? dash(t.status)}</Pill>}
+                  {open && (
+                    <span className="mt-2 flex flex-col gap-1 border-t border-zinc-100 pt-2 text-[11px]">
+                      <span className="text-zinc-400">{tr('Read from', 'Dibaca dari')}</span>
+                      {keys.length === 0 && <span className="text-zinc-500">—</span>}
+                      {keys.map((k) => {
+                        const m = byKey.get(k);
+                        return (
+                          <span key={k} className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-baseline gap-3">
+                            <span className="truncate font-mono text-zinc-700">{k}</span>
+                            <span className="font-semibold tabular-nums text-zinc-900">{m ? fmtValue(m) : '—'} <span className="font-normal text-zinc-500">{m?.unit ?? ''}</span></span>
+                            <span className="tabular-nums text-zinc-500">{m ? fmtBand(m.band) : ''}</span>
+                          </span>
+                        );
+                      })}
+                      {list<string>(t.missingMeasurements).length > 0 && (
+                        <span className="text-zinc-500">{tr('Not measured', 'Tidak terukur')}: {list<string>(t.missingMeasurements).join(', ')}</span>
+                      )}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         )}
       </Section>
@@ -63,7 +109,7 @@ export function FaceResult({ r }: { r: FaceArchitectureResult }) {
             </thead>
             <tbody>
               {ms.map((m, i) => (
-                <tr key={`${m.key}-${i}`} className="border-t border-zinc-100 hover:bg-zinc-50/60" title={typeof m.reason === 'string' ? m.reason : undefined}>
+                <tr key={`${m.key}-${i}`} className={`border-t border-zinc-100 ${focusKeys.has(m.key) ? 'bg-amber-50' : 'hover:bg-zinc-50/60'}`} title={typeof m.reason === 'string' ? m.reason : undefined}>
                   <td className="px-3 py-1.5">{markNo.has(m.key) && <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-slate-900 px-1 text-[10px] font-bold text-white">{markNo.get(m.key)}</span>}</td>
                   <td className="px-3 py-1.5 font-mono text-zinc-700">{dash(m.key)}</td>
                   <td className="px-3 py-1.5 text-right font-semibold tabular-nums">{fmtValue(m)}</td>
@@ -106,10 +152,10 @@ function Rejection({ result }: { result: CallResult }) {
   );
 }
 
-export function FaceTab({ state }: { state: TabState }) {
+export function FaceTab({ state, focusedTrait, onFocusTrait }: { state: TabState; focusedTrait?: string | null; onFocusTrait?(trait: string | null): void }) {
   return (
     <TabShell state={state} errorExtra={(r) => <Rejection result={r} />}>
-      {(json) => <FaceResult r={(json ?? {}) as FaceArchitectureResult} />}
+      {(json) => <FaceResult r={(json ?? {}) as FaceArchitectureResult} focusedTrait={focusedTrait} onFocusTrait={onFocusTrait} />}
     </TabShell>
   );
 }

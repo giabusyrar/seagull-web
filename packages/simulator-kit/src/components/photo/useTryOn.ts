@@ -19,6 +19,9 @@ export function useTryOn(photo: File | null) {
   const [url, setUrl] = useBlobUrl();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | undefined>();
+  // When the current render was asked for, and how long the last one took (shown on the photo).
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+  const [lastMs, setLastMs] = useState<number | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inflight = useRef<AbortController | null>(null);
   const reqId = useRef(0);
@@ -35,15 +38,17 @@ export function useTryOn(photo: File | null) {
 
   const reset = useCallback(() => {
     cancel();
-    setUrl(null); setLoading(false); setError(undefined);
+    setUrl(null); setLoading(false); setError(undefined); setStartedAt(null); setLastMs(null);
   }, [cancel, setUrl]);
 
   const request = useCallback((shadeIds: string[]) => {
     const id = cancel();
     const ids = shadeIds.filter(Boolean);
     setError(undefined);
-    if (!photo || ids.length === 0) { setUrl(null); setLoading(false); return; }
+    if (!photo || ids.length === 0) { setUrl(null); setLoading(false); setStartedAt(null); setLastMs(null); return; }
+    const started = Date.now();
     setLoading(true);
+    setStartedAt(started);
     timer.current = setTimeout(async () => {
       const ac = new AbortController();
       inflight.current = ac;
@@ -52,10 +57,12 @@ export function useTryOn(photo: File | null) {
       if (id !== reqId.current) { if (r.blobUrl) URL.revokeObjectURL(r.blobUrl); return; }
       inflight.current = null;
       setLoading(false);
+      setStartedAt(null);
+      setLastMs(Date.now() - started);
       if (r.ok && r.kind === 'image' && r.blobUrl) setUrl(r.blobUrl);
       else { if (r.blobUrl) URL.revokeObjectURL(r.blobUrl); setError(resultMessage(r)); }
     }, DEBOUNCE_MS);
   }, [photo, cancel, setUrl]);
 
-  return { url, loading, error, request, reset };
+  return { url, loading, error, startedAt, lastMs, request, reset };
 }

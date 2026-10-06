@@ -19,6 +19,13 @@ export const accent = 'bg-slate-900';
 /** The same two colours as hex, for SVG drawn over the photo. */
 export const SEAGULL_HEX = { slate: '#0f172a', beak: '#d97706' } as const;
 
+/**
+ * Severity tones as hex for SVG over the photo, the same Tailwind colours the
+ * severity pills use (TabShell TONE_CLASSES): emerald, amber, red; slate for
+ * a reading with no severity.
+ */
+export const TONE_HEX = { good: '#10b981', warning: '#f59e0b', bad: '#ef4444', neutral: '#94a3b8' } as const;
+
 export const card =
   'rounded-3xl bg-white ring-1 ring-zinc-900/[0.06] shadow-[0_1px_2px_rgba(24,24,27,0.04),0_12px_32px_-16px_rgba(24,24,27,0.18)]';
 export const cardPad = `${card} p-5 sm:p-6`;

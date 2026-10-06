@@ -80,6 +80,38 @@ function SideSlot({ side, file, onChange, disabled }: { side: Side; file: File |
   );
 }
 
+/** The optional UV photo: the face under UV light, for spots, porphyrin, sebum and unevenness. */
+export function UvShot({ uv, setUv, disabled }: { uv: File | null; setUv(f: File | null): void; disabled?: boolean }) {
+  const { t } = useLang();
+  const src = useFileSrc(uv);
+  return (
+    <div className="flex flex-col gap-2.5 border-t border-zinc-100 pt-4">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className={eyebrow}>{t('UV photo · optional', 'Foto UV · opsional')}</span>
+        <span className="text-[11px] text-zinc-500">{disabled ? t('Retake to change', 'Foto ulang untuk mengganti') : t('for the UV analysis', 'untuk analisis UV')}</span>
+      </div>
+      <div className="flex items-center gap-3">
+        <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-dashed border-violet-300 bg-violet-50 text-center text-[11px] text-violet-700">
+          {uv ? <img ref={src} alt={t('UV photo', 'Foto UV')} className="h-full w-full object-cover" /> : <span className="px-1 font-semibold">UV</span>}
+          {uv && !disabled && (
+            <button type="button" onClick={() => setUv(null)} aria-label={t('Remove UV photo', 'Hapus foto UV')}
+              className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-white/90 text-[10px] text-zinc-700 shadow-sm hover:bg-white">✕</button>
+          )}
+        </div>
+        <div className="flex min-w-0 flex-col gap-1.5">
+          {!disabled && !uv && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <CameraCapture onShot={setUv} />
+              <UploadButton onChange={setUv} />
+            </div>
+          )}
+          {!disabled && <p className="text-[11px] leading-relaxed text-zinc-500">{t('The face under UV light (365–375 nm), room lights off. A normal photo is flagged, not analysed as UV.', 'Wajah di bawah sinar UV (365–375 nm), lampu ruangan mati. Foto biasa ditandai, tidak dianalisis sebagai UV.')}</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** The optional three-quarter views for the 3D head and skin, left and right. */
 export function SideShots({ left, right, setLeft, setRight, disabled }: {
   left: File | null; right: File | null; setLeft(f: File | null): void; setRight(f: File | null): void; disabled?: boolean;

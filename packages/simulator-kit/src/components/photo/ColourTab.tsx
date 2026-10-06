@@ -11,7 +11,7 @@ import { Fact, Pill, Section, TabShell, list, type TabState } from './TabShell';
 /** The colour analysis; with `tryOn` it also offers the shade picker that drives the photo's try-on. */
 export function ColourResult({ r, tryOn }: {
   r: AnalyzeResult;
-  tryOn?: { selection: Selection; onToggle(c: string, id: string): void; onClear(): void; state: { loading: boolean; error?: string } };
+  tryOn?: { selection: Selection; onToggle(c: string, id: string): void; onClear(): void; state: { loading: boolean; error?: string; startedAt?: number | null } };
 }) {
   const { lang, t } = useLang();
   const groups = useMemo(() => groupShades(catalogOf(r), lang), [r, lang]);
@@ -63,7 +63,7 @@ export function ColourResult({ r, tryOn }: {
   );
 }
 
-export function ColourTab(props: { state: TabState; selection: Selection; onToggle(c: string, id: string): void; onClear(): void; tryOnState: { loading: boolean; error?: string } }) {
+export function ColourTab(props: { state: TabState; selection: Selection; onToggle(c: string, id: string): void; onClear(): void; tryOnState: { loading: boolean; error?: string; startedAt?: number | null } }) {
   const { state, selection, onToggle, onClear, tryOnState } = props;
   return <TabShell state={state}>{(json) => <ColourResult r={(json ?? {}) as AnalyzeResult} tryOn={{ selection, onToggle, onClear, state: tryOnState }} />}</TabShell>;
 }

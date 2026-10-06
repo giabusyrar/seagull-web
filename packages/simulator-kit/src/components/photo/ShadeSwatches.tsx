@@ -4,6 +4,7 @@ import type { Selection, ShadeGroup } from '../../lib/photo';
 import { isKept } from '../../lib/types/colour';
 import { btnGhost, segItem, segTrack } from '../ui';
 import { useLang } from '../../lib/i18n';
+import { Elapsed } from './TryOnProgress';
 
 /** Shades grouped by category; one pick per category. Kept (suited) shades carry a dot. */
 export function ShadeSwatches({ groups, selection, onToggle, onClear, tryOnState }: {
@@ -11,7 +12,7 @@ export function ShadeSwatches({ groups, selection, onToggle, onClear, tryOnState
   selection: Selection;
   onToggle(category: string, shadeId: string): void;
   onClear(): void;
-  tryOnState: { loading: boolean; error?: string };
+  tryOnState: { loading: boolean; error?: string; startedAt?: number | null };
 }) {
   const [groupId, setGroupId] = useState('');
   const { t } = useLang();
@@ -29,7 +30,13 @@ export function ShadeSwatches({ groups, selection, onToggle, onClear, tryOnState
           ))}
         </div>
         <div className="flex items-center gap-2 text-xs text-zinc-500">
-          {tryOnState.loading && <span className="animate-pulse">{t('Rendering try-on…', 'Merender try-on…')}</span>}
+          {tryOnState.loading && (
+            <span className="inline-flex items-center gap-1.5 text-amber-700">
+              <span className="h-3 w-3 animate-spin rounded-full border-2 border-amber-200 border-t-amber-600" />
+              {t('Rendering try-on…', 'Merender try-on…')}
+              {tryOnState.startedAt != null && <Elapsed startedAt={tryOnState.startedAt} />}
+            </span>
+          )}
           {picked > 0 && <button type="button" className={btnGhost} onClick={onClear}>{t('Clear picks', 'Hapus pilihan')} ({picked})</button>}
         </div>
       </div>

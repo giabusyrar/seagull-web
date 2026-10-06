@@ -6,17 +6,18 @@ import { useLang } from '../../lib/i18n';
 import { usePersistentState } from '@gateway-experience/shared';
 import { useBlobUrl } from '../../lib/blob';
 import { call } from '../../lib/http';
-import { analyzeColour, faceArchitecture, faceHead, skinAnalyze, toggleShade, type Brand, type BuiltRequest, type Selection } from '../../lib/photo';
-import { FrontPicker, PhotoTips, Questions, SideShots, type YesNo } from './PhotoInput';
+import { analyzeColour, faceArchitecture, faceHead, skinAnalyze, toggleShade, uvAnalyze, type Brand, type BuiltRequest, type Selection } from '../../lib/photo';
+import { FrontPicker, PhotoTips, Questions, SideShots, UvShot, type YesNo } from './PhotoInput';
+import { UvTab } from './UvTab';
 import { PhotoStage } from './PhotoStage';
 import type { Annotations } from './PhotoAnnotations';
-import { faceMarks, skinZoneBoxes } from '../../lib/annotations';
+import { FRONT_ANGLE, faceMarks, skinZoneBoxes, type SkinFocus } from '../../lib/annotations';
 import type { FaceArchitectureResult } from '../../lib/types/face';
 import type { VisionAnalysisResult } from '../../lib/types/skin';
 import { ColourTab } from './ColourTab';
-import { FaceTab } from './FaceTab';
-import { SkinTab } from './SkinTab';
-import { IDLE, type TabState } from './TabShell';
+import { FaceTab, traitFocus } from './FaceTab';
+import { SkinTab, skinView } from './SkinTab';
+import { IDLE, humanize, type TabState } from './TabShell';
 import { useTryOn } from './useTryOn';
 import { btnPrimarySm, card, cardPad, pageSub, pageTitle } from '../ui';
 
@@ -26,8 +27,6 @@ export type PhotoPhase = 'capture' | 'questions' | 'result';
 export interface ExtraTab { id: string; label: string; state: 'idle' | 'loading' | 'ok' | 'error'; render(): ReactNode }
 
 const LOADING: TabState = { loading: true };
-/** Core's ImageAngle for the front photo (core-engine vision/domain/zones.go), the one shown on the stage. */
-const FRONT_ANGLE = 'FRONT';
 const stateOf = (s: TabState): ExtraTab['state'] => (s.loading ? 'loading' : s.error || (s.result && !s.result.ok) ? 'error' : s.result ? 'ok' : 'idle');
 const DOT: Record<ExtraTab['state'], string> = { loading: 'bg-zinc-400 animate-pulse', error: 'bg-red-500', ok: 'bg-emerald-500', idle: 'bg-zinc-200' };
 
@@ -45,16 +44,23 @@ export function PhotoSimulator({ onPhase, onAnalyze, before = [], after = [] }: 
   const { t } = useLang();
   const brand = useBrand();
   const [step, setStep] = useState<'input' | 'result'>('input');
-  const { front, left, right, setFront, setLeft, setRight } = usePhotos();
+  const { front, left, right, uv, setFront, setLeft, setRight, setUv } = usePhotos();
   const [hijab, setHijab] = usePersistentState<YesNo>('sim.photo.hijab', '');
   const [hair, setHair] = usePersistentState<YesNo>('sim.photo.hair', '');
   const [colour, setColour] = useState<TabState>(IDLE);
   const [face, setFace] = useState<TabState>(IDLE);
   const [skin, setSkin] = useState<TabState>(IDLE);
+  const [uvState, setUvState] = useState<TabState>(IDLE);
   const [head, setHead] = useState<TabState>(IDLE);
   const [glbUrl, setGlbUrl] = useBlobUrl();
   const [selection, setSelection] = useState<Selection>({});
-  const [tab, setTab] = useState<string>('colour');
+  const [tab, setTabState] = useState<string>('colour');
+  // The trait whose measurements the photo is zoomed to; any tab change lets go of it.
+  const [focusedTrait, setFocusedTrait] = useState<string | null>(null);
+  // The skin metric or zone the photo shows; likewise let go of on a tab change.
+  const [skinFocus, setSkinFocus] = useState<SkinFocus | null>(null);
+  const setTab = (id: string) => { setTabState(id); setFocusedTrait(null); setSkinFocus(null); };
+  const clearFocus = () => { setFocusedTrait(null); setSkinFocus(null); };
   const runId = useRef(0);
   const runAbort = useRef<AbortController | null>(null);
   const [analyzed, setAnalyzed] = useState<Brand | null>(null);
@@ -76,7 +82,7 @@ export function PhotoSimulator({ onPhase, onAnalyze, before = [], after = [] }: 
     const b = { brandId: brand.brandId, applicationId: brand.applicationId };
     const views = { front, left, right };
     setAnalyzed(b); setStep('result'); setTab(before[0]?.id ?? 'colour'); setSelection({}); tryOn.reset(); setGlbUrl(null);
-    setColour(LOADING); setFace(LOADING); setSkin(LOADING); setHead(LOADING);
+    setColour(LOADING); setFace(LOADING); setSkin(LOADING); setHead(LOADING); setUvState(uv ? LOADING : IDLE);
     onAnalyze?.(front, b);
 
     // Each request sets only its own state; a later run or a retake makes it stale.
@@ -97,13 +103,15 @@ export function PhotoSimulator({ onPhase, onAnalyze, before = [], after = [] }: 
       run(() => faceArchitecture(front, b), setFace),
       run(() => faceHead(views, b), setHead, (u) => { if (u) setGlbUrl(u); }),
       run(() => skinAnalyze(views, b), setSkin),
+      // Only with a UV photo: the UV analysis reads fluorescence, not a normal photo.
+      ...(uv ? [run(() => uvAnalyze(uv), setUvState)] : []),
     ]);
   };
 
   const retake = () => {
     stopRun(); tryOn.reset(); setGlbUrl(null); setSelection({});
-    setColour(IDLE); setFace(IDLE); setSkin(IDLE); setHead(IDLE);
-    setFront(null); setLeft(null); setRight(null); setHijab(''); setHair('');
+    setColour(IDLE); setFace(IDLE); setSkin(IDLE); setHead(IDLE); setUvState(IDLE);
+    setFront(null); setLeft(null); setRight(null); setUv(null); setHijab(''); setHair('');
     setAnalyzed(null); setStep('input');
   };
 
@@ -117,24 +125,29 @@ export function PhotoSimulator({ onPhase, onAnalyze, before = [], after = [] }: 
   const brandReady = !!brand.brandId.trim() && !!brand.applicationId.trim();
   const brandChanged = !!analyzed && (analyzed.brandId !== brand.brandId || analyzed.applicationId !== brand.applicationId);
   const photoTabs: ExtraTab[] = [
-    { id: 'colour', label: t('Colour', 'Warna'), state: stateOf(colour), render: () => <ColourTab state={colour} selection={selection} onToggle={pick} onClear={clearShades} tryOnState={{ loading: tryOn.loading, error: tryOn.error }} /> },
-    { id: 'face', label: t('Face', 'Wajah'), state: stateOf(face), render: () => <FaceTab state={face} /> },
-    { id: 'skin', label: t('Skin', 'Kulit'), state: stateOf(skin), render: () => <SkinTab state={skin} /> },
+    { id: 'colour', label: t('Colour', 'Warna'), state: stateOf(colour), render: () => <ColourTab state={colour} selection={selection} onToggle={pick} onClear={clearShades} tryOnState={{ loading: tryOn.loading, error: tryOn.error, startedAt: tryOn.startedAt }} /> },
+    { id: 'face', label: t('Face', 'Wajah'), state: stateOf(face), render: () => <FaceTab state={face} focusedTrait={focusedTrait} onFocusTrait={setFocusedTrait} /> },
+    { id: 'skin', label: t('Skin', 'Kulit'), state: stateOf(skin), render: () => <SkinTab state={skin} focus={skinFocus} onFocus={setSkinFocus} /> },
+    // Shown once a UV photo was analysed with the rest.
+    ...(uvState !== IDLE ? [{ id: 'uv', label: 'UV', state: stateOf(uvState), render: () => <UvTab state={uvState} /> }] : []),
   ];
   const tabs = [...before, ...photoTabs, ...after];
   const active = tabs.find((x) => x.id === tab) ?? tabs[0];
   const annotations = useMemo<Annotations | null>(() => {
     const json = (s: TabState) => (s.result?.ok ? s.result.json : undefined);
     if (active.id === 'face') {
-      const data = faceMarks(json(face) as FaceArchitectureResult | undefined);
-      return data ? { kind: 'face', data } : null;
+      const r = json(face) as FaceArchitectureResult | undefined;
+      const data = faceMarks(r);
+      return data ? { kind: 'face', data, focus: traitFocus(r, focusedTrait) } : null;
     }
     if (active.id === 'skin') {
-      const data = skinZoneBoxes(json(skin) as VisionAnalysisResult | undefined, FRONT_ANGLE);
-      return data.length ? { kind: 'skin', data } : null;
+      const r = json(skin) as VisionAnalysisResult | undefined;
+      const data = skinZoneBoxes(r, FRONT_ANGLE);
+      const view = skinView(r, skinFocus, FRONT_ANGLE, (f) => (f.kind === 'metric' ? humanize(f.key) : data.find((z) => z.code === f.code)?.name ?? f.code));
+      return data.length ? { kind: 'skin', data, view } : null;
     }
     return null;
-  }, [active.id, face, skin]);
+  }, [active.id, face, skin, focusedTrait, skinFocus]);
 
   // Photo on the left; questions or results on the right (seagull-web's studio layout).
   return (
@@ -156,9 +169,10 @@ export function PhotoSimulator({ onPhase, onAnalyze, before = [], after = [] }: 
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(320px,400px)_minmax(0,1fr)]">
         <div className={`${cardPad} flex flex-col gap-4 lg:sticky lg:top-20`}>
           {front
-            ? <PhotoStage photo={front} tryOnUrl={tryOn.url} head={head} glbUrl={glbUrl} onRetake={retake} canShow3d={current === 'result'} annotations={current === 'result' ? annotations : null} />
+            ? <PhotoStage photo={front} tryOnUrl={tryOn.url} tryOnTiming={{ startedAt: tryOn.startedAt, lastMs: tryOn.lastMs }} head={head} glbUrl={glbUrl} onRetake={retake} canShow3d={current === 'result'} annotations={current === 'result' ? annotations : null} onClearFocus={clearFocus} />
             : <FrontPicker onChange={setFront} />}
           <SideShots left={left} right={right} setLeft={setLeft} setRight={setRight} disabled={current === 'result'} />
+          <UvShot uv={uv} setUv={setUv} disabled={current === 'result'} />
         </div>
         <div className="flex min-w-0 flex-col gap-4">
           {current === 'capture' && <PhotoTips />}

@@ -12,20 +12,23 @@ interface Photos {
   front: File | null;
   left: File | null;
   right: File | null;
+  /** A photo taken under UV light (~365-375 nm), for the UV analysis; optional. */
+  uv: File | null;
   /** False until the saved photos have been read back after a reload. */
   restored: boolean;
   setFront(f: File | null): void;
   setLeft(f: File | null): void;
   setRight(f: File | null): void;
+  setUv(f: File | null): void;
 }
 
-type Slot = 'front' | 'left' | 'right';
-const KEY: Record<Slot, string> = { front: 'sim.photo.front', left: 'sim.photo.left', right: 'sim.photo.right' };
+type Slot = 'front' | 'left' | 'right' | 'uv';
+const KEY: Record<Slot, string> = { front: 'sim.photo.front', left: 'sim.photo.left', right: 'sim.photo.right', uv: 'sim.photo.uv' };
 
 const PhotosCtx = createContext<Photos | null>(null);
 
 export function PhotosProvider({ children }: { children: ReactNode }) {
-  const [photos, setPhotos] = useState<Record<Slot, File | null>>({ front: null, left: null, right: null });
+  const [photos, setPhotos] = useState<Record<Slot, File | null>>({ front: null, left: null, right: null, uv: null });
   const [restored, setRestored] = useState(false);
   // A photo picked before the restore finishes wins over the saved one.
   const touched = useRef<Set<Slot>>(new Set());
@@ -53,6 +56,7 @@ export function PhotosProvider({ children }: { children: ReactNode }) {
     setFront: (f: File | null) => update('front', f),
     setLeft: (f: File | null) => update('left', f),
     setRight: (f: File | null) => update('right', f),
+    setUv: (f: File | null) => update('uv', f),
   }), [update]);
 
   return (

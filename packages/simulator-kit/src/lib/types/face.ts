@@ -17,7 +17,8 @@ export interface Measurement {
 
 export interface Classification { status?: string; primary?: string; secondary?: string; scores?: Record<string, number>; reason?: string }
 
-export interface Trait { status?: string; label?: string; alternative?: string; boundaryUncertain?: boolean; reason?: string }
+/** measurements: the keys the trait was read from (core facearch/traits); missingMeasurements: those it needed but did not get. */
+export interface Trait { status?: string; label?: string; alternative?: string; boundaryUncertain?: boolean; reason?: string; measurements?: string[]; missingMeasurements?: string[] }
 
 export interface FaceArchitectureResult {
   quality?: FaceQuality;

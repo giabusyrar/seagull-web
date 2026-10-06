@@ -1,11 +1,11 @@
 'use client';
 import { useEffect, useState } from 'react';
 import type { Respondent } from '../../lib/form';
-import { fetchLocations, type LocationOption, type LocationSource } from '../../lib/locations';
+import { fetchLocations, type LocationOption } from '../../lib/locations';
 import { useLang } from '../../lib/i18n';
 import { field } from '../ui';
 
-type List = { key: string; data: LocationOption[]; source?: LocationSource; error?: string };
+type List = { key: string; data: LocationOption[]; error?: string };
 
 /** One level's list, fetched when its parent is chosen; `key` keeps a stale answer from showing for a new parent. */
 function useLevel(enabled: boolean, country?: string, province?: string) {
@@ -15,7 +15,7 @@ function useLevel(enabled: boolean, country?: string, province?: string) {
     if (!enabled) return;
     const ctl = new AbortController();
     fetchLocations(country, province, ctl.signal)
-      .then((r) => setList({ key, data: r.data, source: r.source }))
+      .then((r) => setList({ key, data: r.data }))
       .catch((e) => { if (!ctl.signal.aborted) setList({ key, data: [], error: e instanceof Error ? e.message : String(e) }); });
     return () => ctl.abort();
   }, [enabled, key, country, province]);
@@ -46,7 +46,6 @@ export function LocationPicker({ who, setWho }: { who: Respondent; setWho(r: Res
 
   const provinceValue = who.provinceCode;
   const cityValue = cities?.data.find((o) => o.name === who.city)?.code;
-  const sources = [countries?.source, provinces?.source].filter((s, i, a): s is LocationSource => !!s && a.findIndex((x) => x?.name === s.name) === i);
 
   return (
     <div className="flex flex-col gap-2">
@@ -58,12 +57,6 @@ export function LocationPicker({ who, setWho }: { who: Respondent; setWho(r: Res
         {select(t('City', 'Kota/Kabupaten'), cities, cityValue, !!who.provinceCode,
           (o) => setWho({ ...who, city: o?.name }), t('Choose a province first', 'Pilih provinsi dulu'))}
       </div>
-      <p className="text-[11px] leading-relaxed text-zinc-400">
-        {t('The advisor may use it where it bears on the advice. Lists: ', 'Advisor dapat memakainya bila relevan dengan saran. Daftar: ')}
-        {sources.map((s, i) => (
-          <span key={s.name}>{i > 0 && '; '}<a className="underline decoration-zinc-300 hover:text-zinc-600" href={s.url} target="_blank" rel="noreferrer">{s.name}</a> ({s.license})</span>
-        ))}
-      </p>
     </div>
   );
 }

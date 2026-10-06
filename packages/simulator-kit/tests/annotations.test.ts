@@ -61,3 +61,78 @@ describe('skinZoneBoxes', () => {
     expect(skinZoneBoxes(r, 'FRONT')).toEqual([]);
   });
 });
+
+import { FRONT_ANGLE, zoneMetric, zoomBox } from '@/lib/annotations';
+import { traitFocus } from '@/components/photo/FaceTab';
+import { skinView } from '@/components/photo/SkinTab';
+
+describe('zoom to a trait', () => {
+  it('frames the points with a margin, at the photo aspect, inside the photo', () => {
+    const b = zoomBox([[400, 500], [600, 520]], 1000, 1250)!;
+    expect(b.w / b.h).toBeCloseTo(1000 / 1250);
+    expect(b.x).toBeLessThanOrEqual(400);
+    expect(b.x + b.w).toBeGreaterThanOrEqual(600);
+    expect(b.x).toBeGreaterThanOrEqual(0);
+    expect(b.y + b.h).toBeLessThanOrEqual(1250);
+  });
+
+  it('never zooms closer than a share of the photo, and stays inside at the edge', () => {
+    const b = zoomBox([[5, 5], [6, 6]], 1000, 1000)!;
+    expect(b.w).toBeGreaterThan(200);
+    expect(b.x).toBe(0);
+    expect(b.y).toBe(0);
+    expect(zoomBox([], 1000, 1000)).toBeNull();
+  });
+
+  it("collects every measurement's anchors and labels a trait's measurements", () => {
+    const r = {
+      landmarks: mesh(),
+      measurements: [
+        { key: 'eye_width', value: 0.453, unit: 'iod', landmarks: [33, 133] },
+        { key: 'eye_region', value: 1, unit: 'ratio', landmarks: [33, 133, 159, 145] },
+      ],
+      traits: { EyeSize: { status: 'assessed', label: 'big', measurements: ['eye_width', 'eye_region', 'gone'] } },
+    };
+    expect(faceMarks(r)?.points.eye_region).toHaveLength(4); // 4 anchors: zoomable, not a numbered mark
+    expect(faceMarks(r)?.marks.map((m) => m.key)).toEqual(['eye_width']);
+    expect(traitFocus(r, 'EyeSize')).toEqual({
+      title: 'EyeSize',
+      items: [
+        { key: 'eye_width', label: 'eye_width 0.453 iod' },
+        { key: 'eye_region', label: 'eye_region 1.000 ratio' },
+        { key: 'gone', label: 'gone' },
+      ],
+    });
+    expect(traitFocus(r, null)).toBeNull();
+    expect(traitFocus(r, 'Unknown')).toBeNull();
+  });
+});
+
+describe('skin by zone', () => {
+  const r = {
+    zoneBreakdown: [
+      { zoneCode: 'ZONE_FOREHEAD', zoneName: 'Forehead', sourceAngle: 'FRONT', isVisible: true, metrics: { skinConditions: { acne: { score: 72, severity: 'mild' } } } },
+      { zoneCode: 'ZONE_NOSE', zoneName: 'Nose', sourceAngle: 'FRONT', isVisible: true, metrics: { skinConditions: { acne: { score: 30, severity: 'severe' } } } },
+      { zoneCode: 'ZONE_CHEEK_L', zoneName: 'Cheek', sourceAngle: 'FRONT', isVisible: true, metrics: { skinConditions: { acne: { measurement: { value: 0.0412, unit: 'density' } } } } },
+      { zoneCode: 'ZONE_CHIN', zoneName: 'Chin', sourceAngle: 'FRONT', isVisible: true, metrics: {} },
+      { zoneCode: 'ZONE_SIDE', zoneName: 'Side', sourceAngle: 'LEFT', isVisible: true, metrics: { skinConditions: { acne: { score: 10, severity: 'severe' } } } },
+    ],
+  };
+
+  it("reads one metric in each front zone as the backend gave it", () => {
+    expect(zoneMetric(r, FRONT_ANGLE, 'skinConditions', 'acne').map((z) => [z.code, z.display.kind])).toEqual([
+      ['ZONE_FOREHEAD', 'score'], ['ZONE_NOSE', 'score'], ['ZONE_CHEEK_L', 'measurement'], ['ZONE_CHIN', 'none'],
+    ]);
+  });
+
+  it('colours zones by their own severity; a raw reading is neutral; no reading, no entry', () => {
+    const v = skinView(r, { kind: 'metric', group: 'skinConditions', key: 'acne' }, FRONT_ANGLE, () => 'Acne')!;
+    expect(v.zones).toEqual({
+      ZONE_FOREHEAD: { label: '72.0', tone: 'good' },
+      ZONE_NOSE: { label: '30.0', tone: 'bad' },
+      ZONE_CHEEK_L: { label: '0.04 density', tone: 'neutral' },
+    });
+    expect(skinView(r, { kind: 'zone', code: 'ZONE_NOSE' }, FRONT_ANGLE, () => 'Nose')).toEqual({ title: 'Nose', zones: {}, highlight: 'ZONE_NOSE' });
+    expect(skinView(r, null, FRONT_ANGLE, () => '')).toBeNull();
+  });
+});
