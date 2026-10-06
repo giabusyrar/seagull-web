@@ -33,6 +33,7 @@ export {
   type ScoreRequestCore,
   type ScoreDimensionRef,
   type ScoreAnswerEntry,
+  type ScoreWarning,
 } from './surveyjs';
 export {
   BUILTIN_TEMPLATES,

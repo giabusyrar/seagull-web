@@ -8,7 +8,7 @@ import { applyCalculationMethod } from './catalog';
 import { getQuestionnaireModel, MissingTenantError } from './api';
 import {
   type SurveyJSModel,
-  scoreSurveyAnswers,
+  buildScoreRequest,
   toSurveyModel,
 } from './surveyjs';
 import { XG_SURVEY_THEME } from './survey-theme';
@@ -86,15 +86,15 @@ function computeDimensions(
   schema: SurveyJSModel,
   data: Record<string, unknown>
 ): RunnerDimensionScore[] {
-  const byDimension = scoreSurveyAnswers(schema, data);
-  const methods = schema.calculation_methods || {};
-  return Object.entries(byDimension).map(([code, raw]) => {
-    const method: CalculationMethod = methods[code] || 'sum';
+  // Only the dimensions core would score, each with the method the form declares
+  // (no default: a dimension without one is not scored, as in core).
+  return buildScoreRequest(schema, data).dimensions.map((d) => {
+    const method: CalculationMethod = d.calculation_method;
     return {
-      code,
+      code: d.key,
       calculation_method: method,
-      score: Math.round(applyCalculationMethod(raw, method) * 100) / 100,
-      raw_scores: raw,
+      score: Math.round(applyCalculationMethod(d.answers, method) * 100) / 100,
+      raw_scores: d.answers,
     };
   });
 }

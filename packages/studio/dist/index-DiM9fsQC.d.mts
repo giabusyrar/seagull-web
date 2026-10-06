@@ -124,8 +124,10 @@ declare function toSurveyModel(item: QuestionnaireItem): SurveyJSModel;
 declare function flattenElements(model: SurveyJSModel): SurveyJSElement[];
 declare function fromSurveyModel(raw: any): QuestionnaireItem;
 interface ScoreAnswerEntry {
+    question: string;
     answer: string;
-    score: number;
+    /** null: the answer is bound to a dimension but the form declares no score for it. */
+    score: number | null;
     min_score: number;
     max_score: number;
 }
@@ -136,24 +138,25 @@ interface ScoreDimensionRef {
     calculation_method: CalculationMethod;
     answers: number[];
 }
+/** A caveat core attaches to an evaluation (form/domain Warning). */
+interface ScoreWarning {
+    code: 'ANSWER_NOT_SCORED' | 'DIMENSION_NOT_SCORED';
+    message: string;
+}
 interface ScoreRequestCore {
     answer_list: ScoreAnswerEntry[];
     customer_condition: Record<string, boolean>;
     dimensions: ScoreDimensionRef[];
+    /** What core would warn for these answers; not part of the Score Module request. */
+    warnings: ScoreWarning[];
 }
 /**
- * Builds the core of the `ScoreModuleRequest` the Form Engine sends to the Score
- * Engine — a faithful client-side mirror of form-engine's ExtractEvaluationData.
- * The caller adds `code` / `brand_id` / `application_id` / `vision_signals`.
- *
- * Its defaults are core's, kept identical on purpose so a preview scores the
- * same as the engine: an unscored choice counts 0, a boolean without scores
- * counts 1/0, and a dimension with no usable scale falls back to 0-100
- * (seagull-core internal/form/domain/survey_parser.go). Changing them belongs
- * in core first; this mirror follows.
+ * The core of the `ScoreModuleRequest` the Form Engine sends to the Score
+ * Engine, plus the warnings core would attach. The caller adds `code` /
+ * `brand_id` / `application_id` / `vision_signals`.
  */
 declare function buildScoreRequest(model: SurveyJSModel, data: Record<string, unknown>): ScoreRequestCore;
-/** Per-dimension raw score contributions from a set of SurveyJS answers. */
+/** Per-dimension raw score contributions, for the dimensions core would score. */
 declare function scoreSurveyAnswers(model: SurveyJSModel, data: Record<string, unknown>): Record<string, number[]>;
 
 /**
@@ -368,6 +371,7 @@ type index_SafetyFlagRow = SafetyFlagRow;
 type index_ScoreAnswerEntry = ScoreAnswerEntry;
 type index_ScoreDimensionRef = ScoreDimensionRef;
 type index_ScoreRequestCore = ScoreRequestCore;
+type index_ScoreWarning = ScoreWarning;
 type index_SurveyJSChoice = SurveyJSChoice;
 type index_SurveyJSElement = SurveyJSElement;
 type index_SurveyJSModel = SurveyJSModel;
@@ -390,7 +394,7 @@ declare const index_saveQuestionnaire: typeof saveQuestionnaire;
 declare const index_scoreSurveyAnswers: typeof scoreSurveyAnswers;
 declare const index_toSurveyModel: typeof toSurveyModel;
 declare namespace index {
-  export { index_BUILTIN_TEMPLATES as BUILTIN_TEMPLATES, type index_BuiltinTemplate as BuiltinTemplate, index_CALCULATION_METHODS as CALCULATION_METHODS, type index_CalculationMethod as CalculationMethod, type index_DimensionMeta as DimensionMeta, type index_DimensionRow as DimensionRow, type index_FormFieldConfig as FormFieldConfig, index_FormManager as FormManager, type index_FormSchema as FormSchema, type index_MatrixRow as MatrixRow, index_MissingTenantError as MissingTenantError, index_PFORM_EXAMPLE as PFORM_EXAMPLE, type index_QuestionItem as QuestionItem, type index_QuestionOption as QuestionOption, type index_QuestionType as QuestionType, type index_QuestionnaireItem as QuestionnaireItem, index_QuestionnaireRunner as QuestionnaireRunner, type index_QuestionnaireRunnerPayload as QuestionnaireRunnerPayload, type index_QuestionnaireRunnerProps as QuestionnaireRunnerProps, type index_RunnerDimensionScore as RunnerDimensionScore, type index_SafetyFlagRow as SafetyFlagRow, type index_ScoreAnswerEntry as ScoreAnswerEntry, type index_ScoreDimensionRef as ScoreDimensionRef, type index_ScoreRequestCore as ScoreRequestCore, type index_SurveyJSChoice as SurveyJSChoice, type index_SurveyJSElement as SurveyJSElement, type index_SurveyJSModel as SurveyJSModel, type index_SurveyJSPage as SurveyJSPage, index_applyCalculationMethod as applyCalculationMethod, index_applyDimensionMapping as applyDimensionMapping, index_buildScoreRequest as buildScoreRequest, index_createSafetyFlag as createSafetyFlag, index_deleteQuestionnaire as deleteQuestionnaire, index_flattenElements as flattenElements, index_fromPFormSchema as fromPFormSchema, index_fromSurveyModel as fromSurveyModel, index_getDimensionMeta as getDimensionMeta, index_getDimensions as getDimensions, index_getQuestionnaire as getQuestionnaire, index_getQuestionnaireModel as getQuestionnaireModel, index_getSafetyFlags as getSafetyFlags, index_listQuestionnaires as listQuestionnaires, index_saveQuestionnaire as saveQuestionnaire, index_scoreSurveyAnswers as scoreSurveyAnswers, index_toSurveyModel as toSurveyModel };
+  export { index_BUILTIN_TEMPLATES as BUILTIN_TEMPLATES, type index_BuiltinTemplate as BuiltinTemplate, index_CALCULATION_METHODS as CALCULATION_METHODS, type index_CalculationMethod as CalculationMethod, type index_DimensionMeta as DimensionMeta, type index_DimensionRow as DimensionRow, type index_FormFieldConfig as FormFieldConfig, index_FormManager as FormManager, type index_FormSchema as FormSchema, type index_MatrixRow as MatrixRow, index_MissingTenantError as MissingTenantError, index_PFORM_EXAMPLE as PFORM_EXAMPLE, type index_QuestionItem as QuestionItem, type index_QuestionOption as QuestionOption, type index_QuestionType as QuestionType, type index_QuestionnaireItem as QuestionnaireItem, index_QuestionnaireRunner as QuestionnaireRunner, type index_QuestionnaireRunnerPayload as QuestionnaireRunnerPayload, type index_QuestionnaireRunnerProps as QuestionnaireRunnerProps, type index_RunnerDimensionScore as RunnerDimensionScore, type index_SafetyFlagRow as SafetyFlagRow, type index_ScoreAnswerEntry as ScoreAnswerEntry, type index_ScoreDimensionRef as ScoreDimensionRef, type index_ScoreRequestCore as ScoreRequestCore, type index_ScoreWarning as ScoreWarning, type index_SurveyJSChoice as SurveyJSChoice, type index_SurveyJSElement as SurveyJSElement, type index_SurveyJSModel as SurveyJSModel, type index_SurveyJSPage as SurveyJSPage, index_applyCalculationMethod as applyCalculationMethod, index_applyDimensionMapping as applyDimensionMapping, index_buildScoreRequest as buildScoreRequest, index_createSafetyFlag as createSafetyFlag, index_deleteQuestionnaire as deleteQuestionnaire, index_flattenElements as flattenElements, index_fromPFormSchema as fromPFormSchema, index_fromSurveyModel as fromSurveyModel, index_getDimensionMeta as getDimensionMeta, index_getDimensions as getDimensions, index_getQuestionnaire as getQuestionnaire, index_getQuestionnaireModel as getQuestionnaireModel, index_getSafetyFlags as getSafetyFlags, index_listQuestionnaires as listQuestionnaires, index_saveQuestionnaire as saveQuestionnaire, index_scoreSurveyAnswers as scoreSurveyAnswers, index_toSurveyModel as toSurveyModel };
 }
 
-export { fromPFormSchema as A, BUILTIN_TEMPLATES as B, CALCULATION_METHODS as C, type DimensionMeta as D, fromSurveyModel as E, FormManager as F, getDimensionMeta as G, getDimensions as H, getQuestionnaire as I, getQuestionnaireModel as J, getSafetyFlags as K, listQuestionnaires as L, type MatrixRow as M, saveQuestionnaire as N, scoreSurveyAnswers as O, PFORM_EXAMPLE as P, type QuestionItem as Q, type RunnerDimensionScore as R, type SafetyFlagRow as S, toSurveyModel as T, type BuiltinTemplate as a, type CalculationMethod as b, type DimensionRow as c, type FormFieldConfig as d, type FormSchema as e, MissingTenantError as f, type QuestionOption as g, type QuestionType as h, index as i, type QuestionnaireItem as j, QuestionnaireRunner as k, type QuestionnaireRunnerPayload as l, type QuestionnaireRunnerProps as m, type ScoreAnswerEntry as n, type ScoreDimensionRef as o, type ScoreRequestCore as p, type SurveyJSChoice as q, type SurveyJSElement as r, type SurveyJSModel as s, type SurveyJSPage as t, applyCalculationMethod as u, applyDimensionMapping as v, buildScoreRequest as w, createSafetyFlag as x, deleteQuestionnaire as y, flattenElements as z };
+export { flattenElements as A, BUILTIN_TEMPLATES as B, CALCULATION_METHODS as C, type DimensionMeta as D, fromPFormSchema as E, FormManager as F, fromSurveyModel as G, getDimensionMeta as H, getDimensions as I, getQuestionnaire as J, getQuestionnaireModel as K, getSafetyFlags as L, type MatrixRow as M, listQuestionnaires as N, saveQuestionnaire as O, PFORM_EXAMPLE as P, type QuestionItem as Q, type RunnerDimensionScore as R, type SafetyFlagRow as S, scoreSurveyAnswers as T, toSurveyModel as U, type BuiltinTemplate as a, type CalculationMethod as b, type DimensionRow as c, type FormFieldConfig as d, type FormSchema as e, MissingTenantError as f, type QuestionOption as g, type QuestionType as h, index as i, type QuestionnaireItem as j, QuestionnaireRunner as k, type QuestionnaireRunnerPayload as l, type QuestionnaireRunnerProps as m, type ScoreAnswerEntry as n, type ScoreDimensionRef as o, type ScoreRequestCore as p, type ScoreWarning as q, type SurveyJSChoice as r, type SurveyJSElement as s, type SurveyJSModel as t, type SurveyJSPage as u, applyCalculationMethod as v, applyDimensionMapping as w, buildScoreRequest as x, createSafetyFlag as y, deleteQuestionnaire as z };

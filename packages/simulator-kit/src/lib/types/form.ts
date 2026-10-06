@@ -3,7 +3,8 @@
 // engine's `score` result carries it. Fields may be missing.
 
 export interface GradingTier { dimension_key?: string; score?: number; grade_name?: string; severity?: string }
-export interface AnswerRow { question?: string; answer?: unknown; score?: number }
+/** score is null when the form declares no score for the answer (core ANSWER_NOT_SCORED). */
+export interface AnswerRow { question?: string; answer?: unknown; score?: number | null }
 
 /** One source's part in a dimension score: its score (health space, 100 = healthy) and the weight applied after re-sharing. */
 export interface Contribution { score?: number; weight?: number }

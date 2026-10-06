@@ -147,7 +147,8 @@ export interface FormEvaluationResult {
   skin_profile?: SkinProfile;
   skin_grading_tiers?: SkinGradingTier[];
   customer_condition?: Record<string, boolean>;
-  answer_list?: Array<{ answer: string; score: number; min_score: number; max_score: number }>;
+  answer_list?: Array<{ question?: string; answer: string; score: number | null; min_score: number; max_score: number }>;
+  warnings?: Array<{ code: string; message: string }>;
   analysis_result?: Record<string, any>;
   applied_rules?: string[];
   evaluated_at?: string;

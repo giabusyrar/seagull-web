@@ -508,6 +508,9 @@ var MatchSimulatorTab = ({
       });
     }
   }
+  const unfilled = Object.entries(simResult?.regimens?.unfilledSlots ?? {}).flatMap(
+    ([phase, slots]) => slots.map((slot) => ({ phase, slot }))
+  );
   return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "grid grid-cols-1 lg:grid-cols-12 gap-6", children: [
     /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "lg:col-span-4 space-y-4", children: /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "bg-card border border-border rounded-lg p-5 space-y-4", children: [
       /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex items-center justify-between border-b border-border pb-3", children: [
@@ -590,10 +593,14 @@ var MatchSimulatorTab = ({
       /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "bg-card border border-border rounded-lg p-5 flex items-center justify-between", children: [
         /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { children: [
           /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex items-center gap-2", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "bg-emerald-950/60 text-emerald-400 border border-emerald-800/40 text-xs font-mono font-bold px-2 py-0.5 rounded", children: simResult.profileSummary.skinType }),
+            simResult.profileSummary.skinType && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "bg-emerald-950/60 text-emerald-400 border border-emerald-800/40 text-xs font-mono font-bold px-2 py-0.5 rounded", children: simResult.profileSummary.skinType }),
             /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("h3", { className: "font-bold text-foreground text-base", children: "Personalized Prescription" })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "flex flex-wrap gap-2 mt-2", children: simResult.profileSummary.primaryConcerns.map((c, i) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "text-[10px] bg-muted text-foreground px-2 py-0.5 rounded border border-border", children: c }, i)) })
+          !simResult.profileSummary.skinType && simResult.profileSummary.skinTypeUnavailable && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("p", { className: "text-xs text-muted-foreground mt-1", children: [
+            "No skin type: ",
+            simResult.profileSummary.skinTypeUnavailable
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "flex flex-wrap gap-2 mt-2", children: (simResult.profileSummary.primaryConcerns ?? []).map((c, i) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "text-[10px] bg-muted text-foreground px-2 py-0.5 rounded border border-border", children: c }, i)) })
         ] }),
         typeof simResult.profileSummary.overallSuitabilityScore === "number" && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "text-right", children: [
           /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "text-[10px] text-muted-foreground font-bold uppercase tracking-wider block", children: "Clinical Match" }),
@@ -603,23 +610,22 @@ var MatchSimulatorTab = ({
           ] })
         ] })
       ] }),
-      simResult.clinicalConflictMatrix.layeringRulesApplied.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "bg-amber-950/20 border border-amber-800/40 rounded-lg p-4 space-y-2", children: [
+      (simResult.clinicalConflictMatrix.layeringRulesApplied?.length ?? 0) > 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "bg-amber-950/20 border border-amber-800/40 rounded-lg p-4 space-y-2", children: [
         /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex items-center gap-2 text-amber-400 font-bold text-xs", children: [
           /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_lucide_react4.AlertTriangle, { className: "h-4 w-4" }),
           /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("span", { children: [
-            "Clinical Conflict Matrix Directives (",
-            simResult.clinicalConflictMatrix.conflictsDetected,
-            " detected)"
+            "Clinical Conflict Matrix Directives",
+            typeof simResult.clinicalConflictMatrix.conflictsDetected === "number" && ` (${simResult.clinicalConflictMatrix.conflictsDetected} detected)`
           ] })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("ul", { className: "space-y-1 text-xs text-amber-200/90 pl-6 list-disc", children: simResult.clinicalConflictMatrix.layeringRulesApplied.map((rule, idx) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("li", { children: rule }, idx)) })
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("ul", { className: "space-y-1 text-xs text-amber-200/90 pl-6 list-disc", children: (simResult.clinicalConflictMatrix.layeringRulesApplied ?? []).map((rule, idx) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("li", { children: rule }, idx)) })
       ] }),
       routinePhases.map((phase) => /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "space-y-3", children: [
         /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("h4", { className: "font-bold text-foreground text-xs uppercase tracking-wider flex items-center gap-2", children: [
           getPhaseIcon(phase.key),
           /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { children: phase.title })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "space-y-2", children: phase.steps.map((step) => /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "bg-card border border-border rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "space-y-2", children: phase.steps.flatMap((step) => step.primaryProduct ? [{ ...step, primaryProduct: step.primaryProduct }] : []).map((step) => /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "bg-card border border-border rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3", children: [
           /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "space-y-1.5 flex-1", children: [
             /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex items-center gap-2 flex-wrap", children: [
               /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "w-5 h-5 rounded-full bg-muted text-amber-300 text-[10px] font-bold flex items-center justify-center font-mono shrink-0", children: step.stepNumber }),
@@ -652,7 +658,20 @@ var MatchSimulatorTab = ({
             ] })
           ] })
         ] }, step.stepNumber)) })
-      ] }, phase.key))
+      ] }, phase.key)),
+      unfilled.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "bg-muted/30 border border-border rounded-lg p-4 space-y-2", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "font-bold text-foreground text-xs uppercase tracking-wider", children: [
+          "Unfilled slots (",
+          unfilled.length,
+          ")"
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("ul", { className: "space-y-1 text-xs text-muted-foreground pl-5 list-disc", children: unfilled.map(({ phase, slot }, idx) => /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("li", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("strong", { className: "text-foreground", children: formatPhaseTitle(phase) }),
+          slot.category && ` \xB7 ${slot.category}`,
+          slot.required && " (required)",
+          slot.reason && `: ${slot.reason}`
+        ] }, `${phase}-${slot.slotId ?? idx}`)) })
+      ] })
     ] }) : /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
       import_shared4.EmptyState,
       {
@@ -730,21 +749,156 @@ function resource(path, field) {
     remove: (id, doFetch = fetch) => doFetch(ep(`${path}?id=${id}`), { method: "DELETE" })
   };
 }
-var conflictsApi = resource("/api/matching/conflicts", "conflicts");
-var productGroupsApi = resource("/api/matching/product-groups", "groups");
+var productGroupsApi = resource("/product-groups", "groups");
 var productsApi = {
-  list: (doFetch = fetch) => list(ep(withTenantScope("/api/matching/products")), "products", doFetch),
+  list: (doFetch = fetch) => list(ep(withTenantScope("/products")), "products", doFetch),
   /** One brand's products ('' means every brand). */
-  listForBrand: (brandId, doFetch = fetch) => list(ep(`/api/matching/products?brand_id=${encodeURIComponent(brandId || "*")}`), "products", doFetch)
+  listForBrand: (brandId, doFetch = fetch) => list(ep(`/products?brand_id=${encodeURIComponent(brandId || "*")}`), "products", doFetch)
+};
+var ReferenceApiError = class extends Error {
+  constructor(status, message) {
+    super(message);
+    this.status = status;
+    this.name = "ReferenceApiError";
+  }
+};
+async function ensureOk(res) {
+  if (res.ok) return res;
+  const text = await res.text();
+  let message = text || `HTTP ${res.status}`;
+  try {
+    const j = JSON.parse(text);
+    message = String(j.error || j.message || message);
+  } catch {
+  }
+  throw new ReferenceApiError(res.status, message);
+}
+function referenceResource(resource2) {
+  return {
+    list: async (routes, query = "", doFetch = fetch) => {
+      const data = await (await doFetch(routes.reference(resource2) + query)).json();
+      return Array.isArray(data.data) ? data.data : null;
+    },
+    create: async (routes, item, doFetch = fetch) => ensureOk(await sendJson(doFetch, routes.reference(resource2), "POST", item)),
+    update: async (routes, item, doFetch = fetch) => ensureOk(await sendJson(doFetch, routes.reference(resource2), "PUT", item)),
+    remove: async (routes, id, doFetch = fetch) => ensureOk(await doFetch(routes.reference(`${resource2}/${encodeURIComponent(id)}`), { method: "DELETE" }))
+  };
+}
+var conflictRules = referenceResource("ingredient-conflict-rules");
+var productShades = referenceResource("shades");
+var conflictsApi = {
+  ...conflictRules,
+  list: (routes, doFetch = fetch) => conflictRules.list(routes, "", doFetch)
 };
 var shadesApi = {
-  ...resource("/api/matching/shades", "shades"),
-  /** Shades of one product; unscoped, as the engine keys them by product. */
-  list: (productId, doFetch = fetch) => list(ep(`/api/matching/shades?product_id=${encodeURIComponent(productId)}`), "shades", doFetch)
+  ...productShades,
+  /** Shades of one product. */
+  list: (routes, productId, doFetch = fetch) => productShades.list(routes, `?productId=${encodeURIComponent(productId)}`, doFetch)
+};
+var MatchApiError = class extends Error {
+  constructor(status, message) {
+    super(message);
+    this.status = status;
+    this.name = "MatchApiError";
+  }
 };
 async function runMatch(payload, doFetch = fetch) {
-  const res = await sendJson(doFetch, ep("/api/matching/match"), "POST", payload);
-  return res.ok ? await res.json() : null;
+  const res = await sendJson(doFetch, ep("/evaluate"), "POST", payload);
+  if (!res.ok) {
+    const text = await res.text();
+    let message = text || `HTTP ${res.status}`;
+    try {
+      const j = JSON.parse(text);
+      message = String(j.error || j.message || message);
+    } catch {
+    }
+    throw new MatchApiError(res.status, message);
+  }
+  return toClinicalMatchResult(await res.json());
+}
+var obj = (v) => v && typeof v === "object" && !Array.isArray(v) ? v : void 0;
+var str = (v) => typeof v === "string" ? v : void 0;
+var num = (v) => typeof v === "number" ? v : void 0;
+var bool = (v) => typeof v === "boolean" ? v : void 0;
+var strs = (v) => Array.isArray(v) ? v.filter((x) => typeof x === "string") : void 0;
+var defined = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== void 0));
+function toProduct(v) {
+  const p = obj(v);
+  if (!p) return void 0;
+  return defined({
+    id: str(p.id),
+    name: str(p.name),
+    brand: str(p.brand),
+    category: str(p.category),
+    texture: str(p.texture),
+    matchScore: num(p.match_score),
+    whySelected: strs(p.why_selected),
+    keyActives: strs(p.key_actives),
+    imageUrl: str(p.image_url)
+  });
+}
+function toSteps(v) {
+  if (!Array.isArray(v)) return void 0;
+  return v.map((raw) => {
+    const s = obj(raw) ?? {};
+    return defined({
+      stepNumber: num(s.step_number),
+      stepName: str(s.step_name),
+      category: str(s.category),
+      recommendedTexture: str(s.recommended_texture),
+      primaryProduct: toProduct(s.primary_product),
+      alternatives: Array.isArray(s.alternatives) ? s.alternatives.map(toProduct).filter((x) => !!x) : void 0
+    });
+  });
+}
+function toUnfilled(v) {
+  if (!Array.isArray(v)) return void 0;
+  return v.map((raw) => {
+    const u = obj(raw) ?? {};
+    return defined({ slotId: str(u.slot_id), category: str(u.category), required: bool(u.required), reason: str(u.reason) });
+  });
+}
+function mapEntries(v, each) {
+  const m = obj(v);
+  if (!m) return void 0;
+  const out = {};
+  for (const [k, x] of Object.entries(m)) {
+    const mapped = each(x);
+    if (mapped !== void 0) out[k] = mapped;
+  }
+  return out;
+}
+function toClinicalMatchResult(body) {
+  const r = obj(body) ?? {};
+  const ps = obj(r.profile_summary) ?? {};
+  const rg = obj(r.regimens) ?? {};
+  const cm = obj(r.clinical_conflict_matrix) ?? {};
+  return defined({
+    matchId: str(r.match_id),
+    brandId: str(r.brand_id),
+    applicationId: str(r.application_id),
+    dryRun: bool(r.dry_run),
+    profileSummary: defined({
+      // The engine sends "" with skin_type_unavailable when it has no skin type.
+      skinType: str(ps.skin_type) || void 0,
+      profileCode: str(ps.profile_code),
+      skinTypeSource: str(ps.skin_type_source),
+      skinTypeUnavailable: str(ps.skin_type_unavailable),
+      primaryConcerns: strs(ps.primary_concerns)
+    }),
+    regimens: defined({
+      amRoutine: toSteps(rg.am_routine),
+      pmRoutine: toSteps(rg.pm_routine),
+      phases: mapEntries(rg.phases, toSteps),
+      unfilledSlots: mapEntries(rg.unfilled_slots, toUnfilled)
+    }),
+    clinicalConflictMatrix: defined({
+      conflictsDetected: num(cm.conflicts_detected),
+      layeringRulesApplied: strs(cm.layering_rules_applied),
+      warnings: strs(cm.warnings)
+    }),
+    evaluatedAt: str(r.evaluated_at)
+  });
 }
 var colourEp = (path) => resolveDynamicEndpoint("colour", path);
 var ColourApiError = class extends Error {
@@ -780,7 +934,7 @@ async function colourTryOn(image, shadeIds, doFetch = fetch) {
 }
 async function listReferenceIngredients(routes, doFetch = fetch) {
   const data = await (await doFetch(routes.reference("ingredients"))).json();
-  const raw = Array.isArray(data.ingredients) ? data.ingredients : Array.isArray(data) ? data : [];
+  const raw = Array.isArray(data.data) ? data.data : Array.isArray(data.ingredients) ? data.ingredients : Array.isArray(data) ? data : [];
   return raw.map((i) => ({ code: i.code || i.name, name: i.name }));
 }
 
@@ -1512,6 +1666,9 @@ var ShadeModal = ({ isOpen, onClose, onSave, editingShade, productId }) => {
 // src/match/components/MatchManager.tsx
 var import_jsx_runtime9 = require("react/jsx-runtime");
 var MatchManager = () => {
+  const hostRoutes = (0, import_shared9.useHostRoutes)();
+  const [saveError, setSaveError] = (0, import_react6.useState)(null);
+  const [simError, setSimError] = (0, import_react6.useState)(null);
   const [activeTab, setActiveTab] = (0, import_shared9.usePersistentState)("xg.matchEngine.activeTab", "conflicts");
   const [searchQuery, setSearchQuery] = (0, import_react6.useState)("");
   const [isFilterPanelOpen, setIsFilterPanelOpen] = (0, import_react6.useState)(false);
@@ -1543,7 +1700,7 @@ var MatchManager = () => {
   const [isSimulating, setIsSimulating] = (0, import_react6.useState)(false);
   const [simResult, setSimResult] = (0, import_shared9.usePersistentState)("xg.matchEngine.simulator.result", null);
   const loadData = () => {
-    conflictsApi.list().then((list2) => {
+    conflictsApi.list(hostRoutes).then((list2) => {
       if (list2) setConflicts(list2);
     }).catch(() => {
     });
@@ -1564,10 +1721,20 @@ var MatchManager = () => {
       setShades([]);
       return;
     }
-    shadesApi.list(productId).then((list2) => {
+    shadesApi.list(hostRoutes, productId).then((list2) => {
       if (list2) setShades(list2);
     }).catch(() => {
     });
+  };
+  const write = async (op) => {
+    try {
+      await op();
+      setSaveError(null);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : String(err));
+      loadData();
+      loadShades(shadeProductId);
+    }
   };
   (0, import_react6.useEffect)(() => {
     loadData();
@@ -1586,10 +1753,7 @@ var MatchManager = () => {
     if (editingConflict) {
       const updated = { ...editingConflict, ...data };
       setConflicts((prev) => prev.map((x) => x.id === editingConflict.id ? updated : x));
-      try {
-        await conflictsApi.update(updated);
-      } catch {
-      }
+      await write(() => conflictsApi.update(hostRoutes, updated));
     } else {
       const newConf = {
         id: `conf-${Date.now()}`,
@@ -1598,10 +1762,7 @@ var MatchManager = () => {
         ...data
       };
       setConflicts((prev) => [newConf, ...prev]);
-      try {
-        await conflictsApi.create(newConf);
-      } catch {
-      }
+      await write(() => conflictsApi.create(hostRoutes, newConf));
     }
   };
   const handleDeleteConflict = (id) => {
@@ -1612,10 +1773,7 @@ var MatchManager = () => {
       message: `Are you sure you want to delete ingredient conflict "${conf?.ingredientA} vs ${conf?.ingredientB}"?`,
       onConfirm: async () => {
         setConflicts((prev) => prev.filter((x) => x.id !== id));
-        try {
-          await conflictsApi.remove(id);
-        } catch {
-        }
+        await write(() => conflictsApi.remove(hostRoutes, id));
         setDeleteConfirm((prev) => ({ ...prev, isOpen: false }));
       }
     });
@@ -1660,20 +1818,14 @@ var MatchManager = () => {
     if (editingShade) {
       const updated = { ...editingShade, ...data };
       setShades((prev) => prev.map((x) => x.id === editingShade.id ? updated : x));
-      try {
-        await shadesApi.update(updated);
-      } catch {
-      }
+      await write(() => shadesApi.update(hostRoutes, updated));
     } else {
       const newShade = {
         id: `shade-${Date.now()}`,
         ...data
       };
       setShades((prev) => [newShade, ...prev]);
-      try {
-        await shadesApi.create(newShade);
-      } catch {
-      }
+      await write(() => shadesApi.create(hostRoutes, newShade));
     }
   };
   const handleDeleteShade = (id) => {
@@ -1684,10 +1836,7 @@ var MatchManager = () => {
       message: `Are you sure you want to delete shade "${shade?.name || id}"?`,
       onConfirm: async () => {
         setShades((prev) => prev.filter((x) => x.id !== id));
-        try {
-          await shadesApi.remove(id);
-        } catch {
-        }
+        await write(() => shadesApi.remove(hostRoutes, id));
         setDeleteConfirm((prev) => ({ ...prev, isOpen: false }));
       }
     });
@@ -1699,12 +1848,15 @@ var MatchManager = () => {
         brand_id: simBrand,
         application_id: selectedApp,
         dimension_scores: simScores,
-        ...simSkinType ? { skin_profile: simSkinType } : {},
+        // The engine takes the score engine's skin_profile object; with only a
+        // code, it reports that code as the skin type.
+        ...simSkinType ? { skin_profile: { code: simSkinType } } : {},
         customer_conditions: Object.fromEntries(Object.entries(simConditions).filter(([, on]) => on))
       };
-      const data = await runMatch(payload);
-      if (data) setSimResult(data);
-    } catch {
+      setSimResult(await runMatch(payload));
+      setSimError(null);
+    } catch (err) {
+      setSimError(err instanceof Error ? err.message : String(err));
     } finally {
       setIsSimulating(false);
     }
@@ -1731,6 +1883,21 @@ var MatchManager = () => {
       }
     ),
     /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("main", { className: "flex-1 p-4 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl w-full mx-auto", children: [
+      simError && activeTab === "simulator" && /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { role: "alert", className: "flex items-start justify-between gap-3 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("span", { className: "break-words min-w-0", children: [
+          "Match failed: ",
+          simError
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("button", { type: "button", onClick: () => setSimError(null), className: "shrink-0 underline", children: "Dismiss" })
+      ] }),
+      saveError && /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { role: "alert", className: "flex items-start justify-between gap-3 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("span", { className: "break-words min-w-0", children: [
+          "Not saved: ",
+          saveError,
+          ". The list shows what is stored."
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("button", { type: "button", onClick: () => setSaveError(null), className: "shrink-0 underline", children: "Dismiss" })
+      ] }),
       activeTab === "conflicts" && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
         ConflictMatrixTab,
         {

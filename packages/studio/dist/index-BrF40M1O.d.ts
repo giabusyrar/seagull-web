@@ -33,7 +33,8 @@ interface ProductCatalogItem {
     name: string;
     category: string;
     texture: string;
-    ingredients?: string;
+    /** Ingredient names, whole: an INCI name may contain a comma (1,2-Hexanediol). */
+    ingredients?: string[];
     keyActives?: string;
     imageUrl?: string;
     isActive?: boolean;
@@ -60,22 +61,36 @@ interface ProductMatchItem {
     matchScore: number;
     whySelected?: string[];
     keyActives?: string[];
+    imageUrl?: string;
 }
 interface RegimenStep {
     stepNumber: number;
     stepName: string;
     category: string;
     recommendedTexture?: string;
-    primaryProduct: ProductMatchItem;
+    primaryProduct?: ProductMatchItem;
     alternatives?: ProductMatchItem[];
 }
+/** A routine slot nothing in the catalogue filled, and why. */
+interface UnfilledSlot {
+    slotId?: string;
+    category?: string;
+    required?: boolean;
+    reason?: string;
+}
 interface ClinicalMatchResult {
-    matchId: string;
+    /** Labels the response; absent on a dry run. */
+    matchId?: string;
     brandId: string;
     applicationId: string;
+    dryRun?: boolean;
     profileSummary: {
-        skinType: string;
-        primaryConcerns: string[];
+        /** Absent when the request carried no skin profile; skinTypeUnavailable says why. */
+        skinType?: string;
+        profileCode?: string;
+        skinTypeSource?: string;
+        skinTypeUnavailable?: string;
+        primaryConcerns?: string[];
         /** Dropped by the match engine on 2026-10-01: it was the constant 94.5
          *  for every request. Optional so a caller must check before showing it. */
         overallSuitabilityScore?: number;
@@ -84,10 +99,12 @@ interface ClinicalMatchResult {
         amRoutine?: RegimenStep[];
         pmRoutine?: RegimenStep[];
         phases?: Record<string, RegimenStep[]>;
+        unfilledSlots?: Record<string, UnfilledSlot[]>;
     };
     clinicalConflictMatrix: {
-        conflictsDetected: number;
-        layeringRulesApplied: string[];
+        conflictsDetected?: number;
+        layeringRulesApplied?: string[];
+        warnings?: string[];
     };
     evaluatedAt: string;
 }

@@ -64,10 +64,18 @@ export interface SkinGradingTier {
 }
 
 export interface AnswerEntry {
+  question?: string;
   answer: string;
-  score: number;
+  /** null: bound to a dimension, but the form declares no score for this answer (core ANSWER_NOT_SCORED). */
+  score: number | null;
   min_score: number;
   max_score: number;
+}
+
+/** A caveat core attaches to a form evaluation, e.g. ANSWER_NOT_SCORED, DIMENSION_NOT_SCORED, PROFILE_INCOMPLETE. */
+export interface EvaluationWarning {
+  code: string;
+  message: string;
 }
 
 export interface UnifiedEvaluationOutput {
@@ -81,6 +89,7 @@ export interface UnifiedEvaluationOutput {
   skin_grading_tiers: SkinGradingTier[];
   customer_condition: Record<string, boolean>;
   answer_list: AnswerEntry[];
+  warnings?: EvaluationWarning[];
   analysis_result?: Record<string, any>;
   applied_rules?: string[];
   evaluated_at?: string;

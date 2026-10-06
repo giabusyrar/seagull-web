@@ -96,14 +96,6 @@ const SURVEYJS_TO_TYPE: Record<string, QuestionType> = {
   text: 'numeric_input',
 };
 
-const CHOICE_SURVEYJS_TYPES = new Set([
-  'radiogroup',
-  'checkbox',
-  'dropdown',
-  'tagbox',
-  'buttongroup',
-  'ranking',
-]);
 const CHOICE_BUILDER_TYPES = new Set<QuestionType>([
   'single_choice',
   'multi_choice',
@@ -252,8 +244,10 @@ export function fromSurveyModel(raw: any): QuestionnaireItem {
 }
 
 export interface ScoreAnswerEntry {
+  question: string;
   answer: string;
-  score: number;
+  /** null: the answer is bound to a dimension but the form declares no score for it. */
+  score: number | null;
   min_score: number;
   max_score: number;
 }
@@ -266,166 +260,211 @@ export interface ScoreDimensionRef {
   answers: number[];
 }
 
+/** A caveat core attaches to an evaluation (form/domain Warning). */
+export interface ScoreWarning {
+  code: 'ANSWER_NOT_SCORED' | 'DIMENSION_NOT_SCORED';
+  message: string;
+}
+
 export interface ScoreRequestCore {
   answer_list: ScoreAnswerEntry[];
   customer_condition: Record<string, boolean>;
   dimensions: ScoreDimensionRef[];
+  /** What core would warn for these answers; not part of the Score Module request. */
+  warnings: ScoreWarning[];
+}
+
+// ── Mirror of seagull-core internal/form/domain/survey_parser.go ─────────────
+// ExtractEvaluationData and dimensionTheoreticalBounds, rule for rule, so a
+// preview scores exactly as the engine does. Nothing the schema leaves
+// unscored is scored: an unscored option or boolean side, a scale question
+// without a `scale`, or a matrix without rows contributes nothing, and a
+// dimension with no scored answer, no (known) calculation method or no usable
+// range is left out. A change here follows a change there, never the reverse.
+
+/** Choice types whose answer is one value / a list (survey_parser.go choiceTypeSingle / choiceTypeMulti). */
+const CHOICE_SINGLE = new Set(['radiogroup', 'dropdown', 'buttongroup', 'imagepicker']);
+const CHOICE_MULTI = new Set(['checkbox', 'tagbox', 'ranking']);
+
+/** The aggregations the Score Module implements (survey_parser.go calculationMethods). */
+const KNOWN_METHODS = new Set(['sum', 'average', 'mean', 'highest', 'max', 'lowest', 'min', 'boolean_or', 'boolean_and']);
+/** Methods whose aggregate never exceeds the widest single contribution; the rest (sum) add up. */
+const WIDEST_RANGE_METHODS = new Set(['average', 'mean', 'boolean_or', 'boolean_and', 'highest', 'max', 'lowest', 'min']);
+
+type Range = { min: number; max: number };
+
+/** The questions core reads: the pages' elements, else the top-level ones (domain.SurveyModel.GetAllQuestions). */
+function coreQuestions(model: SurveyJSModel): SurveyJSElement[] {
+  const fromPages = (model.pages ?? []).flatMap((p) => p?.elements ?? []);
+  return fromPages.length ? fromPages : model.elements ?? [];
+}
+
+const asChoice = (c: SurveyJSChoice | string): SurveyJSChoice => (typeof c === 'string' ? { value: c, text: c } : c);
+const hasScore = (c: SurveyJSChoice): c is SurveyJSChoice & { score: number } => typeof c.score === 'number';
+const isScaleType = (q: SurveyJSElement) => q.type === 'rating' || q.type === 'slider' || (q.type === 'text' && q.inputType === 'number');
+/** The choice's own dimension wins over the question's; '' when neither declares one. */
+const choiceDim = (q: SurveyJSElement, c?: SurveyJSChoice) => (c?.dimension ? c.dimension : q.dimension ?? '');
+/** Go's %q, for messages worded as core words them. */
+const quote = (v: string) => JSON.stringify(v);
+
+function declaredMethod(model: SurveyJSModel, dim: string): { method?: string; reason?: string } {
+  const m = (model.calculation_methods ?? {})[dim] as string | undefined;
+  if (!m) return { reason: 'the form declares no calculation method for it in calculation_methods' };
+  if (!KNOWN_METHODS.has(m.toLowerCase())) return { reason: `the form's calculation method ${quote(m)} is not one the Score Module implements` };
+  return { method: m };
+}
+
+function scoredRange(choices: SurveyJSChoice[]): Range | null {
+  const scores = choices.filter(hasScore).map((c) => c.score);
+  return scores.length ? { min: Math.min(...scores), max: Math.max(...scores) } : null;
+}
+
+/** Theoretical [min,max] aggregate per dimension, from declared scores only. */
+function dimensionBounds(model: SurveyJSModel): Record<string, Range> {
+  const perDim: Record<string, Range[]> = {};
+  const add = (dim: string | undefined, min: number, max: number) => {
+    if (dim) (perDim[dim] ??= []).push({ min, max });
+  };
+  for (const q of coreQuestions(model)) {
+    const choices = (q.choices ?? []).map(asChoice);
+    if (CHOICE_SINGLE.has(q.type)) {
+      const r = scoredRange(choices);
+      if (r) add(q.dimension, r.min, r.max);
+      for (const c of choices) if (c.dimension && hasScore(c)) add(c.dimension, Math.min(0, c.score), Math.max(0, c.score));
+    } else if (q.type === 'checkbox' || q.type === 'tagbox') {
+      // Any subset: sum of negatives .. sum of positives, per dimension each choice files under.
+      const lo: Record<string, number> = {};
+      const hi: Record<string, number> = {};
+      for (const c of choices) {
+        const dim = choiceDim(q, c);
+        if (!hasScore(c) || !dim) continue;
+        lo[dim] ??= 0;
+        hi[dim] ??= 0;
+        if (c.score < 0) lo[dim] += c.score;
+        else hi[dim] += c.score;
+      }
+      for (const dim of Object.keys(lo)) add(dim, lo[dim], hi[dim]);
+    } else if (q.type === 'ranking') {
+      // Every item is always ranked: a fixed contribution per dimension.
+      const sum: Record<string, number> = {};
+      for (const c of choices) {
+        const dim = choiceDim(q, c);
+        if (hasScore(c) && dim) sum[dim] = (sum[dim] ?? 0) + c.score;
+      }
+      for (const [dim, v] of Object.entries(sum)) add(dim, v, v);
+    } else if (q.type === 'boolean') {
+      const sides = [q.scoreTrue, q.scoreFalse].filter((v): v is number => typeof v === 'number');
+      if (sides.length) add(q.dimension, Math.min(...sides), Math.max(...sides));
+    } else if (q.type === 'matrix') {
+      if (!q.rows?.length) continue;
+      const r = scoredRange((q.columns ?? []).map(asChoice));
+      if (r) add(q.dimension, r.min * q.rows.length, r.max * q.rows.length);
+    } else if (isScaleType(q)) {
+      if (q.scale) add(q.dimension, q.scale.min, q.scale.max);
+    }
+  }
+  const out: Record<string, Range> = {};
+  for (const [dim, ranges] of Object.entries(perDim)) {
+    const { method } = declaredMethod(model, dim);
+    if (!method) continue;
+    out[dim] = WIDEST_RANGE_METHODS.has(method.toLowerCase())
+      ? ranges.reduce((b, r) => ({ min: Math.min(b.min, r.min), max: Math.max(b.max, r.max) }))
+      : ranges.reduce((b, r) => ({ min: b.min + r.min, max: b.max + r.max }), { min: 0, max: 0 });
+  }
+  return out;
 }
 
 /**
- * Builds the core of the `ScoreModuleRequest` the Form Engine sends to the Score
- * Engine — a faithful client-side mirror of form-engine's ExtractEvaluationData.
- * The caller adds `code` / `brand_id` / `application_id` / `vision_signals`.
- *
- * Its defaults are core's, kept identical on purpose so a preview scores the
- * same as the engine: an unscored choice counts 0, a boolean without scores
- * counts 1/0, and a dimension with no usable scale falls back to 0-100
- * (seagull-core internal/form/domain/survey_parser.go). Changing them belongs
- * in core first; this mirror follows.
+ * The core of the `ScoreModuleRequest` the Form Engine sends to the Score
+ * Engine, plus the warnings core would attach. The caller adds `code` /
+ * `brand_id` / `application_id` / `vision_signals`.
  */
-export function buildScoreRequest(
-  model: SurveyJSModel,
-  data: Record<string, unknown>
-): ScoreRequestCore {
+export function buildScoreRequest(model: SurveyJSModel, data: Record<string, unknown>): ScoreRequestCore {
   const answer_list: ScoreAnswerEntry[] = [];
   const customer_condition: Record<string, boolean> = {};
+  const warnings: ScoreWarning[] = [];
   const dimAnswers: Record<string, number[]> = {};
-  const dimBounds: Record<string, { min: number; max: number }> = {};
+  const unscoredDims = new Set<string>();
 
-  const bump = (dim: string | undefined, score: number, min: number, max: number) => {
-    if (!dim) return;
+  const record = (dim: string, score: number | null, q: string, text: string, reason: string) => {
+    if (!dim) return; // no dimension: a label, not a score
+    if (score === null) {
+      unscoredDims.add(dim);
+      warnings.push({ code: 'ANSWER_NOT_SCORED', message: `${q}: answer ${quote(text)} is not scored: ${reason}` });
+      return;
+    }
     (dimAnswers[dim] ??= []).push(score);
-    const b = (dimBounds[dim] ??= { min: 0, max: 0 });
-    if (min < b.min) b.min = min;
-    if (max > b.max) b.max = max;
   };
-  const scaleOf = (el: SurveyJSElement): [number, number] => [
-    el.scale?.min ?? el.rateMin ?? el.min ?? 0,
-    el.scale?.max ?? el.rateMax ?? el.max ?? 0,
-  ];
-  const asChoice = (c: SurveyJSChoice | string): SurveyJSChoice =>
-    typeof c === 'string' ? { value: c, text: c } : c;
+  const entry = (q: SurveyJSElement, answer: string, score: number | null) =>
+    answer_list.push({ question: q.name, answer, score, min_score: q.scale?.min ?? 0, max_score: q.scale?.max ?? 0 });
 
-  for (const el of flattenElements(model)) {
-    const ans = data[el.name];
-    if (ans == null || ans === '') continue;
-    const [minS, maxS] = scaleOf(el);
+  const resolveChoice = (q: SurveyJSElement, value: string) => {
+    const ch = (q.choices ?? []).map(asChoice).find((c) => String(c.value) === value);
+    if (!ch) return;
+    const score = hasScore(ch) ? ch.score : null;
+    entry(q, ch.text ?? '', score);
+    if (ch.condition_map) Object.assign(customer_condition, ch.condition_map);
+    record(choiceDim(q, ch), score, q.name, ch.text ?? '', `option ${quote(String(ch.value))} declares no score`);
+  };
 
-    if (el.type === 'boolean') {
-      const on = ans === true || ans === 'true';
-      const score = on ? el.scoreTrue ?? 1 : el.scoreFalse ?? 0;
-      answer_list.push({ answer: String(on), score, min_score: minS, max_score: maxS || 1 });
-      bump(el.dimension, score, minS, maxS || 1);
-      continue;
-    }
-
-    if (CHOICE_SURVEYJS_TYPES.has(el.type) && el.choices?.length) {
-      const picked = (Array.isArray(ans) ? ans : [ans]).map(String);
-      for (const raw of el.choices) {
-        const ch = asChoice(raw);
-        if (!picked.includes(String(ch.value))) continue;
-        const score = typeof ch.score === 'number' ? ch.score : 0;
-        answer_list.push({ answer: ch.text ?? String(ch.value), score, min_score: minS, max_score: maxS });
-        if (ch.condition_map) Object.assign(customer_condition, ch.condition_map);
-        bump(ch.dimension || el.dimension, score, minS, maxS);
-      }
-      continue;
-    }
-
-    if (el.type === 'matrix' && el.columns?.length && typeof ans === 'object') {
-      const cols = el.columns.map(asChoice);
-      for (const colVal of Object.values(ans as Record<string, unknown>)) {
-        const col = cols.find((c) => String(c.value) === String(colVal));
+  for (const q of coreQuestions(model)) {
+    if (!(q.name in data)) continue;
+    const ans = data[q.name];
+    if (CHOICE_SINGLE.has(q.type)) {
+      resolveChoice(q, String(ans));
+    } else if (CHOICE_MULTI.has(q.type)) {
+      for (const v of Array.isArray(ans) ? ans : [ans]) resolveChoice(q, String(v));
+    } else if (q.type === 'boolean') {
+      const on = ans === true;
+      const score = (on ? q.scoreTrue : q.scoreFalse) ?? null;
+      entry(q, String(on), score);
+      record(choiceDim(q), score, q.name, String(on), `the question declares no ${on ? 'scoreTrue' : 'scoreFalse'}`);
+    } else if (q.type === 'matrix') {
+      if (!ans || typeof ans !== 'object' || Array.isArray(ans)) continue;
+      const cols = (q.columns ?? []).map(asChoice);
+      const noRows = !q.rows?.length;
+      for (const row of Object.keys(ans).sort()) {
+        const col = cols.find((c) => String(c.value) === String((ans as Record<string, unknown>)[row]));
         if (!col) continue;
-        const score = typeof col.score === 'number' ? col.score : 0;
-        answer_list.push({ answer: col.text ?? String(col.value), score, min_score: minS, max_score: maxS });
-        bump(el.dimension, score, minS, maxS);
+        const score = noRows || !hasScore(col) ? null : col.score;
+        entry(q, col.text ?? '', score);
+        record(choiceDim(q, col), score, q.name, col.text ?? '',
+          noRows ? 'the matrix declares no rows' : `column ${quote(String(col.value))} declares no score`);
       }
-      continue;
-    }
-
-    const n = Number(ans);
-    if (!Number.isNaN(n)) {
-      answer_list.push({ answer: String(n), score: n, min_score: minS, max_score: maxS });
-      bump(el.dimension, n, minS, maxS);
+    } else if (isScaleType(q)) {
+      if (typeof ans !== 'number' || !Number.isFinite(ans)) continue;
+      const n = Math.trunc(ans);
+      const score = q.scale ? n : null;
+      entry(q, String(n), score);
+      record(choiceDim(q), score, q.name, String(n), 'the question declares no scale');
     }
   }
 
-  const methods = model.calculation_methods || {};
-  const dimensions: ScoreDimensionRef[] = Object.entries(dimAnswers).map(([key, answers]) => {
-    const b = dimBounds[key] || { min: 0, max: 0 };
-    return {
-      key,
-      min_score: b.min,
-      max_score: b.max || 100,
-      calculation_method: methods[key] || 'sum',
-      answers,
-    };
-  });
-
-  return { answer_list, customer_condition, dimensions };
+  const bounds = dimensionBounds(model);
+  const dimensions: ScoreDimensionRef[] = [];
+  for (const dim of [...new Set([...Object.keys(dimAnswers), ...unscoredDims])].sort()) {
+    const notScored = (reason: string) => warnings.push({ code: 'DIMENSION_NOT_SCORED', message: `${dim}: ${reason}` });
+    const answers = dimAnswers[dim];
+    if (!answers) {
+      notScored("none of the form's answers to it declares a score");
+      continue;
+    }
+    const { method, reason } = declaredMethod(model, dim);
+    if (!method) {
+      notScored(reason ?? '');
+      continue;
+    }
+    const b = bounds[dim] ?? { min: 0, max: 0 };
+    if (b.max <= b.min) {
+      notScored(`the form's declared scores give no usable range (min ${b.min}, max ${b.max})`);
+      continue;
+    }
+    dimensions.push({ key: dim, min_score: Math.round(b.min), max_score: Math.round(b.max), calculation_method: method as CalculationMethod, answers });
+  }
+  return { answer_list, customer_condition, dimensions, warnings };
 }
 
-/** Per-dimension raw score contributions from a set of SurveyJS answers. */
-export function scoreSurveyAnswers(
-  model: SurveyJSModel,
-  data: Record<string, unknown>
-): Record<string, number[]> {
-  const byDimension: Record<string, number[]> = {};
-  const push = (dim: string | undefined, n: number) => {
-    if (!dim) return;
-    (byDimension[dim] ??= []).push(n);
-  };
-
-  for (const el of flattenElements(model)) {
-    const answer = data[el.name];
-    if (answer == null || answer === '') continue;
-
-    if (el.type === 'boolean') {
-      const on = answer === true || answer === 'true';
-      push(el.dimension, on ? el.scoreTrue ?? 1 : el.scoreFalse ?? 0);
-      continue;
-    }
-
-    if (CHOICE_SURVEYJS_TYPES.has(el.type) && el.choices?.length) {
-      const picked = (Array.isArray(answer) ? answer : [answer]).map(String);
-      for (const c of el.choices) {
-        const choice = typeof c === 'string' ? { value: c, text: c } : c;
-        if (picked.includes(String(choice.value))) {
-          push(
-            (choice as SurveyJSChoice).dimension || el.dimension,
-            typeof (choice as SurveyJSChoice).score === 'number'
-              ? ((choice as SurveyJSChoice).score as number)
-              : 0
-          );
-        }
-      }
-      continue;
-    }
-
-    // matrix — answer is { rowValue: columnValue }; each answered row adds its
-    // picked column's score to the question's dimension.
-    if (el.type === 'matrix' && el.columns?.length && typeof answer === 'object') {
-      const cols = el.columns.map((c) =>
-        typeof c === 'string' ? { value: c, text: c } : c
-      );
-      for (const colVal of Object.values(answer as Record<string, unknown>)) {
-        const col = cols.find((c) => String(c.value) === String(colVal));
-        if (col) {
-          push(
-            el.dimension,
-            typeof (col as SurveyJSChoice).score === 'number'
-              ? ((col as SurveyJSChoice).score as number)
-              : 0
-          );
-        }
-      }
-      continue;
-    }
-
-    // rating / slider / text(number) — the value itself is the score.
-    const n = Number(answer);
-    if (!Number.isNaN(n)) push(el.dimension, n);
-  }
-  return byDimension;
+/** Per-dimension raw score contributions, for the dimensions core would score. */
+export function scoreSurveyAnswers(model: SurveyJSModel, data: Record<string, unknown>): Record<string, number[]> {
+  return Object.fromEntries(buildScoreRequest(model, data).dimensions.map((d) => [d.key, d.answers]));
 }

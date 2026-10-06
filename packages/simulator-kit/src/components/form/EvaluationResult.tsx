@@ -1,5 +1,5 @@
 'use client';
-import type { EvaluationOutput, GradingTier } from '../../lib/types/form';
+import type { AnswerRow, EvaluationOutput, GradingTier } from '../../lib/types/form';
 import { dimensionRows } from '../../lib/breakdown';
 import { card, eyebrow } from '../ui';
 import { useLang } from '../../lib/i18n';
@@ -17,7 +17,7 @@ export function EvaluationResult({ r }: { r: EvaluationOutput }) {
   const conditions = Object.entries(r.customer_condition && typeof r.customer_condition === 'object' ? r.customer_condition : {}).filter(([, v]) => v === true);
   const subs = Object.entries(r.sub_classification && typeof r.sub_classification === 'object' ? r.sub_classification : {});
   const vision = Object.entries(r.vision_signals_used && typeof r.vision_signals_used === 'object' ? r.vision_signals_used : {});
-  const answers = list<{ question?: string; answer?: unknown; score?: number }>(r.answer_list).filter((a) => typeof a === 'object');
+  const answers = list<AnswerRow>(r.answer_list).filter((a) => typeof a === 'object');
   const profile = r.skin_profile ?? {};
   const axes = Object.entries(profile.axis_values && typeof profile.axis_values === 'object' ? profile.axis_values : {});
 
@@ -142,7 +142,9 @@ export function EvaluationResult({ r }: { r: EvaluationOutput }) {
                   <tr key={`${a.question}-${i}`} className="border-t border-zinc-100 first:border-t-0">
                     <td className="w-24 px-3 py-2 font-mono text-zinc-500">{dash(a.question)}</td>
                     <td className="px-3 py-2">{Array.isArray(a.answer) ? a.answer.join(', ') : dash(a.answer)}</td>
-                    <td className="px-3 py-2 text-right font-semibold tabular-nums">{num(a.score, 0)}</td>
+                    <td className="px-3 py-2 text-right font-semibold tabular-nums">
+                      {a.score === null ? <span className="text-[11px] font-normal text-zinc-400">{t('not scored', 'tidak dinilai')}</span> : num(a.score, 0)}
+                    </td>
                   </tr>
                 ))}
               </tbody>

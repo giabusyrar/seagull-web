@@ -76,11 +76,15 @@ const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 const slugify = (v: string) =>
   v.toLowerCase().trim().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").replace(/_{2,}/g, "_");
 
+// No score until the author gives one: core scores only declared scores, and
+// an option without one is not scored (not counted as 0).
 const newOption = (): QuestionOption => ({
   label: "",
   value: `opt_${Math.random().toString(36).slice(2, 8)}`,
-  score: 0,
 });
+
+/** A score box's text as a score: blank (or a lone "-") means no score. */
+const parseScore = (v: string): number | undefined => (v === "" || v === "-" ? undefined : parseInt(v, 10));
 
 const newQuestion = (dimension: string): QuestionItem => ({
   id: `q_${Math.random().toString(36).slice(2, 9)}`,
@@ -806,17 +810,14 @@ export const QuestionnaireModal: React.FC<QuestionnaireModalProps> = ({
                                   <input
                                     type="text"
                                     inputMode="numeric"
-                                    value={
-                                      scoreDrafts[`${q.id}:${k}`] ??
-                                      String(q[k] ?? (k === "scoreTrue" ? 1 : 0))
-                                    }
+                                    value={scoreDrafts[`${q.id}:${k}`] ?? (q[k] != null ? String(q[k]) : "")}
+                                    placeholder="none"
+                                    title="Blank: this answer is not scored"
                                     onChange={(e) => {
                                       const v = e.target.value;
                                       if (!/^-?\d*$/.test(v)) return;
                                       setScoreDrafts((d) => ({ ...d, [`${q.id}:${k}`]: v }));
-                                      updateQuestion(q.id, {
-                                        [k]: v === "" || v === "-" ? 0 : parseInt(v, 10),
-                                      });
+                                      updateQuestion(q.id, { [k]: parseScore(v) });
                                     }}
                                     onBlur={() =>
                                       setScoreDrafts((d) => {
@@ -957,14 +958,14 @@ export const QuestionnaireModal: React.FC<QuestionnaireModalProps> = ({
                                     <input
                                       type="text"
                                       inputMode="numeric"
-                                      value={scoreDrafts[`${q.id}:${idx}`] ?? String(o.score ?? 0)}
+                                      value={scoreDrafts[`${q.id}:${idx}`] ?? (o.score != null ? String(o.score) : "")}
+                                      placeholder="—"
+                                      title="Blank: this answer is not scored"
                                       onChange={(e) => {
                                         const v = e.target.value;
                                         if (!/^-?\d*$/.test(v)) return;
                                         setScoreDrafts((d) => ({ ...d, [`${q.id}:${idx}`]: v }));
-                                        updateOption(q.id, idx, {
-                                          score: v === "" || v === "-" ? 0 : parseInt(v, 10),
-                                        });
+                                        updateOption(q.id, idx, { score: parseScore(v) });
                                       }}
                                       onBlur={() =>
                                         setScoreDrafts((d) => {

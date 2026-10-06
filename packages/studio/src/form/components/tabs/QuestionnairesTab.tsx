@@ -160,9 +160,13 @@ export const QuestionnairesTab: React.FC<QuestionnairesTabProps> = ({
                                 className="rounded border border-border px-2 py-1 flex items-center justify-between text-xs"
                               >
                                 <span className="text-muted-foreground truncate pr-2">{opt.label}</span>
-                                <span className="text-foreground font-mono shrink-0">
-                                  {(opt.score ?? 0) > 0 ? '+' : ''}{opt.score ?? 0}
-                                </span>
+                                {opt.score != null ? (
+                                  <span className="text-foreground font-mono shrink-0">
+                                    {opt.score > 0 ? '+' : ''}{opt.score}
+                                  </span>
+                                ) : (
+                                  <span className="text-muted-foreground text-[10px] shrink-0">not scored</span>
+                                )}
                               </div>
                             ))}
                           </div>

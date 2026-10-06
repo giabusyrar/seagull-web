@@ -551,8 +551,8 @@ var ReferenceFormModal = ({
         if (f.type === "number" || ["minScore", "maxScore", "weight", "orderIndex"].includes(f.key)) {
           const raw = payload[f.key];
           if (raw !== void 0 && raw !== null && raw !== "") {
-            const num = Number(raw);
-            payload[f.key] = isNaN(num) ? 0 : num;
+            const num2 = Number(raw);
+            payload[f.key] = isNaN(num2) ? 0 : num2;
           } else if (f.key === "maxScore") {
             payload[f.key] = 100;
           } else if (f.key === "minScore" || f.key === "weight" || f.key === "orderIndex") {
@@ -1581,11 +1581,11 @@ function fromPFormSchema(raw) {
     const id = q.id || q.name || q.key || `pform_q${i + 1}`;
     const rawChoices = q.choices ?? q.options ?? q.answers ?? [];
     const options = rawChoices.map((c, ci) => {
-      const obj = typeof c === "string" ? { label: c } : c;
+      const obj2 = typeof c === "string" ? { label: c } : c;
       return {
-        label: obj.label ?? obj.text ?? obj.title ?? obj.value ?? `Option ${ci + 1}`,
-        value: obj.value ?? `${id}_${ci}`,
-        score: typeof obj.score === "number" ? obj.score : 0
+        label: obj2.label ?? obj2.text ?? obj2.title ?? obj2.value ?? `Option ${ci + 1}`,
+        value: obj2.value ?? `${id}_${ci}`,
+        score: typeof obj2.score === "number" ? obj2.score : 0
       };
     });
     const type = PFORM_TYPE_MAP[(q.type || "").toLowerCase()] || (options.length ? "single_choice" : "numeric_input");
@@ -1761,10 +1761,10 @@ var QuestionnairesTab = ({
                   className: "rounded border border-border px-2 py-1 flex items-center justify-between text-xs",
                   children: [
                     /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "text-muted-foreground truncate pr-2", children: opt.label }),
-                    /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("span", { className: "text-foreground font-mono shrink-0", children: [
-                      (opt.score ?? 0) > 0 ? "+" : "",
-                      opt.score ?? 0
-                    ] })
+                    opt.score != null ? /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("span", { className: "text-foreground font-mono shrink-0", children: [
+                      opt.score > 0 ? "+" : "",
+                      opt.score
+                    ] }) : /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "text-muted-foreground text-[10px] shrink-0", children: "not scored" })
                   ]
                 },
                 oi
@@ -1810,14 +1810,6 @@ var SURVEYJS_TO_TYPE = {
   matrix: "matrix",
   text: "numeric_input"
 };
-var CHOICE_SURVEYJS_TYPES = /* @__PURE__ */ new Set([
-  "radiogroup",
-  "checkbox",
-  "dropdown",
-  "tagbox",
-  "buttongroup",
-  "ranking"
-]);
 var CHOICE_BUILDER_TYPES = /* @__PURE__ */ new Set([
   "single_choice",
   "multi_choice",
@@ -1833,17 +1825,17 @@ function toSurveyModel(item) {
       el.isRequired = true;
     }
     if (q.dimension) el.dimension = q.dimension;
-    const asChoice = (o) => ({
+    const asChoice2 = (o) => ({
       value: o.value,
       text: o.label,
       ...o.score != null ? { score: o.score } : {},
       ...o.conditionMap && Object.keys(o.conditionMap).length ? { condition_map: o.conditionMap } : {}
     });
     if (CHOICE_BUILDER_TYPES.has(q.type)) {
-      el.choices = (q.options ?? []).map(asChoice);
+      el.choices = (q.options ?? []).map(asChoice2);
     }
     if (q.type === "matrix") {
-      el.columns = (q.options ?? []).map(asChoice);
+      el.columns = (q.options ?? []).map(asChoice2);
       el.rows = (q.rows ?? []).map((r) => ({ value: r.value, text: r.label }));
     }
     if (q.type === "boolean") {
@@ -1933,122 +1925,164 @@ function fromSurveyModel(raw) {
     questionsCount: questions.length
   };
 }
+var CHOICE_SINGLE = /* @__PURE__ */ new Set(["radiogroup", "dropdown", "buttongroup", "imagepicker"]);
+var CHOICE_MULTI = /* @__PURE__ */ new Set(["checkbox", "tagbox", "ranking"]);
+var KNOWN_METHODS = /* @__PURE__ */ new Set(["sum", "average", "mean", "highest", "max", "lowest", "min", "boolean_or", "boolean_and"]);
+var WIDEST_RANGE_METHODS = /* @__PURE__ */ new Set(["average", "mean", "boolean_or", "boolean_and", "highest", "max", "lowest", "min"]);
+function coreQuestions(model) {
+  const fromPages = (model.pages ?? []).flatMap((p) => p?.elements ?? []);
+  return fromPages.length ? fromPages : model.elements ?? [];
+}
+var asChoice = (c) => typeof c === "string" ? { value: c, text: c } : c;
+var hasScore = (c) => typeof c.score === "number";
+var isScaleType = (q) => q.type === "rating" || q.type === "slider" || q.type === "text" && q.inputType === "number";
+var choiceDim = (q, c) => c?.dimension ? c.dimension : q.dimension ?? "";
+var quote = (v) => JSON.stringify(v);
+function declaredMethod(model, dim) {
+  const m = (model.calculation_methods ?? {})[dim];
+  if (!m) return { reason: "the form declares no calculation method for it in calculation_methods" };
+  if (!KNOWN_METHODS.has(m.toLowerCase())) return { reason: `the form's calculation method ${quote(m)} is not one the Score Module implements` };
+  return { method: m };
+}
+function scoredRange(choices) {
+  const scores = choices.filter(hasScore).map((c) => c.score);
+  return scores.length ? { min: Math.min(...scores), max: Math.max(...scores) } : null;
+}
+function dimensionBounds(model) {
+  const perDim = {};
+  const add = (dim, min, max) => {
+    if (dim) (perDim[dim] ?? (perDim[dim] = [])).push({ min, max });
+  };
+  for (const q of coreQuestions(model)) {
+    const choices = (q.choices ?? []).map(asChoice);
+    if (CHOICE_SINGLE.has(q.type)) {
+      const r = scoredRange(choices);
+      if (r) add(q.dimension, r.min, r.max);
+      for (const c of choices) if (c.dimension && hasScore(c)) add(c.dimension, Math.min(0, c.score), Math.max(0, c.score));
+    } else if (q.type === "checkbox" || q.type === "tagbox") {
+      const lo = {};
+      const hi = {};
+      for (const c of choices) {
+        const dim = choiceDim(q, c);
+        if (!hasScore(c) || !dim) continue;
+        lo[dim] ?? (lo[dim] = 0);
+        hi[dim] ?? (hi[dim] = 0);
+        if (c.score < 0) lo[dim] += c.score;
+        else hi[dim] += c.score;
+      }
+      for (const dim of Object.keys(lo)) add(dim, lo[dim], hi[dim]);
+    } else if (q.type === "ranking") {
+      const sum = {};
+      for (const c of choices) {
+        const dim = choiceDim(q, c);
+        if (hasScore(c) && dim) sum[dim] = (sum[dim] ?? 0) + c.score;
+      }
+      for (const [dim, v] of Object.entries(sum)) add(dim, v, v);
+    } else if (q.type === "boolean") {
+      const sides = [q.scoreTrue, q.scoreFalse].filter((v) => typeof v === "number");
+      if (sides.length) add(q.dimension, Math.min(...sides), Math.max(...sides));
+    } else if (q.type === "matrix") {
+      if (!q.rows?.length) continue;
+      const r = scoredRange((q.columns ?? []).map(asChoice));
+      if (r) add(q.dimension, r.min * q.rows.length, r.max * q.rows.length);
+    } else if (isScaleType(q)) {
+      if (q.scale) add(q.dimension, q.scale.min, q.scale.max);
+    }
+  }
+  const out = {};
+  for (const [dim, ranges] of Object.entries(perDim)) {
+    const { method } = declaredMethod(model, dim);
+    if (!method) continue;
+    out[dim] = WIDEST_RANGE_METHODS.has(method.toLowerCase()) ? ranges.reduce((b, r) => ({ min: Math.min(b.min, r.min), max: Math.max(b.max, r.max) })) : ranges.reduce((b, r) => ({ min: b.min + r.min, max: b.max + r.max }), { min: 0, max: 0 });
+  }
+  return out;
+}
 function buildScoreRequest(model, data) {
   const answer_list = [];
   const customer_condition = {};
+  const warnings = [];
   const dimAnswers = {};
-  const dimBounds = {};
-  const bump = (dim, score, min, max) => {
+  const unscoredDims = /* @__PURE__ */ new Set();
+  const record = (dim, score, q, text, reason) => {
     if (!dim) return;
+    if (score === null) {
+      unscoredDims.add(dim);
+      warnings.push({ code: "ANSWER_NOT_SCORED", message: `${q}: answer ${quote(text)} is not scored: ${reason}` });
+      return;
+    }
     (dimAnswers[dim] ?? (dimAnswers[dim] = [])).push(score);
-    const b = dimBounds[dim] ?? (dimBounds[dim] = { min: 0, max: 0 });
-    if (min < b.min) b.min = min;
-    if (max > b.max) b.max = max;
   };
-  const scaleOf = (el) => [
-    el.scale?.min ?? el.rateMin ?? el.min ?? 0,
-    el.scale?.max ?? el.rateMax ?? el.max ?? 0
-  ];
-  const asChoice = (c) => typeof c === "string" ? { value: c, text: c } : c;
-  for (const el of flattenElements(model)) {
-    const ans = data[el.name];
-    if (ans == null || ans === "") continue;
-    const [minS, maxS] = scaleOf(el);
-    if (el.type === "boolean") {
-      const on = ans === true || ans === "true";
-      const score = on ? el.scoreTrue ?? 1 : el.scoreFalse ?? 0;
-      answer_list.push({ answer: String(on), score, min_score: minS, max_score: maxS || 1 });
-      bump(el.dimension, score, minS, maxS || 1);
-      continue;
-    }
-    if (CHOICE_SURVEYJS_TYPES.has(el.type) && el.choices?.length) {
-      const picked = (Array.isArray(ans) ? ans : [ans]).map(String);
-      for (const raw of el.choices) {
-        const ch = asChoice(raw);
-        if (!picked.includes(String(ch.value))) continue;
-        const score = typeof ch.score === "number" ? ch.score : 0;
-        answer_list.push({ answer: ch.text ?? String(ch.value), score, min_score: minS, max_score: maxS });
-        if (ch.condition_map) Object.assign(customer_condition, ch.condition_map);
-        bump(ch.dimension || el.dimension, score, minS, maxS);
-      }
-      continue;
-    }
-    if (el.type === "matrix" && el.columns?.length && typeof ans === "object") {
-      const cols = el.columns.map(asChoice);
-      for (const colVal of Object.values(ans)) {
-        const col = cols.find((c) => String(c.value) === String(colVal));
+  const entry = (q, answer, score) => answer_list.push({ question: q.name, answer, score, min_score: q.scale?.min ?? 0, max_score: q.scale?.max ?? 0 });
+  const resolveChoice = (q, value) => {
+    const ch = (q.choices ?? []).map(asChoice).find((c) => String(c.value) === value);
+    if (!ch) return;
+    const score = hasScore(ch) ? ch.score : null;
+    entry(q, ch.text ?? "", score);
+    if (ch.condition_map) Object.assign(customer_condition, ch.condition_map);
+    record(choiceDim(q, ch), score, q.name, ch.text ?? "", `option ${quote(String(ch.value))} declares no score`);
+  };
+  for (const q of coreQuestions(model)) {
+    if (!(q.name in data)) continue;
+    const ans = data[q.name];
+    if (CHOICE_SINGLE.has(q.type)) {
+      resolveChoice(q, String(ans));
+    } else if (CHOICE_MULTI.has(q.type)) {
+      for (const v of Array.isArray(ans) ? ans : [ans]) resolveChoice(q, String(v));
+    } else if (q.type === "boolean") {
+      const on = ans === true;
+      const score = (on ? q.scoreTrue : q.scoreFalse) ?? null;
+      entry(q, String(on), score);
+      record(choiceDim(q), score, q.name, String(on), `the question declares no ${on ? "scoreTrue" : "scoreFalse"}`);
+    } else if (q.type === "matrix") {
+      if (!ans || typeof ans !== "object" || Array.isArray(ans)) continue;
+      const cols = (q.columns ?? []).map(asChoice);
+      const noRows = !q.rows?.length;
+      for (const row of Object.keys(ans).sort()) {
+        const col = cols.find((c) => String(c.value) === String(ans[row]));
         if (!col) continue;
-        const score = typeof col.score === "number" ? col.score : 0;
-        answer_list.push({ answer: col.text ?? String(col.value), score, min_score: minS, max_score: maxS });
-        bump(el.dimension, score, minS, maxS);
+        const score = noRows || !hasScore(col) ? null : col.score;
+        entry(q, col.text ?? "", score);
+        record(
+          choiceDim(q, col),
+          score,
+          q.name,
+          col.text ?? "",
+          noRows ? "the matrix declares no rows" : `column ${quote(String(col.value))} declares no score`
+        );
       }
-      continue;
-    }
-    const n = Number(ans);
-    if (!Number.isNaN(n)) {
-      answer_list.push({ answer: String(n), score: n, min_score: minS, max_score: maxS });
-      bump(el.dimension, n, minS, maxS);
+    } else if (isScaleType(q)) {
+      if (typeof ans !== "number" || !Number.isFinite(ans)) continue;
+      const n = Math.trunc(ans);
+      const score = q.scale ? n : null;
+      entry(q, String(n), score);
+      record(choiceDim(q), score, q.name, String(n), "the question declares no scale");
     }
   }
-  const methods = model.calculation_methods || {};
-  const dimensions = Object.entries(dimAnswers).map(([key, answers]) => {
-    const b = dimBounds[key] || { min: 0, max: 0 };
-    return {
-      key,
-      min_score: b.min,
-      max_score: b.max || 100,
-      calculation_method: methods[key] || "sum",
-      answers
-    };
-  });
-  return { answer_list, customer_condition, dimensions };
+  const bounds = dimensionBounds(model);
+  const dimensions = [];
+  for (const dim of [.../* @__PURE__ */ new Set([...Object.keys(dimAnswers), ...unscoredDims])].sort()) {
+    const notScored = (reason2) => warnings.push({ code: "DIMENSION_NOT_SCORED", message: `${dim}: ${reason2}` });
+    const answers = dimAnswers[dim];
+    if (!answers) {
+      notScored("none of the form's answers to it declares a score");
+      continue;
+    }
+    const { method, reason } = declaredMethod(model, dim);
+    if (!method) {
+      notScored(reason ?? "");
+      continue;
+    }
+    const b = bounds[dim] ?? { min: 0, max: 0 };
+    if (b.max <= b.min) {
+      notScored(`the form's declared scores give no usable range (min ${b.min}, max ${b.max})`);
+      continue;
+    }
+    dimensions.push({ key: dim, min_score: Math.round(b.min), max_score: Math.round(b.max), calculation_method: method, answers });
+  }
+  return { answer_list, customer_condition, dimensions, warnings };
 }
 function scoreSurveyAnswers(model, data) {
-  const byDimension = {};
-  const push = (dim, n) => {
-    if (!dim) return;
-    (byDimension[dim] ?? (byDimension[dim] = [])).push(n);
-  };
-  for (const el of flattenElements(model)) {
-    const answer = data[el.name];
-    if (answer == null || answer === "") continue;
-    if (el.type === "boolean") {
-      const on = answer === true || answer === "true";
-      push(el.dimension, on ? el.scoreTrue ?? 1 : el.scoreFalse ?? 0);
-      continue;
-    }
-    if (CHOICE_SURVEYJS_TYPES.has(el.type) && el.choices?.length) {
-      const picked = (Array.isArray(answer) ? answer : [answer]).map(String);
-      for (const c of el.choices) {
-        const choice = typeof c === "string" ? { value: c, text: c } : c;
-        if (picked.includes(String(choice.value))) {
-          push(
-            choice.dimension || el.dimension,
-            typeof choice.score === "number" ? choice.score : 0
-          );
-        }
-      }
-      continue;
-    }
-    if (el.type === "matrix" && el.columns?.length && typeof answer === "object") {
-      const cols = el.columns.map(
-        (c) => typeof c === "string" ? { value: c, text: c } : c
-      );
-      for (const colVal of Object.values(answer)) {
-        const col = cols.find((c) => String(c.value) === String(colVal));
-        if (col) {
-          push(
-            el.dimension,
-            typeof col.score === "number" ? col.score : 0
-          );
-        }
-      }
-      continue;
-    }
-    const n = Number(answer);
-    if (!Number.isNaN(n)) push(el.dimension, n);
-  }
-  return byDimension;
+  return Object.fromEntries(buildScoreRequest(model, data).dimensions.map((d) => [d.key, d.answers]));
 }
 
 // src/form/survey-theme.ts
@@ -2145,7 +2179,7 @@ var FormSimulatorTab = ({
     return () => survey.onValueChanged.remove(onValue);
   }, [survey, setData]);
   const core = (0, import_react5.useMemo)(
-    () => schema ? buildScoreRequest(schema, data) : { answer_list: [], customer_condition: {}, dimensions: [] },
+    () => schema ? buildScoreRequest(schema, data) : { answer_list: [], customer_condition: {}, dimensions: [], warnings: [] },
     [schema, data]
   );
   const results = core.dimensions.map((d) => ({
@@ -2201,6 +2235,11 @@ var FormSimulatorTab = ({
           /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("h3", { className: "text-foreground text-sm font-bold", children: "Score per dimension" }),
           /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { className: "text-[11px] text-muted-foreground", children: "Form Engine output" })
         ] }),
+        core.warnings.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("ul", { className: "space-y-1 rounded-md border border-amber-300/60 bg-amber-50 p-2.5 text-[11px] text-amber-900 dark:bg-amber-950/30 dark:text-amber-200 [overflow-wrap:anywhere]", children: core.warnings.map((w, i) => /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("li", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { className: "font-mono font-semibold", children: w.code === "DIMENSION_NOT_SCORED" ? "Not scored" : "Answer not scored" }),
+          " \u2014 ",
+          w.message
+        ] }, i)) }),
         results.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
           import_shared7.EmptyState,
           {
@@ -2473,9 +2512,9 @@ var clone = (v) => JSON.parse(JSON.stringify(v));
 var slugify = (v) => v.toLowerCase().trim().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").replace(/_{2,}/g, "_");
 var newOption = () => ({
   label: "",
-  value: `opt_${Math.random().toString(36).slice(2, 8)}`,
-  score: 0
+  value: `opt_${Math.random().toString(36).slice(2, 8)}`
 });
+var parseScore = (v) => v === "" || v === "-" ? void 0 : parseInt(v, 10);
 var newQuestion = (dimension) => ({
   id: `q_${Math.random().toString(36).slice(2, 9)}`,
   type: "single_choice",
@@ -3087,14 +3126,14 @@ var QuestionnaireModal = ({
                             {
                               type: "text",
                               inputMode: "numeric",
-                              value: scoreDrafts[`${q.id}:${k}`] ?? String(q[k] ?? (k === "scoreTrue" ? 1 : 0)),
+                              value: scoreDrafts[`${q.id}:${k}`] ?? (q[k] != null ? String(q[k]) : ""),
+                              placeholder: "none",
+                              title: "Blank: this answer is not scored",
                               onChange: (e) => {
                                 const v = e.target.value;
                                 if (!/^-?\d*$/.test(v)) return;
                                 setScoreDrafts((d) => ({ ...d, [`${q.id}:${k}`]: v }));
-                                updateQuestion(q.id, {
-                                  [k]: v === "" || v === "-" ? 0 : parseInt(v, 10)
-                                });
+                                updateQuestion(q.id, { [k]: parseScore(v) });
                               },
                               onBlur: () => setScoreDrafts((d) => {
                                 const n = { ...d };
@@ -3230,14 +3269,14 @@ var QuestionnaireModal = ({
                               {
                                 type: "text",
                                 inputMode: "numeric",
-                                value: scoreDrafts[`${q.id}:${idx}`] ?? String(o.score ?? 0),
+                                value: scoreDrafts[`${q.id}:${idx}`] ?? (o.score != null ? String(o.score) : ""),
+                                placeholder: "\u2014",
+                                title: "Blank: this answer is not scored",
                                 onChange: (e) => {
                                   const v = e.target.value;
                                   if (!/^-?\d*$/.test(v)) return;
                                   setScoreDrafts((d) => ({ ...d, [`${q.id}:${idx}`]: v }));
-                                  updateOption(q.id, idx, {
-                                    score: v === "" || v === "-" ? 0 : parseInt(v, 10)
-                                  });
+                                  updateOption(q.id, idx, { score: parseScore(v) });
                                 },
                                 onBlur: () => setScoreDrafts((d) => {
                                   const next = { ...d };
@@ -3584,15 +3623,13 @@ var import_survey_core2 = require("survey-core");
 var import_survey_react_ui2 = require("survey-react-ui");
 var import_jsx_runtime10 = require("react/jsx-runtime");
 function computeDimensions(schema, data) {
-  const byDimension = scoreSurveyAnswers(schema, data);
-  const methods = schema.calculation_methods || {};
-  return Object.entries(byDimension).map(([code, raw]) => {
-    const method = methods[code] || "sum";
+  return buildScoreRequest(schema, data).dimensions.map((d) => {
+    const method = d.calculation_method;
     return {
-      code,
+      code: d.key,
       calculation_method: method,
-      score: Math.round(applyCalculationMethod(raw, method) * 100) / 100,
-      raw_scores: raw
+      score: Math.round(applyCalculationMethod(d.answers, method) * 100) / 100,
+      raw_scores: d.answers
     };
   });
 }
@@ -4751,14 +4788,14 @@ var BlendingTab = ({
       sourceNames.map((name) => {
         const s = sources[name];
         const scale = s.scale || [NaN, NaN];
-        const num = (v) => Number.isFinite(v) ? v : "";
+        const num2 = (v) => Number.isFinite(v) ? v : "";
         return /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "flex flex-wrap items-center gap-2", children: [
           /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "w-24 truncate font-mono text-xs font-semibold text-foreground", children: name }),
           /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("label", { className: "flex items-center gap-1 text-[10px] text-muted-foreground", children: [
             "scale",
-            /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("input", { type: "number", value: num(scale[0]), onChange: (e) => updateSource(name, { scale: [e.target.value === "" ? NaN : Number(e.target.value), scale[1]] }), className: fieldCls2 + " w-20 text-center", "aria-label": `${name} scale minimum` }),
+            /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("input", { type: "number", value: num2(scale[0]), onChange: (e) => updateSource(name, { scale: [e.target.value === "" ? NaN : Number(e.target.value), scale[1]] }), className: fieldCls2 + " w-20 text-center", "aria-label": `${name} scale minimum` }),
             "\u2013",
-            /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("input", { type: "number", value: num(scale[1]), onChange: (e) => updateSource(name, { scale: [scale[0], e.target.value === "" ? NaN : Number(e.target.value)] }), className: fieldCls2 + " w-20 text-center", "aria-label": `${name} scale maximum` })
+            /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("input", { type: "number", value: num2(scale[1]), onChange: (e) => updateSource(name, { scale: [scale[0], e.target.value === "" ? NaN : Number(e.target.value)] }), className: fieldCls2 + " w-20 text-center", "aria-label": `${name} scale maximum` })
           ] }),
           /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("select", { value: s.direction || "", onChange: (e) => updateSource(name, { direction: e.target.value }), className: fieldCls2, "aria-label": `${name} direction`, children: [
             /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("option", { value: "", children: "\u2014 direction \u2014" }),
@@ -7389,6 +7426,9 @@ var MatchSimulatorTab = ({
       });
     }
   }
+  const unfilled = Object.entries(simResult?.regimens?.unfilledSlots ?? {}).flatMap(
+    ([phase, slots]) => slots.map((slot) => ({ phase, slot }))
+  );
   return /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)("div", { className: "grid grid-cols-1 lg:grid-cols-12 gap-6", children: [
     /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("div", { className: "lg:col-span-4 space-y-4", children: /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)("div", { className: "bg-card border border-border rounded-lg p-5 space-y-4", children: [
       /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)("div", { className: "flex items-center justify-between border-b border-border pb-3", children: [
@@ -7471,10 +7511,14 @@ var MatchSimulatorTab = ({
       /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)("div", { className: "bg-card border border-border rounded-lg p-5 flex items-center justify-between", children: [
         /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)("div", { children: [
           /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)("div", { className: "flex items-center gap-2", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("span", { className: "bg-emerald-950/60 text-emerald-400 border border-emerald-800/40 text-xs font-mono font-bold px-2 py-0.5 rounded", children: simResult.profileSummary.skinType }),
+            simResult.profileSummary.skinType && /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("span", { className: "bg-emerald-950/60 text-emerald-400 border border-emerald-800/40 text-xs font-mono font-bold px-2 py-0.5 rounded", children: simResult.profileSummary.skinType }),
             /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("h3", { className: "font-bold text-foreground text-base", children: "Personalized Prescription" })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("div", { className: "flex flex-wrap gap-2 mt-2", children: simResult.profileSummary.primaryConcerns.map((c, i) => /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("span", { className: "text-[10px] bg-muted text-foreground px-2 py-0.5 rounded border border-border", children: c }, i)) })
+          !simResult.profileSummary.skinType && simResult.profileSummary.skinTypeUnavailable && /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)("p", { className: "text-xs text-muted-foreground mt-1", children: [
+            "No skin type: ",
+            simResult.profileSummary.skinTypeUnavailable
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("div", { className: "flex flex-wrap gap-2 mt-2", children: (simResult.profileSummary.primaryConcerns ?? []).map((c, i) => /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("span", { className: "text-[10px] bg-muted text-foreground px-2 py-0.5 rounded border border-border", children: c }, i)) })
         ] }),
         typeof simResult.profileSummary.overallSuitabilityScore === "number" && /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)("div", { className: "text-right", children: [
           /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("span", { className: "text-[10px] text-muted-foreground font-bold uppercase tracking-wider block", children: "Clinical Match" }),
@@ -7484,23 +7528,22 @@ var MatchSimulatorTab = ({
           ] })
         ] })
       ] }),
-      simResult.clinicalConflictMatrix.layeringRulesApplied.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)("div", { className: "bg-amber-950/20 border border-amber-800/40 rounded-lg p-4 space-y-2", children: [
+      (simResult.clinicalConflictMatrix.layeringRulesApplied?.length ?? 0) > 0 && /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)("div", { className: "bg-amber-950/20 border border-amber-800/40 rounded-lg p-4 space-y-2", children: [
         /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)("div", { className: "flex items-center gap-2 text-amber-400 font-bold text-xs", children: [
           /* @__PURE__ */ (0, import_jsx_runtime23.jsx)(import_lucide_react20.AlertTriangle, { className: "h-4 w-4" }),
           /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)("span", { children: [
-            "Clinical Conflict Matrix Directives (",
-            simResult.clinicalConflictMatrix.conflictsDetected,
-            " detected)"
+            "Clinical Conflict Matrix Directives",
+            typeof simResult.clinicalConflictMatrix.conflictsDetected === "number" && ` (${simResult.clinicalConflictMatrix.conflictsDetected} detected)`
           ] })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("ul", { className: "space-y-1 text-xs text-amber-200/90 pl-6 list-disc", children: simResult.clinicalConflictMatrix.layeringRulesApplied.map((rule, idx) => /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("li", { children: rule }, idx)) })
+        /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("ul", { className: "space-y-1 text-xs text-amber-200/90 pl-6 list-disc", children: (simResult.clinicalConflictMatrix.layeringRulesApplied ?? []).map((rule, idx) => /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("li", { children: rule }, idx)) })
       ] }),
       routinePhases.map((phase) => /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)("div", { className: "space-y-3", children: [
         /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)("h4", { className: "font-bold text-foreground text-xs uppercase tracking-wider flex items-center gap-2", children: [
           getPhaseIcon(phase.key),
           /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("span", { children: phase.title })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("div", { className: "space-y-2", children: phase.steps.map((step) => /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)("div", { className: "bg-card border border-border rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("div", { className: "space-y-2", children: phase.steps.flatMap((step) => step.primaryProduct ? [{ ...step, primaryProduct: step.primaryProduct }] : []).map((step) => /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)("div", { className: "bg-card border border-border rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3", children: [
           /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)("div", { className: "space-y-1.5 flex-1", children: [
             /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)("div", { className: "flex items-center gap-2 flex-wrap", children: [
               /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("span", { className: "w-5 h-5 rounded-full bg-muted text-amber-300 text-[10px] font-bold flex items-center justify-center font-mono shrink-0", children: step.stepNumber }),
@@ -7533,7 +7576,20 @@ var MatchSimulatorTab = ({
             ] })
           ] })
         ] }, step.stepNumber)) })
-      ] }, phase.key))
+      ] }, phase.key)),
+      unfilled.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)("div", { className: "bg-muted/30 border border-border rounded-lg p-4 space-y-2", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)("div", { className: "font-bold text-foreground text-xs uppercase tracking-wider", children: [
+          "Unfilled slots (",
+          unfilled.length,
+          ")"
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("ul", { className: "space-y-1 text-xs text-muted-foreground pl-5 list-disc", children: unfilled.map(({ phase, slot }, idx) => /* @__PURE__ */ (0, import_jsx_runtime23.jsxs)("li", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime23.jsx)("strong", { className: "text-foreground", children: formatPhaseTitle(phase) }),
+          slot.category && ` \xB7 ${slot.category}`,
+          slot.required && " (required)",
+          slot.reason && `: ${slot.reason}`
+        ] }, `${phase}-${slot.slotId ?? idx}`)) })
+      ] })
     ] }) : /* @__PURE__ */ (0, import_jsx_runtime23.jsx)(
       import_shared22.EmptyState,
       {
@@ -7602,21 +7658,156 @@ function resource(path, field2) {
     remove: (id, doFetch = fetch) => doFetch(ep(`${path}?id=${id}`), { method: "DELETE" })
   };
 }
-var conflictsApi = resource("/api/matching/conflicts", "conflicts");
-var productGroupsApi = resource("/api/matching/product-groups", "groups");
+var productGroupsApi = resource("/product-groups", "groups");
 var productsApi = {
-  list: (doFetch = fetch) => list(ep(withTenantScope("/api/matching/products")), "products", doFetch),
+  list: (doFetch = fetch) => list(ep(withTenantScope("/products")), "products", doFetch),
   /** One brand's products ('' means every brand). */
-  listForBrand: (brandId, doFetch = fetch) => list(ep(`/api/matching/products?brand_id=${encodeURIComponent(brandId || "*")}`), "products", doFetch)
+  listForBrand: (brandId, doFetch = fetch) => list(ep(`/products?brand_id=${encodeURIComponent(brandId || "*")}`), "products", doFetch)
+};
+var ReferenceApiError = class extends Error {
+  constructor(status, message) {
+    super(message);
+    this.status = status;
+    this.name = "ReferenceApiError";
+  }
+};
+async function ensureOk(res) {
+  if (res.ok) return res;
+  const text = await res.text();
+  let message = text || `HTTP ${res.status}`;
+  try {
+    const j = JSON.parse(text);
+    message = String(j.error || j.message || message);
+  } catch {
+  }
+  throw new ReferenceApiError(res.status, message);
+}
+function referenceResource(resource2) {
+  return {
+    list: async (routes, query = "", doFetch = fetch) => {
+      const data = await (await doFetch(routes.reference(resource2) + query)).json();
+      return Array.isArray(data.data) ? data.data : null;
+    },
+    create: async (routes, item, doFetch = fetch) => ensureOk(await sendJson(doFetch, routes.reference(resource2), "POST", item)),
+    update: async (routes, item, doFetch = fetch) => ensureOk(await sendJson(doFetch, routes.reference(resource2), "PUT", item)),
+    remove: async (routes, id, doFetch = fetch) => ensureOk(await doFetch(routes.reference(`${resource2}/${encodeURIComponent(id)}`), { method: "DELETE" }))
+  };
+}
+var conflictRules = referenceResource("ingredient-conflict-rules");
+var productShades = referenceResource("shades");
+var conflictsApi = {
+  ...conflictRules,
+  list: (routes, doFetch = fetch) => conflictRules.list(routes, "", doFetch)
 };
 var shadesApi = {
-  ...resource("/api/matching/shades", "shades"),
-  /** Shades of one product; unscoped, as the engine keys them by product. */
-  list: (productId, doFetch = fetch) => list(ep(`/api/matching/shades?product_id=${encodeURIComponent(productId)}`), "shades", doFetch)
+  ...productShades,
+  /** Shades of one product. */
+  list: (routes, productId, doFetch = fetch) => productShades.list(routes, `?productId=${encodeURIComponent(productId)}`, doFetch)
+};
+var MatchApiError = class extends Error {
+  constructor(status, message) {
+    super(message);
+    this.status = status;
+    this.name = "MatchApiError";
+  }
 };
 async function runMatch(payload, doFetch = fetch) {
-  const res = await sendJson(doFetch, ep("/api/matching/match"), "POST", payload);
-  return res.ok ? await res.json() : null;
+  const res = await sendJson(doFetch, ep("/evaluate"), "POST", payload);
+  if (!res.ok) {
+    const text = await res.text();
+    let message = text || `HTTP ${res.status}`;
+    try {
+      const j = JSON.parse(text);
+      message = String(j.error || j.message || message);
+    } catch {
+    }
+    throw new MatchApiError(res.status, message);
+  }
+  return toClinicalMatchResult(await res.json());
+}
+var obj = (v) => v && typeof v === "object" && !Array.isArray(v) ? v : void 0;
+var str = (v) => typeof v === "string" ? v : void 0;
+var num = (v) => typeof v === "number" ? v : void 0;
+var bool = (v) => typeof v === "boolean" ? v : void 0;
+var strs = (v) => Array.isArray(v) ? v.filter((x) => typeof x === "string") : void 0;
+var defined = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== void 0));
+function toProduct(v) {
+  const p = obj(v);
+  if (!p) return void 0;
+  return defined({
+    id: str(p.id),
+    name: str(p.name),
+    brand: str(p.brand),
+    category: str(p.category),
+    texture: str(p.texture),
+    matchScore: num(p.match_score),
+    whySelected: strs(p.why_selected),
+    keyActives: strs(p.key_actives),
+    imageUrl: str(p.image_url)
+  });
+}
+function toSteps(v) {
+  if (!Array.isArray(v)) return void 0;
+  return v.map((raw) => {
+    const s = obj(raw) ?? {};
+    return defined({
+      stepNumber: num(s.step_number),
+      stepName: str(s.step_name),
+      category: str(s.category),
+      recommendedTexture: str(s.recommended_texture),
+      primaryProduct: toProduct(s.primary_product),
+      alternatives: Array.isArray(s.alternatives) ? s.alternatives.map(toProduct).filter((x) => !!x) : void 0
+    });
+  });
+}
+function toUnfilled(v) {
+  if (!Array.isArray(v)) return void 0;
+  return v.map((raw) => {
+    const u = obj(raw) ?? {};
+    return defined({ slotId: str(u.slot_id), category: str(u.category), required: bool(u.required), reason: str(u.reason) });
+  });
+}
+function mapEntries(v, each) {
+  const m = obj(v);
+  if (!m) return void 0;
+  const out = {};
+  for (const [k, x] of Object.entries(m)) {
+    const mapped = each(x);
+    if (mapped !== void 0) out[k] = mapped;
+  }
+  return out;
+}
+function toClinicalMatchResult(body) {
+  const r = obj(body) ?? {};
+  const ps = obj(r.profile_summary) ?? {};
+  const rg = obj(r.regimens) ?? {};
+  const cm = obj(r.clinical_conflict_matrix) ?? {};
+  return defined({
+    matchId: str(r.match_id),
+    brandId: str(r.brand_id),
+    applicationId: str(r.application_id),
+    dryRun: bool(r.dry_run),
+    profileSummary: defined({
+      // The engine sends "" with skin_type_unavailable when it has no skin type.
+      skinType: str(ps.skin_type) || void 0,
+      profileCode: str(ps.profile_code),
+      skinTypeSource: str(ps.skin_type_source),
+      skinTypeUnavailable: str(ps.skin_type_unavailable),
+      primaryConcerns: strs(ps.primary_concerns)
+    }),
+    regimens: defined({
+      amRoutine: toSteps(rg.am_routine),
+      pmRoutine: toSteps(rg.pm_routine),
+      phases: mapEntries(rg.phases, toSteps),
+      unfilledSlots: mapEntries(rg.unfilled_slots, toUnfilled)
+    }),
+    clinicalConflictMatrix: defined({
+      conflictsDetected: num(cm.conflicts_detected),
+      layeringRulesApplied: strs(cm.layering_rules_applied),
+      warnings: strs(cm.warnings)
+    }),
+    evaluatedAt: str(r.evaluated_at)
+  });
 }
 var colourEp = (path) => resolveDynamicEndpoint("colour", path);
 var ColourApiError = class extends Error {
@@ -7652,7 +7843,7 @@ async function colourTryOn(image, shadeIds, doFetch = fetch) {
 }
 async function listReferenceIngredients(routes, doFetch = fetch) {
   const data = await (await doFetch(routes.reference("ingredients"))).json();
-  const raw = Array.isArray(data.ingredients) ? data.ingredients : Array.isArray(data) ? data : [];
+  const raw = Array.isArray(data.data) ? data.data : Array.isArray(data.ingredients) ? data.ingredients : Array.isArray(data) ? data : [];
   return raw.map((i) => ({ code: i.code || i.name, name: i.name }));
 }
 
@@ -8384,6 +8575,9 @@ var ShadeModal = ({ isOpen, onClose, onSave, editingShade, productId }) => {
 // src/match/components/MatchManager.tsx
 var import_jsx_runtime28 = require("react/jsx-runtime");
 var MatchManager = () => {
+  const hostRoutes = (0, import_shared27.useHostRoutes)();
+  const [saveError, setSaveError] = (0, import_react22.useState)(null);
+  const [simError, setSimError] = (0, import_react22.useState)(null);
   const [activeTab, setActiveTab] = (0, import_shared27.usePersistentState)("xg.matchEngine.activeTab", "conflicts");
   const [searchQuery, setSearchQuery] = (0, import_react22.useState)("");
   const [isFilterPanelOpen, setIsFilterPanelOpen] = (0, import_react22.useState)(false);
@@ -8415,7 +8609,7 @@ var MatchManager = () => {
   const [isSimulating, setIsSimulating] = (0, import_react22.useState)(false);
   const [simResult, setSimResult] = (0, import_shared27.usePersistentState)("xg.matchEngine.simulator.result", null);
   const loadData = () => {
-    conflictsApi.list().then((list2) => {
+    conflictsApi.list(hostRoutes).then((list2) => {
       if (list2) setConflicts(list2);
     }).catch(() => {
     });
@@ -8436,10 +8630,20 @@ var MatchManager = () => {
       setShades([]);
       return;
     }
-    shadesApi.list(productId).then((list2) => {
+    shadesApi.list(hostRoutes, productId).then((list2) => {
       if (list2) setShades(list2);
     }).catch(() => {
     });
+  };
+  const write = async (op) => {
+    try {
+      await op();
+      setSaveError(null);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : String(err));
+      loadData();
+      loadShades(shadeProductId);
+    }
   };
   (0, import_react22.useEffect)(() => {
     loadData();
@@ -8458,10 +8662,7 @@ var MatchManager = () => {
     if (editingConflict) {
       const updated = { ...editingConflict, ...data };
       setConflicts((prev) => prev.map((x) => x.id === editingConflict.id ? updated : x));
-      try {
-        await conflictsApi.update(updated);
-      } catch {
-      }
+      await write(() => conflictsApi.update(hostRoutes, updated));
     } else {
       const newConf = {
         id: `conf-${Date.now()}`,
@@ -8470,10 +8671,7 @@ var MatchManager = () => {
         ...data
       };
       setConflicts((prev) => [newConf, ...prev]);
-      try {
-        await conflictsApi.create(newConf);
-      } catch {
-      }
+      await write(() => conflictsApi.create(hostRoutes, newConf));
     }
   };
   const handleDeleteConflict = (id) => {
@@ -8484,10 +8682,7 @@ var MatchManager = () => {
       message: `Are you sure you want to delete ingredient conflict "${conf?.ingredientA} vs ${conf?.ingredientB}"?`,
       onConfirm: async () => {
         setConflicts((prev) => prev.filter((x) => x.id !== id));
-        try {
-          await conflictsApi.remove(id);
-        } catch {
-        }
+        await write(() => conflictsApi.remove(hostRoutes, id));
         setDeleteConfirm((prev) => ({ ...prev, isOpen: false }));
       }
     });
@@ -8532,20 +8727,14 @@ var MatchManager = () => {
     if (editingShade) {
       const updated = { ...editingShade, ...data };
       setShades((prev) => prev.map((x) => x.id === editingShade.id ? updated : x));
-      try {
-        await shadesApi.update(updated);
-      } catch {
-      }
+      await write(() => shadesApi.update(hostRoutes, updated));
     } else {
       const newShade = {
         id: `shade-${Date.now()}`,
         ...data
       };
       setShades((prev) => [newShade, ...prev]);
-      try {
-        await shadesApi.create(newShade);
-      } catch {
-      }
+      await write(() => shadesApi.create(hostRoutes, newShade));
     }
   };
   const handleDeleteShade = (id) => {
@@ -8556,10 +8745,7 @@ var MatchManager = () => {
       message: `Are you sure you want to delete shade "${shade?.name || id}"?`,
       onConfirm: async () => {
         setShades((prev) => prev.filter((x) => x.id !== id));
-        try {
-          await shadesApi.remove(id);
-        } catch {
-        }
+        await write(() => shadesApi.remove(hostRoutes, id));
         setDeleteConfirm((prev) => ({ ...prev, isOpen: false }));
       }
     });
@@ -8571,12 +8757,15 @@ var MatchManager = () => {
         brand_id: simBrand,
         application_id: selectedApp,
         dimension_scores: simScores,
-        ...simSkinType ? { skin_profile: simSkinType } : {},
+        // The engine takes the score engine's skin_profile object; with only a
+        // code, it reports that code as the skin type.
+        ...simSkinType ? { skin_profile: { code: simSkinType } } : {},
         customer_conditions: Object.fromEntries(Object.entries(simConditions).filter(([, on]) => on))
       };
-      const data = await runMatch(payload);
-      if (data) setSimResult(data);
-    } catch {
+      setSimResult(await runMatch(payload));
+      setSimError(null);
+    } catch (err) {
+      setSimError(err instanceof Error ? err.message : String(err));
     } finally {
       setIsSimulating(false);
     }
@@ -8603,6 +8792,21 @@ var MatchManager = () => {
       }
     ),
     /* @__PURE__ */ (0, import_jsx_runtime28.jsxs)("main", { className: "flex-1 p-4 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl w-full mx-auto", children: [
+      simError && activeTab === "simulator" && /* @__PURE__ */ (0, import_jsx_runtime28.jsxs)("div", { role: "alert", className: "flex items-start justify-between gap-3 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime28.jsxs)("span", { className: "break-words min-w-0", children: [
+          "Match failed: ",
+          simError
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime28.jsx)("button", { type: "button", onClick: () => setSimError(null), className: "shrink-0 underline", children: "Dismiss" })
+      ] }),
+      saveError && /* @__PURE__ */ (0, import_jsx_runtime28.jsxs)("div", { role: "alert", className: "flex items-start justify-between gap-3 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime28.jsxs)("span", { className: "break-words min-w-0", children: [
+          "Not saved: ",
+          saveError,
+          ". The list shows what is stored."
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime28.jsx)("button", { type: "button", onClick: () => setSaveError(null), className: "shrink-0 underline", children: "Dismiss" })
+      ] }),
       activeTab === "conflicts" && /* @__PURE__ */ (0, import_jsx_runtime28.jsx)(
         ConflictMatrixTab,
         {

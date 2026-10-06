@@ -89,7 +89,7 @@ export const FormSimulatorTab: React.FC<FormSimulatorTabProps> = ({
     () =>
       schema
         ? buildScoreRequest(schema, data)
-        : { answer_list: [], customer_condition: {}, dimensions: [] },
+        : { answer_list: [], customer_condition: {}, dimensions: [], warnings: [] },
     [schema, data],
   );
 
@@ -164,6 +164,16 @@ export const FormSimulatorTab: React.FC<FormSimulatorTabProps> = ({
             <h3 className="text-foreground text-sm font-bold">Score per dimension</h3>
             <span className="text-[11px] text-muted-foreground">Form Engine output</span>
           </div>
+
+          {core.warnings.length > 0 && (
+            <ul className="space-y-1 rounded-md border border-amber-300/60 bg-amber-50 p-2.5 text-[11px] text-amber-900 dark:bg-amber-950/30 dark:text-amber-200 [overflow-wrap:anywhere]">
+              {core.warnings.map((w, i) => (
+                <li key={i}>
+                  <span className="font-mono font-semibold">{w.code === 'DIMENSION_NOT_SCORED' ? 'Not scored' : 'Answer not scored'}</span> — {w.message}
+                </li>
+              ))}
+            </ul>
+          )}
 
           {results.length === 0 ? (
             <EmptyState

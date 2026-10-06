@@ -354,10 +354,10 @@ var QuestionnairesTab = ({
                   className: "rounded border border-border px-2 py-1 flex items-center justify-between text-xs",
                   children: [
                     /* @__PURE__ */ jsx("span", { className: "text-muted-foreground truncate pr-2", children: opt.label }),
-                    /* @__PURE__ */ jsxs("span", { className: "text-foreground font-mono shrink-0", children: [
-                      (opt.score ?? 0) > 0 ? "+" : "",
-                      opt.score ?? 0
-                    ] })
+                    opt.score != null ? /* @__PURE__ */ jsxs("span", { className: "text-foreground font-mono shrink-0", children: [
+                      opt.score > 0 ? "+" : "",
+                      opt.score
+                    ] }) : /* @__PURE__ */ jsx("span", { className: "text-muted-foreground text-[10px] shrink-0", children: "not scored" })
                   ]
                 },
                 oi
@@ -403,14 +403,6 @@ var SURVEYJS_TO_TYPE = {
   matrix: "matrix",
   text: "numeric_input"
 };
-var CHOICE_SURVEYJS_TYPES = /* @__PURE__ */ new Set([
-  "radiogroup",
-  "checkbox",
-  "dropdown",
-  "tagbox",
-  "buttongroup",
-  "ranking"
-]);
 var CHOICE_BUILDER_TYPES = /* @__PURE__ */ new Set([
   "single_choice",
   "multi_choice",
@@ -426,17 +418,17 @@ function toSurveyModel(item) {
       el.isRequired = true;
     }
     if (q.dimension) el.dimension = q.dimension;
-    const asChoice = (o) => ({
+    const asChoice2 = (o) => ({
       value: o.value,
       text: o.label,
       ...o.score != null ? { score: o.score } : {},
       ...o.conditionMap && Object.keys(o.conditionMap).length ? { condition_map: o.conditionMap } : {}
     });
     if (CHOICE_BUILDER_TYPES.has(q.type)) {
-      el.choices = (q.options ?? []).map(asChoice);
+      el.choices = (q.options ?? []).map(asChoice2);
     }
     if (q.type === "matrix") {
-      el.columns = (q.options ?? []).map(asChoice);
+      el.columns = (q.options ?? []).map(asChoice2);
       el.rows = (q.rows ?? []).map((r) => ({ value: r.value, text: r.label }));
     }
     if (q.type === "boolean") {
@@ -526,122 +518,164 @@ function fromSurveyModel(raw) {
     questionsCount: questions.length
   };
 }
+var CHOICE_SINGLE = /* @__PURE__ */ new Set(["radiogroup", "dropdown", "buttongroup", "imagepicker"]);
+var CHOICE_MULTI = /* @__PURE__ */ new Set(["checkbox", "tagbox", "ranking"]);
+var KNOWN_METHODS = /* @__PURE__ */ new Set(["sum", "average", "mean", "highest", "max", "lowest", "min", "boolean_or", "boolean_and"]);
+var WIDEST_RANGE_METHODS = /* @__PURE__ */ new Set(["average", "mean", "boolean_or", "boolean_and", "highest", "max", "lowest", "min"]);
+function coreQuestions(model) {
+  const fromPages = (model.pages ?? []).flatMap((p) => p?.elements ?? []);
+  return fromPages.length ? fromPages : model.elements ?? [];
+}
+var asChoice = (c) => typeof c === "string" ? { value: c, text: c } : c;
+var hasScore = (c) => typeof c.score === "number";
+var isScaleType = (q) => q.type === "rating" || q.type === "slider" || q.type === "text" && q.inputType === "number";
+var choiceDim = (q, c) => c?.dimension ? c.dimension : q.dimension ?? "";
+var quote = (v) => JSON.stringify(v);
+function declaredMethod(model, dim) {
+  const m = (model.calculation_methods ?? {})[dim];
+  if (!m) return { reason: "the form declares no calculation method for it in calculation_methods" };
+  if (!KNOWN_METHODS.has(m.toLowerCase())) return { reason: `the form's calculation method ${quote(m)} is not one the Score Module implements` };
+  return { method: m };
+}
+function scoredRange(choices) {
+  const scores = choices.filter(hasScore).map((c) => c.score);
+  return scores.length ? { min: Math.min(...scores), max: Math.max(...scores) } : null;
+}
+function dimensionBounds(model) {
+  const perDim = {};
+  const add = (dim, min, max) => {
+    if (dim) (perDim[dim] ?? (perDim[dim] = [])).push({ min, max });
+  };
+  for (const q of coreQuestions(model)) {
+    const choices = (q.choices ?? []).map(asChoice);
+    if (CHOICE_SINGLE.has(q.type)) {
+      const r = scoredRange(choices);
+      if (r) add(q.dimension, r.min, r.max);
+      for (const c of choices) if (c.dimension && hasScore(c)) add(c.dimension, Math.min(0, c.score), Math.max(0, c.score));
+    } else if (q.type === "checkbox" || q.type === "tagbox") {
+      const lo = {};
+      const hi = {};
+      for (const c of choices) {
+        const dim = choiceDim(q, c);
+        if (!hasScore(c) || !dim) continue;
+        lo[dim] ?? (lo[dim] = 0);
+        hi[dim] ?? (hi[dim] = 0);
+        if (c.score < 0) lo[dim] += c.score;
+        else hi[dim] += c.score;
+      }
+      for (const dim of Object.keys(lo)) add(dim, lo[dim], hi[dim]);
+    } else if (q.type === "ranking") {
+      const sum = {};
+      for (const c of choices) {
+        const dim = choiceDim(q, c);
+        if (hasScore(c) && dim) sum[dim] = (sum[dim] ?? 0) + c.score;
+      }
+      for (const [dim, v] of Object.entries(sum)) add(dim, v, v);
+    } else if (q.type === "boolean") {
+      const sides = [q.scoreTrue, q.scoreFalse].filter((v) => typeof v === "number");
+      if (sides.length) add(q.dimension, Math.min(...sides), Math.max(...sides));
+    } else if (q.type === "matrix") {
+      if (!q.rows?.length) continue;
+      const r = scoredRange((q.columns ?? []).map(asChoice));
+      if (r) add(q.dimension, r.min * q.rows.length, r.max * q.rows.length);
+    } else if (isScaleType(q)) {
+      if (q.scale) add(q.dimension, q.scale.min, q.scale.max);
+    }
+  }
+  const out = {};
+  for (const [dim, ranges] of Object.entries(perDim)) {
+    const { method } = declaredMethod(model, dim);
+    if (!method) continue;
+    out[dim] = WIDEST_RANGE_METHODS.has(method.toLowerCase()) ? ranges.reduce((b, r) => ({ min: Math.min(b.min, r.min), max: Math.max(b.max, r.max) })) : ranges.reduce((b, r) => ({ min: b.min + r.min, max: b.max + r.max }), { min: 0, max: 0 });
+  }
+  return out;
+}
 function buildScoreRequest(model, data) {
   const answer_list = [];
   const customer_condition = {};
+  const warnings = [];
   const dimAnswers = {};
-  const dimBounds = {};
-  const bump = (dim, score, min, max) => {
+  const unscoredDims = /* @__PURE__ */ new Set();
+  const record = (dim, score, q, text, reason) => {
     if (!dim) return;
+    if (score === null) {
+      unscoredDims.add(dim);
+      warnings.push({ code: "ANSWER_NOT_SCORED", message: `${q}: answer ${quote(text)} is not scored: ${reason}` });
+      return;
+    }
     (dimAnswers[dim] ?? (dimAnswers[dim] = [])).push(score);
-    const b = dimBounds[dim] ?? (dimBounds[dim] = { min: 0, max: 0 });
-    if (min < b.min) b.min = min;
-    if (max > b.max) b.max = max;
   };
-  const scaleOf = (el) => [
-    el.scale?.min ?? el.rateMin ?? el.min ?? 0,
-    el.scale?.max ?? el.rateMax ?? el.max ?? 0
-  ];
-  const asChoice = (c) => typeof c === "string" ? { value: c, text: c } : c;
-  for (const el of flattenElements(model)) {
-    const ans = data[el.name];
-    if (ans == null || ans === "") continue;
-    const [minS, maxS] = scaleOf(el);
-    if (el.type === "boolean") {
-      const on = ans === true || ans === "true";
-      const score = on ? el.scoreTrue ?? 1 : el.scoreFalse ?? 0;
-      answer_list.push({ answer: String(on), score, min_score: minS, max_score: maxS || 1 });
-      bump(el.dimension, score, minS, maxS || 1);
-      continue;
-    }
-    if (CHOICE_SURVEYJS_TYPES.has(el.type) && el.choices?.length) {
-      const picked = (Array.isArray(ans) ? ans : [ans]).map(String);
-      for (const raw of el.choices) {
-        const ch = asChoice(raw);
-        if (!picked.includes(String(ch.value))) continue;
-        const score = typeof ch.score === "number" ? ch.score : 0;
-        answer_list.push({ answer: ch.text ?? String(ch.value), score, min_score: minS, max_score: maxS });
-        if (ch.condition_map) Object.assign(customer_condition, ch.condition_map);
-        bump(ch.dimension || el.dimension, score, minS, maxS);
-      }
-      continue;
-    }
-    if (el.type === "matrix" && el.columns?.length && typeof ans === "object") {
-      const cols = el.columns.map(asChoice);
-      for (const colVal of Object.values(ans)) {
-        const col = cols.find((c) => String(c.value) === String(colVal));
+  const entry = (q, answer, score) => answer_list.push({ question: q.name, answer, score, min_score: q.scale?.min ?? 0, max_score: q.scale?.max ?? 0 });
+  const resolveChoice = (q, value) => {
+    const ch = (q.choices ?? []).map(asChoice).find((c) => String(c.value) === value);
+    if (!ch) return;
+    const score = hasScore(ch) ? ch.score : null;
+    entry(q, ch.text ?? "", score);
+    if (ch.condition_map) Object.assign(customer_condition, ch.condition_map);
+    record(choiceDim(q, ch), score, q.name, ch.text ?? "", `option ${quote(String(ch.value))} declares no score`);
+  };
+  for (const q of coreQuestions(model)) {
+    if (!(q.name in data)) continue;
+    const ans = data[q.name];
+    if (CHOICE_SINGLE.has(q.type)) {
+      resolveChoice(q, String(ans));
+    } else if (CHOICE_MULTI.has(q.type)) {
+      for (const v of Array.isArray(ans) ? ans : [ans]) resolveChoice(q, String(v));
+    } else if (q.type === "boolean") {
+      const on = ans === true;
+      const score = (on ? q.scoreTrue : q.scoreFalse) ?? null;
+      entry(q, String(on), score);
+      record(choiceDim(q), score, q.name, String(on), `the question declares no ${on ? "scoreTrue" : "scoreFalse"}`);
+    } else if (q.type === "matrix") {
+      if (!ans || typeof ans !== "object" || Array.isArray(ans)) continue;
+      const cols = (q.columns ?? []).map(asChoice);
+      const noRows = !q.rows?.length;
+      for (const row of Object.keys(ans).sort()) {
+        const col = cols.find((c) => String(c.value) === String(ans[row]));
         if (!col) continue;
-        const score = typeof col.score === "number" ? col.score : 0;
-        answer_list.push({ answer: col.text ?? String(col.value), score, min_score: minS, max_score: maxS });
-        bump(el.dimension, score, minS, maxS);
+        const score = noRows || !hasScore(col) ? null : col.score;
+        entry(q, col.text ?? "", score);
+        record(
+          choiceDim(q, col),
+          score,
+          q.name,
+          col.text ?? "",
+          noRows ? "the matrix declares no rows" : `column ${quote(String(col.value))} declares no score`
+        );
       }
-      continue;
-    }
-    const n = Number(ans);
-    if (!Number.isNaN(n)) {
-      answer_list.push({ answer: String(n), score: n, min_score: minS, max_score: maxS });
-      bump(el.dimension, n, minS, maxS);
+    } else if (isScaleType(q)) {
+      if (typeof ans !== "number" || !Number.isFinite(ans)) continue;
+      const n = Math.trunc(ans);
+      const score = q.scale ? n : null;
+      entry(q, String(n), score);
+      record(choiceDim(q), score, q.name, String(n), "the question declares no scale");
     }
   }
-  const methods = model.calculation_methods || {};
-  const dimensions = Object.entries(dimAnswers).map(([key, answers]) => {
-    const b = dimBounds[key] || { min: 0, max: 0 };
-    return {
-      key,
-      min_score: b.min,
-      max_score: b.max || 100,
-      calculation_method: methods[key] || "sum",
-      answers
-    };
-  });
-  return { answer_list, customer_condition, dimensions };
+  const bounds = dimensionBounds(model);
+  const dimensions = [];
+  for (const dim of [.../* @__PURE__ */ new Set([...Object.keys(dimAnswers), ...unscoredDims])].sort()) {
+    const notScored = (reason2) => warnings.push({ code: "DIMENSION_NOT_SCORED", message: `${dim}: ${reason2}` });
+    const answers = dimAnswers[dim];
+    if (!answers) {
+      notScored("none of the form's answers to it declares a score");
+      continue;
+    }
+    const { method, reason } = declaredMethod(model, dim);
+    if (!method) {
+      notScored(reason ?? "");
+      continue;
+    }
+    const b = bounds[dim] ?? { min: 0, max: 0 };
+    if (b.max <= b.min) {
+      notScored(`the form's declared scores give no usable range (min ${b.min}, max ${b.max})`);
+      continue;
+    }
+    dimensions.push({ key: dim, min_score: Math.round(b.min), max_score: Math.round(b.max), calculation_method: method, answers });
+  }
+  return { answer_list, customer_condition, dimensions, warnings };
 }
 function scoreSurveyAnswers(model, data) {
-  const byDimension = {};
-  const push = (dim, n) => {
-    if (!dim) return;
-    (byDimension[dim] ?? (byDimension[dim] = [])).push(n);
-  };
-  for (const el of flattenElements(model)) {
-    const answer = data[el.name];
-    if (answer == null || answer === "") continue;
-    if (el.type === "boolean") {
-      const on = answer === true || answer === "true";
-      push(el.dimension, on ? el.scoreTrue ?? 1 : el.scoreFalse ?? 0);
-      continue;
-    }
-    if (CHOICE_SURVEYJS_TYPES.has(el.type) && el.choices?.length) {
-      const picked = (Array.isArray(answer) ? answer : [answer]).map(String);
-      for (const c of el.choices) {
-        const choice = typeof c === "string" ? { value: c, text: c } : c;
-        if (picked.includes(String(choice.value))) {
-          push(
-            choice.dimension || el.dimension,
-            typeof choice.score === "number" ? choice.score : 0
-          );
-        }
-      }
-      continue;
-    }
-    if (el.type === "matrix" && el.columns?.length && typeof answer === "object") {
-      const cols = el.columns.map(
-        (c) => typeof c === "string" ? { value: c, text: c } : c
-      );
-      for (const colVal of Object.values(answer)) {
-        const col = cols.find((c) => String(c.value) === String(colVal));
-        if (col) {
-          push(
-            el.dimension,
-            typeof col.score === "number" ? col.score : 0
-          );
-        }
-      }
-      continue;
-    }
-    const n = Number(answer);
-    if (!Number.isNaN(n)) push(el.dimension, n);
-  }
-  return byDimension;
+  return Object.fromEntries(buildScoreRequest(model, data).dimensions.map((d) => [d.key, d.answers]));
 }
 
 // src/form/survey-theme.ts
@@ -738,7 +772,7 @@ var FormSimulatorTab = ({
     return () => survey.onValueChanged.remove(onValue);
   }, [survey, setData]);
   const core = useMemo(
-    () => schema ? buildScoreRequest(schema, data) : { answer_list: [], customer_condition: {}, dimensions: [] },
+    () => schema ? buildScoreRequest(schema, data) : { answer_list: [], customer_condition: {}, dimensions: [], warnings: [] },
     [schema, data]
   );
   const results = core.dimensions.map((d) => ({
@@ -794,6 +828,11 @@ var FormSimulatorTab = ({
           /* @__PURE__ */ jsx2("h3", { className: "text-foreground text-sm font-bold", children: "Score per dimension" }),
           /* @__PURE__ */ jsx2("span", { className: "text-[11px] text-muted-foreground", children: "Form Engine output" })
         ] }),
+        core.warnings.length > 0 && /* @__PURE__ */ jsx2("ul", { className: "space-y-1 rounded-md border border-amber-300/60 bg-amber-50 p-2.5 text-[11px] text-amber-900 dark:bg-amber-950/30 dark:text-amber-200 [overflow-wrap:anywhere]", children: core.warnings.map((w, i) => /* @__PURE__ */ jsxs2("li", { children: [
+          /* @__PURE__ */ jsx2("span", { className: "font-mono font-semibold", children: w.code === "DIMENSION_NOT_SCORED" ? "Not scored" : "Answer not scored" }),
+          " \u2014 ",
+          w.message
+        ] }, i)) }),
         results.length === 0 ? /* @__PURE__ */ jsx2(
           EmptyState2,
           {
@@ -1066,9 +1105,9 @@ var clone = (v) => JSON.parse(JSON.stringify(v));
 var slugify = (v) => v.toLowerCase().trim().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").replace(/_{2,}/g, "_");
 var newOption = () => ({
   label: "",
-  value: `opt_${Math.random().toString(36).slice(2, 8)}`,
-  score: 0
+  value: `opt_${Math.random().toString(36).slice(2, 8)}`
 });
+var parseScore = (v) => v === "" || v === "-" ? void 0 : parseInt(v, 10);
 var newQuestion = (dimension) => ({
   id: `q_${Math.random().toString(36).slice(2, 9)}`,
   type: "single_choice",
@@ -1680,14 +1719,14 @@ var QuestionnaireModal = ({
                             {
                               type: "text",
                               inputMode: "numeric",
-                              value: scoreDrafts[`${q.id}:${k}`] ?? String(q[k] ?? (k === "scoreTrue" ? 1 : 0)),
+                              value: scoreDrafts[`${q.id}:${k}`] ?? (q[k] != null ? String(q[k]) : ""),
+                              placeholder: "none",
+                              title: "Blank: this answer is not scored",
                               onChange: (e) => {
                                 const v = e.target.value;
                                 if (!/^-?\d*$/.test(v)) return;
                                 setScoreDrafts((d) => ({ ...d, [`${q.id}:${k}`]: v }));
-                                updateQuestion(q.id, {
-                                  [k]: v === "" || v === "-" ? 0 : parseInt(v, 10)
-                                });
+                                updateQuestion(q.id, { [k]: parseScore(v) });
                               },
                               onBlur: () => setScoreDrafts((d) => {
                                 const n = { ...d };
@@ -1823,14 +1862,14 @@ var QuestionnaireModal = ({
                               {
                                 type: "text",
                                 inputMode: "numeric",
-                                value: scoreDrafts[`${q.id}:${idx}`] ?? String(o.score ?? 0),
+                                value: scoreDrafts[`${q.id}:${idx}`] ?? (o.score != null ? String(o.score) : ""),
+                                placeholder: "\u2014",
+                                title: "Blank: this answer is not scored",
                                 onChange: (e) => {
                                   const v = e.target.value;
                                   if (!/^-?\d*$/.test(v)) return;
                                   setScoreDrafts((d) => ({ ...d, [`${q.id}:${idx}`]: v }));
-                                  updateOption(q.id, idx, {
-                                    score: v === "" || v === "-" ? 0 : parseInt(v, 10)
-                                  });
+                                  updateOption(q.id, idx, { score: parseScore(v) });
                                 },
                                 onBlur: () => setScoreDrafts((d) => {
                                   const next = { ...d };
@@ -2177,15 +2216,13 @@ import { Model as Model2 } from "survey-core";
 import { Survey as Survey2 } from "survey-react-ui";
 import { Fragment, jsx as jsx5, jsxs as jsxs5 } from "react/jsx-runtime";
 function computeDimensions(schema, data) {
-  const byDimension = scoreSurveyAnswers(schema, data);
-  const methods = schema.calculation_methods || {};
-  return Object.entries(byDimension).map(([code, raw]) => {
-    const method = methods[code] || "sum";
+  return buildScoreRequest(schema, data).dimensions.map((d) => {
+    const method = d.calculation_method;
     return {
-      code,
+      code: d.key,
       calculation_method: method,
-      score: Math.round(applyCalculationMethod(raw, method) * 100) / 100,
-      raw_scores: raw
+      score: Math.round(applyCalculationMethod(d.answers, method) * 100) / 100,
+      raw_scores: d.answers
     };
   });
 }
