@@ -119,6 +119,10 @@ export const MatchSimulatorTab: React.FC<MatchSimulatorTabProps> = ({
     }
   }
 
+  const unfilled = Object.entries(simResult?.regimens?.unfilledSlots ?? {}).flatMap(([phase, slots]) =>
+    slots.map((slot) => ({ phase, slot })),
+  );
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
       {/* Simulator Inputs */}
@@ -222,13 +226,18 @@ export const MatchSimulatorTab: React.FC<MatchSimulatorTabProps> = ({
             <div className="bg-card border border-border rounded-lg p-5 flex items-center justify-between">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="bg-emerald-950/60 text-emerald-400 border border-emerald-800/40 text-xs font-mono font-bold px-2 py-0.5 rounded">
-                    {simResult.profileSummary.skinType}
-                  </span>
+                  {simResult.profileSummary.skinType && (
+                    <span className="bg-emerald-950/60 text-emerald-400 border border-emerald-800/40 text-xs font-mono font-bold px-2 py-0.5 rounded">
+                      {simResult.profileSummary.skinType}
+                    </span>
+                  )}
                   <h3 className="font-bold text-foreground text-base">Personalized Prescription</h3>
                 </div>
+                {!simResult.profileSummary.skinType && simResult.profileSummary.skinTypeUnavailable && (
+                  <p className="text-xs text-muted-foreground mt-1">No skin type: {simResult.profileSummary.skinTypeUnavailable}</p>
+                )}
                 <div className="flex flex-wrap gap-2 mt-2">
-                  {simResult.profileSummary.primaryConcerns.map((c, i) => (
+                  {(simResult.profileSummary.primaryConcerns ?? []).map((c, i) => (
                     <span key={i} className="text-[10px] bg-muted text-foreground px-2 py-0.5 rounded border border-border">
                       {c}
                     </span>
@@ -250,14 +259,17 @@ export const MatchSimulatorTab: React.FC<MatchSimulatorTabProps> = ({
             </div>
 
             {/* Contraindication Matrix Warnings */}
-            {simResult.clinicalConflictMatrix.layeringRulesApplied.length > 0 && (
+            {(simResult.clinicalConflictMatrix.layeringRulesApplied?.length ?? 0) > 0 && (
               <div className="bg-amber-950/20 border border-amber-800/40 rounded-lg p-4 space-y-2">
                 <div className="flex items-center gap-2 text-amber-400 font-bold text-xs">
                   <AlertTriangle className="h-4 w-4" />
-                  <span>Clinical Conflict Matrix Directives ({simResult.clinicalConflictMatrix.conflictsDetected} detected)</span>
+                  <span>
+                    Clinical Conflict Matrix Directives
+                    {typeof simResult.clinicalConflictMatrix.conflictsDetected === 'number' && ` (${simResult.clinicalConflictMatrix.conflictsDetected} detected)`}
+                  </span>
                 </div>
                 <ul className="space-y-1 text-xs text-amber-200/90 pl-6 list-disc">
-                  {simResult.clinicalConflictMatrix.layeringRulesApplied.map((rule, idx) => (
+                  {(simResult.clinicalConflictMatrix.layeringRulesApplied ?? []).map((rule, idx) => (
                     <li key={idx}>{rule}</li>
                   ))}
                 </ul>
@@ -273,7 +285,7 @@ export const MatchSimulatorTab: React.FC<MatchSimulatorTabProps> = ({
                 </h4>
 
                 <div className="space-y-2">
-                  {phase.steps.map((step) => (
+                  {phase.steps.flatMap((step) => (step.primaryProduct ? [{ ...step, primaryProduct: step.primaryProduct }] : [])).map((step) => (
                     <div key={step.stepNumber} className="bg-card border border-border rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div className="space-y-1.5 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -317,6 +329,23 @@ export const MatchSimulatorTab: React.FC<MatchSimulatorTabProps> = ({
                 </div>
               </div>
             ))}
+
+            {/* Slots nothing filled, with the engine's reason */}
+            {unfilled.length > 0 && (
+              <div className="bg-muted/30 border border-border rounded-lg p-4 space-y-2">
+                <div className="font-bold text-foreground text-xs uppercase tracking-wider">Unfilled slots ({unfilled.length})</div>
+                <ul className="space-y-1 text-xs text-muted-foreground pl-5 list-disc">
+                  {unfilled.map(({ phase, slot }, idx) => (
+                    <li key={`${phase}-${slot.slotId ?? idx}`}>
+                      <strong className="text-foreground">{formatPhaseTitle(phase)}</strong>
+                      {slot.category && ` · ${slot.category}`}
+                      {slot.required && ' (required)'}
+                      {slot.reason && `: ${slot.reason}`}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </>
         ) : (
           <EmptyState

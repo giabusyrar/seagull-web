@@ -7,10 +7,10 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
 const fake = (body: unknown, status = 200) => vi.fn<typeof fetch>(async () => json(body, status));
 
 describe('match api', () => {
-  it('lists with the explicit all-tenant scope', async () => {
-    const f = fake({ conflicts: [{ id: 'c1' }] });
-    expect(await conflictsApi.list(f)).toEqual([{ id: 'c1' }]);
-    expect(f).toHaveBeenCalledWith('/core/match-engine/api/matching/conflicts?brand_id=*&application_id=*');
+  it('lists conflict rules from reference-service, every brand and application', async () => {
+    const f = fake({ data: [{ id: 'c1' }], success: true });
+    expect(await conflictsApi.list(routes, f)).toEqual([{ id: 'c1' }]);
+    expect(f).toHaveBeenCalledWith('/api/reference/ingredient-conflict-rules');
   });
 
   it('resolves a list to null when the field is missing', async () => {
@@ -22,32 +22,105 @@ describe('match api', () => {
     await productsApi.listForBrand('', f);
     await productsApi.listForBrand('b 1', f);
     expect(f.mock.calls.map((c) => c[0])).toEqual([
-      '/core/match-engine/api/matching/products?brand_id=*',
-      '/core/match-engine/api/matching/products?brand_id=b%201',
+      '/core/match-engine/products?brand_id=*',
+      '/core/match-engine/products?brand_id=b%201',
     ]);
   });
 
-  it('lists shades by product, unscoped', async () => {
-    const f = fake({ shades: [] });
-    await shadesApi.list('p/1', f);
-    expect(f).toHaveBeenCalledWith('/core/match-engine/api/matching/shades?product_id=p%2F1');
+  it('lists shades of one product from reference-service', async () => {
+    const f = fake({ data: [{ id: 's1' }], success: true });
+    expect(await shadesApi.list(routes, 'p/1', f)).toEqual([{ id: 's1' }]);
+    expect(f).toHaveBeenCalledWith('/api/reference/shades?productId=p%2F1');
   });
 
-  it('creates, updates and deletes against the collection path', async () => {
-    const f = fake({});
-    await conflictsApi.create({ id: 'c1' } as never, f);
-    await conflictsApi.update({ id: 'c1' } as never, f);
-    await conflictsApi.remove('c1', f);
+  it('resolves a reference list to null when data is missing', async () => {
+    expect(await shadesApi.list(routes, 'p1', fake({ shades: [] }))).toBeNull();
+  });
+
+  it('creates, updates and deletes (id in the path) against reference-service', async () => {
+    const f = fake({ success: true });
+    await shadesApi.create(routes, { id: 's1' } as never, f);
+    await shadesApi.update(routes, { id: 's1' } as never, f);
+    await shadesApi.remove(routes, 's/1', f);
     expect(f.mock.calls).toEqual([
-      ['/core/match-engine/api/matching/conflicts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"id":"c1"}' }],
-      ['/core/match-engine/api/matching/conflicts', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: '{"id":"c1"}' }],
-      ['/core/match-engine/api/matching/conflicts?id=c1', { method: 'DELETE' }],
+      ['/api/reference/shades', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"id":"s1"}' }],
+      ['/api/reference/shades', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: '{"id":"s1"}' }],
+      ['/api/reference/shades/s%2F1', { method: 'DELETE' }],
     ]);
   });
 
-  it('returns a match result only for an ok response', async () => {
-    expect(await runMatch({}, fake({ routine: 1 }))).toEqual({ routine: 1 });
-    expect(await runMatch({}, fake({ error: 'x' }, 500))).toBeNull();
+  it('throws the service error when a save is refused', async () => {
+    const f = fake({ error: 'invalid reference: hexColor "#A92" is not #RRGGBB' }, 400);
+    await expect(shadesApi.create(routes, { id: 's1' } as never, f)).rejects.toThrow('is not #RRGGBB');
+    await expect(conflictsApi.remove(routes, 'c1', fake({ error: 'not found' }, 404))).rejects.toMatchObject({
+      name: 'ReferenceApiError',
+      status: 404,
+    });
+  });
+
+  it('posts to the engine evaluate route and maps its snake_case result', async () => {
+    const step = {
+      step_number: 1,
+      step_name: 'Step 1: Cleanser',
+      category: 'Cleanser',
+      recommended_texture: 'Gel',
+      primary_product: { id: 'p1', name: 'Gel Wash', brand: 'b1', category: 'Cleanser', texture: 'Gel', match_score: 87.5, why_selected: ['oil control'] },
+    };
+    const f = fake({
+      success: true,
+      match_id: 'match-1',
+      brand_id: 'b1',
+      application_id: 'app',
+      profile_summary: { skin_type: 'Oily', profile_code: 'OSNW', skin_type_source: 'score_engine.skin_profile', primary_concerns: ['sebum'] },
+      regimens: {
+        phases: { morning: [step] },
+        unfilled_slots: { night: [{ slot_id: 's2', category: 'Serum', required: true, reason: 'nothing passed' }] },
+      },
+      clinical_conflict_matrix: { conflicts_detected: 0, layering_rules_applied: null },
+      evaluated_at: '2026-10-06T01:00:00Z',
+    });
+    const r = await runMatch({ brand_id: 'b1' }, f);
+    expect(f.mock.calls[0][0]).toBe('/core/match-engine/evaluate');
+    expect(r).toEqual({
+      matchId: 'match-1',
+      brandId: 'b1',
+      applicationId: 'app',
+      profileSummary: { skinType: 'Oily', profileCode: 'OSNW', skinTypeSource: 'score_engine.skin_profile', primaryConcerns: ['sebum'] },
+      regimens: {
+        phases: {
+          morning: [
+            {
+              stepNumber: 1,
+              stepName: 'Step 1: Cleanser',
+              category: 'Cleanser',
+              recommendedTexture: 'Gel',
+              primaryProduct: { id: 'p1', name: 'Gel Wash', brand: 'b1', category: 'Cleanser', texture: 'Gel', matchScore: 87.5, whySelected: ['oil control'] },
+            },
+          ],
+        },
+        unfilledSlots: { night: [{ slotId: 's2', category: 'Serum', required: true, reason: 'nothing passed' }] },
+      },
+      clinicalConflictMatrix: { conflictsDetected: 0 },
+      evaluatedAt: '2026-10-06T01:00:00Z',
+    });
+  });
+
+  it('leaves a field the engine did not send absent, never a stand-in', async () => {
+    const r = await runMatch({}, fake({ brand_id: 'b1', profile_summary: { skin_type: '', skin_type_unavailable: 'no skin_profile' }, regimens: {}, clinical_conflict_matrix: {} }));
+    expect(r.profileSummary).toEqual({ skinTypeUnavailable: 'no skin_profile' });
+    expect('matchId' in r).toBe(false);
+    expect('conflictsDetected' in r.clinicalConflictMatrix).toBe(false);
+    expect(r.regimens).toEqual({});
+  });
+
+  it("throws the engine's validation errors", async () => {
+    // core-engine's JSONError body; ValidationErrors joins the problems with "; "
+    const f = fake({ success: false, error: 'brand_id is required; dimension_scores is required: match diagnoses from them and has no defaults' }, 400);
+    await expect(runMatch({}, f)).rejects.toMatchObject({
+      name: 'MatchApiError',
+      status: 400,
+      message: 'brand_id is required; dimension_scores is required: match diagnoses from them and has no defaults',
+    });
   });
 
   it('reads the colour catalog through the colour collection', async () => {
@@ -91,5 +164,9 @@ describe('match api', () => {
       { code: 'Niacinamide', name: 'Niacinamide' },
     ]);
     expect(await listReferenceIngredients(routes, fake([{ code: 'r', name: 'Retinol' }]))).toEqual([{ code: 'r', name: 'Retinol' }]);
+    // reference-service's own shape
+    expect(await listReferenceIngredients(routes, fake({ data: [{ code: '1,2-hexanediol', name: '1,2-Hexanediol' }], success: true }))).toEqual([
+      { code: '1,2-hexanediol', name: '1,2-Hexanediol' },
+    ]);
   });
 });

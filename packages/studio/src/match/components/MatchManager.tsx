@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Sparkles, ShieldAlert, Boxes, Play, Building, Smartphone, Palette, Wand2 } from 'lucide-react';
-import { PageHeader, TabNav, ConfirmDialog, usePersistentState, type TabItem } from '@gateway-experience/shared';
+import { PageHeader, TabNav, ConfirmDialog, usePersistentState, useHostRoutes, type TabItem } from '@gateway-experience/shared';
 import type { ConflictMatrixRule, ProductGroup, ProductCatalogItem, Shade, ClinicalMatchResult } from '../types';
 
 import { ConflictMatrixTab } from './tabs/ConflictMatrixTab';
@@ -17,6 +17,11 @@ import { ShadeModal } from './modals/ShadeModal';
 import { conflictsApi, productGroupsApi, productsApi, runMatch, shadesApi } from '../api';
 
 export const MatchManager: React.FC = () => {
+  const hostRoutes = useHostRoutes();
+  // A save or delete reference-service refused: shown until the next one succeeds.
+  const [saveError, setSaveError] = useState<string | null>(null);
+  // Why the last Match Simulator run failed, as the engine said it.
+  const [simError, setSimError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = usePersistentState<'conflicts' | 'groups' | 'shades' | 'tryon' | 'simulator'>('xg.matchEngine.activeTab', 'conflicts');
   const [searchQuery, setSearchQuery] = useState('');
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
@@ -71,7 +76,7 @@ export const MatchManager: React.FC = () => {
   // the gateway's collection params can never pick the tenant instead.
   const loadData = () => {
     conflictsApi
-      .list()
+      .list(hostRoutes)
       .then((list) => {
         if (list) setConflicts(list);
       })
@@ -101,11 +106,27 @@ export const MatchManager: React.FC = () => {
       return;
     }
     shadesApi
-      .list(productId)
+      .list(hostRoutes, productId)
       .then((list) => {
         if (list) setShades(list);
       })
       .catch(() => {});
+  };
+
+  /**
+   * Runs a reference-service write. The lists update before the write lands;
+   * when it is refused, the error is shown and the lists are reloaded so they
+   * show what is stored, not what was typed.
+   */
+  const write = async (op: () => Promise<unknown>) => {
+    try {
+      await op();
+      setSaveError(null);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : String(err));
+      loadData();
+      loadShades(shadeProductId);
+    }
   };
 
   useEffect(() => {
@@ -128,9 +149,7 @@ export const MatchManager: React.FC = () => {
     if (editingConflict) {
       const updated = { ...editingConflict, ...data };
       setConflicts((prev) => prev.map((x) => (x.id === editingConflict.id ? updated : x)));
-      try {
-        await conflictsApi.update(updated);
-      } catch {}
+      await write(() => conflictsApi.update(hostRoutes, updated));
     } else {
       const newConf: ConflictMatrixRule = {
         id: `conf-${Date.now()}`,
@@ -139,9 +158,7 @@ export const MatchManager: React.FC = () => {
         ...data,
       };
       setConflicts((prev) => [newConf, ...prev]);
-      try {
-        await conflictsApi.create(newConf);
-      } catch {}
+      await write(() => conflictsApi.create(hostRoutes, newConf));
     }
   };
 
@@ -153,9 +170,7 @@ export const MatchManager: React.FC = () => {
       message: `Are you sure you want to delete ingredient conflict "${conf?.ingredientA} vs ${conf?.ingredientB}"?`,
       onConfirm: async () => {
         setConflicts((prev) => prev.filter((x) => x.id !== id));
-        try {
-          await conflictsApi.remove(id);
-        } catch {}
+        await write(() => conflictsApi.remove(hostRoutes, id));
         setDeleteConfirm((prev) => ({ ...prev, isOpen: false }));
       },
     });
@@ -200,18 +215,14 @@ export const MatchManager: React.FC = () => {
     if (editingShade) {
       const updated = { ...editingShade, ...data };
       setShades((prev) => prev.map((x) => (x.id === editingShade.id ? updated : x)));
-      try {
-        await shadesApi.update(updated);
-      } catch {}
+      await write(() => shadesApi.update(hostRoutes, updated));
     } else {
       const newShade: Shade = {
         id: `shade-${Date.now()}`,
         ...data,
       };
       setShades((prev) => [newShade, ...prev]);
-      try {
-        await shadesApi.create(newShade);
-      } catch {}
+      await write(() => shadesApi.create(hostRoutes, newShade));
     }
   };
 
@@ -223,9 +234,7 @@ export const MatchManager: React.FC = () => {
       message: `Are you sure you want to delete shade "${shade?.name || id}"?`,
       onConfirm: async () => {
         setShades((prev) => prev.filter((x) => x.id !== id));
-        try {
-          await shadesApi.remove(id);
-        } catch {}
+        await write(() => shadesApi.remove(hostRoutes, id));
         setDeleteConfirm((prev) => ({ ...prev, isOpen: false }));
       },
     });
@@ -239,13 +248,17 @@ export const MatchManager: React.FC = () => {
         brand_id: simBrand,
         application_id: selectedApp,
         dimension_scores: simScores,
-        ...(simSkinType ? { skin_profile: simSkinType } : {}),
+        // The engine takes the score engine's skin_profile object; with only a
+        // code, it reports that code as the skin type.
+        ...(simSkinType ? { skin_profile: { code: simSkinType } } : {}),
         customer_conditions: Object.fromEntries(Object.entries(simConditions).filter(([, on]) => on)),
       };
 
-      const data = await runMatch(payload);
-      if (data) setSimResult(data);
-    } catch {} finally {
+      setSimResult(await runMatch(payload));
+      setSimError(null);
+    } catch (err) {
+      setSimError(err instanceof Error ? err.message : String(err));
+    } finally {
       setIsSimulating(false);
     }
   };
@@ -269,6 +282,22 @@ export const MatchManager: React.FC = () => {
       </PageHeader>
 
       <main className="flex-1 p-4 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl w-full mx-auto">
+        {simError && activeTab === 'simulator' && (
+          <div role="alert" className="flex items-start justify-between gap-3 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            <span className="break-words min-w-0">Match failed: {simError}</span>
+            <button type="button" onClick={() => setSimError(null)} className="shrink-0 underline">
+              Dismiss
+            </button>
+          </div>
+        )}
+        {saveError && (
+          <div role="alert" className="flex items-start justify-between gap-3 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            <span className="break-words min-w-0">Not saved: {saveError}. The list shows what is stored.</span>
+            <button type="button" onClick={() => setSaveError(null)} className="shrink-0 underline">
+              Dismiss
+            </button>
+          </div>
+        )}
         {activeTab === 'conflicts' && (
           <ConflictMatrixTab
             conflicts={conflicts}
