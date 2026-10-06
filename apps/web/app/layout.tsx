@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import "survey-core/survey-core.css";
 import "./survey-xg-theme.css";
@@ -7,7 +7,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ToastProvider } from "@/components/ui/toast";
 import { HostProviders } from "@/components/HostProviders";
 
-const interSans = Inter({
+// Rounded, friendly sans to match the brand mark (components/brand/SeagullMark.tsx).
+const brandSans = Plus_Jakarta_Sans({
   variable: "--font-sans",
   subsets: ["latin"],
 });
@@ -30,7 +31,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${interSans.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      className={`${brandSans.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <ToastProvider>

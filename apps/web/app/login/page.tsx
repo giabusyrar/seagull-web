@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { login } from '@/lib/auth-client';
+import { SeagullMark } from '@/components/brand/SeagullMark';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -41,10 +42,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-secondary/40 px-4 font-sans text-foreground">
       <div className="relative w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-xs">
         <div className="flex flex-col items-center space-y-1.5 text-center">
-          <div className="relative flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-sm tracking-wide shadow-2xs">
-            <span>SG</span>
-            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-beak border-2 border-card" />
-          </div>
+          <SeagullMark size={48} className="rounded-xl shadow-2xs" />
           <h1 className="text-xl font-semibold tracking-tight text-foreground">
             Seagull<span className="text-beak ml-0.5">.</span>
           </h1>

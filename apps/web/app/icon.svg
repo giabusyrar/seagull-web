@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Same drawing and palette as components/brand/SeagullMark.tsx — change both. -->
+  <defs>
+    <clipPath id="tile"><rect width="64" height="64" rx="15"/></clipPath>
+  </defs>
+  <g clip-path="url(#tile)">
+    <rect width="64" height="64" fill="#0f172a"/>
+    <circle cx="52" cy="12.5" r="5" fill="#f59e0b"/>
+    <g transform="translate(30 34) scale(1.2) translate(-30 -37)">
+      <path d="M14.5 40 L7 36.5 L8.8 42 L6 45.5 L15 45.3 Z" fill="#cbd5e1"/>
+      <ellipse cx="29" cy="39" rx="17" ry="15.5" fill="#ffffff"/>
+      <path d="M27 23.8 C26 20 27.5 18 30 17.5 C29 19.5 29.6 21.5 31 23.6 Z" fill="#ffffff"/>
+      <path d="M16.5 38.5 C19 35 25 35.3 26.8 39 C28 42.3 25 45.4 21 45 C17.6 44.7 15.6 41.5 16.5 38.5 Z" fill="#cbd5e1"/>
+      <path d="M16.6 40.6 C16.5 43 18.3 44.8 21 45 C19.4 44 18.3 42.4 17.8 40.4 Z" fill="#64748b"/>
+      <ellipse cx="38.3" cy="40.6" rx="3.2" ry="2" fill="#fb7185" opacity="0.5"/>
+      <circle cx="36" cy="32.5" r="3.7" fill="#0f172a"/>
+      <circle cx="37.3" cy="31.1" r="1.35" fill="#ffffff"/>
+      <circle cx="34.9" cy="34" r="0.55" fill="#ffffff"/>
+      <path d="M41.5 32.6 C47.5 31.8 52.6 33 54.3 35.4 C55.1 36.7 54 37.6 52.6 37.8 C49.4 40.2 44.4 40.4 41.3 39 C40.2 37.2 40.2 34.2 41.5 32.6 Z" fill="#f59e0b"/>
+      <path d="M41.9 36.2 C45.4 37.1 49.8 37 53.9 36.1" stroke="#b45309" stroke-width="1" fill="none" stroke-linecap="round"/>
+      <circle cx="50.4" cy="38.2" r="0.8" fill="#ef4444"/>
+    </g>
+    <path d="M0 52 C6 49 10 49 16 52 S26 55 32 52 S42 49 48 52 S58 55 64 52 V64 H0Z" fill="#1e293b"/>
+    <path d="M0 52 C6 49 10 49 16 52 S26 55 32 52 S42 49 48 52 S58 55 64 52" stroke="#94a3b8" stroke-width="1.4" fill="none" stroke-linecap="round" opacity="0.7"/>
+  </g>
+</svg>

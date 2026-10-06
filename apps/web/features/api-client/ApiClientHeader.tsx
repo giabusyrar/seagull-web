@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Search, LogOut, PanelLeft, LayoutGrid } from 'lucide-react';
 import { Breadcrumb } from '@gateway-experience/shared';
 import { logout } from '@/lib/auth-client';
+import { SeagullMark } from '@/components/brand/SeagullMark';
 
 export interface ApiClientHeaderProps {
   isAiOpen?: boolean;
@@ -56,10 +57,7 @@ export const ApiClientHeader: React.FC<ApiClientHeaderProps> = ({
           className="flex items-center gap-2 cursor-pointer font-semibold text-foreground hover:opacity-90 transition"
           title="Seagull: Secure Enterprise API Gateway for Unified Layer Linking"
         >
-          <div className="relative w-5 h-5 bg-primary text-primary-foreground rounded-md flex items-center justify-center font-bold text-xs shadow-2xs">
-            <span>S</span>
-            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-beak border border-card" title="Seagull Beak Accent" />
-          </div>
+          <SeagullMark size={20} className="shrink-0 shadow-2xs rounded-md" />
           <span className="text-xs font-bold tracking-tight text-foreground">
             Seagull<span className="text-beak ml-0.5">.</span>
           </span>
