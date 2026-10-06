@@ -5,9 +5,14 @@ import { useBrand } from '../../lib/brand';
 import { useIntake } from '../../lib/intake';
 import { useLang } from '../../lib/i18n';
 import { photoRequested, transcriptJson, transcriptText, type TranscriptMeta } from '../../lib/conversation';
-import { accentGradient, btnGhost } from '../ui';
+import { accent, btnGhost } from '../ui';
 import { useFlowSurveys } from './useFlowSurveys';
 import { ConversationPanel } from './ConversationPanel';
+
+/** A side panel icon; the chevron points the way the panel will move. */
+function PanelIcon({ collapse }: { collapse: boolean }) {
+  return <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M15 4v16" />{collapse ? <path d="M8 10l2 2-2 2" /> : <path d="M10 10l-2 2 2 2" />}</svg>;
+}
 
 function download(name: string, body: string, type: string) {
   const url = URL.createObjectURL(new Blob([body], { type }));
@@ -42,6 +47,8 @@ export function AdvisorDock({ onGoPhoto, onOpenChange }: { onGoPhoto(): void; on
   const meta: TranscriptMeta = { sessionId: conv.session?.id, survey: code || undefined, brandId: brand.brandId, applicationId: brand.applicationId, customer: who.fullName || undefined, persona: live.persona };
   const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
   const hasTranscript = live.turns.some((x) => x.final && x.text);
+  const connDot = conn === 'ready' ? 'bg-emerald-500' : conn === 'connecting' ? 'bg-amber-400' : 'bg-zinc-400';
+  const badge = unread > 0 || (wantsPhoto && !open) ? (wantsPhoto && !open ? '!' : String(unread)) : null;
 
   return (
     <>
@@ -65,7 +72,9 @@ export function AdvisorDock({ onGoPhoto, onOpenChange }: { onGoPhoto(): void; on
                   <button type="button" className={`${btnGhost} justify-start`} onClick={() => { download(`conversation-${stamp}.json`, transcriptJson(live, meta), 'application/json'); setMenu(false); }}>JSON (.json)</button>
                 </div>
               )}
-              <button type="button" className={btnGhost} onClick={() => setOpen(false)} aria-label={t('Close advisor', 'Tutup advisor')}>✕</button>
+              <button type="button" className={btnGhost} onClick={() => setOpen(false)} aria-expanded aria-label={t('Hide advisor', 'Sembunyikan advisor')} title={t('Hide advisor — the page gets the full width', 'Sembunyikan advisor — halaman memakai lebar penuh')}>
+                <PanelIcon collapse />{t('Hide', 'Sembunyikan')}
+              </button>
             </div>
           </div>
           {hasFlow ? (
@@ -83,16 +92,25 @@ export function AdvisorDock({ onGoPhoto, onOpenChange }: { onGoPhoto(): void; on
       )}
 
       <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} aria-label={open ? t('Hide advisor', 'Sembunyikan advisor') : t('Open advisor', 'Buka advisor')}
-        className={`fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full text-white shadow-lg shadow-rose-500/30 transition-transform hover:scale-105 ${open ? 'bg-zinc-700 lg:hidden' : accentGradient}`}>
+        className={`fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full text-white shadow-lg shadow-slate-900/20 transition-transform hover:scale-105 lg:hidden ${open ? 'bg-zinc-700' : accent}`}>
         {conv.speaking && !open && <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400/40" />}
         <svg viewBox="0 0 24 24" className="relative h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           {open ? <path d="M6 6l12 12M18 6L6 18" /> : <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z" />}
         </svg>
-        <span className={`absolute right-0.5 top-0.5 h-3 w-3 rounded-full border-2 border-white ${conn === 'ready' ? 'bg-emerald-500' : conn === 'connecting' ? 'bg-amber-400' : 'bg-zinc-400'}`} />
-        {(unread > 0 || (wantsPhoto && !open)) && (
-          <span className="absolute -left-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold">{wantsPhoto && !open ? '!' : unread}</span>
-        )}
+        <span className={`absolute right-0.5 top-0.5 h-3 w-3 rounded-full border-2 border-white ${connDot}`} />
+        {badge && <span className="absolute -left-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold">{badge}</span>}
       </button>
+
+      {/* Wide screens: hidden, the advisor folds to a tab on the right edge; the page uses the full width. */}
+      {!open && (
+        <button type="button" onClick={() => setOpen(true)} aria-expanded={false} aria-label={t('Show advisor', 'Tampilkan advisor')}
+          className="fixed right-0 top-1/2 z-30 hidden -translate-y-1/2 flex-col items-center gap-2 rounded-l-2xl bg-white px-2 py-4 text-xs font-semibold text-zinc-700 shadow-lg ring-1 ring-zinc-900/10 transition-colors hover:bg-zinc-50 lg:flex">
+          <PanelIcon collapse={false} />
+          <span className="[writing-mode:vertical-rl] rotate-180">{t('Advisor', 'Advisor')}</span>
+          <span className={`h-2.5 w-2.5 rounded-full ${connDot}`} />
+          {badge && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">{badge}</span>}
+        </button>
+      )}
     </>
   );
 }

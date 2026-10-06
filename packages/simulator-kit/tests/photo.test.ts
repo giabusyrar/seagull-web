@@ -12,7 +12,7 @@ const form = (init: RequestInit) => init.body as FormData;
 describe('analyzeColour', () => {
   it('posts image and bools as "true"/"false" to core colour-engine', () => {
     const { url, init } = analyzeColour(front, true, false);
-    expect(url).toBe('/svc/core/core/colour-engine/analyze');
+    expect(url).toBe('/svc/core/core/colour-engine/analyze?debug=1');
     expect(init.method).toBe('POST');
     const fd = form(init);
     expect(fd.get('image')).toBeInstanceOf(File);

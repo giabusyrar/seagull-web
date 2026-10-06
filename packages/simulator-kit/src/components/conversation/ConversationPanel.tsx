@@ -5,7 +5,7 @@ import { photoRequested } from '../../lib/conversation';
 import { useIntake } from '../../lib/intake';
 import { useLang } from '../../lib/i18n';
 import type { Brand } from '../../lib/photo';
-import { accentGradient, btnPrimary, btnPrimarySm, card, field } from '../ui';
+import { accent, btnPrimary, btnPrimarySm, card, field } from '../ui';
 import { Bubble, ProgressBar, ResumeDivider } from './parts';
 
 /**
@@ -40,7 +40,7 @@ export function ConversationPanel({ brand, code, canStart, onGoPhoto }: {
   const callBase = 'relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-white shadow-md transition-all disabled:cursor-not-allowed disabled:bg-zinc-200 disabled:text-zinc-400 disabled:shadow-none';
   const callButton = conn === 'ready' ? (
     <button type="button" onClick={c.toggleMic} aria-pressed={c.micOn} aria-label={c.micOn ? t('Stop talking', 'Berhenti bicara') : t('Talk', 'Bicara')}
-      className={`${callBase} ${c.micOn ? 'bg-red-500 hover:bg-red-600' : `${accentGradient} shadow-rose-500/30 hover:brightness-105`}`}>
+      className={`${callBase} ${c.micOn ? 'bg-red-500 hover:bg-red-600' : `${accent} shadow-slate-900/20 hover:bg-slate-800`}`}>
       {c.micOn && <span className="absolute inset-0 rounded-full bg-red-400" style={{ transform: `scale(${1 + Math.min(0.35, c.level * 1.5)})`, opacity: 0.35 }} />}
       <svg viewBox="0 0 24 24" className="relative h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
         <rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" />

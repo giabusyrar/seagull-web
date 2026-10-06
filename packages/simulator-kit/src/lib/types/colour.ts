@@ -26,6 +26,8 @@ export interface AnalyzeResult {
   recommendations?: Record<string, Omit<CatalogShade, 'mode'>[]>;
   catalog?: Catalog;
   configVersion?: string;
+  /** Raw colorimetry, only with ?debug=1 on a core that allows it; read through lib/lab.ts. */
+  debug?: unknown;
 }
 
 /** The try-on catalog of an analysis; older engines only send recommendations. */

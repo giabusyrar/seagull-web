@@ -24,5 +24,5 @@ configureSimulator({
 
 /** The simulator itself, exactly as the simulator app shows it. */
 export function SimulatorStudio() {
-  return <SimulatorApp />;
+  return <SimulatorApp layout="embedded" />;
 }

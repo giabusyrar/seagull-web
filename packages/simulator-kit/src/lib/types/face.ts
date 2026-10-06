@@ -10,6 +10,8 @@ export interface Measurement {
   unit?: string;
   band?: [number | null, number | null] | null;
   visibility?: string;
+  /** Indices into the result's `landmarks` that this measurement spans. */
+  landmarks?: number[];
   reason?: string | null;
 }
 
@@ -23,6 +25,8 @@ export interface FaceArchitectureResult {
   measurementsMissing?: string[];
   classifications?: Record<string, Classification>;
   traits?: Record<string, Trait>;
+  /** The 478-point mesh, [x, y] in pixels of the uploaded photo; null when core could not return all of it. */
+  landmarks?: [number, number][] | null;
 }
 
 export const CLASSIFICATION_STATUS_LABEL: Bilingual = {

@@ -16,11 +16,11 @@ import { useSurveys } from '../form/useSurveys';
 import { useFlowSurveys } from '../conversation/useFlowSurveys';
 import { btnGhost, btnPrimary, btnSecondary, card, cardPad, eyebrow, field, pageSub, pageTitle } from '../ui';
 
-/** The simulator's accent (rose-500 / rose-600), on SurveyJS 3's brand variables (blue by default). */
+/** Seagull slate (slate-900 / slate-800, see ui.ts), on SurveyJS 3's brand variables (blue by default). */
 const SURVEY_ACCENT: Record<string, string> = {
-  '--sjs2-color-project-brand-600': 'rgba(244, 63, 94, 1)',
-  '--sjs2-color-bg-brand-primary-dim': 'rgba(225, 29, 72, 1)',
-  '--sjs2-color-bg-brand-secondary': 'rgba(244, 63, 94, 0.1)',
+  '--sjs2-color-project-brand-600': 'rgba(15, 23, 42, 1)',
+  '--sjs2-color-bg-brand-primary-dim': 'rgba(30, 41, 59, 1)',
+  '--sjs2-color-bg-brand-secondary': 'rgba(15, 23, 42, 0.08)',
 };
 
 /** Debounce for telling the advisor about a form edit, so ticking several boxes sends one answer. */

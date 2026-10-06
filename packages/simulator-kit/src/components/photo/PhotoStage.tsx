@@ -5,6 +5,7 @@ import { LazyGlbViewer as GlbViewer } from '../LazyGlbViewer';
 import { useFileSrc } from '../../lib/blob';
 import { btnGhost, btnSecondary, segItem, segTrack } from '../ui';
 import { ErrorBox, type TabState } from './TabShell';
+import { PhotoAnnotations, type Annotations } from './PhotoAnnotations';
 import { useLang } from '../../lib/i18n';
 
 const FRAME = 'relative overflow-hidden rounded-xl bg-zinc-100';
@@ -15,7 +16,7 @@ const IMG = 'mx-auto block max-h-[62vh] w-full object-contain';
  * clipped to the left of a draggable divider. Both are the same photo
  * frame, so they line up.
  */
-function Compare({ photoRef, tryOnUrl }: { photoRef: (el: HTMLImageElement | null) => void; tryOnUrl: string }) {
+function Compare({ photoRef, tryOnUrl, children }: { photoRef: (el: HTMLImageElement | null) => void; tryOnUrl: string; children?: React.ReactNode }) {
   const [pos, setPos] = useState(50);
   const { t } = useLang();
   return (
@@ -26,6 +27,7 @@ function Compare({ photoRef, tryOnUrl }: { photoRef: (el: HTMLImageElement | nul
         <div className="absolute inset-y-0 -ml-px w-0.5 bg-white shadow-[0_0_0_1px_rgba(0,0,0,0.08)]" />
         <div className="absolute top-1/2 -ml-4 -mt-4 flex h-8 w-8 items-center justify-center rounded-full bg-white text-[11px] font-bold text-zinc-700 shadow-md">⇆</div>
       </div>
+      {children}
       <span className="absolute left-2.5 top-2.5 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-semibold text-white">Try-on</span>
       <span className="absolute right-2.5 top-2.5 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-semibold text-white">{t('Original', 'Asli')}</span>
       <input type="range" min={0} max={100} value={pos} onChange={(e) => setPos(Number(e.target.value))} aria-label={t('Drag to compare before and after', 'Geser perbandingan sebelum dan sesudah')}
@@ -35,10 +37,14 @@ function Compare({ photoRef, tryOnUrl }: { photoRef: (el: HTMLImageElement | nul
 }
 
 /** The photo (or its latest try-on render) in 2D, the head GLB in 3D. */
-export function PhotoStage({ photo, tryOnUrl, head, glbUrl, onRetake, canShow3d }: {
+export function PhotoStage({ photo, tryOnUrl, head, glbUrl, onRetake, canShow3d, annotations }: {
   photo: File; tryOnUrl: string | null; head: TabState; glbUrl: string | null; onRetake(): void; canShow3d: boolean;
+  /** What the open results tab located on the photo; drawn over the 2D view. */
+  annotations?: Annotations | null;
 }) {
   const [picked, setView] = useState<'2d' | '3d'>('2d');
+  const [marksOn, setMarksOn] = useState(true);
+  const overlay = annotations && marksOn ? <PhotoAnnotations photo={photo} annotations={annotations} /> : null;
   const view = canShow3d ? picked : '2d';
   const src = useFileSrc(photo);
   const { t } = useLang();
@@ -56,16 +62,23 @@ export function PhotoStage({ photo, tryOnUrl, head, glbUrl, onRetake, canShow3d 
             </button>
           ))}
         </div>
-        <button type="button" onClick={onRetake} className={btnSecondary}>{t('Retake', 'Foto ulang')}</button>
+        <div className="flex items-center gap-2">
+          {annotations && view === '2d' && (
+            <button type="button" onClick={() => setMarksOn((v) => !v)} aria-pressed={marksOn} className={btnSecondary}>
+              {marksOn ? t('Hide marks', 'Sembunyikan tanda') : t('Show marks', 'Tampilkan tanda')}
+            </button>
+          )}
+          <button type="button" onClick={onRetake} className={btnSecondary}>{t('Retake', 'Foto ulang')}</button>
+        </div>
       </div>
       {view === '2d' ? (
         tryOnUrl ? (
           <div className="flex flex-col gap-1.5">
-            <Compare photoRef={src} tryOnUrl={tryOnUrl} />
+            <Compare photoRef={src} tryOnUrl={tryOnUrl}>{overlay}</Compare>
             <p className="text-center text-[11px] text-zinc-500">{t('Drag to compare before and after.', 'Geser untuk membandingkan sebelum dan sesudah.')}</p>
           </div>
         ) : (
-          <div className={FRAME}><img ref={src} alt={t('Front photo', 'Foto depan')} className={IMG} /></div>
+          <div className={FRAME}><img ref={src} alt={t('Front photo', 'Foto depan')} className={IMG} />{overlay}</div>
         )
       ) : glbUrl ? (
         <div className="flex flex-col gap-1.5">

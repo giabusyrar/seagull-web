@@ -1,5 +1,5 @@
 'use client';
-import { accentGradient, card } from './ui';
+import { accent, card } from './ui';
 import { useCallback, useEffect, useState } from 'react';
 import { usePersistentState } from '@gateway-experience/shared';
 import { useBrand } from '../lib/brand';
@@ -14,6 +14,7 @@ import { TabShell } from './photo/TabShell';
 import { EvaluationResult } from './form/EvaluationResult';
 import { MatchResult, type MatchOutput } from './conversation/parts';
 import { useSurveys } from './form/useSurveys';
+import { useLayout } from '../lib/layout';
 
 type View = 'customer' | 'intake' | 'photo';
 type StepId = 'customer' | 'intake' | 'photo' | 'results';
@@ -25,12 +26,12 @@ function Stepper({ steps, at, onPick }: { steps: { id: StepId; label: string; en
         <li key={s.id} className="flex min-w-0 flex-1 items-center gap-1">
           <button type="button" disabled={!s.enabled} onClick={() => onPick(s.id)} aria-current={i === at ? 'step' : undefined}
             className={`flex min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl px-2 py-2.5 text-sm transition-all disabled:cursor-not-allowed ${
-              i === at ? `${accentGradient} font-semibold text-white shadow-md shadow-rose-500/25` : s.enabled ? 'text-zinc-700 hover:bg-zinc-50' : 'text-zinc-400'}`}>
+              i === at ? `${accent} font-semibold text-white shadow-md shadow-slate-900/20` : s.enabled ? 'text-zinc-700 hover:bg-zinc-50' : 'text-zinc-400'}`}>
             <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
-              i === at ? 'bg-white/25 text-white' : i < at ? 'bg-rose-50 text-rose-600 ring-1 ring-rose-200' : 'bg-zinc-100 text-zinc-400'}`}>{i < at ? '✓' : i + 1}</span>
+              i === at ? 'bg-white/25 text-white' : i < at ? 'bg-amber-50 text-amber-700 ring-1 ring-amber-200' : 'bg-zinc-100 text-zinc-400'}`}>{i < at ? '✓' : i + 1}</span>
             <span className="truncate max-sm:hidden">{s.label}</span>
           </button>
-          {i < steps.length - 1 && <span className={`h-0.5 w-3 shrink-0 rounded-full sm:w-6 ${i < at ? 'bg-rose-300' : 'bg-zinc-200'}`} />}
+          {i < steps.length - 1 && <span className={`h-0.5 w-3 shrink-0 rounded-full sm:w-6 ${i < at ? 'bg-amber-400' : 'bg-zinc-200'}`} />}
         </li>
       ))}
     </ol>
@@ -45,6 +46,7 @@ function Flow() {
   const [view, setView] = usePersistentState<View>('sim.view', 'customer');
   const [phase, setPhase] = useState<PhotoPhase>('capture');
   const [dockOpen, setDockOpen] = useState(false);
+  const embedded = useLayout() === 'embedded';
   // No forms for this brand/application: the questionnaire step does not apply. Only a
   // settled answer counts, and the user's chosen step is left alone so a brand with
   // forms gets its questionnaire back.
@@ -99,7 +101,11 @@ function Flow() {
   };
 
   return (
-    <div className={`flex flex-col gap-6 transition-[padding] ${dockOpen ? 'lg:pr-[420px]' : ''}`}>
+    // With the advisor docked, make room for the part of it that overlaps the page: the dock is
+    // 400px + 20px margin from the viewport edge (AdvisorDock), plus a 20px gap. Standalone, the
+    // page is 72rem wide and centred, so the space beside it is taken off; embedded, the page
+    // runs to the viewport's right edge and the whole width is needed.
+    <div className={`flex flex-col gap-6 transition-[padding] ${!dockOpen ? '' : embedded ? 'lg:pr-[440px]' : 'lg:pr-[max(0px,calc(440px_-_(100vw_-_72rem)/2))]'}`}>
       <AdvisorDock onGoPhoto={() => setView('photo')} onOpenChange={setDockOpen} />
       <Stepper steps={steps} at={steps.findIndex((s) => s.id === step)} onPick={pick} />
       <div hidden={effectiveView !== 'customer'}>

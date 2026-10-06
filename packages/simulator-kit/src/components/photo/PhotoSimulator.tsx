@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useBrand } from '../../lib/brand';
 import { usePhotos } from '../../lib/photos';
 import { useLang } from '../../lib/i18n';
@@ -9,6 +9,10 @@ import { call } from '../../lib/http';
 import { analyzeColour, faceArchitecture, faceHead, skinAnalyze, toggleShade, type Brand, type BuiltRequest, type Selection } from '../../lib/photo';
 import { FrontPicker, PhotoTips, Questions, SideShots, type YesNo } from './PhotoInput';
 import { PhotoStage } from './PhotoStage';
+import type { Annotations } from './PhotoAnnotations';
+import { faceMarks, skinZoneBoxes } from '../../lib/annotations';
+import type { FaceArchitectureResult } from '../../lib/types/face';
+import type { VisionAnalysisResult } from '../../lib/types/skin';
 import { ColourTab } from './ColourTab';
 import { FaceTab } from './FaceTab';
 import { SkinTab } from './SkinTab';
@@ -22,6 +26,8 @@ export type PhotoPhase = 'capture' | 'questions' | 'result';
 export interface ExtraTab { id: string; label: string; state: 'idle' | 'loading' | 'ok' | 'error'; render(): ReactNode }
 
 const LOADING: TabState = { loading: true };
+/** Core's ImageAngle for the front photo (core-engine vision/domain/zones.go), the one shown on the stage. */
+const FRONT_ANGLE = 'FRONT';
 const stateOf = (s: TabState): ExtraTab['state'] => (s.loading ? 'loading' : s.error || (s.result && !s.result.ok) ? 'error' : s.result ? 'ok' : 'idle');
 const DOT: Record<ExtraTab['state'], string> = { loading: 'bg-zinc-400 animate-pulse', error: 'bg-red-500', ok: 'bg-emerald-500', idle: 'bg-zinc-200' };
 
@@ -117,6 +123,18 @@ export function PhotoSimulator({ onPhase, onAnalyze, before = [], after = [] }: 
   ];
   const tabs = [...before, ...photoTabs, ...after];
   const active = tabs.find((x) => x.id === tab) ?? tabs[0];
+  const annotations = useMemo<Annotations | null>(() => {
+    const json = (s: TabState) => (s.result?.ok ? s.result.json : undefined);
+    if (active.id === 'face') {
+      const data = faceMarks(json(face) as FaceArchitectureResult | undefined);
+      return data ? { kind: 'face', data } : null;
+    }
+    if (active.id === 'skin') {
+      const data = skinZoneBoxes(json(skin) as VisionAnalysisResult | undefined, FRONT_ANGLE);
+      return data.length ? { kind: 'skin', data } : null;
+    }
+    return null;
+  }, [active.id, face, skin]);
 
   // Photo on the left; questions or results on the right (seagull-web's studio layout).
   return (
@@ -138,7 +156,7 @@ export function PhotoSimulator({ onPhase, onAnalyze, before = [], after = [] }: 
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(320px,400px)_minmax(0,1fr)]">
         <div className={`${cardPad} flex flex-col gap-4 lg:sticky lg:top-20`}>
           {front
-            ? <PhotoStage photo={front} tryOnUrl={tryOn.url} head={head} glbUrl={glbUrl} onRetake={retake} canShow3d={current === 'result'} />
+            ? <PhotoStage photo={front} tryOnUrl={tryOn.url} head={head} glbUrl={glbUrl} onRetake={retake} canShow3d={current === 'result'} annotations={current === 'result' ? annotations : null} />
             : <FrontPicker onChange={setFront} />}
           <SideShots left={left} right={right} setLeft={setLeft} setRight={setRight} disabled={current === 'result'} />
         </div>
@@ -147,10 +165,11 @@ export function PhotoSimulator({ onPhase, onAnalyze, before = [], after = [] }: 
           {current === 'questions' && <Questions hijab={hijab} hair={hair} setHijab={setHijab} setHair={setHair} brandReady={brandReady} onAnalyze={analyze} />}
           {current === 'result' && (
             <div className={`${card} overflow-hidden`}>
-              <div role="tablist" aria-label={t('Results', 'Hasil')} className="flex gap-1 overflow-x-auto border-b border-zinc-100 bg-zinc-50/60 p-1.5">
+              {/* Tabs wrap onto a second row when the card is narrow: every tab stays visible, no scrollbar. */}
+              <div role="tablist" aria-label={t('Results', 'Hasil')} className="flex flex-wrap gap-1 border-b border-zinc-100 bg-zinc-50/60 p-1.5">
                 {tabs.map((x) => (
                   <button key={x.id} type="button" role="tab" aria-selected={active.id === x.id} onClick={() => setTab(x.id)}
-                    className={`flex flex-1 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm transition-colors ${active.id === x.id ? 'bg-white font-semibold text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-900'}`}>
+                    className={`flex min-w-[7.5rem] flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 text-sm transition-all ${active.id === x.id ? 'bg-white font-semibold text-zinc-900 shadow-sm ring-1 ring-zinc-900/5' : 'text-zinc-500 hover:bg-white/60 hover:text-zinc-900'}`}>
                     <span className={`h-2 w-2 rounded-full ${DOT[x.state]}`} />{x.label}
                   </button>
                 ))}

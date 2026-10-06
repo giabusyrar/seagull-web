@@ -1,5 +1,6 @@
 @import "tailwindcss";
-@source "../../packages";
+/* Simulator Studio renders the shared packages (simulator-kit etc.); scan them. Relative to this file. */
+@source "../../../packages";
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));

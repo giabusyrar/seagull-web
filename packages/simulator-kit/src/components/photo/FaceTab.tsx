@@ -2,6 +2,7 @@
 import type { CallResult } from '../../lib/http';
 import { CLASSIFICATION_STATUS_LABEL, TRAIT_STATUS_LABEL, errorEntries, type Classification, type FaceArchitectureResult, type FaceQuality, type Measurement, type Trait } from '../../lib/types/face';
 import { card } from '../ui';
+import { faceMarks } from '../../lib/annotations';
 import { useLang } from '../../lib/i18n';
 import { Pill, Section, TabShell, Tile, dash, entries, humanize, list, num, type TabState } from './TabShell';
 
@@ -18,6 +19,8 @@ export function FaceResult({ r }: { r: FaceArchitectureResult }) {
   const q = (r.quality && typeof r.quality === 'object' ? r.quality : {}) as FaceQuality;
   const warnings = list<string>(q.warnings).map(String);
   const missing = list<string>(r.measurementsMissing).map(String);
+  // The number each measurement carries on the photo, when it could be drawn there.
+  const markNo = new Map((faceMarks(r)?.marks ?? []).map((m) => [m.key, m.n]));
   return (
     <div className="flex flex-col gap-6">
       <Section title={tr('Classification', 'Klasifikasi')}>
@@ -56,11 +59,12 @@ export function FaceResult({ r }: { r: FaceArchitectureResult }) {
         <div className="max-h-80 overflow-auto rounded-xl border border-zinc-100">
           <table className="w-full text-xs">
             <thead className="sticky top-0 bg-zinc-50 text-left text-[10px] uppercase tracking-wider text-zinc-500">
-              <tr><th className="px-3 py-2 font-semibold">Key</th><th className="px-3 py-2 text-right font-semibold">{tr('Value', 'Nilai')}</th><th className="px-3 py-2 font-semibold">Unit</th><th className="px-3 py-2 font-semibold">Band</th></tr>
+              <tr><th className="w-8 px-3 py-2 font-semibold">#</th><th className="px-3 py-2 font-semibold">Key</th><th className="px-3 py-2 text-right font-semibold">{tr('Value', 'Nilai')}</th><th className="px-3 py-2 font-semibold">Unit</th><th className="px-3 py-2 font-semibold">Band</th></tr>
             </thead>
             <tbody>
               {ms.map((m, i) => (
                 <tr key={`${m.key}-${i}`} className="border-t border-zinc-100 hover:bg-zinc-50/60" title={typeof m.reason === 'string' ? m.reason : undefined}>
+                  <td className="px-3 py-1.5">{markNo.has(m.key) && <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-slate-900 px-1 text-[10px] font-bold text-white">{markNo.get(m.key)}</span>}</td>
                   <td className="px-3 py-1.5 font-mono text-zinc-700">{dash(m.key)}</td>
                   <td className="px-3 py-1.5 text-right font-semibold tabular-nums">{fmtValue(m)}</td>
                   <td className="px-3 py-1.5 text-zinc-500">{dash(m.unit)}</td>

@@ -21,7 +21,9 @@ export function analyzeColour(photo: File, hijab: boolean, hairVisible: boolean)
   fd.append('image', photo);
   fd.append('hijab', hijab ? 'true' : 'false');
   fd.append('hairVisible', hairVisible ? 'true' : 'false');
-  return post('/core/colour-engine/analyze', fd);
+  // debug=1 asks for the raw CIELAB readings; core returns them only where
+  // core-engine runs with COLOUR_DEBUG_ENABLED=true, else `debug` is null (lib/lab.ts).
+  return post('/core/colour-engine/analyze?debug=1', fd);
 }
 
 export function faceArchitecture(photo: File, brand: Brand): BuiltRequest {

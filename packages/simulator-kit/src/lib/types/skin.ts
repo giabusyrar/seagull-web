@@ -31,6 +31,8 @@ export interface ZoneDiagnosticMetric {
   zoneName?: string;
   sourceAngle?: string;
   isVisible?: boolean;
+  /** Normalised 0-1 on the `sourceAngle` photo; all zero when the zone is not visible. */
+  boundingBox?: { minX: number; minY: number; maxX: number; maxY: number };
   metrics?: { dimensions?: Record<string, MetricValue>; skinConditions?: Record<string, MetricValue> };
 }
 

@@ -3,7 +3,7 @@ import { severityToneOf, type SeverityTone } from '@gateway-experience/shared';
 import { Component, useState, type ReactNode } from 'react';
 import type { CallResult } from '../../lib/http';
 import { ResponseView } from '../ResponseView';
-import { btnGhost, card, eyebrow } from '../ui';
+import { btnGhost, eyebrow } from '../ui';
 import { useLang } from '../../lib/i18n';
 
 /** One analysis request's lifecycle. `error` is a client-side failure (no request was sent). */
@@ -104,11 +104,23 @@ export function Section({ title, children, aside }: { title: ReactNode; children
   );
 }
 
+const shown = (value: ReactNode) => (value === undefined || value === null || value === '' ? '—' : value);
+
 export function Tile({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <div className={`${card} px-3.5 py-3`}>
-      <div className={eyebrow}>{label}</div>
-      <div className="mt-1 truncate text-sm font-semibold capitalize">{value === undefined || value === null || value === '' ? '—' : value}</div>
+    <div className="min-w-0 rounded-2xl bg-white px-3.5 py-3 ring-1 ring-zinc-900/[0.06]">
+      <div className={`${eyebrow} truncate`}>{label}</div>
+      <div className="mt-1 break-words text-sm font-semibold leading-snug capitalize">{shown(value)}</div>
+    </div>
+  );
+}
+
+/** One labelled reading in a <dl> strip; the value wraps rather than being cut off. */
+export function Fact({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="min-w-0 bg-white px-4 py-3">
+      <dt className={`${eyebrow} truncate`}>{label}</dt>
+      <dd className="mt-1 break-words text-sm font-semibold leading-snug capitalize text-zinc-900">{shown(value)}</dd>
     </div>
   );
 }
