@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import type { Respondent } from '../../lib/form';
 import { useLang } from '../../lib/i18n';
 import { card, eyebrow, field } from '../ui';
+import { LocationPicker } from './LocationPicker';
 
 type Pii = 'fullName' | 'email' | 'phoneNumber' | 'dateOfBirth';
 
@@ -36,6 +37,10 @@ export function CustomerCard({ who, setWho, footer }: { who: Respondent; setWho(
           {input('dateOfBirth', t('Date of birth', 'Tanggal lahir'), 'date', 'bday', t('Feeds the ageing score.', 'Dipakai untuk skor penuaan.'))}
           {input('email', 'Email', 'email', 'email')}
           {input('phoneNumber', t('Phone', 'Telepon'), 'tel', 'tel')}
+        </div>
+        <div className="flex flex-col gap-3 border-t border-zinc-100 pt-5">
+          <span className={eyebrow}>{t('Location', 'Lokasi')}</span>
+          <LocationPicker who={who} setWho={setWho} />
         </div>
       </div>
       {footer && <div className="border-t border-zinc-100 bg-zinc-50/60 px-5 py-4 sm:px-6">{footer}</div>}

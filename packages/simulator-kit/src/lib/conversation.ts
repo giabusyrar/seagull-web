@@ -3,7 +3,7 @@
 // events its live WebSocket sends.
 import { simulatorConfig, svcPath } from './services';
 import type { Brand, BuiltRequest } from './photo';
-import { piiFields, type Respondent } from './form';
+import { locationFields, piiFields, type Respondent } from './form';
 
 /**
  * Where the browser opens the live socket. HTTP rewrites do not carry it, so
@@ -19,6 +19,7 @@ const owner = (s: ConvSession) => ({ 'X-Session-Owner': s.owner });
 /** The customer as the conversation engine takes them: details and consent. */
 export const customerBody = (who: Respondent) => ({
   ...piiFields(who),
+  ...locationFields(who),
   consent_data_processing: who.consentDataProcessing,
   consent_marketing: who.consentMarketing,
 });

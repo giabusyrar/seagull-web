@@ -15,7 +15,16 @@ const GATEWAY_ENGINE_URL = getGatewayEngineUrl();
 const nextConfig: NextConfig = {
   // Simulator Studio renders the simulator's screens from source.
   transpilePackages: ['@gateway-experience/simulator-kit'],
+  // The customer step's country list (simulator-kit location/server.ts) reads
+  // its data files from the package's own folder at runtime, which the bundler
+  // cannot follow: load it with Node's require instead of bundling it.
+  serverExternalPackages: ['@countrystatecity/countries'],
   output: "standalone",
+  // …and the standalone build only copies files it can trace, so name that
+  // package's data for the one route that reads it. Paths are from apps/web.
+  outputFileTracingIncludes: {
+    '/api/locations': ['../../node_modules/@countrystatecity/countries/dist/data/**/*'],
+  },
   devIndicators: false,
   turbopack: { root: WORKSPACE_ROOT },
   async rewrites() {

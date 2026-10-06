@@ -13,8 +13,8 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 2. Skip internal Next.js auth routes (/api/auth/*) and proxy endpoints (/backend-api/*)
-  if (pathname.startsWith('/api/auth/') || pathname.startsWith('/backend-api/')) {
+  // 2. Skip this app's own API routes (/api/auth/*, /api/locations) and proxy endpoints (/backend-api/*)
+  if (pathname.startsWith('/api/auth/') || pathname === '/api/locations' || pathname.startsWith('/backend-api/')) {
     return NextResponse.next();
   }
 

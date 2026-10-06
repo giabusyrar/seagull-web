@@ -26,6 +26,12 @@ export interface Respondent {
   email?: string;
   phoneNumber?: string;
   dateOfBirth?: string;
+  /** ISO 3166-1 alpha-2, e.g. "ID". */
+  country?: string;
+  /** Province and city by name, as stored; provinceCode only fetches the province's cities. */
+  province?: string;
+  provinceCode?: string;
+  city?: string;
   consentDataProcessing: boolean;
   consentMarketing: boolean;
 }
@@ -38,6 +44,16 @@ export function piiFields(who: Respondent): Record<string, string> {
     phone_number: who.phoneNumber?.trim(),
     date_of_birth: who.dateOfBirth,
   };
+  return Object.fromEntries(Object.entries(f).filter((e): e is [string, string] => !!e[1]));
+}
+
+/**
+ * Where the customer lives, in the conversation engine's field names. Only the
+ * advisor session takes it (it remembers it and the advisor may use it); the
+ * form and score endpoints have no use for it, so piiFields leaves it out.
+ */
+export function locationFields(who: Respondent): Record<string, string> {
+  const f = { country: who.country, province: who.province?.trim(), city: who.city?.trim() };
   return Object.fromEntries(Object.entries(f).filter((e): e is [string, string] => !!e[1]));
 }
 

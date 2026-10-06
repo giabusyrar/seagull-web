@@ -20,6 +20,8 @@ export interface SimulatorConfig {
   healthPaths: Record<ServiceId, string | null>;
   /** Where the browser opens the conversation engine's live socket (HTTP rewrites do not carry it). */
   conversationWs: string;
+  /** The host's route serving location/server.ts (country → province → city lists). */
+  locationsPath: string;
 }
 
 /** The simulator app's own wiring: /svc/<id> rewrites, /health on each service. */
@@ -27,6 +29,7 @@ const DEFAULTS: SimulatorConfig = {
   bases: { core: '/svc/core', ref: '/svc/ref', conv: '/svc/conv' },
   healthPaths: { core: '/health', ref: '/health', conv: '/health' },
   conversationWs: '',
+  locationsPath: '/api/locations',
 };
 
 let config: SimulatorConfig = DEFAULTS;
@@ -37,6 +40,7 @@ export function configureSimulator(c: Partial<SimulatorConfig>): void {
     bases: { ...DEFAULTS.bases, ...c.bases },
     healthPaths: { ...DEFAULTS.healthPaths, ...c.healthPaths },
     conversationWs: c.conversationWs ?? DEFAULTS.conversationWs,
+    locationsPath: c.locationsPath ?? DEFAULTS.locationsPath,
   };
 }
 
