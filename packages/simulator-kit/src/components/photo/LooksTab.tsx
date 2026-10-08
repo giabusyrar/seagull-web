@@ -163,6 +163,7 @@ export function LooksTab({ brand, photo, hijab, hairVisible }: { brand: Brand; p
 
       {r && (
         <Section title={t('Shades for this customer', 'Shade untuk pelanggan ini')}>
+          <p className="text-[11px] text-zinc-500">{t("Each shade is picked for this customer's skin from the look's product; a shade named in the look's description is what the brand published, not necessarily the one shown here.", 'Setiap shade dipilih untuk kulit pelanggan ini dari produk look; shade yang disebut di deskripsi look adalah yang dipublikasikan brand, belum tentu yang tampil di sini.')}</p>
           {r.faceShape && (
             <p className="text-[11px] text-zinc-500">{t('Face shape', 'Bentuk wajah')}: {dash(r.faceShape.class)} ({dash(r.faceShape.status)}{r.faceShape.calibration ? `, ${r.faceShape.calibration}` : ''})</p>
           )}
