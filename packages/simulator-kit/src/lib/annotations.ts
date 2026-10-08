@@ -101,7 +101,8 @@ export type SkinFocus =
 
 /** A lesion to draw: its box in 0-1 of the FRONT photo, as core sent it. */
 export interface LesionMark {
-  label: string; x: number; y: number; w: number; h: number; score: number;
+  /** score: the detector's confidence 0-1; null when core sent none, so it is never shown as 0%. */
+  label: string; x: number; y: number; w: number; h: number; score: number | null;
   inflammatory: boolean; deltaE00: number | null; band: ContrastBand | null;
 }
 
@@ -115,7 +116,7 @@ export function acneMarks(r: { acne?: { sourceAngle?: string; lesions?: AcneLesi
     const { x, y, w, h } = b as { x: number; y: number; w: number; h: number };
     if (w <= 0 || h <= 0 || x < 0 || y < 0 || x + w > 1 || y + h > 1) return [];
     return [{
-      label: l.label, x, y, w, h, score: finite(l.score) ? l.score : 0,
+      label: l.label, x, y, w, h, score: finite(l.score) ? l.score : null,
       inflammatory: l.inflammatory === true,
       deltaE00: finite(l.deltaE00) ? l.deltaE00 : null,
       band: l.contrastBand ?? null,

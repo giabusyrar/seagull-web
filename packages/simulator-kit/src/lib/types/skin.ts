@@ -48,13 +48,18 @@ export interface AcneLesion {
   deltaA?: number | null;
   deltaL?: number | null;
   contrastBand?: ContrastBand | null;
+  /** counted in the Hayashi inflammatory count; false for a non-inflammatory lesion or a second inflammatory label at the same spot. */
+  counted?: boolean;
 }
 export interface AcneResult {
   detector?: string;
   sourceAngle?: string;
   colourCalibrated?: boolean;
   lesions?: AcneLesion[];
-  hayashi?: { inflammatoryCount?: number; halfFaceCount?: number; grade?: 'mild' | 'moderate' | 'severe' | 'very_severe'; source?: string };
+  /** null when core withheld the grade; hayashiWithheld then says why. */
+  hayashi?: { inflammatoryCount?: number; halfFaceCount?: number; grade?: 'mild' | 'moderate' | 'severe' | 'very_severe'; source?: string } | null;
+  /** core's reason for withholding the Hayashi grade (a zone from a non-FRONT photo, or an inflammatory label not measured). */
+  hayashiWithheld?: string;
 }
 
 export interface VisionAnalysisResult {

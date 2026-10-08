@@ -159,6 +159,12 @@ describe('acneMarks', () => {
     ]);
   });
 
+  it('gives a missing or non-finite score as null, never 0', () => {
+    const box = { x: 0.1, y: 0.2, w: 0.01, h: 0.02 };
+    const marks = acneMarks({ acne: { sourceAngle: 'FRONT', lesions: [{ label: 'papule', box }, { label: 'pustule', box, score: Number.NaN }] } });
+    expect(marks.map((m) => m.score)).toEqual([null, null]);
+  });
+
   it('has nothing to draw without an acne block or off the FRONT photo', () => {
     expect(acneMarks({})).toEqual([]);
     expect(acneMarks({ acne: { sourceAngle: 'LEFT', lesions: [{ label: 'papule', box: { x: 0.1, y: 0.1, w: 0.01, h: 0.01 }, score: 1 }] } })).toEqual([]);

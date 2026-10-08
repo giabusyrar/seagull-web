@@ -151,7 +151,7 @@ export function PhotoSimulator({ onPhase, onAnalyze, before = [], after = [] }: 
       return data.length ? { kind: 'skin', data, view, lesions } : null;
     }
     return null;
-  }, [active.id, face, skin, focusedTrait, skinFocus]);
+  }, [active.id, face, skin, focusedTrait, skinFocus, t]);
 
   // Photo on the left; questions or results on the right (seagull-web's studio layout).
   return (

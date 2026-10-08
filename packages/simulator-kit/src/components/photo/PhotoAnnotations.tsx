@@ -168,7 +168,7 @@ function Overlay({ img, annotations }: { img: { url: string; w: number; h: numbe
                 return (
                   <rect key={`lesion-${i}`} x={l.x * img.w} y={l.y * img.h} width={l.w * img.w} height={l.h * img.h}
                     fill={colour} fillOpacity={fill} stroke={colour} strokeWidth={LINE_PX} vectorEffect="non-scaling-stroke">
-                    <title>{`${l.label} · ${Math.round(l.score * 100)}%${l.deltaE00 === null ? '' : ` · ΔE00 ${l.deltaE00.toFixed(1)}`}`}</title>
+                    <title>{`${l.label}${l.score === null ? '' : ` · ${Math.round(l.score * 100)}%`}${l.deltaE00 === null ? '' : ` · ΔE00 ${l.deltaE00.toFixed(1)} (colour uncalibrated)`}`}</title>
                   </rect>
                 );
               })}

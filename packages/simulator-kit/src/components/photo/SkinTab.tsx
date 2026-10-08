@@ -8,13 +8,9 @@ import { card, segItem, segTrack } from '../ui';
 import type { SkinView } from './PhotoAnnotations';
 import { useLang } from '../../lib/i18n';
 import { LESION_COLOURS_SOURCE } from '../../lib/lesionColours';
+import { HayashiScale } from './HayashiScale';
 import { ScoreRing } from './ScoreRing';
 import { Pill, Section, TabShell, dash, entries, humanize, list, num, severityTone, type TabState } from './TabShell';
-
-const HAYASHI_LABEL: Record<string, { en: string; id: string }> = {
-  mild: { en: 'Mild', id: 'Ringan' }, moderate: { en: 'Moderate', id: 'Sedang' },
-  severe: { en: 'Severe', id: 'Berat' }, very_severe: { en: 'Very severe', id: 'Sangat berat' },
-};
 
 /** The view the photo shows for a picked metric or zone; null when nothing is picked. */
 export function skinView(r: VisionAnalysisResult | undefined, focus: SkinFocus | null, angle: string, title: (f: SkinFocus) => string): SkinView | null {
@@ -65,7 +61,7 @@ type Group = 'skinConditions' | 'dimensions';
  * across the zones; a zone is picked and the photo singles it out.
  */
 export function SkinResult({ r, focus, onFocus }: { r: VisionAnalysisResult; focus?: SkinFocus | null; onFocus?(f: SkinFocus | null): void }) {
-  const { t, lang } = useLang();
+  const { t } = useLang();
   const g = (r.globalAggregation && typeof r.globalAggregation === 'object' ? r.globalAggregation : {}) as NonNullable<VisionAnalysisResult['globalAggregation']>;
   const zones = list<ZoneDiagnosticMetric>(r.zoneBreakdown).filter((z) => typeof z === 'object');
   const warnings = list<StructuredWarning>(r.warnings).filter((w) => typeof w === 'object');
@@ -89,7 +85,7 @@ export function SkinResult({ r, focus, onFocus }: { r: VisionAnalysisResult; foc
         </div>
       </div>
 
-      {r.acne?.hayashi && (
+      {r.acne && (
         <Section title={t('Acne', 'Jerawat')} aside={
           <div className={segTrack}>
             {(['outline', 'gradient'] as const).map((mode) => {
@@ -102,12 +98,11 @@ export function SkinResult({ r, focus, onFocus }: { r: VisionAnalysisResult; foc
             })}
           </div>
         }>
-          <p className="text-sm text-zinc-700">
-            <span className="font-semibold">{HAYASHI_LABEL[r.acne.hayashi.grade ?? '']?.[lang] ?? dash(r.acne.hayashi.grade)}</span>
-            {' · '}{num(r.acne.hayashi.halfFaceCount, 1)} {t('inflammatory lesions per half face', 'lesi meradang per setengah wajah')}
-            {' '}({r.acne.hayashi.inflammatoryCount ?? 0} {t('on the face', 'di wajah')})
-          </p>
-          <p className="text-[11px] text-zinc-500">{t('Hayashi grade', 'Grade Hayashi')}: {dash(r.acne.hayashi.source)}. {t('Detector not validated.', 'Detektor belum divalidasi.')}</p>
+          {/* hayashi null: core withheld the grade (hayashiWithheld says why); HayashiScale then shows the reason instead of a scale. */}
+          <HayashiScale grade={r.acne.hayashi?.grade} halfFaceCount={r.acne.hayashi?.halfFaceCount} inflammatoryCount={r.acne.hayashi?.inflammatoryCount}
+            source={r.acne.hayashi?.source} withheld={r.acne.hayashi ? undefined : (r.acne.hayashiWithheld || t('grade withheld', 'grade ditahan'))} />
+          {/* HayashiScale says "Detector not validated" under a grade, not under a withheld reason. */}
+          {!r.acne.hayashi && <p className="text-[11px] text-zinc-500">{t('Detector not validated.', 'Detektor belum divalidasi.')}</p>}
           {focus?.kind === 'acne' && focus.mode === 'gradient' && (
             <Pill className="self-start bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-200">
               {t('Colour uncalibrated, not validated: fill shows contrast with the surrounding skin', 'Warna belum terkalibrasi, belum divalidasi: isian menunjukkan kontras dengan kulit sekitar')}
