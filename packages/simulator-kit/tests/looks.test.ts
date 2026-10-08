@@ -11,12 +11,12 @@ describe('looks requests', () => {
 
   it('resolves and renders from the photo, with the colourway only when picked', () => {
     const r = resolveLook(brand, 'soft glam', photo, { colourway: 'warm', hijab: true, hairVisible: false });
-    expect(r.url).toBe('/svc/core/core/colour-engine/looks/soft%20glam/resolve');
+    expect(r.url).toBe('/svc/core/core/colour-engine/looks/soft%20glam/resolve?brand_id=MAKEOVER&application_id=skinverse');
     const fd = r.init.body as FormData;
     expect([fd.get('brand_id'), fd.get('application_id'), fd.get('colourway'), fd.get('hijab'), fd.get('hairVisible')]).toEqual(['MAKEOVER', 'skinverse', 'warm', 'true', 'false']);
     expect(fd.get('image')).toBeInstanceOf(File);
     const t = tryOnLook(brand, 'x', photo, { hijab: false, hairVisible: true });
-    expect(t.url).toMatch(/\/looks\/x\/tryon$/);
+    expect(t.url).toMatch(/\/looks\/x\/tryon\?brand_id=MAKEOVER&application_id=skinverse$/);
     expect((t.init.body as FormData).has('colourway')).toBe(false);
   });
 

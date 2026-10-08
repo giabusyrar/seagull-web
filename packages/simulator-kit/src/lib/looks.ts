@@ -59,12 +59,16 @@ function lookForm(brand: Brand, photo: File, opts: { colourway?: string; hijab: 
   return fd;
 }
 
+// The brand also travels in the query: the gateway's Core Engine collection
+// adds default brand_id/application_id to a query that lacks them, and core
+// reads the query before a multipart body, so a body-only brand would be
+// scored under the gateway's default brand.
 export function resolveLook(brand: Brand, code: string, photo: File, opts: { colourway?: string; hijab: boolean; hairVisible: boolean }): BuiltRequest {
-  return { url: svcPath('core', `${LOOKS}/${encodeURIComponent(code)}/resolve`), init: { method: 'POST', body: lookForm(brand, photo, opts) } };
+  return { url: svcPath('core', `${LOOKS}/${encodeURIComponent(code)}/resolve?${scope(brand)}`), init: { method: 'POST', body: lookForm(brand, photo, opts) } };
 }
 
 export function tryOnLook(brand: Brand, code: string, photo: File, opts: { colourway?: string; hijab: boolean; hairVisible: boolean }): BuiltRequest {
-  return { url: svcPath('core', `${LOOKS}/${encodeURIComponent(code)}/tryon`), init: { method: 'POST', body: lookForm(brand, photo, opts) } };
+  return { url: svcPath('core', `${LOOKS}/${encodeURIComponent(code)}/tryon?${scope(brand)}`), init: { method: 'POST', body: lookForm(brand, photo, opts) } };
 }
 
 /** The try-on's X-Not-Rendered header (role → reason), when the browser could read it. */

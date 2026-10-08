@@ -22,7 +22,9 @@ describe('form requests', () => {
   it('evaluates answers with the photo as multipart, consent as "true"/"false"', () => {
     const photo = new File([new Uint8Array([1])], 'front.jpg', { type: 'image/jpeg' });
     const { url, init } = evaluateSurveyWithPhoto('q1', brand, { Q1: 'yes' }, photo, { ...who, fullName: 'Sim' });
-    expect(url).toBe('/svc/core/core/form-engine/survey/q1/evaluate-with-photos');
+    expect(url.split('?')[0]).toBe('/svc/core/core/form-engine/survey/q1/evaluate-with-photos');
+    // The brand goes in the query too: the gateway adds a default brand to a query without one.
+    expect(new URL(url, 'http://x').searchParams.get('brand_id')).toBeTruthy();
     const fd = init.body as FormData;
     expect(fd.get('data')).toBe('{"Q1":"yes"}');
     expect(fd.get('consent_data_processing')).toBe('true');

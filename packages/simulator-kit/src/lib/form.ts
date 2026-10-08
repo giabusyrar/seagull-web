@@ -102,5 +102,7 @@ export function evaluateSurveyWithPhoto(code: string, brand: Brand, data: Record
   fd.append('consent_marketing', who.consentMarketing ? 'true' : 'false');
   fd.append('data', JSON.stringify(data));
   fd.append('photo', photo);
-  return { url: svcPath('core', `${FORM}/${encodeURIComponent(code)}/evaluate-with-photos`), init: { method: 'POST', body: fd } };
+  // The brand also goes in the query: the gateway adds a default brand to a query that lacks one,
+  // and core reads the query before the multipart body.
+  return { url: svcPath('core', `${FORM}/${encodeURIComponent(code)}/evaluate-with-photos?${scope(brand)}`), init: { method: 'POST', body: fd } };
 }
