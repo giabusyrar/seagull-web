@@ -38,7 +38,27 @@ export interface ZoneDiagnosticMetric {
 
 export interface StructuredWarning { code?: string; zoneCode?: string; message?: string }
 
+export type ContrastBand = 'imperceptible' | 'faint' | 'clear' | 'marked';
+export interface AcneLesion {
+  label?: string;
+  box?: { x?: number; y?: number; w?: number; h?: number };
+  score?: number;
+  inflammatory?: boolean;
+  deltaE00?: number | null;
+  deltaA?: number | null;
+  deltaL?: number | null;
+  contrastBand?: ContrastBand | null;
+}
+export interface AcneResult {
+  detector?: string;
+  sourceAngle?: string;
+  colourCalibrated?: boolean;
+  lesions?: AcneLesion[];
+  hayashi?: { inflammatoryCount?: number; halfFaceCount?: number; grade?: 'mild' | 'moderate' | 'severe' | 'very_severe'; source?: string };
+}
+
 export interface VisionAnalysisResult {
+  acne?: AcneResult;
   analysisId?: string;
   status?: string;
   globalAggregation?: {

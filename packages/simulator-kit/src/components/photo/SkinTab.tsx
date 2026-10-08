@@ -7,12 +7,19 @@ import { FRONT_ANGLE, zoneMetric, type SkinFocus } from '../../lib/annotations';
 import { card, segItem, segTrack } from '../ui';
 import type { SkinView } from './PhotoAnnotations';
 import { useLang } from '../../lib/i18n';
+import { LESION_COLOURS_SOURCE } from '../../lib/lesionColours';
 import { ScoreRing } from './ScoreRing';
 import { Pill, Section, TabShell, dash, entries, humanize, list, num, severityTone, type TabState } from './TabShell';
+
+const HAYASHI_LABEL: Record<string, { en: string; id: string }> = {
+  mild: { en: 'Mild', id: 'Ringan' }, moderate: { en: 'Moderate', id: 'Sedang' },
+  severe: { en: 'Severe', id: 'Berat' }, very_severe: { en: 'Very severe', id: 'Sangat berat' },
+};
 
 /** The view the photo shows for a picked metric or zone; null when nothing is picked. */
 export function skinView(r: VisionAnalysisResult | undefined, focus: SkinFocus | null, angle: string, title: (f: SkinFocus) => string): SkinView | null {
   if (!r || !focus) return null;
+  if (focus.kind === 'acne') return { title: title(focus), zones: {} };
   if (focus.kind === 'zone') return { title: title(focus), zones: {}, highlight: focus.code };
   const zones: SkinView['zones'] = {};
   for (const z of zoneMetric(r, angle, focus.group, focus.key)) {
@@ -58,7 +65,7 @@ type Group = 'skinConditions' | 'dimensions';
  * across the zones; a zone is picked and the photo singles it out.
  */
 export function SkinResult({ r, focus, onFocus }: { r: VisionAnalysisResult; focus?: SkinFocus | null; onFocus?(f: SkinFocus | null): void }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const g = (r.globalAggregation && typeof r.globalAggregation === 'object' ? r.globalAggregation : {}) as NonNullable<VisionAnalysisResult['globalAggregation']>;
   const zones = list<ZoneDiagnosticMetric>(r.zoneBreakdown).filter((z) => typeof z === 'object');
   const warnings = list<StructuredWarning>(r.warnings).filter((w) => typeof w === 'object');
@@ -81,6 +88,34 @@ export function SkinResult({ r, focus, onFocus }: { r: VisionAnalysisResult; foc
           {r.status && <span className="text-[11px] text-zinc-400">status: {dash(r.status)}</span>}
         </div>
       </div>
+
+      {r.acne?.hayashi && (
+        <Section title={t('Acne', 'Jerawat')} aside={
+          <div className={segTrack}>
+            {(['outline', 'gradient'] as const).map((mode) => {
+              const on = focus?.kind === 'acne' && focus.mode === mode;
+              return (
+                <button key={mode} type="button" className={segItem(on)} onClick={() => onFocus?.(on ? null : { kind: 'acne', mode })}>
+                  {mode === 'outline' ? t('Boxes', 'Kotak') : t('Severity', 'Keparahan')}
+                </button>
+              );
+            })}
+          </div>
+        }>
+          <p className="text-sm text-zinc-700">
+            <span className="font-semibold">{HAYASHI_LABEL[r.acne.hayashi.grade ?? '']?.[lang] ?? dash(r.acne.hayashi.grade)}</span>
+            {' · '}{num(r.acne.hayashi.halfFaceCount, 1)} {t('inflammatory lesions per half face', 'lesi meradang per setengah wajah')}
+            {' '}({r.acne.hayashi.inflammatoryCount ?? 0} {t('on the face', 'di wajah')})
+          </p>
+          <p className="text-[11px] text-zinc-500">{t('Hayashi grade', 'Grade Hayashi')}: {dash(r.acne.hayashi.source)}. {t('Detector not validated.', 'Detektor belum divalidasi.')}</p>
+          {focus?.kind === 'acne' && focus.mode === 'gradient' && (
+            <Pill className="self-start bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-200">
+              {t('Colour uncalibrated, not validated: fill shows contrast with the surrounding skin', 'Warna belum terkalibrasi, belum divalidasi: isian menunjukkan kontras dengan kulit sekitar')}
+            </Pill>
+          )}
+          <p className="text-[11px] text-zinc-400">{LESION_COLOURS_SOURCE}</p>
+        </Section>
+      )}
 
       <Section title={groupLabel(group)} aside={
         <div className={segTrack}>

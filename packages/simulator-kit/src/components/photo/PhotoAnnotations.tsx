@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import { zoomBox, type FaceMarks, type Point, type ViewBox, type ZoneBox } from '../../lib/annotations';
+import { zoomBox, type FaceMarks, type LesionMark, type Point, type ViewBox, type ZoneBox } from '../../lib/annotations';
+import { BAND_FILL_OPACITY, lesionColour } from '../../lib/lesionColours';
 import type { SeverityTone } from '@gateway-experience/shared';
 import { SEAGULL_HEX, TONE_HEX } from '../ui';
 
@@ -16,7 +17,7 @@ export interface SkinView { title: string; zones: Record<string, { label?: strin
 /** What to draw over the photo: the face measurements (optionally one trait's), or the skin zones (optionally one view). */
 export type Annotations =
   | { kind: 'face'; data: FaceMarks; focus?: FaceFocus | null }
-  | { kind: 'skin'; data: ZoneBox[]; view?: SkinView | null };
+  | { kind: 'skin'; data: ZoneBox[]; view?: SkinView | null; lesions?: { marks: LesionMark[]; mode: 'outline' | 'gradient' } | null };
 
 /** The photo's pixel size, which face landmarks are expressed in, and a URL to draw it again when zoomed. */
 function usePhoto(file: File) {
@@ -140,7 +141,8 @@ function Overlay({ img, annotations }: { img: { url: string; w: number; h: numbe
           )}
         </>
       ) : (
-        annotations.data.map((z) => {
+        <>
+          {annotations.data.map((z) => {
           const view = annotations.view;
           const entry = view?.zones[z.code];
           // No view: every zone in the accent. A metric view: each zone in its severity's colour,
@@ -157,7 +159,22 @@ function Overlay({ img, annotations }: { img: { url: string; w: number; h: numbe
               </text>
             </g>
           );
-        })
+          })}
+          {annotations.lesions && (
+            <g className="pointer-events-auto">
+              {annotations.lesions.marks.map((l, i) => {
+                const colour = lesionColour(l.label);
+                const fill = annotations.lesions!.mode === 'gradient' && l.band ? BAND_FILL_OPACITY[l.band] : 0;
+                return (
+                  <rect key={`lesion-${i}`} x={l.x * img.w} y={l.y * img.h} width={l.w * img.w} height={l.h * img.h}
+                    fill={colour} fillOpacity={fill} stroke={colour} strokeWidth={LINE_PX} vectorEffect="non-scaling-stroke">
+                    <title>{`${l.label} · ${Math.round(l.score * 100)}%${l.deltaE00 === null ? '' : ` · ΔE00 ${l.deltaE00.toFixed(1)}`}`}</title>
+                  </rect>
+                );
+              })}
+            </g>
+          )}
+        </>
       )}
     </svg>
   );

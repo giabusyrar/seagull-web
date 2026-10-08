@@ -11,7 +11,7 @@ import { FrontPicker, PhotoTips, Questions, SideShots, UvShot, type YesNo } from
 import { UvTab } from './UvTab';
 import { PhotoStage } from './PhotoStage';
 import type { Annotations } from './PhotoAnnotations';
-import { FRONT_ANGLE, faceMarks, skinZoneBoxes, type SkinFocus } from '../../lib/annotations';
+import { FRONT_ANGLE, acneMarks, faceMarks, skinZoneBoxes, type SkinFocus } from '../../lib/annotations';
 import type { FaceArchitectureResult } from '../../lib/types/face';
 import type { VisionAnalysisResult } from '../../lib/types/skin';
 import { ColourTab } from './ColourTab';
@@ -143,8 +143,9 @@ export function PhotoSimulator({ onPhase, onAnalyze, before = [], after = [] }: 
     if (active.id === 'skin') {
       const r = json(skin) as VisionAnalysisResult | undefined;
       const data = skinZoneBoxes(r, FRONT_ANGLE);
-      const view = skinView(r, skinFocus, FRONT_ANGLE, (f) => (f.kind === 'metric' ? humanize(f.key) : data.find((z) => z.code === f.code)?.name ?? f.code));
-      return data.length ? { kind: 'skin', data, view } : null;
+      const view = skinView(r, skinFocus, FRONT_ANGLE, (f) => (f.kind === 'metric' ? humanize(f.key) : f.kind === 'acne' ? t('Acne', 'Jerawat') : data.find((z) => z.code === f.code)?.name ?? f.code));
+      const lesions = skinFocus?.kind === 'acne' ? { marks: acneMarks(r), mode: skinFocus.mode } : null;
+      return data.length ? { kind: 'skin', data, view, lesions } : null;
     }
     return null;
   }, [active.id, face, skin, focusedTrait, skinFocus]);

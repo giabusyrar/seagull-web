@@ -8,7 +8,7 @@
 //   came from (`sourceAngle`); invisible zones carry an all-zero box.
 
 import type { FaceArchitectureResult } from './types/face';
-import { metricDisplay, type VisionAnalysisResult } from './types/skin';
+import { metricDisplay, type AcneLesion, type ContrastBand, type VisionAnalysisResult } from './types/skin';
 
 export type Point = [number, number];
 
@@ -94,7 +94,34 @@ export function skinZoneBoxes(r: VisionAnalysisResult | null | undefined, angle:
 }
 
 /** A skin view the viewer picked: one metric across the zones, or one zone. */
-export type SkinFocus = { kind: 'metric'; group: 'skinConditions' | 'dimensions'; key: string } | { kind: 'zone'; code: string };
+export type SkinFocus =
+  | { kind: 'metric'; group: 'skinConditions' | 'dimensions'; key: string }
+  | { kind: 'zone'; code: string }
+  | { kind: 'acne'; mode: 'outline' | 'gradient' };
+
+/** A lesion to draw: its box in 0-1 of the FRONT photo, as core sent it. */
+export interface LesionMark {
+  label: string; x: number; y: number; w: number; h: number; score: number;
+  inflammatory: boolean; deltaE00: number | null; band: ContrastBand | null;
+}
+
+/** The acne lesions core placed on the FRONT photo; a box outside the photo or not finite is left out. */
+export function acneMarks(r: { acne?: { sourceAngle?: string; lesions?: AcneLesion[] } } | null | undefined): LesionMark[] {
+  const a = r?.acne;
+  if (!a || a.sourceAngle !== FRONT_ANGLE || !Array.isArray(a.lesions)) return [];
+  return a.lesions.flatMap((l) => {
+    const b = l?.box;
+    if (!l?.label || !b || ![b.x, b.y, b.w, b.h].every(finite)) return [];
+    const { x, y, w, h } = b as { x: number; y: number; w: number; h: number };
+    if (w <= 0 || h <= 0 || x < 0 || y < 0 || x + w > 1 || y + h > 1) return [];
+    return [{
+      label: l.label, x, y, w, h, score: finite(l.score) ? l.score : 0,
+      inflammatory: l.inflammatory === true,
+      deltaE00: finite(l.deltaE00) ? l.deltaE00 : null,
+      band: l.contrastBand ?? null,
+    }];
+  });
+}
 
 /** One metric's reading in each zone seen on the `angle` photo, as the backend gave it per zone. */
 export function zoneMetric(r: VisionAnalysisResult | null | undefined, angle: string, group: 'skinConditions' | 'dimensions', key: string) {

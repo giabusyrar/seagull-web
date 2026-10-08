@@ -136,3 +136,31 @@ describe('skin by zone', () => {
     expect(skinView(r, null, FRONT_ANGLE, () => '')).toBeNull();
   });
 });
+
+import { acneMarks } from '@/lib/annotations';
+
+describe('acneMarks', () => {
+  it('keeps FRONT lesions with a box inside the photo', () => {
+    const r = {
+      acne: {
+        sourceAngle: 'FRONT',
+        lesions: [
+          { label: 'papule', box: { x: 0.1, y: 0.2, w: 0.01, h: 0.02 }, score: 0.8, inflammatory: true, deltaE00: 6, contrastBand: 'marked' as const },
+          { label: 'whitehead', box: { x: 0.5, y: 0.5, w: 0.01, h: 0.01 }, score: 0.6, inflammatory: false, deltaE00: null, contrastBand: null },
+          { label: 'papule', box: { x: Number.NaN, y: 0.2, w: 0.01, h: 0.02 }, score: 0.8 },
+          { label: 'papule', box: { x: 0.99, y: 0.2, w: 0.05, h: 0.02 }, score: 0.8 },
+          { label: 'papule', box: { x: 0.3, y: 0.2, w: 0, h: 0.02 }, score: 0.8 },
+        ],
+      },
+    };
+    expect(acneMarks(r)).toEqual([
+      { label: 'papule', x: 0.1, y: 0.2, w: 0.01, h: 0.02, score: 0.8, inflammatory: true, deltaE00: 6, band: 'marked' },
+      { label: 'whitehead', x: 0.5, y: 0.5, w: 0.01, h: 0.01, score: 0.6, inflammatory: false, deltaE00: null, band: null },
+    ]);
+  });
+
+  it('has nothing to draw without an acne block or off the FRONT photo', () => {
+    expect(acneMarks({})).toEqual([]);
+    expect(acneMarks({ acne: { sourceAngle: 'LEFT', lesions: [{ label: 'papule', box: { x: 0.1, y: 0.1, w: 0.01, h: 0.01 }, score: 1 }] } })).toEqual([]);
+  });
+});
