@@ -22,10 +22,19 @@ const range = (i: number) => {
  * severity, core's grade highlighted, and core's half-face count marked. The
  * grade is never worked out here; an unknown grade highlights nothing.
  */
-export function HayashiScale({ grade, halfFaceCount, inflammatoryCount, source }: {
+export function HayashiScale({ grade, halfFaceCount, inflammatoryCount, source, withheld }: {
   grade?: string; halfFaceCount?: number; inflammatoryCount?: number; source?: string;
+  /** core's reason for giving no grade (acne.hayashiWithheld), e.g. a zone from a side photo or a detector that did not run. */
+  withheld?: string | null;
 }) {
   const { lang, t } = useLang();
+  if (!grade && withheld) {
+    return (
+      <p className="rounded-xl border border-dashed border-zinc-200 px-3.5 py-3 text-xs leading-relaxed text-zinc-600">
+        {t('No Hayashi grade for this photo', 'Tidak ada grade Hayashi untuk foto ini')}: <span className="text-zinc-800">{withheld}</span>
+      </p>
+    );
+  }
   const known = grade && grade in BAND_STYLE ? (grade as HayashiGrade) : null;
   const marker = typeof halfFaceCount === 'number' && Number.isFinite(halfFaceCount) ? hayashiPosition(halfFaceCount) : null;
   return (
