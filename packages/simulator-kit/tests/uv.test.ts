@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { uvByCapability } from '@/lib/types/uv';
+import { uvByCapability, type UvResult } from '@/lib/types/uv';
 import { uvAnalyze } from '@/lib/photo';
 
-const R = {
+const R: UvResult = {
   measurements: {
     ZONE_FOREHEAD: { 'uv.Spots': { darknessArea: 0.0123 }, 'uv.Porphyrin': { count: 4, areaFraction: 0.002, meanRelativeIntensity: 1.3 } },
     ZONE_CHIN_JAWLINE: { 'uv.Porphyrin': { count: 0, areaFraction: 0 } },

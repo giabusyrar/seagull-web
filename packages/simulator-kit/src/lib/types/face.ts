@@ -26,6 +26,13 @@ export interface FaceArchitectureResult {
   measurementsMissing?: string[];
   classifications?: Record<string, Classification>;
   traits?: Record<string, Trait>;
+  /**
+   * Proportion guides in the same pixels as `landmarks` (core facearch/guides.go): the face oval and
+   * lines keyed midline, thirds.glabella/subnasale/menton, hairline.estimate, fifths.0..5. null
+   * without landmarks or a usable midline. `estimate`: placed by a profile factor, not found;
+   * `unverified`: built from landmarks core could not verify.
+   */
+  guides?: { faceOval?: [number, number][]; lines?: { key: string; from: [number, number]; to: [number, number]; landmarks?: number[]; estimate?: boolean; unverified?: boolean }[] } | null;
   /** The 478-point mesh, [x, y] in pixels of the uploaded photo; null when core could not return all of it. */
   landmarks?: [number, number][] | null;
 }

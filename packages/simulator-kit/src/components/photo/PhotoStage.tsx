@@ -7,6 +7,7 @@ import { btnGhost, btnSecondary, segItem, segTrack } from '../ui';
 import { ErrorBox, type TabState } from './TabShell';
 import { PhotoAnnotations, type Annotations } from './PhotoAnnotations';
 import { RenderedIn, TryOnOverlay } from './TryOnProgress';
+import { HeadReportPanel } from './HeadReportPanel';
 import { useLang } from '../../lib/i18n';
 
 const FRAME = 'relative overflow-hidden rounded-xl bg-zinc-100';
@@ -103,6 +104,7 @@ export function PhotoStage({ photo, tryOnUrl, tryOnTiming, head, glbUrl, onRetak
       ) : glbUrl ? (
         <div className="flex flex-col gap-1.5">
           <div className={FRAME}><GlbViewer src={glbUrl} /></div>
+          <HeadReportPanel glbUrl={glbUrl} />
           <a className={`${btnGhost} self-end`} href={glbUrl} download="head.glb">{t('Download .glb', 'Unduh .glb')}</a>
         </div>
       ) : head.loading ? (
