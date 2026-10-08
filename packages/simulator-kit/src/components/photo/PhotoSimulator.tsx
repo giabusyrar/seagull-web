@@ -9,6 +9,7 @@ import { call } from '../../lib/http';
 import { analyzeColour, faceArchitecture, faceHead, skinAnalyze, toggleShade, uvAnalyze, type Brand, type BuiltRequest, type Selection } from '../../lib/photo';
 import { FrontPicker, PhotoTips, Questions, SideShots, UvShot, type YesNo } from './PhotoInput';
 import { UvTab } from './UvTab';
+import { LooksTab } from './LooksTab';
 import { PhotoStage } from './PhotoStage';
 import type { Annotations } from './PhotoAnnotations';
 import { FRONT_ANGLE, acneMarks, faceMarks, skinZoneBoxes, type SkinFocus } from '../../lib/annotations';
@@ -130,6 +131,8 @@ export function PhotoSimulator({ onPhase, onAnalyze, before = [], after = [] }: 
     { id: 'skin', label: t('Skin', 'Kulit'), state: stateOf(skin), render: () => <SkinTab state={skin} focus={skinFocus} onFocus={setSkinFocus} /> },
     // Shown once a UV photo was analysed with the rest.
     ...(uvState !== IDLE ? [{ id: 'uv', label: 'UV', state: stateOf(uvState), render: () => <UvTab state={uvState} /> }] : []),
+    // The brand's makeup looks for this photo; it loads its own lists when opened.
+    ...(analyzed && front ? [{ id: 'looks', label: t('Looks', 'Look'), state: 'idle' as const, render: () => <LooksTab brand={analyzed} photo={front} hijab={hijab === 'yes'} hairVisible={hair === 'yes'} /> }] : []),
   ];
   const tabs = [...before, ...photoTabs, ...after];
   const active = tabs.find((x) => x.id === tab) ?? tabs[0];
