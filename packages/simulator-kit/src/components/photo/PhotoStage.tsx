@@ -55,10 +55,14 @@ export function PhotoStage({ photo, tryOnUrl, tryOnTiming, head, glbUrl, onRetak
   const { t } = useLang();
   const [picked, setView] = useState<'2d' | '3d'>('2d');
   const [marksOn, setMarksOn] = useState(true);
+  // Face results draw two layers that can be shown apart: the numbered measurements and core's guides.
+  const [layers, setLayers] = useState({ marks: true, guides: true });
   const focus = annotations?.kind === 'face' ? annotations.focus : annotations?.kind === 'skin' ? annotations.view : null;
   const back = annotations?.kind === 'skin' ? t('Show all zones', 'Tampilkan semua zona') : t('Show whole face', 'Tampilkan seluruh wajah');
   // A focused trait always shows its marks, whatever the toggle says.
-  const marks = annotations && (marksOn || focus) ? <PhotoAnnotations photo={photo} annotations={annotations} /> : null;
+  const shown = annotations?.kind === 'face' ? { ...annotations, layers } : annotations;
+  const hasGuides = annotations?.kind === 'face' && !!annotations.data.guides;
+  const marks = shown && (marksOn || focus) ? <PhotoAnnotations photo={photo} annotations={shown} /> : null;
   const focusChip = focus && view2d(canShow3d, picked) ? (
     <button type="button" onClick={onClearFocus}
       className="absolute left-2.5 top-2.5 z-10 inline-flex items-center gap-1.5 rounded-full bg-slate-900/85 px-2.5 py-1 text-[11px] font-semibold text-white shadow-md hover:bg-slate-900">
@@ -84,11 +88,18 @@ export function PhotoStage({ photo, tryOnUrl, tryOnTiming, head, glbUrl, onRetak
           ))}
         </div>
         <div className="flex items-center gap-2">
-          {annotations && view === '2d' && (
+          {annotations && view === '2d' && (hasGuides ? (
+            // Face with guides: each layer on or off by itself.
+            <div className={segTrack} role="group" aria-label={t('Marks on the photo', 'Tanda di foto')}>
+              {([['marks', t('Measurements', 'Pengukuran')], ['guides', t('Guides', 'Panduan')]] as const).map(([k, label]) => (
+                <button key={k} type="button" aria-pressed={layers[k]} className={segItem(layers[k])} onClick={() => setLayers((l) => ({ ...l, [k]: !l[k] }))}>{label}</button>
+              ))}
+            </div>
+          ) : (
             <button type="button" onClick={() => setMarksOn((v) => !v)} aria-pressed={marksOn} className={btnSecondary}>
               {marksOn ? t('Hide marks', 'Sembunyikan tanda') : t('Show marks', 'Tampilkan tanda')}
             </button>
-          )}
+          ))}
           <button type="button" onClick={onRetake} className={btnSecondary}>{t('Retake', 'Foto ulang')}</button>
         </div>
       </div>

@@ -16,7 +16,11 @@ export type Point = [number, number];
 export interface FaceMark { n: number; key: string; points: Point[] }
 
 /** points: every measurement's anchors on the photo, by key (any count), for zooming to it. */
-export interface FaceMarks { landmarks: Point[]; marks: FaceMark[]; points: Record<string, Point[]> }
+/** One proportion guide: a line between two points, flagged when placed by estimate or not verified. */
+export interface GuideLine { key: string; from: Point; to: Point; estimate: boolean; unverified: boolean }
+
+/** points: every measurement's anchors on the photo, by key (any count), for zooming to it; guides: core's proportion guides, when sent. */
+export interface FaceMarks { landmarks: Point[]; marks: FaceMark[]; points: Record<string, Point[]>; guides: { oval: Point[]; lines: GuideLine[] } | null }
 
 /** Part of the photo to show, in its pixels. */
 export interface ViewBox { x: number; y: number; w: number; h: number }
@@ -45,7 +49,18 @@ export function faceMarks(r: FaceArchitectureResult | null | undefined): FaceMar
     if (!m || m.value === null || m.value === undefined || !points[m.key] || (anchors.length !== 2 && anchors.length !== 3)) continue;
     marks.push({ n: marks.length + 1, key: m.key, points: points[m.key] });
   }
-  return { landmarks, marks, points };
+  return { landmarks, marks, points, guides: faceGuides(r) };
+}
+
+/** Core's guides (face oval, midline, thirds, fifths, estimated hairline) as drawable points; malformed ones are left out, not guessed. */
+export function faceGuides(r: FaceArchitectureResult | null | undefined): FaceMarks['guides'] {
+  const g = r?.guides;
+  if (!g || typeof g !== 'object') return null;
+  const oval = Array.isArray(g.faceOval) && g.faceOval.every(isPoint) ? g.faceOval.map((p) => [p[0], p[1]] as Point) : [];
+  const lines = (Array.isArray(g.lines) ? g.lines : [])
+    .filter((l) => l && typeof l.key === 'string' && isPoint(l.from) && isPoint(l.to))
+    .map((l) => ({ key: l.key, from: [l.from[0], l.from[1]] as Point, to: [l.to[0], l.to[1]] as Point, estimate: !!l.estimate, unverified: !!l.unverified }));
+  return oval.length || lines.length ? { oval, lines } : null;
 }
 
 // How a zoom frames a feature: a margin around its points, and never closer
@@ -104,6 +119,8 @@ export interface LesionMark {
   /** score: the detector's confidence 0-1; null when core sent none, so it is never shown as 0%. */
   label: string; x: number; y: number; w: number; h: number; score: number | null;
   inflammatory: boolean; deltaE00: number | null; band: ContrastBand | null;
+  /** Counted in the Hayashi inflammatory count (core); false for a non-inflammatory lesion or a second inflammatory label at the same spot. */
+  counted: boolean;
 }
 
 /** The acne lesions core placed on the FRONT photo; a box outside the photo or not finite is left out. */
@@ -120,6 +137,7 @@ export function acneMarks(r: { acne?: { sourceAngle?: string; lesions?: AcneLesi
       inflammatory: l.inflammatory === true,
       deltaE00: finite(l.deltaE00) ? l.deltaE00 : null,
       band: l.contrastBand ?? null,
+      counted: l.counted !== false,
     }];
   });
 }

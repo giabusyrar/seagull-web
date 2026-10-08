@@ -154,8 +154,8 @@ describe('acneMarks', () => {
       },
     };
     expect(acneMarks(r)).toEqual([
-      { label: 'papule', x: 0.1, y: 0.2, w: 0.01, h: 0.02, score: 0.8, inflammatory: true, deltaE00: 6, band: 'marked' },
-      { label: 'whitehead', x: 0.5, y: 0.5, w: 0.01, h: 0.01, score: 0.6, inflammatory: false, deltaE00: null, band: null },
+      { label: 'papule', x: 0.1, y: 0.2, w: 0.01, h: 0.02, score: 0.8, inflammatory: true, deltaE00: 6, band: 'marked', counted: true },
+      { label: 'whitehead', x: 0.5, y: 0.5, w: 0.01, h: 0.01, score: 0.6, inflammatory: false, deltaE00: null, band: null, counted: true },
     ]);
   });
 
@@ -170,3 +170,37 @@ describe('acneMarks', () => {
     expect(acneMarks({ acne: { sourceAngle: 'LEFT', lesions: [{ label: 'papule', box: { x: 0.1, y: 0.1, w: 0.01, h: 0.01 }, score: 1 }] } })).toEqual([]);
   });
 });
+
+import { faceGuides } from '@/lib/annotations';
+
+describe('faceGuides', () => {
+  it("draws core's oval and lines, flags estimates and unverified ones, drops malformed lines", () => {
+    const g = faceGuides({
+      guides: {
+        faceOval: [[0, 0], [10, 0], [10, 20]],
+        lines: [
+          { key: 'midline', from: [5, 0], to: [5, 20] },
+          { key: 'hairline.estimate', from: [0, 1], to: [10, 1], estimate: true },
+          { key: 'thirds.menton', from: [0, 19], to: [10, 19], unverified: true },
+          { key: 'broken', from: [Number.NaN, 0], to: [1, 1] } as never,
+        ],
+      },
+    });
+    expect(g?.oval).toHaveLength(3);
+    expect(g?.lines.map((l) => [l.key, l.estimate, l.unverified])).toEqual([['midline', false, false], ['hairline.estimate', true, false], ['thirds.menton', false, true]]);
+  });
+
+  it('is null when core sent none', () => {
+    expect(faceGuides({ guides: null })).toBeNull();
+    expect(faceGuides({})).toBeNull();
+    expect(faceGuides({ guides: { faceOval: [], lines: [] } })).toBeNull();
+  });
+});
+
+describe('acneMarks counted', () => {
+  it("keeps core's counted flag; absent means counted", () => {
+    const lesion = { label: 'papule', box: { x: 0.1, y: 0.1, w: 0.01, h: 0.01 }, score: 0.9, inflammatory: true, deltaE00: null, contrastBand: null };
+    expect(acneMarks({ acne: { sourceAngle: 'FRONT', lesions: [{ ...lesion, counted: false }, lesion] } }).map((m) => m.counted)).toEqual([false, true]);
+  });
+});
+

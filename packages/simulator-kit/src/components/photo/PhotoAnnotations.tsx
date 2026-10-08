@@ -16,7 +16,7 @@ export interface SkinView { title: string; zones: Record<string, { label?: strin
 
 /** What to draw over the photo: the face measurements (optionally one trait's), or the skin zones (optionally one view). */
 export type Annotations =
-  | { kind: 'face'; data: FaceMarks; focus?: FaceFocus | null }
+  | { kind: 'face'; data: FaceMarks; focus?: FaceFocus | null; layers?: { marks: boolean; guides: boolean } }
   | { kind: 'skin'; data: ZoneBox[]; view?: SkinView | null; lesions?: { marks: LesionMark[]; mode: 'outline' | 'gradient' } | null };
 
 /** The photo's pixel size, which face landmarks are expressed in, and a URL to draw it again when zoomed. */
@@ -111,6 +111,29 @@ function Overlay({ img, annotations }: { img: { url: string; w: number; h: numbe
           <g fill="white" opacity={0.45}>
             {annotations.data.landmarks.map(([x, y], i) => <circle key={i} cx={x} cy={y} r={MESH_R * u} />)}
           </g>
+          {!focus && annotations.layers?.guides !== false && annotations.data.guides && (
+            <g>
+              {annotations.data.guides.oval.length > 2 && (
+                <polygon points={annotations.data.guides.oval.map((p) => p.join(',')).join(' ')} fill="none" stroke="white" strokeOpacity={0.85} strokeWidth={1.5} strokeDasharray="6 4" vectorEffect="non-scaling-stroke" />
+              )}
+              {annotations.data.guides.lines.map((l) => {
+                const labelled = l.key.startsWith('thirds') || l.key.startsWith('hairline');
+                return (
+                  <g key={l.key}>
+                    <title>{`${l.key}${l.estimate ? ' (estimate)' : ''}${l.unverified ? ' (unverified)' : ''}`}</title>
+                    <line x1={l.from[0]} y1={l.from[1]} x2={l.to[0]} y2={l.to[1]}
+                      stroke={l.unverified ? TONE_HEX.warning : labelled ? BEAK : 'white'}
+                      strokeOpacity={0.9} strokeWidth={1.5} strokeDasharray={l.estimate ? '3 4' : undefined} vectorEffect="non-scaling-stroke" />
+                    {labelled && (
+                      <text x={l.to[0] + 0.6 * u} y={l.to[1]} fontSize={FONT * 0.65 * u} fill="white" stroke={SLATE} strokeWidth={0.3 * u} paintOrder="stroke" dominantBaseline="central">
+                        {l.key.replace(/^(thirds|hairline)\./, '')}{l.estimate ? ' ~' : ''}
+                      </text>
+                    )}
+                  </g>
+                );
+              })}
+            </g>
+          )}
           {focus ? (
             focus.items.map((item) => {
               const pts = annotations.data.points[item.key];
@@ -126,7 +149,7 @@ function Overlay({ img, annotations }: { img: { url: string; w: number; h: numbe
                 </g>
               );
             })
-          ) : (
+          ) : annotations.layers?.marks === false ? null : (
             <>
               {annotations.data.marks.map((m) => line(m.points, `l${m.n}`))}
               {annotations.data.marks.map((m) => dots(m.points, `p${m.n}`))}
@@ -164,11 +187,15 @@ function Overlay({ img, annotations }: { img: { url: string; w: number; h: numbe
             <g className="pointer-events-auto">
               {annotations.lesions.marks.map((l, i) => {
                 const colour = lesionColour(l.label);
+                // An inflammatory lesion core did not count is a second label at a spot already counted:
+                // dashed and dimmed, so it does not read as another lesion. Comedones are never counted, by design.
+                const duplicate = l.inflammatory && !l.counted;
                 const fill = annotations.lesions!.mode === 'gradient' && l.band ? BAND_FILL_OPACITY[l.band] : 0;
                 return (
                   <rect key={`lesion-${i}`} x={l.x * img.w} y={l.y * img.h} width={l.w * img.w} height={l.h * img.h}
-                    fill={colour} fillOpacity={fill} stroke={colour} strokeWidth={LINE_PX} vectorEffect="non-scaling-stroke">
-                    <title>{`${l.label}${l.score === null ? '' : ` · ${Math.round(l.score * 100)}%`}${l.deltaE00 === null ? '' : ` · ΔE00 ${l.deltaE00.toFixed(1)} (colour uncalibrated)`}`}</title>
+                    fill={colour} fillOpacity={duplicate ? 0 : fill} stroke={colour} strokeWidth={LINE_PX} vectorEffect="non-scaling-stroke"
+                    strokeDasharray={duplicate ? '3 3' : undefined} strokeOpacity={duplicate ? 0.5 : 1}>
+                    <title>{`${l.label}${duplicate ? ' · same spot as a counted lesion' : ''}${l.score === null ? '' : ` · ${Math.round(l.score * 100)}%`}${l.deltaE00 === null ? '' : ` · ΔE00 ${l.deltaE00.toFixed(1)} (colour uncalibrated)`}`}</title>
                   </rect>
                 );
               })}
