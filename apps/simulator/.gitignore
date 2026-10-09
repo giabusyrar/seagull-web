@@ -46,3 +46,7 @@ next-env.d.ts
 
 # Claude Code worktrees
 .claude/
+
+# Live photo check assets (docs/CAPTURE-CHECK.md), copied locally
+/public/models/
+/public/mediapipe-wasm/

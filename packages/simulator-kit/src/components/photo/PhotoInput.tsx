@@ -43,7 +43,8 @@ export function FrontPicker({ onChange }: { onChange: (f: File | null) => void }
           <p className="mt-0.5 text-xs text-zinc-500">{t('Take one with the camera or upload a JPEG/PNG.', 'Ambil dengan kamera atau unggah JPEG/PNG.')}</p>
         </div>
         <div className="mt-1 flex flex-wrap items-start justify-center gap-2">
-          <CameraCapture onShot={onChange} primary />
+          {/* The front photo is checked live against the colour engine's quality rules (capture/). */}
+          <CameraCapture onShot={onChange} primary check />
           <UploadButton onChange={onChange} />
         </div>
       </div>

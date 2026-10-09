@@ -1,8 +1,11 @@
-# Camera check for the colour analysis
+# Camera check for the front photo
 
-While the camera is open on `/colour-analysis` (and the Core Engines →
-Try-On Engine tab), each frame is checked before the photo is taken. Code:
-`apps/web/features/colour/capture/`.
+While the camera is open for the **front photo** in the simulator and in the
+dashboard's Simulator Studio (Core Engines → Simulator Studio, and
+`/colour-analysis`), each frame is checked before the photo is taken. Code:
+`packages/simulator-kit/src/capture/` (used by `CameraCapture` with `check`;
+the side photos and the UV photo are not checked: they are turned on purpose,
+or lit by UV). Tests: `packages/simulator-kit/tests/capture-qc.test.ts`.
 
 | Chip | Engine quality codes it covers |
 |---|---|
@@ -11,11 +14,13 @@ Try-On Engine tab), each frame is checked before the photo is taken. Code:
 | Hadap lurus | `menoleh`, `mendongak_menunduk`, `miring` |
 | Ekspresi netral | `ekspresi` |
 
-- Ekspresi netral has two separate thresholds under the one `ekspresi` code:
-  `EXPR_MAX` for the other mouth/jaw/cheek/nose blendshapes, and a looser
-  `PUCKER_MAX` for `mouthPucker`/`mouthFunnel`. MediaPipe reads relaxed full
-  lips as 0.4-0.64 on those two, which crossed the shared 0.5 threshold and
-  failed a neutral face; a real pucker reads well above that.
+- Ekspresi netral is the engine's single `ekspresi` rule: every
+  mouth/jaw/cheek/nose blendshape except `mouthClose` against `EXPR_MAX`, as
+  the engine's `BS_EXPR` does today. (An earlier web check had a looser
+  `PUCKER_MAX` for `mouthPucker`/`mouthFunnel`, because MediaPipe reads relaxed
+  full lips as 0.4-0.64 on those; the engine has no such rule now, so neither
+  does the check. If that fails neutral faces, the fix belongs in the engine
+  first.)
 - The message under the video gives the advice for the first failing code,
   with the same text as the advice after analysis (`QC_ADVICE`).
 - **Ambil foto** is enabled once every chip has passed for
@@ -33,14 +38,15 @@ Try-On Engine tab), each frame is checked before the photo is taken. Code:
 ## Same check as the engine
 
 The measurements and thresholds are the WCPA engine's quality check, in
-seagull-core `apps/ai-worker/ai_worker/colour/wcpa/cells/`:
+seagull-core `apps/workers/colour/worker_colour/wcpa/cells/`:
 
 - `qc_measure` in `pca_base_c.py` measures;
 - `QC_RULES` in `pipeline_03.py` sets the thresholds.
 
 The browser runs the same MediaPipe Face Landmarker model. The thresholds
 are copied into `capture/config.ts` with the notebook's tags (`[KARANGAN]`
-and so on). To change one, change the notebook first, then `config.ts`.
+and so on), and `tests/capture-qc.test.ts` pins them. To change one, change
+the engine first, then `config.ts` and the test.
 
 Not checked live:
 
@@ -57,8 +63,10 @@ the engine's `qc_rules`.
 
 ## Setup
 
-The check needs two variables. They are read at build time. Without them the
-camera works as before, unchecked.
+Each host passes the two URLs to the kit (`configureSimulator({ faceLandmarker })`)
+from these variables, read at build time: `apps/web/features/colour/SimulatorStudio.tsx`
+and `apps/simulator/app/SimulatorRoot.tsx`. Without them the camera works
+unchecked and says so.
 
 | Variable | What it points to |
 |---|---|
@@ -67,15 +75,16 @@ camera works as before, unchecked.
 
 ### Local files, works offline
 
-From the repository root, in Git Bash (or any POSIX shell):
+From the repository root, in Git Bash (or any POSIX shell), for each app
+(`web`, `simulator`):
 
 ```bash
 mkdir -p apps/web/public/models apps/web/public/mediapipe-wasm
-cp ../seagull-core/apps/ai-worker/data/colour/face_landmarker.task apps/web/public/models/
+cp ../seagull-core/apps/workers/colour/data/models/face_landmarker/face_landmarker.task apps/web/public/models/
 cp node_modules/@mediapipe/tasks-vision/wasm/* apps/web/public/mediapipe-wasm/
 ```
 
-In `apps/web/.env`:
+In `apps/web/.env.local` (and `apps/simulator/.env.local`):
 
 ```
 NEXT_PUBLIC_MEDIAPIPE_WASM_URL=/mediapipe-wasm

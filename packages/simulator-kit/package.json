@@ -18,6 +18,7 @@
     "@countrystatecity/countries": "^1.0.9",
     "@gateway-experience/shared": "*",
     "@google/model-viewer": "^4.3.1",
+    "@mediapipe/tasks-vision": "1.0.1",
     "survey-core": "^3.1.2",
     "survey-react-ui": "^3.1.2"
   },

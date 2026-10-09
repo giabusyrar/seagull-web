@@ -22,6 +22,12 @@ export interface SimulatorConfig {
   conversationWs: string;
   /** The host's route serving location/server.ts (country → province → city lists). */
   locationsPath: string;
+  /**
+   * Where the browser loads MediaPipe for the live photo check (capture/):
+   * the @mediapipe/tasks-vision wasm folder and face_landmarker.task. Empty:
+   * the camera works unchecked and says so.
+   */
+  faceLandmarker: { wasmUrl: string; modelUrl: string };
 }
 
 /** The simulator app's own wiring: /svc/<id> rewrites, /health on each service. */
@@ -30,6 +36,7 @@ const DEFAULTS: SimulatorConfig = {
   healthPaths: { core: '/health', ref: '/health', conv: '/health' },
   conversationWs: '',
   locationsPath: '/api/locations',
+  faceLandmarker: { wasmUrl: '', modelUrl: '' },
 };
 
 let config: SimulatorConfig = DEFAULTS;
@@ -41,6 +48,7 @@ export function configureSimulator(c: Partial<SimulatorConfig>): void {
     healthPaths: { ...DEFAULTS.healthPaths, ...c.healthPaths },
     conversationWs: c.conversationWs ?? DEFAULTS.conversationWs,
     locationsPath: c.locationsPath ?? DEFAULTS.locationsPath,
+    faceLandmarker: c.faceLandmarker ?? DEFAULTS.faceLandmarker,
   };
 }
 

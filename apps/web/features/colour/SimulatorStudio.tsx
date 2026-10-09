@@ -20,6 +20,11 @@ configureSimulator({
   bases: { core: '', ref: '', conv: '' },
   healthPaths: { core: null, ref: null, conv: null },
   conversationWs: wsBase,
+  // The live photo check's MediaPipe files (docs/CAPTURE-CHECK.md); unset: the camera works unchecked.
+  faceLandmarker: {
+    wasmUrl: process.env.NEXT_PUBLIC_MEDIAPIPE_WASM_URL ?? '',
+    modelUrl: process.env.NEXT_PUBLIC_FACE_LANDMARKER_MODEL_URL ?? '',
+  },
 });
 
 /** The simulator itself, exactly as the simulator app shows it. */
