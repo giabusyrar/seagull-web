@@ -37,7 +37,7 @@ function RoleRow({ role, r }: { role: string; r: ResolvedRole }) {
               <span className="text-zinc-900">{r.product ? `${r.product}${r.shade ? ` — ${r.shade}` : ''}` : r.colourSource === 'skin_derived' ? t('From the skin tone (no product)', 'Dari warna kulit (tanpa produk)') : '—'}</span>
               {r.why && (
                 <span className="text-[11px] text-zinc-500">
-                  {r.why.rule === 'skin_match' ? t('Matched to the skin', 'Dicocokkan ke kulit') : r.why.rule === 'harmony' ? t('In harmony with the skin', 'Selaras dengan kulit') : dash(r.why.rule)}
+                  {r.why.rule === 'fixed' ? t("The look's own shade", 'Shade dari look') : r.why.rule === 'skin_match' ? t('Matched to the skin', 'Dicocokkan ke kulit') : r.why.rule === 'harmony' ? t('In harmony with the skin', 'Selaras dengan kulit') : dash(r.why.rule)}
                   {r.why.rating ? ` · ${humanize(r.why.rating)}` : ''}{r.why.temperature ? ` · ${r.why.temperature}` : ''}
                   {typeof r.why.skinDeltaE00 === 'number' ? ` · ΔE00 ${num(r.why.skinDeltaE00, 1)}${band ? ` (${band})` : ''}` : ''}
                 </span>
@@ -163,7 +163,7 @@ export function LooksTab({ brand, photo, hijab, hairVisible }: { brand: Brand; p
 
       {r && (
         <Section title={t('Shades for this customer', 'Shade untuk pelanggan ini')}>
-          <p className="text-[11px] text-zinc-500">{t("Each shade is picked for this customer's skin from the look's product; a shade named in the look's description is what the brand published, not necessarily the one shown here.", 'Setiap shade dipilih untuk kulit pelanggan ini dari produk look; shade yang disebut di deskripsi look adalah yang dipublikasikan brand, belum tentu yang tampil di sini.')}</p>
+          <p className="text-[11px] text-zinc-500">{t("A slot marked \"The look's own shade\" always shows the shade the look names. The others are picked for this customer's skin from the look's product, so a shade named in the description may differ from the one shown.", 'Slot bertanda "Shade dari look" selalu memakai shade yang ditentukan look. Slot lain dipilih untuk kulit pelanggan ini dari produk look, jadi shade di deskripsi bisa berbeda dengan yang tampil.')}</p>
           {r.faceShape && (
             <p className="text-[11px] text-zinc-500">{t('Face shape', 'Bentuk wajah')}: {dash(r.faceShape.class)} ({dash(r.faceShape.status)}{r.faceShape.calibration ? `, ${r.faceShape.calibration}` : ''})</p>
           )}
